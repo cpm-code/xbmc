@@ -148,9 +148,17 @@ protected:
      * than waiting until we attempt to put more data into an already full buffer */
     if (m_BufferRemain > size)
     {
+      switch (size)
+      {
+      case 1: *m_BufferPos++ = *ptr; m_BufferRemain--; break;
+      case 2: *(uint16_t *) m_BufferPos = *(const uint16_t *) ptr; m_BufferPos += 2; m_BufferRemain -= 2; break;
+      case 4: *(uint32_t *) m_BufferPos = *(const uint32_t *) ptr; m_BufferPos += 4; m_BufferRemain -= 4; break;
+      default:
       memcpy(m_BufferPos, ptr, size);
       m_BufferPos += size;
       m_BufferRemain -= size;
+      break;
+    }
       return *this;
     }
 
@@ -163,9 +171,17 @@ protected:
     /* Note, refilling the buffer is deferred until we know we need to read more from it */
     if (m_BufferRemain >= size)
     {
+      switch (size)
+      {
+      case 1: *ptr = *m_BufferPos++; m_BufferRemain--; break;
+      case 2: *(uint16_t *) ptr = *(const uint16_t *) m_BufferPos; m_BufferPos += 2; m_BufferRemain -= 2; break;
+      case 4: *(uint32_t *) ptr = *(const uint32_t *) m_BufferPos; m_BufferPos += 4; m_BufferRemain -= 4; break;
+      default:
       memcpy(ptr, m_BufferPos, size);
       m_BufferPos += size;
       m_BufferRemain -= size;
+      break;
+      }
       return *this;
     }
 
