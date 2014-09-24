@@ -8,6 +8,9 @@
 
 #include "cores/AudioEngine/Utils/AEUtil.h"
 #include "ActiveAEResampleFFMPEG.h"
+#include "ServiceBroker.h"
+#include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
 #include "utils/log.h"
 
 extern "C" {
@@ -184,7 +187,14 @@ bool CActiveAEResampleFFMPEG::Init(SampleConfig dstConfig,
     av_opt_set_double(m_pContext, "rematrix_maxval", 1.0, 0);
   }
 
-  av_opt_set_double(m_pContext, "center_mix_level", centerMix, 0);
+  int boost_center = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt("audiooutput.boostcenter");
+  if (boost_center)
+  {
+    float gain = pow(10.0f, ((float)(-3 + boost_center))/20.0f);
+    av_opt_set_double(m_pContext, "center_mix_level", gain, 0);
+  }
+  else
+    av_opt_set_double(m_pContext, "center_mix_level", centerMix, 0);
 
   if(swr_init(m_pContext) < 0)
   {
