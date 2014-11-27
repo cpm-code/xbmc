@@ -56,8 +56,12 @@ bool CLanguageInvokerThread::execute(const std::string &script, const std::vecto
     m_condition.notify_one();
   }
   else
+  {
     Create();
 
+    /* low prio */
+    SetPriority(GetPriority()-1);
+  }
   //Todo wait until running
 
   return true;
