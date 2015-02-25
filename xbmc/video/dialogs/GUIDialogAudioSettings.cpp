@@ -50,7 +50,9 @@
 
 CGUIDialogAudioSettings::CGUIDialogAudioSettings()
   : CGUIDialogSettingsManualBase(WINDOW_DIALOG_AUDIO_OSD_SETTINGS, "DialogSettings.xml")
-{ }
+{
+  m_loadType = LOAD_ON_GUI_INIT;
+}
 
 CGUIDialogAudioSettings::~CGUIDialogAudioSettings() = default;
 
