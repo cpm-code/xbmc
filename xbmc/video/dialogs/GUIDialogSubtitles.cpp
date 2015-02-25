@@ -113,7 +113,7 @@ CGUIDialogSubtitles::CGUIDialogSubtitles(void)
     , m_subtitles(new CFileItemList)
     , m_serviceItems(new CFileItemList)
 {
-  m_loadType = KEEP_IN_MEMORY;
+  m_loadType  = LOAD_ON_GUI_INIT;
 }
 
 CGUIDialogSubtitles::~CGUIDialogSubtitles(void)

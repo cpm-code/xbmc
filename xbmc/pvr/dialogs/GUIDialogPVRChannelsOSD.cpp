@@ -47,6 +47,7 @@ CGUIDialogPVRChannelsOSD::CGUIDialogPVRChannelsOSD()
   : CGUIDialogPVRItemsViewBase(WINDOW_DIALOG_PVR_OSD_CHANNELS, "DialogPVRChannelsOSD.xml")
 {
   CServiceBroker::GetPVRManager().Get<PVR::GUI::Channels>().RegisterChannelNumberInputHandler(this);
+  m_loadType = LOAD_ON_GUI_INIT;
 }
 
 CGUIDialogPVRChannelsOSD::~CGUIDialogPVRChannelsOSD()

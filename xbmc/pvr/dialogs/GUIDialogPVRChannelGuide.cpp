@@ -24,6 +24,7 @@ using namespace PVR;
 CGUIDialogPVRChannelGuide::CGUIDialogPVRChannelGuide()
   : CGUIDialogPVRItemsViewBase(WINDOW_DIALOG_PVR_CHANNEL_GUIDE, "DialogPVRChannelGuide.xml")
 {
+  m_loadType = LOAD_ON_GUI_INIT;
 }
 
 void CGUIDialogPVRChannelGuide::Open(const std::shared_ptr<const CPVRChannel>& channel)
