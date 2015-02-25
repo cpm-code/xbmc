@@ -27,7 +27,7 @@ using namespace PVR;
 CGUIDialogVideoOSD::CGUIDialogVideoOSD(void)
     : CGUIDialog(WINDOW_DIALOG_VIDEO_OSD, "VideoOSD.xml")
 {
-  m_loadType = KEEP_IN_MEMORY;
+  m_loadType = LOAD_ON_GUI_INIT;
 }
 
 CGUIDialogVideoOSD::~CGUIDialogVideoOSD(void) = default;
