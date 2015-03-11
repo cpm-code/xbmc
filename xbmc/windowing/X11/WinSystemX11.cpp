@@ -762,8 +762,6 @@ bool CWinSystemX11::SetWindow(int width, int height, bool fullscreen, const std:
 
     if (fullscreen && hasWM)
     {
-      Atom fs = XInternAtom(m_dpy, "_NET_WM_STATE_FULLSCREEN", True);
-      XChangeProperty(m_dpy, m_mainWindow, XInternAtom(m_dpy, "_NET_WM_STATE", True), XA_ATOM, 32, PropModeReplace, (unsigned char *) &fs, 1);
       // disable desktop compositing for KDE, when Kodi is in full-screen mode
       long one = 1;
       Atom composite = XInternAtom(m_dpy, "_KDE_NET_WM_BLOCK_COMPOSITING", True);
