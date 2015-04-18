@@ -150,7 +150,6 @@ void CGUIWindowSystemInfo::FrameMove()
     SetControlLabel(i++, "{}: {}", 13160, NETWORK_GATEWAY_ADDRESS);
     SetControlLabel(i++, "{}: {}", 13161, NETWORK_DNS1_ADDRESS);
     SetControlLabel(i++, "{}: {}", 20307, NETWORK_DNS2_ADDRESS);
-    SetControlLabel(i++, "{} {}", 13295, SYSTEM_INTERNET_STATE);
   }
 
   else if (m_section == CONTROL_BT_VIDEO)
