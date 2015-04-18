@@ -32,6 +32,7 @@ public:
 
   bool DestroyWindow() override;
   void UpdateResolutions() override;
+  bool CanDoWindowed() override { return false; }
 
   bool Hide() override;
   bool Show(bool show = true) override;
