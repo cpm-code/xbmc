@@ -1942,7 +1942,7 @@ constexpr std::array<InfoMap, 10> weather = {{
 ///     <p>
 ///   }
 // clang-format off
-constexpr std::array<InfoMap, 76> system_labels = {{
+constexpr std::array<InfoMap, 75> system_labels = {{
     {"hasnetwork",              SYSTEM_ETHERNET_LINK_ACTIVE},
     {"hasmediadvd",             SYSTEM_MEDIA_DVD},
     {"hasmediaaudiocd",         SYSTEM_MEDIA_AUDIO_CD},
@@ -1990,7 +1990,6 @@ constexpr std::array<InfoMap, 76> system_labels = {{
     {"currentcontrol",          SYSTEM_CURRENT_CONTROL},
     {"currentcontrolid",        SYSTEM_CURRENT_CONTROL_ID},
     {"dvdlabel",                SYSTEM_DVD_LABEL},
-    {"internetstate",           SYSTEM_INTERNET_STATE},
     {"osversioninfo",           SYSTEM_OS_VERSION_INFO},
     {"kernelversion",           SYSTEM_OS_VERSION_INFO}, // old, not correct name
     {"uptime",                  SYSTEM_UPTIME},
