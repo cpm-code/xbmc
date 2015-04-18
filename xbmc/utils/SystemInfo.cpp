@@ -282,7 +282,6 @@ bool CSysInfoJob::DoWork()
 {
   m_info.systemUptime      = GetSystemUpTime(false);
   m_info.systemTotalUptime = GetSystemUpTime(true);
-  m_info.internetState     = GetInternetState();
   m_info.videoEncoder      = GetVideoEncoder();
   m_info.cpuFrequency =
       StringUtils::Format("{:4.0f} MHz", CServiceBroker::GetCPUInfo()->GetCPUFrequency());
@@ -1130,9 +1129,7 @@ int CSysInfo::GetXbmcBitness(void)
 
 bool CSysInfo::HasInternet()
 {
-  if (m_info.internetState != CSysData::UNKNOWN)
-    return m_info.internetState == CSysData::CONNECTED;
-  return (m_info.internetState = CSysInfoJob::GetInternetState()) == CSysData::CONNECTED;
+  return m_info.internetState == CSysData::UNKNOWN;
 }
 
 std::string CSysInfo::GetHddSpaceInfo(int drive, bool shortText)
