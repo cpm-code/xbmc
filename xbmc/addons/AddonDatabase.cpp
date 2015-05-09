@@ -449,6 +449,11 @@ void CAddonDatabase::SyncInstalled(const std::set<std::string, std::less<>>& ids
                              id.c_str()));
     }
 
+    // Ugly hack to always enable inputstream.* and resource.language.*
+    m_pDS->exec("UPDATE installed SET enabled=1 WHERE addonID == 'inputstream.adaptive'");
+    m_pDS->exec("UPDATE installed SET enabled=1 WHERE addonID == 'inputstream.rtmp'");
+    m_pDS->exec("UPDATE installed SET enabled=1 WHERE addonID LIKE 'resource.language.%%'");
+
     CommitTransaction();
   }
   catch (...)
