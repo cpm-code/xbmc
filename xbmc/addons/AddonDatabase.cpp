@@ -264,6 +264,11 @@ void CAddonDatabase::UpdateTables(int version)
     m_pDS->exec("DELETE FROM dependencies");
     m_pDS->exec("DELETE FROM addonlinkrepo");
     m_pDS->exec("DELETE FROM repo");
+
+    // Ugly hack to disable multiple PVR clients
+    m_pDS->query(PrepareSQL("SELECT COUNT(1) FROM installed WHERE addonID LIKE 'pvr.%%' AND enabled=1"));
+    if (m_pDS->num_rows() != 0 && m_pDS->fv(0).get_asInt() > 1)
+      m_pDS->exec("UPDATE installed SET enabled=0 WHERE addonID LIKE 'pvr.%%'");
   }
   if (version < 25)
   {
@@ -448,6 +453,17 @@ void CAddonDatabase::SyncInstalled(const std::set<std::string, std::less<>>& ids
       m_pDS->exec(PrepareSQL("UPDATE installed SET origin='%s' WHERE addonID='%s'", ORIGIN_SYSTEM,
                              id.c_str()));
     }
+
+    // Ugly hack to always enable inputstream.*, os.* and resource.language.*
+    m_pDS->exec("UPDATE installed SET enabled=1 WHERE addonID == 'inputstream.adaptive'");
+    m_pDS->exec("UPDATE installed SET enabled=1 WHERE addonID == 'inputstream.rtmp'");
+    m_pDS->exec("UPDATE installed SET enabled=1 WHERE addonID LIKE 'os.%%'");
+    m_pDS->exec("UPDATE installed SET enabled=1 WHERE addonID LIKE 'resource.language.%%'");
+
+    // Ugly hack to disable multiple PVR clients - remove this eventually? Allow up to 4 clients - any more assume all need disabling
+    m_pDS->query(PrepareSQL("SELECT COUNT(1) FROM installed WHERE addonID LIKE 'pvr.%%' AND enabled=1"));
+    if (m_pDS->num_rows() != 0 && m_pDS->fv(0).get_asInt() > 4)
+      m_pDS->exec("UPDATE installed SET enabled=0 WHERE addonID LIKE 'pvr.%%'");
 
     CommitTransaction();
   }
