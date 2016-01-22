@@ -77,6 +77,8 @@ void CWinSystemBase::UpdateDesktopResolution(RESOLUTION_INFO& newRes,
     newRes.strMode += "i";
   if (dwFlags & D3DPRESENTFLAG_MODE3DTB)
     newRes.strMode += "tab";
+  if (dwFlags & D3DPRESENTFLAG_MODE3DFP)
+    newRes.strMode += "frp";
   if (dwFlags & D3DPRESENTFLAG_MODE3DSBS)
     newRes.strMode += "sbs";
   newRes.strOutput = output;
