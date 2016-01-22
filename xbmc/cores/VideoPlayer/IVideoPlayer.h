@@ -95,7 +95,8 @@ public:
   virtual std::string GetPlayerInfo() = 0;
   virtual int GetVideoBitrate() = 0;
   virtual void SetSpeed(int iSpeed) = 0;
-  virtual bool IsEOS() { return false; }
+  virtual bool IsEOS() { return false; };
+  virtual bool SupportsExtention() const = 0;
 };
 
 class CDVDAudioCodec;
