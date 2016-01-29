@@ -510,7 +510,7 @@ static void SinkInfoRequestCallback(pa_context *c, const pa_sink_info *i, int eo
     CAEDeviceInfo defaultDevice;
     defaultDevice.m_deviceName = std::string("Default");
     defaultDevice.m_displayName = std::string("Default");
-    defaultDevice.m_displayNameExtra = std::string("Default Output Device (PULSEAUDIO)");
+    defaultDevice.m_displayNameExtra = std::string("Bluetooth Audio (PULSEAUDIO)");
     defaultDevice.m_dataFormats.insert(defaultDevice.m_dataFormats.end(),
                                        defaultDataFormats.begin(), defaultDataFormats.end());
     defaultDevice.m_channels = CAEChannelInfo(AE_CH_LAYOUT_2_0);
@@ -518,6 +518,8 @@ static void SinkInfoRequestCallback(pa_context *c, const pa_sink_info *i, int eo
     defaultDevice.m_deviceType = AE_DEVTYPE_PCM;
     defaultDevice.m_wantsIECPassthrough = true;
     sinkStruct->list->push_back(defaultDevice);
+    // OE only wants the default device - so we are done here
+    return;
   }
   if (i && i->name)
   {
