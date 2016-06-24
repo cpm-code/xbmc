@@ -955,11 +955,17 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
 std::string CVideoPlayerVideo::GetPlayerInfo()
 {
   std::ostringstream s;
+  int width, height;
+  m_processInfo.GetVideoDimensions(width, height);
   s << "vq:" << std::setw(2) << std::min(99, m_processInfo.GetLevelVQ());
   s << "% " << std::fixed << std::setprecision(3) << m_messageQueue.GetTimeSize();
   s << "s, Mb/s:" << std::fixed << std::setprecision(2)
     << static_cast<double>(GetVideoBitrate()) / (1024.0 * 1024.0);
-  s << ", fr:" << std::fixed << std::setprecision(3) << m_fFrameRate;
+  s << ", dc:"   << m_processInfo.GetVideoDecoderName().c_str();
+  s << ", " << width << "x" << height << (m_processInfo.GetVideoInterlaced() ? "i" : "p")
+    << " [" << std::setprecision(2) << m_processInfo.GetVideoDAR()
+    << "]@" << std::fixed << std::setprecision(3) << m_processInfo.GetVideoFps()
+    << ", deint:" << m_processInfo.GetVideoDeintMethod();
   s << ", drop:" << m_iDroppedFrames;
   s << ", skip:" << m_renderManager.GetSkippedFrames();
 

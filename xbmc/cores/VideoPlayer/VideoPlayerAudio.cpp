@@ -204,6 +204,10 @@ void CVideoPlayerAudio::UpdatePlayerInfo()
   s << "aq:" << std::setw(2) << std::min(99, m_messageQueue.GetLevel());
   s << "% " << std::fixed << std::setprecision(3) << m_messageQueue.GetTimeSize();
   s << "s, Kb/s:" << std::fixed << std::setprecision(2) << m_audioStats.GetBitrate() / 1024.0;
+  s << ", ac:"   << m_processInfo.GetAudioDecoderName().c_str();
+  if (!m_info.passthrough)
+    s << ", chan:" << m_processInfo.GetAudioChannels().c_str();
+  s << ", " << m_streaminfo.samplerate/1000 << " kHz";
 
   // print a/v discontinuity adjustments counter when audio is not resampled (passthrough mode)
   if (m_synctype == SYNC_DISCON)
