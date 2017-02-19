@@ -253,7 +253,7 @@
 					<width>885</width>
 					<height>50</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[Player.Process(videowidth),[COLOR button_focus]$LOCALIZE[38031]:[/COLOR] ,x]$INFO[Player.Process(videoheight)]$INFO[Player.Process(videoscantype)]$INFO[Player.Process(videodar),$COMMA , AR]$INFO[Player.Process(videofps),$COMMA , FPS]</label>
+					<label>$INFO[Player.Process(videowidth),[COLOR button_focus]$LOCALIZE[38031]:[/COLOR] ,x]$INFO[Player.Process(videoheight)]$INFO[Player.Process(videoscantype)]$INFO[Player.Process(videodar),$COMMA , AR]$INFO[Player.Process(videofps),$COMMA , FPS]$INFO[VideoPlayer.VideoBitrate,$COMMA , kb/s]</label>
 					<font>font14</font>
 					<shadowcolor>black</shadowcolor>
 					<visible>!String.IsEmpty(Player.Process(videowidth))</visible>
@@ -293,7 +293,7 @@
 					<width>885</width>
 					<height>50</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[Player.Process(audiobitspersample),[COLOR button_focus]$LOCALIZE[460]:[/COLOR] , bits]$INFO[Player.Process(audiosamplerate),$COMMA , Hz]</label>
+					<label>$INFO[Player.Process(audiobitspersample),[COLOR button_focus]$LOCALIZE[460]:[/COLOR] , bits]$INFO[Player.Process(audiosamplerate),$COMMA , Hz]$INFO[VideoPlayer.AudioBitrate,$COMMA , kb/s]</label>
 					<font>font14</font>
 					<shadowcolor>black</shadowcolor>
 					<visible>!String.IsEmpty(Player.Process(audiobitspersample))</visible>
