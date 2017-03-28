@@ -377,6 +377,9 @@ NPT_String::Append(const char* str, NPT_Size length)
     NPT_Size old_length = GetLength();
     NPT_Size new_length = old_length + length;
 
+    // avoid Buffer Overflow
+    if(new_length < old_length) return;
+
     // allocate enough space
     Reserve(new_length);
     
