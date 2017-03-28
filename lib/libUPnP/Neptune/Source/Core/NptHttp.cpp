@@ -180,6 +180,8 @@ NPT_HttpHeaders::Parse(NPT_BufferedInputStream& stream)
             break;
         }
         if (header_pending && (line[0] == ' ' || line[0] == '\t')) {
+            // limit size of multiline header
+            if (header_value.GetLength() >= NPT_HTTP_PROTOCOL_MAX_LINE_LENGTH) continue;
             // continuation (folded header)
             header_value.Append(line.GetChars()+1, line.GetLength()-1);
         } else {
