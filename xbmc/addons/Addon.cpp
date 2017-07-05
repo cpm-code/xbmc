@@ -29,6 +29,10 @@
 #include <utility>
 #include <vector>
 
+#include <iostream>
+#include <dirent.h>
+#include <sys/stat.h>
+
 #ifdef HAS_PYTHON
 #include "interfaces/python/XBPython.h"
 #endif
@@ -662,6 +666,28 @@ void OnPreInstall(const AddonPtr& addon)
 
 void OnPostInstall(const AddonPtr& addon, bool update, bool modal)
 {
+  // OE: make binary addons executable, creddits to vpeter4
+  std::string addonDirPath;
+  std::string chmodFilePath;
+  DIR *addonsDir;
+  struct dirent *fileDirent;
+  struct stat fileStat;
+  int statRet;
+
+  addonDirPath = "/storage/.kodi/addons/" + addon->ID() + "/bin/";
+  if ((addonsDir = opendir(addonDirPath.c_str())) != NULL)
+  {
+    while ((fileDirent = readdir(addonsDir)) != NULL)
+    {
+      chmodFilePath = addonDirPath + fileDirent->d_name;
+      statRet = stat(chmodFilePath.c_str(), &fileStat);
+      if (statRet == 0 && (fileStat.st_mode & S_IFMT) != S_IFDIR)
+        chmod(chmodFilePath.c_str(), fileStat.st_mode | S_IXUSR | S_IXGRP | S_IXOTH);
+    }
+    closedir(addonsDir);
+  }
+  // OE
+
   addon->OnPostInstall(update, modal);
 }
 
