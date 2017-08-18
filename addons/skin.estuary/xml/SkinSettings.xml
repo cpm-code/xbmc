@@ -33,8 +33,8 @@
 				<control type="radiobutton" id="701">
 					<label>$LOCALIZE[31095]</label>
 					<include>DefaultSettingButton</include>
-					<selected>!Skin.HasSetting(no_slide_animations)</selected>
-					<onclick>Skin.ToggleSetting(no_slide_animations)</onclick>
+					<selected>Skin.HasSetting(slide_animations)</selected>
+					<onclick>Skin.ToggleSetting(slide_animations)</onclick>
 				</control>
 				<control type="radiobutton" id="702">
 					<label>$LOCALIZE[20189]</label>
