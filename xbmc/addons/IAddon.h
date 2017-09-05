@@ -69,6 +69,15 @@ using AddonPtr = std::shared_ptr<IAddon>;
 using VECADDONS = std::vector<AddonPtr>;
 using InfoMap = std::map<std::string, std::string, std::less<>>;
 
+typedef enum {
+  LE_ADDON_ENABLED,
+  LE_ADDON_DISABLED,
+  LE_ADDON_POST_UPDATE,
+  LE_ADDON_PRE_UNINSTALL,
+} LE_ADDON_CONTEXT;
+
+void LEAddonHook(const AddonPtr& addon, const LE_ADDON_CONTEXT context);
+
 class IAddon : public std::enable_shared_from_this<IAddon>
 {
 public:
