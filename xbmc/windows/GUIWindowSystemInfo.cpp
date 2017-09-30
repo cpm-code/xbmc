@@ -124,7 +124,6 @@ void CGUIWindowSystemInfo::FrameMove()
     SetControlLabel(i++, "{} {}", 13283, SYSTEM_OS_VERSION_INFO);
     SetControlLabel(i++, "{}: {}", 12390, SYSTEM_UPTIME);
     SetControlLabel(i++, "{}: {}", 12394, SYSTEM_TOTALUPTIME);
-    SetControlLabel(i++, "{}: {}", 12395, SYSTEM_BATTERY_LEVEL);
   }
 
   else if (m_section == CONTROL_BT_STORAGE)
