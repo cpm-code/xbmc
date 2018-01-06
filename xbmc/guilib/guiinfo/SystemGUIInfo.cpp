@@ -165,7 +165,7 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
     case SYSTEM_INTERNET_STATE:
     case SYSTEM_UPTIME:
     case SYSTEM_TOTALUPTIME:
-    case SYSTEM_BATTERY_LEVEL:
+    case SYSTEM_LINUX_VER:
       value = g_sysinfo.GetInfo(info.GetInfo());
       return true;
     case SYSTEM_PRIVACY_POLICY:
@@ -409,9 +409,6 @@ bool CSystemGUIInfo::GetInt(int& value,
     }
     case SYSTEM_CPU_USAGE:
       value = CServiceBroker::GetCPUInfo()->GetUsedPercentage();
-      return true;
-    case SYSTEM_BATTERY_LEVEL:
-      value = CServiceBroker::GetPowerManager().BatteryLevel();
       return true;
     default:
       break;
