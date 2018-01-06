@@ -6305,7 +6305,7 @@ msgstr ""
 
 #: xbmc/windows/GUIWindowSystemInfo.cpp
 msgctxt "#12395"
-msgid "Battery level"
+msgid "Linux version"
 msgstr ""
 
 #. Label of button in the System Info screen asking for donations. "Thank you!" is used to convey gratitude to the users of our beloved software.
