@@ -2002,7 +2002,7 @@ constexpr std::array<InfoMap, 75> system_labels = {{
     {"profilecount",            SYSTEM_PROFILECOUNT},
     {"profileautologin",        SYSTEM_PROFILEAUTOLOGIN},
     {"progressbar",             SYSTEM_PROGRESS_BAR},
-    {"batterylevel",            SYSTEM_BATTERY_LEVEL},
+    {"linuxver",                SYSTEM_LINUX_VER},
     {"friendlyname",            SYSTEM_FRIENDLY_NAME},
     {"alarmpos",                SYSTEM_ALARM_POS},
     {"isinhibit",               SYSTEM_IDLE_SHUTDOWN_INHIBITED}, //! @deprecated, replaced by "idleshutdowninhibited"
