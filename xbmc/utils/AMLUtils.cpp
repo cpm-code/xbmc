@@ -672,8 +672,8 @@ bool aml_set_reg_ignore_alpha()
 {
   if (aml_has_capability_ignore_alpha())
   {
-    std::string path = "/sys/kernel/debug/aml_reg/paddr";
-    if (SysfsUtils::SetString(path, "d01068b4 0x7fc0") == 0)
+    std::string path = "/sys/class/graphics/fb0/debug";
+    if (SysfsUtils::SetString(path, "write 0x1a2d 0x7fc0") == 0)
       return true;
   }
   return false;
@@ -683,8 +683,8 @@ bool aml_unset_reg_ignore_alpha()
 {
   if (aml_has_capability_ignore_alpha())
   {
-    std::string path = "/sys/kernel/debug/aml_reg/paddr";
-    if (SysfsUtils::SetString(path, "d01068b4 0x3fc0") == 0)
+    std::string path = "/sys/class/graphics/fb0/debug";
+    if (SysfsUtils::SetString(path, "write 0x1a2d 0x3fc0") == 0)
       return true;
   }
   return false;
