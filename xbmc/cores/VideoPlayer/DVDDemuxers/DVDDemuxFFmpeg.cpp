@@ -486,7 +486,7 @@ bool CDVDDemuxFFmpeg::Open(const std::shared_ptr<CDVDInputStream>& pInput, bool 
         if (m_pFormatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
             m_pFormatContext->streams[i]->codecpar->codec_id != AV_CODEC_ID_HEVC)
         {
-          av_opt_set_int(m_pFormatContext, "analyzeduration", 500000, 0);
+          av_opt_set_int(m_pFormatContext, "analyzeduration", 2000000, 0);
           m_checkTransportStream = true;
           skipCreateStreams = true;
           break;
