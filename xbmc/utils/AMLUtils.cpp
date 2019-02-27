@@ -669,14 +669,8 @@ bool aml_read_reg(const std::string &reg, uint32_t &reg_val)
 
 bool aml_has_capability_ignore_alpha()
 {
-  // AML is at least GXBB
-  uint32_t reg_val;
-  if (aml_read_reg("c8100220", reg_val))
-  {
-    if ((reg_val >> 24) >= 0x1f)
-      return true;
-  }
-  return false;
+  // 4.9 seg faults on access to /sys/kernel/debug/aml_reg/paddr and since we are CE it's always AML
+  return true;
 }
 
 bool aml_set_reg_ignore_alpha()
