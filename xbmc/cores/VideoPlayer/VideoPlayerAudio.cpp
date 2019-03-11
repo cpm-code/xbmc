@@ -318,9 +318,8 @@ void CVideoPlayerAudio::Process()
     else if (pMsg->IsType(CDVDMsg::GENERAL_RESYNC))
     { //player asked us to set internal clock
       double pts = std::static_pointer_cast<CDVDMsgDouble>(pMsg)->m_value;
-      CLog::Log(LOGDEBUG,
-                "CVideoPlayerAudio - CDVDMsg::GENERAL_RESYNC({:f}), level: {}, cache: {:f}", pts,
-                m_messageQueue.GetLevel(), m_audioSink.GetDelay());
+      CLog::Log(LOGDEBUG, LOGAUDIO, "CVideoPlayerAudio - CDVDMsg::GENERAL_RESYNC({:.3f} level: {:d} cache:{:.3f}",
+                pts / DVD_TIME_BASE, m_messageQueue.GetLevel(), m_audioSink.GetDelay() / DVD_TIME_BASE);
 
       double delay = m_audioSink.GetDelay();
       if (pts > m_audioClock - delay + 0.5 * DVD_TIME_BASE)
@@ -367,6 +366,7 @@ void CVideoPlayerAudio::Process()
     else if (pMsg->IsType(CDVDMsg::PLAYER_SETSPEED))
     {
       double speed = std::static_pointer_cast<CDVDMsgInt>(pMsg)->m_value;
+      CLog::Log(LOGDEBUG, LOGAUDIO, "CVideoPlayerAudio - CDVDMsg::PLAYER_SETSPEED: {:f} last: {:d}", speed, m_speed);
 
       if (m_processInfo.IsTempoAllowed(static_cast<float>(speed)/DVD_PLAYSPEED_NORMAL))
       {
@@ -553,9 +553,12 @@ bool CVideoPlayerAudio::ProcessDecoderOutput(DVDAudioFrame &audioframe)
       {
         m_audioSink.SetSyncErrorCorrection(-correction);
         m_disconAdjustCounter++;
+        CLog::Log(LOGDEBUG, LOGAUDIO, "CVideoPlayerAudio:: sync error correctiom:{:.3f}", correction / DVD_TIME_BASE);
       }
     }
   }
+  CLog::Log(LOGDEBUG, LOGAUDIO, "CVideoPlayerAudio::OutputPacket: pts:{:.3f} curr_pts:{:.3f} clock:{:.3f} level:{:d}",
+    audioframe.pts / DVD_TIME_BASE, m_info.pts / DVD_TIME_BASE, m_pClock->GetClock() / DVD_TIME_BASE, GetLevel());
 
   int framesOutput = m_audioSink.AddPackets(audioframe);
 
