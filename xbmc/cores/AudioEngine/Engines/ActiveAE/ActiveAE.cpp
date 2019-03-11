@@ -2557,6 +2557,7 @@ CSampleBuffer* CActiveAE::SyncStream(CActiveAEStream *stream)
             memset(ret->pkt->data[i], 0, ret->pkt->linesize);
           }
         }
+        CLog::Log(LOGDEBUG, LOGAUDIO, "ActiveAE::SyncStream - delay frames:{:d} error {:.0f}ms", framesToDelay, error);
 
         if ((ret->pkt->nb_samples == 0) && (ret->pkt->pause_burst_ms == 0))
         {
@@ -2599,6 +2600,7 @@ CSampleBuffer* CActiveAE::SyncStream(CActiveAEStream *stream)
         stream->m_syncError.Correction((double)framesToSkip * 1000 / buf->pkt->config.sample_rate);
         error += (double)framesToSkip * 1000 / buf->pkt->config.sample_rate;
       }
+      CLog::Log(LOGDEBUG, LOGAUDIO, "ActiveAE::SyncStream - skip frames:{:d} error {:.0f}ms", framesToSkip, error);
     }
 
     if (fabs(error) < 30)
