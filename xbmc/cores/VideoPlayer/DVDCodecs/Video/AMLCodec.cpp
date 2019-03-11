@@ -1561,6 +1561,8 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
     // then ffmpeg avg_frame_rate next
     am_private->video_rate = 0.5 + (float)UNIT_FREQ * hints.fpsscale / hints.fpsrate;
   }
+  else
+    am_private->video_rate = 0.5 + (float)UNIT_FREQ * 1001 / 30000;
 
   // check for 1920x1080, interlaced, 25 fps
   // incorrectly reported as 50 fps (yes, video_rate == 1920)
