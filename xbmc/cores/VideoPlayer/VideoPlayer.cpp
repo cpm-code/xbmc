@@ -2322,7 +2322,7 @@ void CVideoPlayer::HandlePlaySpeed()
           error /= errorwin;
         }
 
-        if (error > DVD_MSEC_TO_TIME(1000))
+        if (std::abs(error) > DVD_MSEC_TO_TIME(1000))
         {
           error  = (m_clock.GetClock() - m_SpeedState.lastseekpts) / 1000;
 
