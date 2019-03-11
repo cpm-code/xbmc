@@ -681,6 +681,7 @@ bool CDVDDemuxClient::SeekTime(double timems, bool backwards, double *startpts)
 {
   if (m_IDemux)
   {
+    CLog::Log(LOGDEBUG, LOGVIDEO, "CDVDDemuxClient::SeekTime: {:.3f}", timems / 1000.0);
     m_displayTime = 0;
     m_dtsAtDisplayTime = DVD_NOPTS_VALUE;
     return m_IDemux->SeekTime(timems, backwards, startpts);
