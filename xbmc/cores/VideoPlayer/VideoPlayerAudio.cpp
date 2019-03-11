@@ -112,7 +112,6 @@ void CVideoPlayerAudio::OpenStream(CDVDStreamInfo& hints, std::unique_ptr<CDVDAu
 {
   m_pAudioCodec = std::move(codec);
 
-  m_processInfo.ResetAudioCodecInfo();
 
   /* store our stream hints */
   m_streaminfo = hints;
@@ -191,6 +190,16 @@ void CVideoPlayerAudio::CloseStream(bool bWaitForBuffers)
   {
     m_pAudioCodec->Dispose();
     m_pAudioCodec.reset();
+  }
+
+  std::ostringstream s;
+  SInfo info;
+  info.info        = s.str();
+  info.pts         = DVD_NOPTS_VALUE;
+  info.passthrough = false;
+
+  { std::unique_lock<CCriticalSection> lock(m_info_section);
+    m_info = info;
   }
 }
 
