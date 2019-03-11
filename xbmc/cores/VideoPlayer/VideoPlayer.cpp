@@ -3841,6 +3841,10 @@ bool CVideoPlayer::OpenStream(CCurrentStream& current, int64_t demuxerId, int iS
 
     if(m_pInputStream && m_pInputStream->IsStreamType(DVDSTREAM_TYPE_DVD))
       hint.filename = "dvd";
+    if (hint.fpsrate / hint.fpsscale > 200) {
+      hint.fpsrate = 60000;
+      hint.fpsscale = 1001;
+    }
   }
   else if(STREAM_SOURCE_MASK(source) == STREAM_SOURCE_VIDEOMUX)
   {
