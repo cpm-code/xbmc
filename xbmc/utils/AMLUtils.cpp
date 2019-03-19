@@ -87,11 +87,6 @@ bool aml_permissions()
       CLog::Log(LOGERROR, "AML: no rw on /dev/video10");
       permissions_ok = 0;
     }
-    if (!SysfsUtils::HasRW("/sys/module/amlvideodri/parameters/freerun_mode"))
-    {
-      CLog::Log(LOGERROR, "AML: no rw on /sys/module/amlvideodri/parameters/freerun_mode");
-      permissions_ok = 0;
-    }
     if (!SysfsUtils::HasRW("/sys/class/video/freerun_mode"))
     {
       CLog::Log(LOGERROR, "AML: no rw on /sys/class/video/freerun_mode");
