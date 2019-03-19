@@ -1786,8 +1786,6 @@ bool CAMLCodec::OpenAmlVideo(const CDVDStreamInfo &hints)
   m_defaultVfmMap = GetVfmMap("default");
   SetVfmMap("default", "decoder ppmgr deinterlace amlvideo amvideo");
 
-  SysfsUtils::SetInt("/sys/module/amlvideodri/parameters/freerun_mode", 3);
-
   return true;
 }
 
