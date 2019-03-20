@@ -140,6 +140,12 @@ void CRendererAML::Reset()
   }
 }
 
+bool CRendererAML::Flush(bool saveBuffers)
+{
+  Reset();
+  return saveBuffers;
+};
+
 void CRendererAML::RenderUpdate(int index, int index2, bool clear, unsigned int flags, unsigned int alpha)
 {
   ManageRenderArea();
