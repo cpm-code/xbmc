@@ -169,7 +169,8 @@ bool CVideoPlayerVideo::OpenStream(CDVDStreamInfo hint)
 
 void CVideoPlayerVideo::OpenStream(CDVDStreamInfo& hint, std::unique_ptr<CDVDVideoCodec> codec)
 {
-  CLog::Log(LOGDEBUG, "CVideoPlayerVideo::OpenStream - open stream with codec id: {}", hint.codec);
+  CLog::Log(LOGDEBUG, "CVideoPlayerVideo::OpenStream - open stream with codec id: {:d} fps:{:d}/{:d} options:{:02x}",
+    hint.codec, hint.fpsrate, hint.fpsscale, hint.codecOptions);
 
   m_processInfo.GetVideoBufferManager().ReleasePools();
 
@@ -181,16 +182,24 @@ void CVideoPlayerVideo::OpenStream(CDVDStreamInfo& hint, std::unique_ptr<CDVDVid
 
     m_bFpsInvalid = false;
 
-    if (MathUtils::FloatEquals(static_cast<float>(m_fFrameRate), 25.0f, 0.01f))
+    if (hint.codecOptions & CODEC_UNKNOWN_I_P)
     {
-      m_fFrameRate = 50.0;
-      m_processInfo.SetVideoInterlaced(true);
+      if (MathUtils::FloatEquals(static_cast<float>(m_fFrameRate), 25.0f, 0.01f))
+      {
+        m_fFrameRate = 50.0;
+        m_processInfo.SetVideoInterlaced(true);
+      }
+      else if (MathUtils::FloatEquals(static_cast<float>(m_fFrameRate), 29.97f, 0.01f))
+      {
+        m_fFrameRate = 60000.0 / 1001.0;
+        m_processInfo.SetVideoInterlaced(true);
+      }
+      else
+        m_processInfo.SetVideoInterlaced(false);
     }
-    if (MathUtils::FloatEquals(static_cast<float>(m_fFrameRate), 29.97f, 0.01f))
-    {
-      m_fFrameRate = 60000.0 / 1001.0;
-      m_processInfo.SetVideoInterlaced(true);
-    }
+    else
+      m_processInfo.SetVideoInterlaced((hint.codecOptions & CODEC_INTERLACED) == CODEC_INTERLACED);
+
     m_retryProgressive = 0;
     m_processInfo.SetVideoFps(static_cast<float>(m_fFrameRate));
   }
@@ -234,7 +243,8 @@ void CVideoPlayerVideo::OpenStream(CDVDStreamInfo& hint, std::unique_ptr<CDVDVid
 
   if (!codec)
   {
-    CLog::Log(LOGINFO, "Creating video codec with codec id: {:d}", hint.codec);
+    CLog::Log(LOGNOTICE, "CVideoPlayerVideo::OpenStream: - Creating video codec with codec id: {:d} fps:{:d}/{:d} options:{:02x}",
+      hint.codec, hint.fpsrate, hint.fpsscale, hint.codecOptions);
     hint.pClock = m_pClock;
     hint.codecOptions |= CODEC_ALLOW_FALLBACK;
     codec = CDVDFactoryCodec::CreateVideoCodec(hint, m_processInfo);
