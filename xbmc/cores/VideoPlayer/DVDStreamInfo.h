@@ -19,6 +19,8 @@ extern "C"
 
 #define CODEC_FORCE_SOFTWARE 0x01
 #define CODEC_ALLOW_FALLBACK 0x02
+#define CODEC_INTERLACED     0x40
+#define CODEC_UNKNOWN_I_P    0x80
 
 class CDemuxStream;
 struct DemuxCryptoSession;
