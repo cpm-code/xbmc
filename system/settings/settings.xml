@@ -3899,6 +3899,28 @@
         </setting>
       </group>
     </category>
+    <category id="coreelec" label="14400" help="14401">
+      <group id="1" label="131">
+        <setting id="coreelec.amlogic.noisereduction" type="boolean" label="14402" help="14403">
+          <requirement>HAVE_AMCODEC</requirement>
+          <level>3</level>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
+        <setting id="coreelec.amlogic.sdr2hdr" type="integer" label="14404" help="14405">
+          <requirement>HAVE_AMCODEC</requirement>
+          <default>0</default> <!-- OFF -->
+          <constraints>
+            <options>
+              <option label="351">0</option> <!-- OFF -->
+              <option label="16041">1</option> <!-- ON -->
+              <option label="16316">2</option> <!-- AUTO -->
+            </options>
+          </constraints>
+          <control type="list" format="string" />
+        </setting>
+      </group>
+    </category>
     <category id="cache" label="439" help="36399">
       <visible>false</visible>
       <group id="1">
