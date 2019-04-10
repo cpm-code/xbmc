@@ -53,6 +53,7 @@
 #include "threads/SingleLock.h"
 #include "utils/FontUtils.h"
 #include "utils/LangCodeExpander.h"
+#include "utils/MathUtils.h"
 #include "utils/StreamDetails.h"
 #include "utils/StreamUtils.h"
 #include "utils/StringUtils.h"
@@ -1884,6 +1885,13 @@ void CVideoPlayer::ProcessVideoData(CDemuxStream* pStream, DemuxPacket* pPacket)
   if (CheckSceneSkip(m_CurrentVideo))
     drop = true;
 
+  if ((m_CurrentVideo.lastdts == DVD_NOPTS_VALUE || pPacket->dts == DVD_NOPTS_VALUE) && (pPacket->pts != DVD_NOPTS_VALUE))
+    m_clock.Discontinuity(pPacket->pts - DVD_TIME_BASE/2);
+
+  m_CurrentVideo.lastdts = pPacket->dts;
+  CLog::Log(LOGDEBUG, "CVideoPlayer::ProcessVideoData size:{:d} dts:{:.3f} pts:{:.3f} dur:{:.3f}ms, clock:{:.3f} level:{:d}",
+    pPacket->iSize, pPacket->dts/1000000, pPacket->pts/1000000, pPacket->duration/1000.0,
+    m_clock.GetClock()/1000000.0,m_processInfo->GetLevelVQ());
   m_VideoPlayerVideo->SendMessage(std::make_shared<CDVDMsgDemuxerPacket>(pPacket, drop));
 
   if (!drop)
@@ -3963,6 +3971,7 @@ bool CVideoPlayer::OpenAudioStream(CDVDStreamInfo& hint, bool reset)
 
 bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
 {
+  m_processInfo->SetVideoInterlaced((hint.codecOptions & CODEC_INTERLACED) == CODEC_INTERLACED);
   if (m_pInputStream && m_pInputStream->IsStreamType(DVDSTREAM_TYPE_DVD))
   {
     /* set aspect ratio as requested by navigator for dvd's */
@@ -4017,10 +4026,21 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
   {
     if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_ADJUSTREFRESHRATE) != ADJUST_REFRESHRATE_OFF)
     {
-      const double framerate = DVD_TIME_BASE / CDVDCodecUtils::NormalizeFrameduration(
+      double framerate = DVD_TIME_BASE / CDVDCodecUtils::NormalizeFrameduration(
                                                    (double)DVD_TIME_BASE * hint.fpsscale /
                                                    (hint.fpsrate * (hint.interlaced ? 2 : 1)));
 
+      if (MathUtils::FloatEquals(25.0f, static_cast<float>(framerate), 0.01f))
+      {
+        framerate = 50.0;
+        m_processInfo->SetVideoInterlaced(true);
+      }
+      if (MathUtils::FloatEquals(29.97f, static_cast<float>(framerate), 0.01f))
+      {
+        framerate = 60000.0 / 1001.0;
+        m_processInfo->SetVideoInterlaced(true);
+      }
+      m_processInfo->SetVideoFps(static_cast<float>(framerate));
       m_renderManager.TriggerUpdateResolution(framerate, hint.width, hint.height, hint.stereo_mode);
     }
   }
