@@ -118,6 +118,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
   m_opened = false;
 
   m_hints = hints;
+  m_hints.pClock = hints.pClock;
 
   CLog::Log(LOGDEBUG, "CDVDVideoCodecAmlogic::Opening: codec {:d} profile:{:d} extra_size:{:d}", m_hints.codec, hints.profile, hints.extradata.GetSize());
 

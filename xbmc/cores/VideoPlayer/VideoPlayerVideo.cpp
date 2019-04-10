@@ -29,6 +29,7 @@
 #include <mutex>
 #include <numeric>
 #include <sstream>
+#include <chrono>
 
 using namespace std::chrono_literals;
 
@@ -127,7 +128,8 @@ bool CVideoPlayerVideo::OpenStream(CDVDStreamInfo hint)
     // clang-format on
   }
 
-  CLog::Log(LOGINFO, "Creating video codec with codec id: {}", hint.codec);
+  CLog::Log(LOGINFO, "Creating video codec with codec id: {:d}", hint.codec);
+  hint.pClock = m_pClock;
 
   if (m_messageQueue.IsInited())
   {
@@ -178,11 +180,24 @@ void CVideoPlayerVideo::OpenStream(CDVDStreamInfo& hint, std::unique_ptr<CDVDVid
                                        (double)DVD_TIME_BASE * hint.fpsscale / hint.fpsrate);
 
     m_bFpsInvalid = false;
+
+    if (MathUtils::FloatEquals(static_cast<float>(m_fFrameRate), 25.0f, 0.01f))
+    {
+      m_fFrameRate = 50.0;
+      m_processInfo.SetVideoInterlaced(true);
+    }
+    if (MathUtils::FloatEquals(static_cast<float>(m_fFrameRate), 29.97f, 0.01f))
+    {
+      m_fFrameRate = 60000.0 / 1001.0;
+      m_processInfo.SetVideoInterlaced(true);
+    }
+    m_retryProgressive = 0;
     m_processInfo.SetVideoFps(static_cast<float>(m_fFrameRate));
   }
   else
   {
-    m_fFrameRate = 25;
+    m_fFrameRate = 50;
+    m_processInfo.SetVideoInterlaced(true);
     m_bFpsInvalid = true;
     m_processInfo.SetVideoFps(0);
   }
@@ -199,7 +214,8 @@ void CVideoPlayerVideo::OpenStream(CDVDStreamInfo& hint, std::unique_ptr<CDVDVid
               "CVideoPlayerVideo::OpenStream - Invalid framerate {}, using forced 25fps and just "
               "trust timestamps",
               (int)m_fFrameRate);
-    m_fFrameRate = 25;
+    m_fFrameRate = 50;
+    m_processInfo.SetVideoInterlaced(true);
   }
 
   // use aspect in stream if available
@@ -218,7 +234,8 @@ void CVideoPlayerVideo::OpenStream(CDVDStreamInfo& hint, std::unique_ptr<CDVDVid
 
   if (!codec)
   {
-    CLog::Log(LOGINFO, "Creating video codec with codec id: {}", hint.codec);
+    CLog::Log(LOGINFO, "Creating video codec with codec id: {:d}", hint.codec);
+    hint.pClock = m_pClock;
     hint.codecOptions |= CODEC_ALLOW_FALLBACK;
     codec = CDVDFactoryCodec::CreateVideoCodec(hint, m_processInfo);
     if (!codec)
@@ -677,6 +694,19 @@ bool CVideoPlayerVideo::ProcessDecoderOutput(double &frametime, double &pts)
   {
     bool hasTimestamp = true;
 
+    if (m_processInfo.GetVideoInterlaced() &&
+        MathUtils::FloatEquals(static_cast<float>(m_picture.iDuration), static_cast<float>(2 * DVD_TIME_BASE) / m_processInfo.GetVideoFps(), 700.0f))
+    {
+      if (++m_retryProgressive > 3)
+      {
+        m_processInfo.SetVideoFps(m_processInfo.GetVideoFps() / 2.0f);
+        m_processInfo.SetVideoInterlaced(false);
+        m_renderManager.TriggerUpdateResolution(m_processInfo.GetVideoFps() / 2.0f, m_hints.width, m_hints.height, m_hints.stereo_mode);
+      }
+    }
+    else
+      m_retryProgressive = 0;
+
     m_picture.iDuration = frametime;
 
     // validate picture timing,
@@ -922,6 +952,7 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
   }
 
   auto timeToDisplay = std::chrono::milliseconds(DVD_TIME_TO_MSEC(pPicture->pts - iPlayingClock));
+  std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
 
   // make sure waiting time is not negative
   std::chrono::milliseconds maxWaitTime = std::min(std::max(timeToDisplay + 500ms, 50ms), 500ms);
@@ -929,6 +960,8 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
   if (m_speed > DVD_PLAYSPEED_NORMAL)
     maxWaitTime = std::max(timeToDisplay, 0ms);
   int buffer = m_renderManager.WaitForBuffer(m_bAbortOutput, maxWaitTime);
+  CLog::Log(LOGDEBUG,"CVideoPlayerVideo::{} - ttd:{:d}ms pts:{:.3f} Clock:{:.3f} Level:{:d} elapsed:{:.3f}ms",
+        __FUNCTION__, timeToDisplay.count(), pPicture->pts/1000000, iPlayingClock/1000000.0, buffer, std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - now).count() / 1000.0);
   if (buffer < 0)
   {
     if (m_speed != DVD_PLAYSPEED_PAUSE)

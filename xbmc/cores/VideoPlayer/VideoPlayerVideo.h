@@ -107,6 +107,7 @@ protected:
 
   double m_iSubtitleDelay;
 
+  int m_retryProgressive;
   int m_iLateFrames;
   int m_iDroppedFrames;
   int m_iDroppedRequest;
