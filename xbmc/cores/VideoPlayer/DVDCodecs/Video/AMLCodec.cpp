@@ -2072,29 +2072,31 @@ int CAMLCodec::DequeueBuffer()
   //Driver change from 10 to 0ms latency, throttle here
   std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
 
-  unsigned int waitTime(10);
+  unsigned int waitTime(500);
 DRAIN:
   if (m_amlVideoFile->IOControl(VIDIOC_DQBUF, &vbuf) < 0)
   {
     if (errno != EAGAIN)
       CLog::Log(LOGERROR, "CAMLCodec::DequeueBuffer - VIDIOC_DQBUF failed: {}", strerror(errno));
 
-    std::chrono::milliseconds elapsed(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - now).count());
+    std::chrono::microseconds elapsed(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - now).count());
 
-    if (elapsed < std::chrono::milliseconds(waitTime))
-      std::this_thread::sleep_for(std::chrono::milliseconds(waitTime) - elapsed);
-
-    int waited = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - now).count();
-    CLog::Log(LOGDEBUG, LOGAVTIMING, "CAMLCodec::DequeueBuffer waited:{:.3f}ms", waited / 1000.0);
+    if (elapsed < std::chrono::microseconds(waitTime))
+      std::this_thread::sleep_for(std::chrono::microseconds(waitTime) - elapsed);
 
     if (m_drain && elapsed < std::chrono::milliseconds(300))
-    {
-      waitTime += 10;
       goto DRAIN;
-    }
+
+    if (!m_drain && elapsed < std::chrono::milliseconds(300))
+      CLog::Log(LOGDEBUG, LOGAVTIMING, "CAMLCodec::DequeueBuffer skipped by {}", strerror(errno));
+    else if (m_drain && elapsed > std::chrono::milliseconds(300))
+      CLog::Log(LOGDEBUG, LOGAVTIMING, "CAMLCodec::DequeueBuffer timeout!");
 
     return -errno;
   }
+
+  int waited = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - now).count();
+  CLog::Log(LOGDEBUG, LOGAVTIMING, "CAMLCodec::DequeueBuffer waited:{:.3f}ms", waited / 1000.0);
 
   // Since kernel 3.14 Amlogic changed length and units of PTS values reported here.
   // To differentiate such PTS values we check for existence of omx_pts_interval_lower
