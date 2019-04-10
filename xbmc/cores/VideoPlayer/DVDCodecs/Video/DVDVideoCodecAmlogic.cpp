@@ -120,7 +120,8 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
   m_hints = hints;
   m_hints.pClock = hints.pClock;
 
-  CLog::Log(LOGDEBUG, "CDVDVideoCodecAmlogic::Opening: codec {:d} profile:{:d} extra_size:{:d}", m_hints.codec, hints.profile, hints.extradata.GetSize());
+  CLog::Log(LOGDEBUG, "{}::{} - codec {:d} profile:{:d} extra_size:{:d} fps:{:d}/{:d}",
+    __MODULE_NAME__, __FUNCTION__, m_hints.codec, m_hints.profile, m_hints.extradata.GetSize(), m_hints.fpsrate, m_hints.fpsscale);
 
   switch(m_hints.codec)
   {
@@ -378,6 +379,7 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
       if (packet.pts == DVD_NOPTS_VALUE)
         m_hints.ptsinvalid = true;
 
+      CLog::Log(LOGINFO, "{}::{} Open decoder: fps:{:d}/{:d}", __MODULE_NAME__, __FUNCTION__, m_hints.fpsrate, m_hints.fpsscale);
       if (m_Codec && !m_Codec->OpenDecoder(m_hints))
         CLog::Log(LOGERROR, "{}: Failed to open Amlogic Codec", __MODULE_NAME__);
 
@@ -478,11 +480,24 @@ void CDVDVideoCodecAmlogic::FrameRateTracking(uint8_t *pData, int iSize, double 
       if (m_mpeg2_sequence_pts == DVD_NOPTS_VALUE)
         m_mpeg2_sequence_pts = dts;
 
-      m_hints.fpsrate = m_mpeg2_sequence->fps_rate;
-      m_hints.fpsscale = m_mpeg2_sequence->fps_scale;
-      m_framerate = static_cast<float>(m_mpeg2_sequence->fps_rate) / m_mpeg2_sequence->fps_scale;
-      m_video_rate = (int)(0.5 + (96000.0 / m_framerate));
-
+      CLog::Log(LOGDEBUG, "{}::{} fps:{:d}/{:d} mpeg2_fps:{:d}/{:d} options:0x{:2x}", __MODULE_NAME__, __FUNCTION__,
+              m_hints.fpsrate, m_hints.fpsscale, m_mpeg2_sequence->fps_rate, m_mpeg2_sequence->fps_scale, m_hints.codecOptions);
+      if  (!(m_hints.codecOptions & CODEC_INTERLACED))
+      {
+        m_hints.fpsrate = m_mpeg2_sequence->fps_rate;
+        m_hints.fpsscale = m_mpeg2_sequence->fps_scale;
+      }
+      if (m_hints.fpsrate && m_hints.fpsscale)
+      {
+        m_framerate = static_cast<float>(m_hints.fpsrate) / m_hints.fpsscale;
+        if (m_hints.codecOptions & CODEC_UNKNOWN_I_P)
+          if (std::abs(m_framerate - 25.0f) < 0.02f || std::abs(m_framerate - 29.97f) < 0.02f)
+          {
+            m_framerate += m_framerate;
+            m_hints.fpsrate += m_hints.fpsrate;
+          }
+        m_video_rate = (int)(0.5 + (96000.0 / m_framerate));
+      }
       m_hints.width    = m_mpeg2_sequence->width;
       m_hints.height   = m_mpeg2_sequence->height;
       m_hints.aspect   = m_mpeg2_sequence->ratio;

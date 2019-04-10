@@ -284,6 +284,12 @@ void CDVDStreamInfo::Assign(const CDemuxStream& right, bool withextradata)
   else if (right.type == StreamType::VIDEO)
   {
     const CDemuxStreamVideo *stream = static_cast<const CDemuxStreamVideo*>(&right);
+    if (stream->bInterlaced)
+      codecOptions |= CODEC_INTERLACED;
+
+    if (stream->bUnknownIP)
+      codecOptions |= CODEC_UNKNOWN_I_P;
+
     fpsscale  = stream->iFpsScale;
     fpsrate   = stream->iFpsRate;
     interlaced = stream->interlaced;
