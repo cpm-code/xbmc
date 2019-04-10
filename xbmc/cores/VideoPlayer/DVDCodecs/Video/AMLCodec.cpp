@@ -2327,10 +2327,6 @@ void CAMLCodec::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
   {
     float xscale = display.Width() / gui.Width();
     float yscale = display.Height() / gui.Height();
-    if (m_guiStereoMode == RenderStereoMode::SPLIT_VERTICAL)
-      xscale /= 2.0;
-    else if (m_guiStereoMode == RenderStereoMode::SPLIT_HORIZONTAL)
-      yscale /= 2.0;
     dst_rect.x1 *= xscale;
     dst_rect.x2 *= xscale;
     dst_rect.y1 *= yscale;
