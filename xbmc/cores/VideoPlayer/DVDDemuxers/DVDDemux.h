@@ -177,6 +177,8 @@ public:
   std::string stereo_mode; // expected stereo mode
   StreamHdrType hdr_type = StreamHdrType::HDR_TYPE_NONE; // type of HDR for this stream (hdr10, etc)
   AVDOVIDecoderConfigurationRecord dovi{};
+  bool bInterlaced = false; // progressive/interlaced flag
+  bool bUnknownIP = false; // progressive/interlace unknown
 };
 
 class CDemuxStreamAudio : public CDemuxStream
