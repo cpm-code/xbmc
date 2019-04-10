@@ -129,13 +129,31 @@ bool CRendererAML::Supports(ERENDERFEATURE feature) const
 
 void CRendererAML::Reset()
 {
+  std::array<int, 2> reset_arr[m_numRenderBuffers];
   m_prevVPts = -1;
+
   for (int i = 0 ; i < m_numRenderBuffers ; ++i)
   {
+    reset_arr[i][0] = i;
+
     if (m_buffers[i].videoBuffer)
+      reset_arr[i][1] = dynamic_cast<CAMLVideoBuffer *>(m_buffers[i].videoBuffer)->m_bufferIndex;
+    else
+      reset_arr[i][1] = 0;
+  }
+
+  std::sort(std::begin(reset_arr), std::end(reset_arr),
+    [](const std::array<int, 2>& u, const std::array<int, 2>& v)
     {
-      m_buffers[i].videoBuffer->Release();
-      m_buffers[i].videoBuffer = nullptr;
+      return u[1] < v[1];
+    });
+
+  for (int i = 0; i < m_numRenderBuffers; ++i)
+  {
+    if (m_buffers[reset_arr[i][0]].videoBuffer)
+    {
+      m_buffers[reset_arr[i][0]].videoBuffer->Release();
+      m_buffers[reset_arr[i][0]].videoBuffer = nullptr;
     }
   }
 }
