@@ -8867,6 +8867,36 @@ msgstr ""
 
 #empty strings from id 14305 to 15010
 
+#: system/settings/settings.xml
+msgctxt "#14400"
+msgid "CoreELEC"
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#14401"
+msgid "This category contains settings added for CoreELEC."
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#14402"
+msgid "Disable noise reduction"
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#14403"
+msgid "Enable this to disable noise reduction. Requires reboot."
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#14404"
+msgid "Tone map SDR to HDR"
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#14405"
+msgid "Intended for HDR enabled displays - not recommended. Turn this On or set to Auto to have HDR10 mode always on. GUI and SDR content will be tone mapped. Requires reboot."
+msgstr ""
+
 #: xbmc/music/MusicDatabase.cpp
 #: xbmc/video/VideoDatabase.cpp
 msgctxt "#15011"
