@@ -341,8 +341,8 @@ bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
   }
   else if (StringUtils::EqualsNoCase(fromMode, "4k2ksmpte") || StringUtils::EqualsNoCase(fromMode, "smpte24hz"))
   {
-    res->iWidth = 1920;
-    res->iHeight= 1080;
+    res->iWidth = 4096;
+    res->iHeight= 2160;
     res->iScreenWidth = 4096;
     res->iScreenHeight= 2160;
     res->fRefreshRate = 24;
@@ -393,8 +393,8 @@ bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
       return false;
     }
 
-    res->iWidth = (width < 3840) ? width : 1920;
-    res->iHeight= (height < 2160) ? height : 1080;
+    res->iWidth = width;
+    res->iHeight= height;
     res->iScreenWidth = width;
     res->iScreenHeight = height;
     res->dwFlags = (smode == 'p') ? D3DPRESENTFLAG_PROGRESSIVE : D3DPRESENTFLAG_INTERLACED;
