@@ -3931,6 +3931,18 @@
           </constraints>
           <control type="list" format="string" />
         </setting>
+        <setting id="coreelec.amlogic.hdr2sdr" type="integer" label="14406" help="14407">
+          <requirement>HAVE_AMCODEC</requirement>
+          <default>2</default> <!-- AUTO -->
+          <constraints>
+            <options>
+              <option label="351">0</option> <!-- OFF -->
+              <option label="16041">1</option> <!-- ON -->
+              <option label="16316">2</option> <!-- AUTO -->
+            </options>
+          </constraints>
+          <control type="list" format="string" />
+        </setting>
       </group>
     </category>
     <category id="cache" label="439" help="36399">
