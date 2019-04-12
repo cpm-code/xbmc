@@ -8897,6 +8897,16 @@ msgctxt "#14405"
 msgid "Intended for HDR enabled displays - not recommended. Turn this On or set to Auto to have HDR10 mode always on. GUI and SDR content will be tone mapped. Requires reboot."
 msgstr ""
 
+#: system/settings/settings.xml
+msgctxt "#14406"
+msgid "Tone map HDR to SDR"
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#14407"
+msgid "Intended for SDR displays. Turn this On or set to Auto to have HDR content tone mapped to SDR. This improves color saturation and contrast of HDR content on SDR displays. Requires reboot."
+msgstr ""
+
 #: xbmc/music/MusicDatabase.cpp
 #: xbmc/video/VideoDatabase.cpp
 msgctxt "#15011"
