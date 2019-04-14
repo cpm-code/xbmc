@@ -538,16 +538,10 @@ void CNetworkServices::Start()
   StartZeroconf();
   if (m_settings->GetBool(CSettings::SETTING_SERVICES_UPNP))
     StartUPnP();
-  if (m_settings->GetBool(CSettings::SETTING_SERVICES_ESENABLED) && !StartEventServer())
-    CGUIDialogKaiToast::QueueNotification(
-        CGUIDialogKaiToast::Warning,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(33102),
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(33100));
-  if (m_settings->GetBool(CSettings::SETTING_SERVICES_ESENABLED) && !StartJSONRPCServer())
-    CGUIDialogKaiToast::QueueNotification(
-        CGUIDialogKaiToast::Warning,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(33103),
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(33100));
+  if (m_settings->GetBool(CSettings::SETTING_SERVICES_ESENABLED)) {
+    StartEventServer();
+    StartJSONRPCServer();
+  }
 
 #ifdef HAS_WEB_SERVER
   // Start web server after eventserver and JSON-RPC server, so users can use these interfaces
