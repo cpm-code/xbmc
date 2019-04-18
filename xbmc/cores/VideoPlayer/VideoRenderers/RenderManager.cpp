@@ -1206,6 +1206,8 @@ void CRenderManager::PrepareNextRender()
     auto iter = m_queued.begin();
     int idx = *iter;
     int lateframes = 0;
+    int queue_size = m_queued.size();
+
     while (iter != m_queued.end())
     {
       // the slot for rendering in time is [pts .. (pts +  x * frametime)]
@@ -1213,9 +1215,10 @@ void CRenderManager::PrepareNextRender()
       // we are really late. The likelihood that we recover decreases the greater m_lateframes
       // get. Skipping a frame is easier than having decoder dropping one (lateframes > 10)
       double x = (m_lateframes <= 6) ? 0.98 : 0;
-      if (renderPts < m_Queue[*iter].pts + x * frametime)
+      if ((renderPts - frametime * queue_size) < (m_Queue[*iter].pts + x * frametime))
         break;
       lateframes++;
+      queue_size--;
       idx = *iter;
       ++iter;
     }

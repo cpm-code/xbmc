@@ -2072,31 +2072,37 @@ int CAMLCodec::DequeueBuffer()
   //Driver change from 10 to 0ms latency, throttle here
   std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
 
-  unsigned int waitTime(500);
+  unsigned int waitTime(5);
+  bool timeout(false);
 DRAIN:
   if (m_amlVideoFile->IOControl(VIDIOC_DQBUF, &vbuf) < 0)
   {
     if (errno != EAGAIN)
       CLog::Log(LOGERROR, "CAMLCodec::DequeueBuffer - VIDIOC_DQBUF failed: {}", strerror(errno));
 
-    std::chrono::microseconds elapsed(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - now).count());
+    std::chrono::milliseconds elapsed(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - now).count());
 
-    if (elapsed < std::chrono::microseconds(waitTime))
-      std::this_thread::sleep_for(std::chrono::microseconds(waitTime) - elapsed);
+    if (elapsed < std::chrono::milliseconds(waitTime))
+      std::this_thread::sleep_for(std::chrono::milliseconds(waitTime) - elapsed);
 
-    if (m_drain && elapsed < std::chrono::milliseconds(300))
+    timeout = elapsed >= std::chrono::milliseconds(300);
+
+    if (m_drain && !timeout)
       goto DRAIN;
 
-    if (!m_drain && elapsed < std::chrono::milliseconds(300))
-      CLog::Log(LOGDEBUG, LOGAVTIMING, "CAMLCodec::DequeueBuffer skipped by {}", strerror(errno));
-    else if (m_drain && elapsed > std::chrono::milliseconds(300))
+    if (m_drain && timeout)
       CLog::Log(LOGDEBUG, LOGAVTIMING, "CAMLCodec::DequeueBuffer timeout!");
 
     return -errno;
   }
 
-  int waited = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - now).count();
-  CLog::Log(LOGDEBUG, LOGAVTIMING, "CAMLCodec::DequeueBuffer waited:{:.3f}ms", waited / 1000.0);
+  if (m_drain)
+  {
+    int waited = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - now).count();
+    CLog::Log(LOGDEBUG, LOGAVTIMING, "CAMLCodec::DequeueBuffer waited:{:.3f}ms", waited / 1000.0);
+  }
+  else
+    CLog::Log(LOGDEBUG, LOGAVTIMING, "CAMLCodec::DequeueBuffer vidioc_dqbuf successful");
 
   // Since kernel 3.14 Amlogic changed length and units of PTS values reported here.
   // To differentiate such PTS values we check for existence of omx_pts_interval_lower
@@ -2157,7 +2163,7 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
       pVideoPicture->iDuration = static_cast<double>((0x7FFFFFFF & (m_cur_pts - m_last_pts)) * DVD_TIME_BASE) / PTS_FREQ;
 
     pVideoPicture->dts = DVD_NOPTS_VALUE;
-    pVideoPicture->pts = static_cast<double>(m_cur_pts + m_ptsOverflow) / PTS_FREQ * DVD_TIME_BASE;
+    pVideoPicture->pts = static_cast<double>(m_cur_pts + m_ptsOverflow) * DVD_TIME_BASE / PTS_FREQ;
 
     CLog::Log(LOGDEBUG, LOGVIDEO, "CAMLCodec::GetPicture: index: {:d}, pts: {:.4f}[{:X}], overflow: {:X}",m_bufferIndex, pVideoPicture->pts/DVD_TIME_BASE, m_cur_pts, m_ptsOverflow);
 
@@ -2165,12 +2171,8 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
   }
   else if (m_drain)
     return CDVDVideoCodec::VC_EOF;
-  else
-  {
-    if (timesize < 1.0)
-      return CDVDVideoCodec::VC_BUFFER;
-    usleep(5000);
-  }
+  else if (timesize < 1.0)
+    return CDVDVideoCodec::VC_BUFFER;
 
   return CDVDVideoCodec::VC_NONE;
 }
