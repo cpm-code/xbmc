@@ -1300,7 +1300,7 @@ void CRenderManager::CheckEnableClockSync()
     diff = std::abs(std::round(diff) - diff);
   }
 
-  if (diff < 0.0005)
+  if (diff && diff < 0.0005)
   {
     m_clockSync.m_enabled = true;
   }
