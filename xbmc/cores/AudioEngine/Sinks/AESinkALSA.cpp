@@ -594,10 +594,6 @@ bool CAESinkALSA::Initialize(AEAudioFormat &format, std::string &device)
           break;
       }
     }
-    else
-    {
-      device = "@:CARD=AML" + GetAMLCardName(amlDeviceType) + ",DEV=0";
-    }
 
     aml_set_audio_passthrough(m_passthrough);
     SysfsUtils::SetInt("/sys/class/audiodsp/digital_codec", aml_digital_codec);
