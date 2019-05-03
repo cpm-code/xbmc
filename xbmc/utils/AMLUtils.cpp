@@ -124,10 +124,6 @@ bool aml_permissions()
     {
       CLog::Log(LOGERROR, "AML: no rw on /sys/class/amhdmitx/amhdmitx0/frac_rate_policy");
     }
-    if (!SysfsUtils::HasRW("/sys/module/di/parameters/bypass_prog"))
-    {
-      CLog::Log(LOGERROR, "AML: no rw on /sys/module/di/parameters/bypass_prog");
-    }
     if (!SysfsUtils::HasRW("/sys/class/display/mode"))
     {
       CLog::Log(LOGERROR, "AML: no rw on /sys/class/display/mode");
