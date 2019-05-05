@@ -1187,10 +1187,10 @@ void CRenderManager::PrepareNextRender()
   }
 
   CLog::LogFC(LOGDEBUG, LOGAVTIMING,
-              "frameOnScreen: {:f} renderPts: {:f} nextFramePts: {:f} -> diff: {:f}  render: {} "
-              "forceNext: {}",
-              frameOnScreen, renderPts, nextFramePts, (renderPts - nextFramePts),
-              renderPts >= nextFramePts, m_forceNext);
+              "frameOnScreen: {:.3f} renderPts: {:.3f} nextFramePts: {:.3f} -> diff: {:.3f}  render: {:d} "
+              "forceNext: {:d}",
+              frameOnScreen / DVD_TIME_BASE, renderPts / DVD_TIME_BASE, nextFramePts / DVD_TIME_BASE,
+              (renderPts - nextFramePts) / DVD_TIME_BASE, renderPts >= nextFramePts, m_forceNext);
 
   bool combined = false;
   if (m_presentsourcePast >= 0)
