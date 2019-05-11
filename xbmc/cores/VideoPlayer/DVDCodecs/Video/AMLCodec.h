@@ -70,7 +70,6 @@ private:
 
   DllLibAmCodec   *m_dll;
   bool             m_opened;
-  bool             m_ptsIs64us;
   bool             m_drain = false;
   am_private_t    *am_private;
   CDVDStreamInfo   m_hints;
