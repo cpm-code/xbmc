@@ -1683,7 +1683,8 @@ CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
           st->bInterlaced = true;
         }
 
-        CLog::Log(LOGDEBUG, "DVDDemuxFFmpeg::{} - fps:{:d}/{:d} i/p:{:d}", __FUNCTION__, st->iFpsRate, st->iFpsScale, st->bInterlaced);
+        CLog::Log(LOGDEBUG, "DVDDemuxFFmpeg::{} - fps:{:d}/{:d}{}", __FUNCTION__, st->iFpsRate, st->iFpsScale,
+          st->bInterlaced ? "i" : "p");
 
         st->interlaced = pStream->codecpar->field_order == AV_FIELD_TT ||
                          pStream->codecpar->field_order == AV_FIELD_BB ||
