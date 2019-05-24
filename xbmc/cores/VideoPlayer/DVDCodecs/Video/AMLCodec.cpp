@@ -2128,6 +2128,7 @@ float CAMLCodec::GetTimeSize()
 CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
 {
   std::string vfmt;
+  struct vdec_info vi;
 
   if (!m_opened)
     return CDVDVideoCodec::VC_ERROR;
@@ -2148,8 +2149,14 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
     pVideoPicture->dts = DVD_NOPTS_VALUE;
     pVideoPicture->pts = static_cast<double>(m_cur_pts);
 
-    CLog::Log(LOGDEBUG, LOGVIDEO, "CAMLCodec::GetPicture: index: {:d}, pts: {:.3f}, dur:{:.3f}ms",
-      m_bufferIndex, pVideoPicture->pts/DVD_TIME_BASE, pVideoPicture->iDuration / 1000);
+    m_dll->codec_get_vdec_info(&am_private->vcodec, &vi);
+    if  (vi.ratio_control ) {
+      m_hints.aspect = 65536.0 / vi.ratio_control;
+      m_processInfo.SetVideoDAR(m_hints.aspect);
+    }
+
+    CLog::Log(LOGDEBUG, LOGVIDEO, "CAMLCodec::GetPicture: index: {:d}, pts: {:.3f}, dur:{:.3f}ms ar:{:.2f}",
+      m_bufferIndex, pVideoPicture->pts / DVD_TIME_BASE, pVideoPicture->iDuration / 1000, m_hints.aspect);
 
     return CDVDVideoCodec::VC_PICTURE;
   }
@@ -2158,8 +2165,7 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
   else if (timesize < 1.0)
     return CDVDVideoCodec::VC_BUFFER;
 
-  SysfsUtils::GetString("/sys/class/deinterlace/di0/frame_format", vfmt);
-  if (vfmt.c_str())
+  if (!SysfsUtils::GetString("/sys/class/deinterlace/di0/frame_format", vfmt) && (vfmt.size() > 4))
     m_processInfo.SetVideoInterlaced(vfmt.compare("progressive"));
 
   return CDVDVideoCodec::VC_NONE;

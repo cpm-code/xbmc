@@ -305,6 +305,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
   m_processInfo.SetVideoDimensions(m_hints.width, m_hints.height);
   m_processInfo.SetVideoDeintMethod("hardware");
   m_processInfo.SetVideoDAR(m_hints.aspect);
+//  m_processInfo.SetVideoDAR(m_hints.aspect);
 
   m_has_keyframe = false;
 
@@ -503,7 +504,7 @@ void CDVDVideoCodecAmlogic::FrameRateTracking(uint8_t *pData, int iSize, double 
       m_hints.aspect   = m_mpeg2_sequence->ratio;
 
       m_processInfo.SetVideoFps(m_framerate);
-      m_processInfo.SetVideoDAR(m_hints.aspect);
+//      m_processInfo.SetVideoDAR(m_hints.aspect);
     }
     return;
   }
