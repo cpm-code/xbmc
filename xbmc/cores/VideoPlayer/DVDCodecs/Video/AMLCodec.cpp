@@ -1637,6 +1637,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
     hints.aspect, video_ratio.num, video_ratio.den);
   CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hints.orientation({:d}), hints.forced_aspect({:d}), hints.extrasize({:d})",
     hints.orientation, hints.forced_aspect, hints.extradata.GetSize());
+  m_processInfo.SetVideoDAR(hints.aspect);
 
   // default video codec params
   am_private->gcodec.noblock     = 0;
