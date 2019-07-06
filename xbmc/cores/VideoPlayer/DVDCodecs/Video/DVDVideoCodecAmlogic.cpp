@@ -162,11 +162,12 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
         case AV_PROFILE_H264_HIGH_444_PREDICTIVE:
         case AV_PROFILE_H264_HIGH_444_INTRA:
         case AV_PROFILE_H264_CAVLC_444:
+          CLog::Log(LOGDEBUG, "{}: H264 unsupported hints.profile({:d})", __MODULE_NAME__, m_hints.profile);
           goto FAIL;
       }
       if ((aml_support_h264_4k2k() == AML_NO_H264_4K2K) && ((m_hints.width > 1920) || (m_hints.height > 1088)))
       {
-        // 4K is supported only on Amlogic S802/S812 chip
+        CLog::Log(LOGDEBUG, "{}::{} - 4K H264 is supported only on Amlogic S802 and S812 chips or newer", __MODULE_NAME__, __FUNCTION__);
         goto FAIL;
       }
 
@@ -220,6 +221,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
     case AV_CODEC_ID_H263P:
     case AV_CODEC_ID_H263I:
       // amcodec can't handle h263
+      CLog::Log(LOGDEBUG, "{}::{} - amcodec does not support H263", __MODULE_NAME__, __FUNCTION__);
       goto FAIL;
 //    case AV_CODEC_ID_FLV1:
 //      m_pFormatName = "am-flv1";
@@ -230,6 +232,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
     case AV_CODEC_ID_RV40:
       // m_pFormatName = "am-rv";
       // rmvb is not handled well by amcodec
+      CLog::Log(LOGDEBUG, "{}::{} - amcodec does not support RMVB", __MODULE_NAME__, __FUNCTION__);
       goto FAIL;
     case AV_CODEC_ID_VC1:
       m_pFormatName = "am-vc1";
@@ -243,26 +246,30 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       break;
     case AV_CODEC_ID_VP9:
       if (!aml_support_vp9())
+      {
+        CLog::Log(LOGDEBUG, "{}::{} - VP9 is supported only on Amlogic S905X/D/W chips or newer", __MODULE_NAME__, __FUNCTION__);
         goto FAIL;
+      }
       m_pFormatName = "am-vp9";
       break;
     case AV_CODEC_ID_HEVC:
       if (aml_support_hevc()) {
         if (!aml_support_hevc_8k4k() && ((m_hints.width > 4096) || (m_hints.height > 2176)))
         {
-          // 8K HEVC is supported only on Amlogic S922X revB chip
+          CLog::Log(LOGDEBUG, "{}::{} - 8K HEVC is supported only on Amlogic S922*/A311* revB chips or newer", __MODULE_NAME__, __FUNCTION__);
           goto FAIL;
         } else if (!aml_support_hevc_4k2k() && ((m_hints.width > 1920) || (m_hints.height > 1088)))
         {
-          // 4K HEVC is supported only on Amlogic S812 chip
+          CLog::Log(LOGDEBUG, "{}::{} - 4K HEVC is supported only on Amlogic S812 chips or newer", __MODULE_NAME__, __FUNCTION__);
           goto FAIL;
         }
       } else {
-        // HEVC supported only on S805 and S812.
+        CLog::Log(LOGDEBUG, "{}::{} - HEVC is supported only on S805 and S812 chips or newer", __MODULE_NAME__, __FUNCTION__);
         goto FAIL;
       }
       if ((hints.profile == AV_PROFILE_HEVC_MAIN_10) && !aml_support_hevc_10bit())
       {
+        CLog::Log(LOGDEBUG, "{}::{} - HEVC 10-bit is supported only on S905 chips or newer", __MODULE_NAME__, __FUNCTION__);
         goto FAIL;
       }
       m_pFormatName = "am-h265";
@@ -274,7 +281,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       memcpy(m_hints.extradata.GetData(), m_bitstream->GetExtraData(), m_hints.extradata.GetSize());
       break;
     default:
-      CLog::Log(LOGDEBUG, "{}: Unknown hints.codec({:d}", __MODULE_NAME__, m_hints.codec);
+      CLog::Log(LOGDEBUG, "{}: Unknown hints.codec({:d})", __MODULE_NAME__, m_hints.codec);
       goto FAIL;
   }
 
