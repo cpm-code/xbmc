@@ -248,7 +248,11 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       break;
     case AV_CODEC_ID_HEVC:
       if (aml_support_hevc()) {
-        if (!aml_support_hevc_4k2k() && ((m_hints.width > 1920) || (m_hints.height > 1088)))
+        if (!aml_support_hevc_8k4k() && ((m_hints.width > 4096) || (m_hints.height > 2176)))
+        {
+          // 8K HEVC is supported only on Amlogic S922X revB chip
+          goto FAIL;
+        } else if (!aml_support_hevc_4k2k() && ((m_hints.width > 1920) || (m_hints.height > 1088)))
         {
           // 4K HEVC is supported only on Amlogic S812 chip
           goto FAIL;

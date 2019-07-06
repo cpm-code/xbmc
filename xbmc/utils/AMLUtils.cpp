@@ -148,21 +148,33 @@ bool aml_support_hevc()
   return (has_hevc == 1);
 }
 
+static bool aml_support_hevc_res(const char *regex)
+{
+  int has_hevc_res = -1;
+  CRegExp regexp;
+  regexp.RegComp(regex);
+  std::string valstr;
+  if (SysfsUtils::GetString("/sys/class/amstream/vcodec_profile", valstr) != 0)
+    has_hevc_res = 0;
+  else
+    has_hevc_res = (regexp.RegFind(valstr) >= 0) ? 1 : 0;
+  return has_hevc_res;
+}
+
 bool aml_support_hevc_4k2k()
 {
   static int has_hevc_4k2k = -1;
-
   if (has_hevc_4k2k == -1)
-  {
-    CRegExp regexp;
-    regexp.RegComp("hevc:.*4k");
-    std::string valstr;
-    if (SysfsUtils::GetString("/sys/class/amstream/vcodec_profile", valstr) != 0)
-      has_hevc_4k2k = 0;
-    else
-      has_hevc_4k2k = (regexp.RegFind(valstr) >= 0) ? 1 : 0;
-  }
+    has_hevc_4k2k = aml_support_hevc_res("hevc:.*(4k|8k)");
   return (has_hevc_4k2k == 1);
+}
+
+bool aml_support_hevc_8k4k()
+{
+  static int has_hevc_8k4k = -1;
+  if (has_hevc_8k4k == -1)
+    has_hevc_8k4k = aml_support_hevc_res("hevc:.*8k");
+  return (has_hevc_8k4k == 1);
 }
 
 bool aml_support_hevc_10bit()
