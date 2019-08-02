@@ -3943,6 +3943,16 @@
           </constraints>
           <control type="list" format="string" />
         </setting>
+        <setting id="coreelec.amlogic.limit8bit" type="boolean" label="14408" help="14409">
+          <requirement>HAVE_AMCODEC</requirement>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
+        <setting id="coreelec.amlogic.force422" type="boolean" label="14410" help="14411">
+          <requirement>HAVE_AMCODEC</requirement>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
       </group>
     </category>
     <category id="cache" label="439" help="36399">
