@@ -62,8 +62,8 @@ static const struct StereoModeMap VideoModeToGuiModeMap[] = {
     {"anaglyph_cyan_red", RenderStereoMode::ANAGLYPH_RED_CYAN},
     {"anaglyph_green_magenta", RenderStereoMode::ANAGLYPH_GREEN_MAGENTA},
     {"anaglyph_yellow_blue", RenderStereoMode::ANAGLYPH_YELLOW_BLUE},
-    {"block_lr", RenderStereoMode::OFF}, // unsupported
-    {"block_rl", RenderStereoMode::OFF}, // unsupported
+    {"block_lr", RenderStereoMode::HARDWAREBASED},
+    {"block_rl", RenderStereoMode::HARDWAREBASED},
     {}};
 
 static const struct StereoModeMap StringToGuiModeMap[] = {
