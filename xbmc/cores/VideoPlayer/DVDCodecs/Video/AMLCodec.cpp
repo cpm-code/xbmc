@@ -229,14 +229,18 @@ public:
 //-----------------------------------------------------------------------------------
 // AppContext - Application state
 #define MODE_3D_DISABLE         0x00000000
+#define MODE_3D_ENABLE          0x00000001
+#define MODE_3D_FA              0x00000020
 #define MODE_3D_LR              0x00000101
 #define MODE_3D_LR_SWITCH       0x00000501
 #define MODE_3D_BT              0x00000201
 #define MODE_3D_BT_SWITCH       0x00000601
-#define MODE_3D_TO_2D_L         0x00000102
-#define MODE_3D_TO_2D_R         0x00000902
+#define MODE_3D_TO_2D_L         0x00000200
+#define MODE_3D_TO_2D_R         0x00000400
 #define MODE_3D_TO_2D_T         0x00000202
 #define MODE_3D_TO_2D_B         0x00000a02
+#define MODE_3D_OUT_TB          0x00010000
+#define MODE_3D_OUT_LR          0x00020000
 
 #define PTS_FREQ        90000
 #define UNIT_FREQ       96000
