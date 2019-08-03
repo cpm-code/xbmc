@@ -782,6 +782,11 @@ bool CVideoPlayerVideo::ProcessDecoderOutput(double &frametime, double &pts)
           if (m_processInfo.GetVideoSettings().m_StereoInvert)
             stereoMode = "bottom_top";
           break;
+        case RenderStereoMode::HARDWAREBASED:
+          stereoMode = "block_lr";
+          if (m_processInfo.GetVideoSettings().m_StereoInvert)
+            stereoMode = "block_rl";
+          break;
         default:
           stereoMode = m_hints.stereo_mode;
           break;

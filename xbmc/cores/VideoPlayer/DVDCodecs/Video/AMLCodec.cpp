@@ -2680,6 +2680,12 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
     CLog::Log(LOGDEBUG, LOGVIDEO, "CAMLCodec::GetPicture: index: {:d}, pts: {:.3f}, dur:{:.3f}ms ar:{:.2f} elf:{:d}ms",
       m_bufferIndex, pVideoPicture->pts / DVD_TIME_BASE, pVideoPicture->iDuration / 1000, m_hints.aspect, elapsed_since_last_frame.count());
 
+    pVideoPicture->stereoMode = m_hints.stereo_mode;
+    if (pVideoPicture->stereoMode == "block_lr" && m_processInfo.GetVideoSettings().m_StereoInvert)
+      pVideoPicture->stereoMode = "block_rl";
+    else if (pVideoPicture->stereoMode == "block_rl" && m_processInfo.GetVideoSettings().m_StereoInvert)
+      pVideoPicture->stereoMode = "block_lr";
+
     return CDVDVideoCodec::VC_PICTURE;
   }
   else if (m_drain)
@@ -2905,6 +2911,44 @@ void CAMLCodec::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
   else if (m_guiStereoMode == RenderStereoMode::SPLIT_HORIZONTAL)
   {
     dst_rect.y2 *= 2.0f;
+  }
+  else if (m_guiStereoMode == RenderStereoMode::HARDWAREBASED)
+  {
+    // 3D frame packed output: get the screen height from the graphic context
+    // (will work in fullscreen mode only)
+    RESOLUTION_INFO info = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo();
+    dst_rect.y2 = info.iHeight * 2 + info.iBlanking;
+  }
+
+  if (aml_display_support_3d())
+  {
+    int mvc_view_mode = 3;
+    switch (am_private->video_format)
+    {
+      case VFORMAT_H264MVC:
+        {
+          mvc_view_mode = m_processInfo.GetVideoStereoMode() == "block_lr" ? 3 : 2;
+          switch (m_guiStereoMode)
+          {
+            case RenderStereoMode::HARDWAREBASED:
+              aml_set_3d_video_mode(MODE_3D_ENABLE | MODE_3D_FA, true, mvc_view_mode);
+              break;
+            case RenderStereoMode::SPLIT_VERTICAL:
+              aml_set_3d_video_mode(MODE_3D_OUT_LR | MODE_3D_FA | MODE_3D_ENABLE, false, mvc_view_mode);
+              break;
+            case RenderStereoMode::SPLIT_HORIZONTAL:
+              aml_set_3d_video_mode(MODE_3D_OUT_TB | MODE_3D_FA | MODE_3D_ENABLE, false, mvc_view_mode);
+              break;
+            default:
+              aml_set_3d_video_mode(MODE_3D_TO_2D_R | MODE_3D_FA | MODE_3D_ENABLE, false, mvc_view_mode);
+              break;
+          }
+          break;
+        }
+      default:
+        aml_set_3d_video_mode(MODE_3D_DISABLE, false, mvc_view_mode);
+        break;
+    }
   }
 
 #if 1
