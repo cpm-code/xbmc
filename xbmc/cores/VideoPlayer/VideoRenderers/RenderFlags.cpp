@@ -81,8 +81,8 @@ unsigned int GetFlagsStereoMode(const std::string& mode)
     convert["right_left"]             = CONF_FLAGS_STEREO_MODE_SBS | CONF_FLAGS_STEREO_CADANCE_RIGHT_LEFT;
     convert["anaglyph_green_magenta"] = 0u;
     convert["anaglyph_yellow_blue"]   = 0u;
-    convert["block_lr"]               = 0u;
-    convert["block_rl"]               = 0u;
+    convert["block_lr"]               = CONF_FLAGS_STEREO_MODE_FP | CONF_FLAGS_STEREO_CADANCE_LEFT_RIGHT;
+    convert["block_rl"]               = CONF_FLAGS_STEREO_MODE_FP | CONF_FLAGS_STEREO_CADANCE_RIGHT_LEFT;
   }
   return convert[mode];
 }
