@@ -45,6 +45,8 @@ public:
 
   virtual std::unique_ptr<CVideoSync> GetVideoSync(CVideoReferenceClock *clock) override;
 
+  bool SupportsStereo(const RenderStereoMode mode) const override;
+
   EGLDisplay GetEGLDisplay() const;
   EGLSurface GetEGLSurface() const;
   EGLContext GetEGLContext() const;
