@@ -1933,6 +1933,11 @@ constexpr std::array<InfoMap, 10> weather = {{
 ///     @return The display's supported HDR types.
 ///     <p><hr>
 ///     @skinning_v20 **[New Infolabel]** \link System_SupportedHDRTypes `System.SupportedHDRTypes`\endlink
+///   \table_row3{   <b>`System.PathExist(path)`</b>,
+///                  \anchor System_PathExist
+///                  _boolean_,
+///     @return **False** if Kodi has had no input for `path`.
+///     @param path - path to be cheched if exist.
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`System.IsScreensaverInhibited`</b>,
@@ -10822,6 +10827,8 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
             return SYSTEM_LOCALE;
           }
         }
+        else if (prop.Name() == "pathexist")
+          return AddMultiInfo(CGUIInfo(SYSTEM_PATH_EXIST, param));
       }
       if (prop.Name() == "alarmlessorequal" && prop.num_params() == 2)
         return AddMultiInfo(CGUIInfo(SYSTEM_ALARM_LESS_OR_EQUAL, prop.param(0), atoi(prop.param(1).c_str())));
