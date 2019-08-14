@@ -533,6 +533,8 @@ constexpr uint32_t SLIDESHOW_ISRANDOM                = 801;
 constexpr uint32_t SLIDESHOW_ISACTIVE                = 802;
 constexpr uint32_t SLIDESHOW_ISVIDEO                 = 803;
 
+constexpr uint32_t SYSTEM_PATH_EXIST                 = 810;
+
 constexpr int      SLIDESHOW_LABELS_START            = 900;
 constexpr uint32_t SLIDESHOW_FILE_NAME               = SLIDESHOW_LABELS_START;
 constexpr uint32_t SLIDESHOW_FILE_PATH               = SLIDESHOW_LABELS_START + 1;
