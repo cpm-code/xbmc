@@ -115,6 +115,10 @@ bool CWinSystemAmlogic::InitWindowSystem()
      CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- Limiting display to 8bit colour depth");
      if (attr.find("10bit") != std::string::npos)
        attr.replace(attr.find("10bit"),5,"8bit");
+     else if (attr.find("12bit") != std::string::npos)
+       attr.replace(attr.find("12bit"),5,"8bit");
+     else if (attr.find("8bit") != std::string::npos)
+       ; //do nothing
      else
        attr.append("8bit");
   }
