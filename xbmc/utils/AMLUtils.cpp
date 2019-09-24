@@ -462,16 +462,24 @@ bool aml_set_native_resolution(const RESOLUTION_INFO &res, std::string framebuff
 
 bool aml_probe_resolutions(std::vector<RESOLUTION_INFO> &resolutions)
 {
-  std::string valstr, vesastr, dcapfile;
+  std::string valstr, addstr, dcapfile, daddfile;
   dcapfile = CSpecialProtocol::TranslatePath("special://home/userdata/disp_cap");
+  daddfile = CSpecialProtocol::TranslatePath("special://home/userdata/disp_add");
 
   if (SysfsUtils::GetString(dcapfile, valstr) < 0)
   {
     if (SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/disp_cap", valstr) < 0)
       return false;
 
-    if (SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/vesa_cap", vesastr) == 0)
-      valstr += "\n" + vesastr;
+    if (SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/vesa_cap", addstr) == 0)
+      valstr += "\n" + addstr;
+
+    if (SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/custom_mode", addstr) == 0)
+      valstr += "\n" + addstr;
+
+    if (SysfsUtils::GetString(daddfile, addstr) == 0)
+      valstr += "\n" + addstr;
+
   }
   std::vector<std::string> probe_str = StringUtils::Split(valstr, "\n");
 
@@ -508,8 +516,15 @@ bool aml_set_display_resolution(const RESOLUTION_INFO &res, std::string framebuf
 {
   std::string mode = res.strId.c_str();
   std::string cur_mode;
+  std::string custom_mode;
 
   SysfsUtils::GetString("/sys/class/display/mode", cur_mode);
+  SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/custom_mode", custom_mode);
+
+  if (custom_mode == mode)
+  {
+    mode = "custombuilt";
+  }
 
   if (aml_has_frac_rate_policy())
   {
