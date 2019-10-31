@@ -908,6 +908,34 @@ static int hevc_write_header(am_private_t *para, am_packet_t *pkt)
     return ret;
 }
 
+int mpeg12_add_frame_dec_info(am_private_t *para)
+{
+  am_packet_t *pkt = &para->am_pkt;
+  int ret;
+
+  pkt->avpkt.data = pkt->data;
+  pkt->avpkt.size = pkt->data_size;
+
+  av_buffer_unref(&pkt->avpkt.buf);
+  ret = av_grow_packet(&(pkt->avpkt), 4);
+  if (ret < 0)
+  {
+    CLog::Log(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!\n");
+    return ret;
+  }
+
+  pkt->data = pkt->avpkt.data;
+  pkt->data_size = pkt->avpkt.size;
+
+  uint8_t *fdata = pkt->data + pkt->data_size - 4;
+  fdata[0] = 0x00;
+  fdata[1] = 0x00;
+  fdata[2] = 0x01;
+  fdata[3] = 0x00;
+
+  return PLAYER_SUCCESS;
+}
+
 int vp9_update_frame_header(am_packet_t *pkt)
 {
   int dsize = pkt->data_size;
@@ -1468,8 +1496,11 @@ int set_header_info(am_private_t *para)
             pkt->newflag = 1;
         }
     }
-    else if (para->video_format == VFORMAT_VP9)
+    else if (para->video_format == VFORMAT_VP9) {
       vp9_update_frame_header(pkt);
+    }
+    else if (para->vcodec.multi_vdec && para->video_format == VFORMAT_MPEG12)
+      mpeg12_add_frame_dec_info(para);
 
   }
   return PLAYER_SUCCESS;
