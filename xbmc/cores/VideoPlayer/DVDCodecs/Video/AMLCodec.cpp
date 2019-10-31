@@ -106,6 +106,7 @@ typedef struct {
   unsigned int  ratio;
   unsigned long long ratio64;
   void *param;
+  bool          multi_vdec;
 } aml_generic_param;
 
 class DllLibamCodecInterface
@@ -212,6 +213,7 @@ public:
     p_out->am_sysinfo.ratio   = p_in->ratio;
     p_out->am_sysinfo.ratio64 = p_in->ratio64;
     p_out->am_sysinfo.param   = p_in->param;
+    p_out->multi_vdec         = p_in->multi_vdec;
   }
 };
 
@@ -1651,6 +1653,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   am_private->gcodec.ratio       = am_private->video_ratio;
   am_private->gcodec.ratio64     = am_private->video_ratio64;
   am_private->gcodec.param       = NULL;
+  am_private->gcodec.multi_vdec  = 1;
 
   if (am_private->video_format == VFORMAT_VC1) 					/* workaround to fix slowdown VC1 progressive */
     SysfsUtils::SetInt("/sys/module/di/parameters/di_debug_flag", 0x10000);
@@ -1708,6 +1711,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
       // vc1 in an avi file
       if (m_hints.ptsinvalid)
         am_private->gcodec.param = (void*)KEYFRAME_PTS_ONLY;
+      am_private->gcodec.multi_vdec = 0;
       break;
     case VFORMAT_HEVC:
       am_private->gcodec.format = VIDEO_DEC_FORMAT_HEVC;
@@ -1726,6 +1730,9 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
 
   // translate from generic to firmware version dependent
   m_dll->codec_init_para(&am_private->gcodec, &am_private->vcodec);
+
+  if (!am_private->vcodec.multi_vdec)
+    SetVfmMap("default", "decoder ppmgr amlvideo deinterlace amvideo");
 
   int ret = m_dll->codec_init(&am_private->vcodec);
   if (ret != CODEC_ERROR_NONE)
@@ -1780,9 +1787,7 @@ bool CAMLCodec::OpenAmlVideo(const CDVDStreamInfo &hints)
   }
 
   m_amlVideoFile = amlVideoFile;
-
   m_defaultVfmMap = GetVfmMap("default");
-  SetVfmMap("default", "decoder ppmgr deinterlace amlvideo amvideo");
 
   return true;
 }
@@ -1844,7 +1849,10 @@ void CAMLCodec::CloseDecoder()
 void CAMLCodec::CloseAmlVideo()
 {
   m_amlVideoFile.reset();
-  SetVfmMap("default", m_defaultVfmMap);
+
+  if (!am_private->vcodec.multi_vdec)
+    SetVfmMap("default", m_defaultVfmMap);
+
   m_amlVideoFile = NULL;
 }
 
