@@ -1717,10 +1717,10 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
       break;
     case VFORMAT_REAL:
       am_private->stream_type = AM_STREAM_RM;
-      am_private->vcodec.noblock = 1;
-      am_private->vcodec.stream_type = STREAM_TYPE_RM;
-      am_private->vcodec.am_sysinfo.ratio = 0x100;
-      am_private->vcodec.am_sysinfo.ratio64 = 0;
+      am_private->gcodec.noblock = 1;
+      am_private->gcodec.stream_type = STREAM_TYPE_RM;
+      am_private->gcodec.ratio = 0x100;
+      am_private->gcodec.ratio64 = 0;
       {
         static unsigned short tbl[9] = {0};
         if (VIDEO_DEC_FORMAT_REAL_8 == am_private->video_codec_type)
