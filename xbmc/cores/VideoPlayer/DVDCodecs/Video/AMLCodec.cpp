@@ -1903,11 +1903,7 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
     return false;
 
   struct buf_status bs;
-  m_dll->codec_get_vbuf_state(&am_private->vcodec, &bs);
-  if (iSize > (size_t)bs.free_len) {
-    CLog::Log(LOGERROR, "CAMLCodec::AddData: packet to big: {:d}, probably corrupted", iSize);
-    return false;
-  }
+
   m_frameSizes.push_back(iSize);
   m_frameSizeSum += iSize;
 
