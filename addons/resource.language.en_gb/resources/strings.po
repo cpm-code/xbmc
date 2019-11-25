@@ -8927,6 +8927,16 @@ msgctxt "#14411"
 msgid "Enable this to use 4:2:2 colour subsampling. Some displays (usually LG) work better with this. Requires reboot."
 msgstr ""
 
+#: system/settings/settings.xml
+msgctxt "#14412"
+msgid "Disable GUI scaling"
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#14413"
+msgid "For optimal performance across all devices, the GUI is rendered at 1080P and scaled to 4K by default, this option disables that scaling and renders the GUI at 4K. This can make thumbnails and other textures sharper, however some devices may have issues with this option being set. Requires reboot."
+msgstr ""
+
 #: xbmc/music/MusicDatabase.cpp
 #: xbmc/video/VideoDatabase.cpp
 msgctxt "#15011"

@@ -3941,6 +3941,11 @@
           <default>false</default>
           <control type="toggle" />
         </setting>
+        <setting id="coreelec.amlogic.disableguiscaling" type="boolean" label="14412" help="14413">
+          <requirement>HAVE_AMCODEC</requirement>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
       </group>
     </category>
     <category id="cache" label="439" help="36399">
