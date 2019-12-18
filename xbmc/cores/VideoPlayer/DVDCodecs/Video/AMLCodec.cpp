@@ -1938,10 +1938,11 @@ void CAMLCodec::Reset()
 
 bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
 {
-  if (!m_opened || !pData)
-    return false;
-
   struct buf_status bs;
+  m_dll->codec_get_vbuf_state(&am_private->vcodec, &bs);
+
+  if (!m_opened || !pData || ((iSize > (size_t)bs.free_len) && (m_speed == DVD_PLAYSPEED_PAUSE)))
+    return false;
 
   m_frameSizes.push_back(iSize);
   m_frameSizeSum += iSize;
