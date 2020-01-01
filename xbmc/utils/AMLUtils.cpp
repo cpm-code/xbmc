@@ -474,9 +474,11 @@ bool aml_probe_resolutions(std::vector<RESOLUTION_INFO> &resolutions)
     if (SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/disp_cap", valstr) < 0)
       return false;
 
-    if (SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/vesa_cap", addstr) == 0)
-      valstr += "\n" + addstr;
-
+    if (SysfsUtils::Has("/flash/vesa.enable"))
+    {
+      if (SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/vesa_cap", addstr) == 0)
+        valstr += "\n" + addstr;
+    }
     if (SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/custom_mode", addstr) == 0)
       valstr += "\n" + addstr;
 
