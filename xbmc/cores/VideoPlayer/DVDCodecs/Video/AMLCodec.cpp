@@ -2267,14 +2267,14 @@ void CAMLCodec::SetVideoContrast(const int contrast)
   // input contrast range is 0 to 100 with default of 50.
   // output contrast range is -127 to 127 with default of 0.
   int aml_contrast = (127 * (contrast - 50)) / 50;
-  SysfsUtils::SetInt("/sys/class/video/contrast", aml_contrast);
+  SysfsUtils::SetInt("/sys/class/amvecm/contrast1", aml_contrast);
 }
 void CAMLCodec::SetVideoBrightness(const int brightness)
 {
   // input brightness range is 0 to 100 with default of 50.
   // output brightness range is -127 to 127 with default of 0.
   int aml_brightness = (127 * (brightness - 50)) / 50;
-  SysfsUtils::SetInt("/sys/class/video/brightness", aml_brightness);
+  SysfsUtils::SetInt("/sys/class/amvecm/brightness1", aml_brightness);
 }
 void CAMLCodec::SetVideoSaturation(const int saturation)
 {
