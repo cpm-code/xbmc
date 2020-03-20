@@ -99,7 +99,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
 {
   if (!CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_VIDEOPLAYER_USEAMCODEC))
     return false;
-  if (hints.stills || hints.width == 0)
+  if ((hints.stills && hints.fpsrate == 0) || hints.width == 0)
     return false;
 
   if (!aml_permissions())
