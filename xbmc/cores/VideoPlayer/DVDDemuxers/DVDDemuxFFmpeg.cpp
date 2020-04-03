@@ -1652,8 +1652,15 @@ CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
         //average fps is more accurate for mkv files
         if (m_bMatroska && pStream->avg_frame_rate.den && pStream->avg_frame_rate.num)
         {
-          st->iFpsRate = pStream->avg_frame_rate.num;
-          st->iFpsScale = pStream->avg_frame_rate.den;
+          double fps = (double) pStream->avg_frame_rate.num / (double) pStream->avg_frame_rate.den;
+          if (fps > 500. && r_frame_rate.num > 0 && r_frame_rate.den > 0) {
+            // fps seems to be nonsense so we're use real base framerate instead
+            st->iFpsRate = r_frame_rate.num;
+            st->iFpsScale = r_frame_rate.den;
+          } else {
+            st->iFpsRate = pStream->avg_frame_rate.num;
+            st->iFpsScale = pStream->avg_frame_rate.den;
+          }
         }
         else if (r_frame_rate.den && r_frame_rate.num)
         {
