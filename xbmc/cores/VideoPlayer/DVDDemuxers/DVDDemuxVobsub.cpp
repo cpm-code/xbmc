@@ -67,7 +67,7 @@ bool CDVDDemuxVobsub::Open(const std::string& filename, int source, const std::s
     return false;
 
   m_Demuxer = std::make_unique<CDVDDemuxFFmpeg>();
-  if (!m_Demuxer->Open(m_Input, false))
+  if (!m_Demuxer->Open(m_Input))
     return false;
 
   CDVDStreamInfo hints;
