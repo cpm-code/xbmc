@@ -84,7 +84,7 @@ public:
   CDVDDemuxFFmpeg();
   ~CDVDDemuxFFmpeg() override;
 
-  bool Open(const std::shared_ptr<CDVDInputStream>& pInput, bool fileinfo);
+  bool Open(const std::shared_ptr<CDVDInputStream>& pInput, bool streaminfo = true, bool fileinfo = false);
   void Dispose();
   bool Reset() override ;
   void Flush() override;
@@ -172,7 +172,6 @@ protected:
   }m_pkt;
 
   bool m_streaminfo;
-  bool m_reopen = false;
   bool m_checkTransportStream;
   int m_displayTime = 0;
   double m_dtsAtDisplayTime;
