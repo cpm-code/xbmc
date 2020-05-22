@@ -1906,3 +1906,8 @@ CURL URIUtils::AddCredentials(CURL url)
     CPasswordManager::GetInstance().AuthenticateURL(url);
   return url;
 }
+
+bool URIUtils::IsUsingFastSwitch(const std::string& strFile)
+{
+  return IsUDP(strFile) || IsTCP(strFile) || IsPVRChannel(strFile);
+}
