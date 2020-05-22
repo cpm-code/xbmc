@@ -61,6 +61,20 @@ CDVDDemux* CDVDFactoryDemuxer::CreateDemuxer(const std::shared_ptr<CDVDInputStre
       return nullptr;
   }
 
+  bool streaminfo = true; /* Look for streams before playback */
+  if (pInputStream->IsStreamType(DVDSTREAM_TYPE_PVRMANAGER))
+  {
+    /* Don't parse the streaminfo for some cases of streams to reduce the channel switch time */
+    bool useFastswitch = URIUtils::IsUsingFastSwitch(pInputStream->GetFileName());
+    streaminfo = !useFastswitch;
+  }
+
+  if (pInputStream->IsStreamType(DVDSTREAM_TYPE_FFMPEG))
+  {
+    bool useFastswitch = URIUtils::IsUsingFastSwitch(pInputStream->GetFileName());
+    streaminfo = !useFastswitch;
+  }
+
   // Try to open the MultiFiles demuxer
   if (pInputStream->IsStreamType(DVDSTREAM_TYPE_MULTIFILES))
   {
@@ -72,7 +86,7 @@ CDVDDemux* CDVDFactoryDemuxer::CreateDemuxer(const std::shared_ptr<CDVDInputStre
   }
 
   std::unique_ptr<CDVDDemuxFFmpeg> demuxer(new CDVDDemuxFFmpeg());
-  if (demuxer->Open(pInputStream, fileinfo))
+  if (demuxer->Open(pInputStream, streaminfo, fileinfo))
     return demuxer.release();
   else
     return NULL;
