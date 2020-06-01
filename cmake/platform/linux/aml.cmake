@@ -1,0 +1,2 @@
+list(APPEND PLATFORM_REQUIRED_DEPS OpenGLES AML EGL LibInput Xkbcommon)
+set(APP_RENDER_SYSTEM gles)

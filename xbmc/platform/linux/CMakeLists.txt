@@ -40,4 +40,9 @@ if(ADDONS_CONFIGURE_AT_STARTUP)
   add_compile_definitions(ADDONS_CONFIGURE_AT_STARTUP)
 endif()
 
+if("aml" IN_LIST CORE_PLATFORM_NAME_LC)
+  list(APPEND SOURCES ScreenshotSurfaceAML.cpp)
+  list(APPEND HEADERS ScreenshotSurfaceAML.h)
+endif()
+
 core_add_library(linuxsupport)

@@ -33,6 +33,7 @@ endif()
 if(TARGET ${APP_NAME_LC}::OpenGLES AND ("android" IN_LIST CORE_PLATFORM_NAME_LC OR
                             "ios" IN_LIST CORE_PLATFORM_NAME_LC OR
                             "tvos" IN_LIST CORE_PLATFORM_NAME_LC OR
+                            "aml" IN_LIST CORE_PLATFORM_NAME_LC OR
                             "gbm" IN_LIST CORE_PLATFORM_NAME_LC OR
                             "x11" IN_LIST CORE_PLATFORM_NAME_LC OR
                             "wayland" IN_LIST CORE_PLATFORM_NAME_LC))
