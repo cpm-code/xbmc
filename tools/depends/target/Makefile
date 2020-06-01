@@ -94,6 +94,9 @@ ifeq ($(OS),linux)
   ifeq ($(CPU),x86_64)
     DEPENDS += libva
     LIBVA = libva
+  else ifeq ($(TARGET_PLATFORM),aml)
+    DEPENDS += libxkbcommon libinput libudev libevdev mtdev
+    DEPENDS += libamcodec
   endif
 
   ifneq (,$(findstring wayland,$(TARGET_PLATFORM)))

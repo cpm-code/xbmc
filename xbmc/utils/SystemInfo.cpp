@@ -56,6 +56,9 @@ using namespace winrt::Windows::System::Profile;
 #include <androidjni/Build.h>
 #include <androidjni/Context.h>
 #include <androidjni/PackageManager.h>
+#if defined(HAS_LIBAMCODEC)
+#include "utils/AMLUtils.h"
+#endif
 #endif
 
 /* Platform identification */
