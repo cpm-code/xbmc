@@ -250,6 +250,13 @@ if("gbm" IN_LIST CORE_PLATFORM_NAME_LC OR "wayland" IN_LIST CORE_PLATFORM_NAME_L
   endif()
 endif()
 
+if(TARGET ${APP_NAME_LC}::AML)
+  list(APPEND SOURCES AMLUtils.cpp
+                      ScreenshotAML.cpp)
+  list(APPEND HEADERS AMLUtils.h
+                      ScreenshotAML.h)
+endif()
+
 core_add_library(utils)
 
 if(NOT CORE_SYSTEM_NAME STREQUAL windows AND NOT CORE_SYSTEM_NAME STREQUAL windowsstore)

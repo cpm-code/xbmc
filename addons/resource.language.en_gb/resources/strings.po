@@ -7544,7 +7544,7 @@ msgstr ""
 
 #: system/settings/settings.xml
 msgctxt "#13438"
-msgid "Allow hardware acceleration with DRM PRIME"
+msgid "Allow hardware acceleration - amcodec"
 msgstr ""
 
 #: system/settings/settings.xml
@@ -21498,6 +21498,11 @@ msgstr ""
 #: system/settings/settings.xml
 msgctxt "#36439"
 msgid "Enable automatic playback of the next programme when playing past programmes (catchup) or for Video On Demand (VOD) channels. Please note that catchup and VOD only work if supported by the channel provider."
+
+#. Description of setting with label #13438 "Allow hardware acceleration (amcodec)"
+#: system/settings/settings.xml
+msgctxt "#36440"
+msgid "Enable hardware video decode using Amlogic decoder."
 msgstr ""
 
 #empty strings from id 36440 to 36441
@@ -23512,7 +23517,27 @@ msgctxt "#38354"
 msgid "Unable to read xml file"
 msgstr ""
 
-#empty strings from id 38355 to 39003
+#empty strings from id 38355 to 38999
+
+#: system/settings/settings.xml
+msgctxt "#39000"
+msgid "HD and up"
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#39001"
+msgid "Accelerate MPEG2"
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#39002"
+msgid "Accelerate MPEG4"
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#39003"
+msgid "Accelerate h264"
+msgstr ""
 
 #. Description of category "Library" with label #14202
 #: system/settings/settings.xml

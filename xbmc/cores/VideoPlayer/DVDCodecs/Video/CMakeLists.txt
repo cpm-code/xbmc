@@ -12,6 +12,13 @@ if(TARGET ffmpeg::libpostproc)
   list(APPEND HEADERS DVDVideoPPFFmpeg.h)
 endif()
 
+if(TARGET ${APP_NAME_LC}::AML)
+  list(APPEND SOURCES AMLCodec.cpp
+                      DVDVideoCodecAmlogic.cpp)
+  list(APPEND HEADERS AMLCodec.h
+                      DVDVideoCodecAmlogic.h)
+endif()
+
 if(CORE_SYSTEM_NAME STREQUAL windows OR CORE_SYSTEM_NAME STREQUAL windowsstore)
   list(APPEND SOURCES DXVA.cpp)
   list(APPEND HEADERS DXVA.h)
