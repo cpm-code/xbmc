@@ -252,9 +252,11 @@ endif()
 
 if(TARGET ${APP_NAME_LC}::AML)
   list(APPEND SOURCES AMLUtils.cpp
-                      ScreenshotAML.cpp)
+                      ScreenshotAML.cpp
+                      SysfsUtils.cpp)
   list(APPEND HEADERS AMLUtils.h
-                      ScreenshotAML.h)
+                      ScreenshotAML.h
+                      SysfsUtils.h)
 endif()
 
 core_add_library(utils)
