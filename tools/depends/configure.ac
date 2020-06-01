@@ -398,7 +398,7 @@ case $host in
     platform_ldflags="-Wl,-rpath-link=$prefix/$deps_dir/lib"
     platform_os="linux"
     meson_system="linux"
-    target_platform="wayland gbm"
+    target_platform="wayland aml gbm"
   ;;
   *i686*-linux-gnu*|i*86*-*-linux-uclibc*|x86_64*-linux-gnu*|x86_64-*-linux-uclibc*)
     case $host in

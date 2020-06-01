@@ -142,7 +142,7 @@ enum
  *  Copyright (C) 2005 Michal Benes <michal.benes@itonis.tv>
  *            (C) 2008 Wim Taymans <wim.taymans@gmail.com>
  *  gsth264parse.c
- *  
+ *
  *  SPDX-License-Identifier: LGPL-2.1-or-later
  *  See LICENSES/README.md for more information.
  */
@@ -471,7 +471,7 @@ bool CBitstreamConverter::Open(enum AVCodecID codec,
       // valid hvcC data (bitstream) always starts with the value 1 (version)
       if (m_to_annexb)
       {
-        /**
+        /** @todo from Amlogic
         * It seems the extradata is encoded as hvcC format.
         * Temporarily, we support configurationVersion==0 until 14496-15 3rd
         * is finalized. When finalized, configurationVersion will be 1 and we
