@@ -20,6 +20,10 @@
 #include "utils/XTimeUtils.h"
 #include "utils/log.h"
 
+#if defined(HAS_LIBAMCODEC)
+#include "utils/AMLUtils.h"
+#endif
+
 #include <algorithm>
 #include <limits.h>
 #include <set>
@@ -519,6 +523,12 @@ bool CAESinkALSA::Initialize(AEAudioFormat &format, std::string &device)
   {
     m_passthrough   = false;
   }
+#if defined(HAS_LIBAMCODEC)
+  if (aml_present())
+  {
+    aml_set_audio_passthrough(m_passthrough);
+  }
+#endif
 
   if (inconfig.channels == 0)
   {
