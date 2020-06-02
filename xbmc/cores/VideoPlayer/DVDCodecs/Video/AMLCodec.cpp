@@ -313,6 +313,7 @@ typedef enum {
 typedef struct am_private_t
 {
   am_packet_t       am_pkt;
+  hdr_buf_t         hdr_buf;
   aml_generic_param gcodec;
   codec_para_t      vcodec;
 
@@ -709,40 +710,30 @@ int write_av_packet(am_private_t *para, am_packet_t *pkt)
 }
 
 /*************************************************************************/
-static int m4s2_dx50_mp4v_add_header(unsigned char *buf, int size,  am_packet_t *pkt)
+static int m4s2_dx50_mp4v_add_header(am_private_t *para, unsigned char *buf, int size,  am_packet_t *pkt)
 {
-    if (size > pkt->hdr->size) {
-        free(pkt->hdr->data), pkt->hdr->data = NULL;
-        pkt->hdr->size = 0;
+  hdr_buf_t *hdr = &para->hdr_buf;
 
-        pkt->hdr->data = (char*)malloc(size);
-        if (!pkt->hdr->data) {
-            CLog::Log(LOGDEBUG, "[m4s2_dx50_add_header] NOMEM!");
-            return PLAYER_FAILED;
-        }
-    }
+  if (size > hdr->size) {
+      free(hdr->data), hdr->data = NULL;
+      hdr->size = 0;
 
-    pkt->hdr->size = size;
-    memcpy(pkt->hdr->data, buf, size);
+      hdr->data = (char*)malloc(size);
+      if (!hdr->data) {
+          CLog::Log(LOGDEBUG, "[m4s2_dx50_add_header] NOMEM!");
+          return PLAYER_FAILED;
+      }
+  }
 
-    return PLAYER_SUCCESS;
+  hdr->size = size;
+  memcpy(hdr->data, buf, size);
+  return PLAYER_SUCCESS;
 }
 
 static int m4s2_dx50_mp4v_write_header(am_private_t *para, am_packet_t *pkt)
 {
     CLog::Log(LOGDEBUG, "m4s2_dx50_mp4v_write_header");
-    int ret = m4s2_dx50_mp4v_add_header(para->extradata.GetData(), para->extradata.GetSize(), pkt);
-    if (ret == PLAYER_SUCCESS) {
-        if (1) {
-            pkt->codec = &para->vcodec;
-        } else {
-            CLog::Log(LOGDEBUG, "[m4s2_dx50_mp4v_add_header]invalid video codec!");
-            return PLAYER_EMPTY_P;
-        }
-        pkt->newflag = 1;
-        ret = write_av_packet(para, pkt);
-    }
-    return ret;
+    return m4s2_dx50_mp4v_add_header(para, para->extradata.GetData(), para->extradata.GetSize(), pkt);
 }
 
 static int mjpeg_data_prefeeding(am_packet_t *pkt)
@@ -1786,6 +1777,9 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   SysfsUtils::SetInt("/sys/class/tsync/enable", 0);
 
   am_private->am_pkt.codec = &am_private->vcodec;
+  am_private->hdr_buf.size = 0;
+  free(am_private->hdr_buf.data);
+  am_private->hdr_buf.data = NULL;
   pre_header_feeding(am_private, &am_private->am_pkt);
 
   m_display_rect = CRect(0, 0, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iWidth, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iHeight);
@@ -1944,11 +1938,44 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
   if (!m_opened || !pData || ((iSize > (size_t)bs.free_len) && (m_speed == DVD_PLAYSPEED_PAUSE)))
     return false;
 
+  if (am_private->hdr_buf.size > 0)
+  {
+    CLog::Log(LOGDEBUG, "CAMLCodec::{}: feed extradata on first frame. extradata size: {:d}", __FUNCTION__,
+      am_private->hdr_buf.size);
+
+    am_packet_t *pkt = &am_private->am_pkt;
+    pkt->data = pData;
+    pkt->data_size = iSize;
+    pkt->avpkt.data = pkt->data;
+    pkt->avpkt.size = pkt->data_size;
+
+    av_buffer_unref(&pkt->avpkt.buf);
+    int ret = av_grow_packet(&(pkt->avpkt), am_private->hdr_buf.size);
+    if (ret < 0)
+    {
+      CLog::Log(LOGDEBUG, "CAMLCodec::{}: ERROR!!! grow_packet for apk failed.!!!", __FUNCTION__);
+      return ret;
+    }
+
+    pkt->data = pkt->avpkt.data;
+    pkt->data_size = pkt->avpkt.size;
+
+    memmove(pkt->data + am_private->hdr_buf.size, pkt->data, iSize);
+    memcpy(pkt->data, am_private->hdr_buf.data, am_private->hdr_buf.size);
+
+    iSize += am_private->hdr_buf.size;
+    am_private->hdr_buf.size = 0;
+    free(am_private->hdr_buf.data);
+    am_private->hdr_buf.data = NULL;
+  }
+  else
+  {
+    am_private->am_pkt.data = pData;
+    am_private->am_pkt.data_size = iSize;
+  }
+
   m_frameSizes.push_back(iSize);
   m_frameSizeSum += iSize;
-
-  am_private->am_pkt.data = pData;
-  am_private->am_pkt.data_size = iSize;
 
   am_private->am_pkt.newflag    = 1;
   am_private->am_pkt.isvalid    = 1;
