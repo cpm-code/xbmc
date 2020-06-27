@@ -109,6 +109,7 @@ public:
 
   // audio control
   bool HasAudioControl(void);
+  CDateTime m_ScreensaverStandbySent;
   void VolumeUp(void);
   void VolumeDown(void);
   void ToggleMute(void);
@@ -205,6 +206,7 @@ private:
   bool m_bPlaybackPaused;
   std::string m_strComPort;
   bool m_bPowerOnScreensaver;
+  bool m_bPowerOffScreensaverPaused;
   bool m_bUseTVMenuLanguage;
   bool m_bSendInactiveSource;
   bool m_bPowerOffScreensaver;
