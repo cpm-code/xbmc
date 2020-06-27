@@ -19618,7 +19618,17 @@ msgctxt "#36053"
 msgid "Tuner Device"
 msgstr ""
 
-#empty strings from id 36054 to 36095
+#: system/peripherals.xml
+msgctxt "#36054"
+msgid "Seconds standby is delayed after Screensaver is activated"
+msgstr ""
+
+#: system/peripherals.xml
+msgctxt "#36055"
+msgid "Put devices in standby by Screensaver on paused video"
+msgstr ""
+
+#empty strings from id 36056 to 36095
 
 #. Label of setting "System / Display / Use system HDR/SDR brightness balance"
 #: system/settings/settings.xml
