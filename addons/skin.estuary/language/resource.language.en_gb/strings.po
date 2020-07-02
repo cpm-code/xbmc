@@ -454,7 +454,7 @@ msgstr ""
 
 #: /xml/LoginScreen.xml
 msgctxt "#31098"
-msgid "Select your Kodi user profile[CR]to login and continue"
+msgid "Select your CoreELEC user profile[CR]to login and continue"
 msgstr ""
 
 #. viewtype name
@@ -565,7 +565,7 @@ msgstr ""
 
 #: /xml/Home.xml
 msgctxt "#31119"
-msgid "You do not have any add-ons installed yet. Visit our add-on browser to browse through our collection and improve your Kodi experience."
+msgid "You do not have any add-ons installed yet. Visit our add-on browser to browse through our collection and improve your CoreELEC experience."
 msgstr ""
 
 #: /xml/Home.xml

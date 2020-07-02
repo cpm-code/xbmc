@@ -122,6 +122,8 @@ void CGUIWindowSystemInfo::FrameMove()
     SetControlLabel(i++, "{}: {}", 150, NETWORK_IP_ADDRESS);
     SetControlLabel(i++, "{} {}", 13287, SYSTEM_SCREEN_RESOLUTION);
     SetControlLabel(i++, "{} {}", 13283, SYSTEM_OS_VERSION_INFO);
+    SetControlLabel(i++, "{}: {}", 144, SYSTEM_BUILD_VERSION);
+    SetControlLabel(i++, "{}: {}", 174, SYSTEM_BUILD_DATE);
     SetControlLabel(i++, "{}: {}", 12390, SYSTEM_UPTIME);
     SetControlLabel(i++, "{}: {}", 12394, SYSTEM_TOTALUPTIME);
   }
