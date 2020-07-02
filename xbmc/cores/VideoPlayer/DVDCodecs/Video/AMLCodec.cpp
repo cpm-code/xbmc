@@ -1503,7 +1503,7 @@ CAMLCodec::CAMLCodec(CProcessInfo &processInfo)
   , m_speed(DVD_PLAYSPEED_NORMAL)
   , m_cur_pts(DVD_NOPTS_VALUE)
   , m_last_pts(DVD_NOPTS_VALUE)
-  , m_ptsOverflow(0)
+  , m_last_ptsOverflow(0)
   , m_bufferIndex(-1)
   , m_state(0)
   , m_frameSizeSum(0)
@@ -1555,6 +1555,8 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   m_hints = hints;
   m_state = 0;
   m_frameSizes.clear();
+  m_last_ptsOverflow = 0;
+  m_ptsOverflows.clear();
   m_frameSizeSum = 0;
   m_hints.pClock = hints.pClock;
 
@@ -1791,8 +1793,6 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
 
   SysfsUtils::SetInt("/sys/class/video/freerun_mode", 1);
 
-  m_ptsOverflow = 0;
-
   m_opened = true;
   // vcodec is open, update speed if it was
   // changed before VideoPlayer called OpenDecoder.
@@ -1920,9 +1920,10 @@ void CAMLCodec::Reset()
 
   // reset some interal vars
   m_cur_pts = DVD_NOPTS_VALUE;
-  m_ptsOverflow = 0;
   m_state = 0;
   m_frameSizes.clear();
+  m_last_ptsOverflow = 0;
+  m_ptsOverflows.clear();
   m_frameSizeSum = 0;
 
   SetSpeed(m_speed);
@@ -2009,12 +2010,14 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
   {
     if (am_private->am_pkt.avpts != INT64_0)
     {
-      m_ptsOverflow = am_private->am_pkt.avpts & 0xFFFFFFFF80000000ULL;
+      m_ptsOverflows.push_back(am_private->am_pkt.avpts & 0xFFFFFFFF80000000ULL);
       am_private->am_pkt.avpts &= 0x7FFFFFFF;
     }
+    else
+      m_ptsOverflows.push_back(0);
+
     if (am_private->am_pkt.avdts != INT64_0)
     {
-      m_ptsOverflow = am_private->am_pkt.avdts & 0xFFFFFFFF80000000ULL;
       am_private->am_pkt.avdts &= 0x7FFFFFFF;
     }
   }
@@ -2063,7 +2066,7 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
       static_cast<unsigned int>(iSize),
       dts / DVD_TIME_BASE,
       pts / DVD_TIME_BASE,
-      m_ptsOverflow
+      m_ptsOverflows.back()
     );
   return true;
 }
@@ -2155,7 +2158,13 @@ DRAIN:
 
   m_last_pts = m_cur_pts;
 
-  m_cur_pts = m_ptsOverflow * 100 / 9 + (static_cast<int64_t>(vbuf.timestamp.tv_sec) << 32);
+  if (!m_ptsOverflows.empty())
+  {
+    m_last_ptsOverflow = m_ptsOverflows.front();
+    m_ptsOverflows.pop_front();
+  }
+
+  m_cur_pts = m_last_ptsOverflow * 100 / 9 + (static_cast<int64_t>(vbuf.timestamp.tv_sec) << 32);
   m_cur_pts += vbuf.timestamp.tv_usec & 0xFFFFFFFF;
 
   // since ptsOverflow is calculated from decoder input, we have to check at output if the new packets caused overflow increment
