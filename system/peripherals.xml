@@ -27,7 +27,7 @@
     <setting key="power_avr_on_as" type="bool" label="36046" value="0" order="15" />
 
     <setting key="tv_vendor" type="int" value="0" configurable="0" />
-    <setting key="device_name" type="string" value="Kodi" configurable="0" />
+    <setting key="device_name" type="string" value="CoreELEC" configurable="0" />
     <setting key="wake_devices_advanced" type="string" value="" configurable="0" />
     <setting key="standby_devices_advanced" type="string" value="" configurable="0" />
     <setting key="double_tap_timeout_ms" type="int" min="50" max="1000" step="50" value="300" label="36047" order="16" />

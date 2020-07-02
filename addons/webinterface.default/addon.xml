@@ -2,7 +2,7 @@
 <addon
   id="webinterface.default"
   version="21.x-1.0.1"
-  name="Kodi web interface - Chorus2"
+  name="CoreELEC web interface - Chorus2"
   provider-name="jez500, Team Kodi">
   <requires>
     <import addon="xbmc.json" version="6.0.0" />
@@ -59,7 +59,7 @@
     <description lang="cs_CZ">Procházejte a interagujte přes prohlížeč se svou hudbou, filmy, televizními pořady a ostatním. Streamujte hudbu a videa do vašeho prohlížeče. Upravujte a spravujte vaši multimediální knihovnu Kodi.</description>
     <description lang="da">Gennemse og interager med din musik, film, tv-serier og mere via en webbrowser. Stream musik og videoer i din browser. Rediger og administrer dit Kodi-mediebibliotek.</description>
     <description lang="de">Musik, Filme, Serien und mehr mit dem Webbrowser durchsuchen und steuern, Musik und Videos im Browser streamen. Die Kodi Medienbibliothek ändern und verwalten.</description>
-    <description lang="en_GB">Browse and interact with your Music, Movies, TV Shows and more via a web browser. Stream music and videos on your browser. Edit and manage your Kodi media library.</description>
+    <description lang="en_GB">Browse and interact with your Music, Movies, TV Shows and more via a web browser. Stream music and videos on your browser. Edit and manage your CoreELEC media library.</description>
     <description lang="es">Navega e interactúa con tu Música, Películas, Series de TV y mas por medio de un navegador web. Reproduce música y vídeo desde el navegador. Edita y gestiona tu colección de contenidos de Kodi.</description>
     <description lang="es_ES">Navega e interactúa con tu Música, Películas, Series de TV y mas por medio de un navegador web. Reproduce música y vídeo desde el navegador. Edita y gestiona tu colección de contenidos de Kodi.</description>
     <description lang="et">Sirvi oma meediakogu veebibrauseri kaudu. Voogesita muusikat ja videoid oma brauseris. Muuda ja halda oma Kodi meediakogu.</description>

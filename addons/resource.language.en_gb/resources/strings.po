@@ -626,7 +626,7 @@ msgstr ""
 
 #: addons/skin.estuary/xml/SettingsSystemInfo.xml
 msgctxt "#144"
-msgid "Build:"
+msgid "Build"
 msgstr ""
 
 msgctxt "#145"
@@ -761,7 +761,7 @@ msgstr ""
 
 #: addons/skin.estuary/xml/SettingsSystemInfo.xml
 msgctxt "#174"
-msgid "Compiled:"
+msgid "Compiled"
 msgstr ""
 
 #: xbmc/dialogs/GUIDialogMediaFilter.cpp

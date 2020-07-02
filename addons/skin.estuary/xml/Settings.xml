@@ -114,10 +114,10 @@
 						<icon>icons/settings/system.png</icon>
 					</item>
 					<item>
-						<label>LibreELEC</label>
-						<onclick>RunAddon(service.libreelec.settings)</onclick>
-						<icon>icons/settings/libreelec.png</icon>
-						<visible>System.AddonIsEnabled(service.libreelec.settings)</visible>
+						<label>CoreELEC</label>
+						<onclick>RunAddon(service.coreelec.settings)</onclick>
+						<icon>icons/settings/coreelec.png</icon>
+						<visible>System.AddonIsEnabled(service.coreelec.settings)</visible>
 					</item>
 				</content>
 			</control>
