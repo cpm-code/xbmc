@@ -533,13 +533,19 @@ bool aml_set_display_resolution(const RESOLUTION_INFO &res, std::string framebuf
 
   if (aml_has_frac_rate_policy())
   {
-    if (cur_mode == mode)
-      SysfsUtils::SetString("/sys/class/display/mode", "null");
-
+    int cur_fractional_rate;
     int fractional_rate = (res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1;
-    SysfsUtils::SetInt("/sys/class/amhdmitx/amhdmitx0/frac_rate_policy", fractional_rate);
+    SysfsUtils::GetInt("/sys/class/amhdmitx/amhdmitx0/frac_rate_policy", cur_fractional_rate);
+
+    if (cur_fractional_rate != fractional_rate)
+    {
+      cur_mode = "null";
+      SysfsUtils::SetString("/sys/class/display/mode", cur_mode.c_str());
+      SysfsUtils::SetInt("/sys/class/amhdmitx/amhdmitx0/frac_rate_policy", fractional_rate);
+    }
   }
-  else if (cur_mode == mode)
+
+  if (cur_mode == mode)
   {
     // Don't set the same mode as current
     return true;
