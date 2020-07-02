@@ -214,14 +214,6 @@
 					<width>420</width>
 					<label>$LOCALIZE[12389]</label>
 				</control>
-				<control type="button" id="101">
-					<description>Button "Thank you!"</description>
-					<include content="DefaultSettingButton">
-						<param name="height" value="85" />
-					</include>
-					<width>420</width>
-					<label>$LOCALIZE[12396]</label>
-				</control>
 			</control>
 		</control>
 		<include content="TopBar">
@@ -245,7 +237,7 @@
 				<orientation>vertical</orientation>
 				<control type="label">
 					<description>Memory Text</description>
-					<width>auto</width>
+					<width>1420</width>
 					<height>80</height>
 					<label>$LOCALIZE[31030]: $INFO[system.memory(used)] [B]/[/B] $INFO[system.memory(total)] [B]-[/B] $INFO[system.memory(used.percent)]</label>
 					<aligny>top</aligny>
@@ -255,13 +247,13 @@
 				</control>
 				<control type="progress">
 					<description>Memory BAR</description>
-					<width>730</width>
+					<width>1420</width>
 					<height>16</height>
 					<info>system.memory(used)</info>
 				</control>
 				<control type="label">
 					<description>CPU Text</description>
-					<width>auto</width>
+					<width>1420</width>
 					<height>40</height>
 					<label>$LOCALIZE[13271] $INFO[System.CPUUsage]</label>
 					<aligny>center</aligny>
@@ -271,7 +263,7 @@
 				</control>
 				<control type="progress">
 					<description>CPU BAR</description>
-					<width>730</width>
+					<width>1420</width>
 					<height>16</height>
 					<info>System.CPUUsage</info>
 					<visible>System.SupportsCPUUsage</visible>
@@ -279,91 +271,6 @@
 			</control>
 			<control type="group">
 				<animation effect="slide" end="0,-55" time="0" condition="!System.SupportsCPUUsage">Conditional</animation>
-				<control type="label">
-					<top>155</top>
-					<left>420</left>
-					<width>auto</width>
-					<height>50</height>
-					<aligny>bottom</aligny>
-					<textoffsety>10</textoffsety>
-					<label>$LOCALIZE[31031]:</label>
-					<shadowcolor>black</shadowcolor>
-					<font>font25_title</font>
-				</control>
-				<control type="grouplist">
-					<description>Kodi build version</description>
-					<itemgap>10</itemgap>
-					<top>200</top>
-					<left>420</left>
-					<width>820</width>
-					<orientation>horizontal</orientation>
-					<control type="label">
-						<description>Build label</description>
-						<width>auto</width>
-						<height>40</height>
-						<font>font12</font>
-						<label>$LOCALIZE[144]</label>
-						<shadowcolor>black</shadowcolor>
-					</control>
-					<control type="label">
-						<description>Kodi Build Version</description>
-						<width>auto</width>
-						<height>40</height>
-						<font>font12</font>
-						<label>$INFO[System.BuildVersionShort]$INFO[System.BuildVersionCode, (,)]</label>
-						<textcolor>button_focus</textcolor>
-						<shadowcolor>black</shadowcolor>
-					</control>
-				</control>
-				<control type="grouplist">
-					<description>Git version</description>
-					<itemgap>10</itemgap>
-					<top>235</top>
-					<left>420</left>
-					<width>820</width>
-					<orientation>horizontal</orientation>
-					<control type="label">
-						<description>Git label</description>
-						<width>auto</width>
-						<height>40</height>
-						<font>font12</font>
-						<label>Git:</label>
-						<shadowcolor>black</shadowcolor>
-					</control>
-					<control type="label">
-						<description>Git version</description>
-						<width>auto</width>
-						<height>40</height>
-						<font>font12</font>
-						<label>$INFO[System.BuildVersionGit]</label>
-						<textcolor>button_focus</textcolor>
-						<shadowcolor>black</shadowcolor>
-					</control>
-				</control>
-				<control type="grouplist">
-					<description>Build date</description>
-					<itemgap>10</itemgap>
-					<top>270</top>
-					<left>420</left>
-					<width>820</width>
-					<orientation>horizontal</orientation>
-					<control type="label">
-						<description>kodi Compiled Text</description>
-						<width>auto</width>
-						<height>40</height>
-						<font>font12</font>
-						<label>$LOCALIZE[174]</label>
-						<shadowcolor>black</shadowcolor>
-					</control>
-					<control type="label" id="53">
-						<description>Kodi Build Date</description>
-						<width>auto</width>
-						<height>40</height>
-						<font>font12</font>
-						<textcolor>button_focus</textcolor>
-						<shadowcolor>black</shadowcolor>
-					</control>
-				</control>
 			</control>
 		</control>
 	</controls>
