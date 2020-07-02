@@ -33,8 +33,11 @@
 #include <algorithm>
 #include <cstdlib>
 #include <float.h>
+#include <fstream>
 #include <mutex>
 #include <string>
+#include <sys/mount.h>
+#include <sys/statfs.h>
 #include <utility>
 #include <vector>
 
@@ -446,8 +449,30 @@ void CDisplaySettings::SetCurrentResolution(RESOLUTION resolution, bool save /* 
   }
   else if (resolution != m_currentResolution)
   {
+    struct statfs fsInfo;
+    std::string aml_res_path = "/flash";
+    std::string aml_res_file = "resolution.ini";
+    auto result = statfs(aml_res_path.c_str(), &fsInfo);
+
     m_currentResolution = resolution;
     SetChanged();
+
+    if (!result && fsInfo.f_flags & MS_RDONLY)
+      result = mount(NULL, aml_res_path.c_str(), NULL, MS_NOATIME | MS_REMOUNT, NULL);
+
+    if (!result)
+    {
+      const RESOLUTION_INFO res = GetResolutionInfo(m_currentResolution);
+      std::ofstream ofs(aml_res_path + "/" + aml_res_file, std::ofstream::out);
+      ofs << "# WARNING DO NOT MODIFY THIS FILE! ALL CHANGES WILL BE LOST!\n";
+      ofs << "hdmimode=" << res.strId.c_str() << "\n";
+      ofs << "frac_rate_policy=" << std::to_string((res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1).c_str() << "\n";
+      ofs.close();
+      CLog::Log(LOGDEBUG, "CDisplaySettings: Amlogic resolution got saved to {}/{}", aml_res_path.c_str(), aml_res_file.c_str());
+    }
+
+    if (!result && fsInfo.f_flags & MS_RDONLY)
+      mount(NULL, aml_res_path.c_str(), NULL, MS_RDONLY | MS_NOATIME | MS_REMOUNT, NULL);
   }
 }
 
