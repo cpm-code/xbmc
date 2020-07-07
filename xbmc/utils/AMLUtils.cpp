@@ -688,8 +688,6 @@ void aml_enable_freeScale(const RESOLUTION_INFO &res)
   CSysfsPath("/sys/class/graphics/fb0/free_scale", 0);
   CSysfsPath("/sys/class/graphics/fb0/free_scale_axis", fsaxis_str);
   CSysfsPath("/sys/class/graphics/fb0/window_axis", waxis_str);
-  CSysfsPath("/sys/class/graphics/fb0/scale_width", res.iWidth);
-  CSysfsPath("/sys/class/graphics/fb0/scale_height", res.iHeight);
   CSysfsPath("/sys/class/graphics/fb0/free_scale", 0x10001);
 }
 
