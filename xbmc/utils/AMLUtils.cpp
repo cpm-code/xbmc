@@ -556,13 +556,10 @@ bool aml_set_display_resolution(const RESOLUTION_INFO &res, std::string framebuf
     }
   }
 
-  if (cur_mode == mode)
+  if (cur_mode != mode)
   {
-    // Don't set the same mode as current
-    return true;
+    SysfsUtils::SetString("/sys/class/display/mode", mode.c_str());
   }
-
-  SysfsUtils::SetString("/sys/class/display/mode", mode.c_str());
 
   aml_set_framebuffer_resolution(res, framebuffer_name);
 
