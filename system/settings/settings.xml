@@ -2929,6 +2929,11 @@
           </dependencies>
           <control type="toggle" />
         </setting>
+        <setting id="coreelec.amlogic.disableguiscaling" type="boolean" parent="videoscreen.screen" label="14412" help="14413">
+          <requirement>HAVE_4K_GUI</requirement>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
         <setting id="videoscreen.delayrefreshchange" type="integer" parent="videoscreen.screen" label="13550" help="36165">
           <level>2</level>
           <default>0</default>
@@ -3950,11 +3955,6 @@
         </setting>
         <setting id="coreelec.amlogic.force422" type="boolean" label="14410" help="14411">
           <requirement>HAVE_AMCODEC</requirement>
-          <default>false</default>
-          <control type="toggle" />
-        </setting>
-        <setting id="coreelec.amlogic.disableguiscaling" type="boolean" label="14412" help="14413">
-          <requirement>HAVE_4K_GUI</requirement>
           <default>false</default>
           <control type="toggle" />
         </setting>
