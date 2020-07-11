@@ -655,13 +655,16 @@ void aml_set_framebuffer_resolution(int width, int height, std::string framebuff
     struct fb_var_screeninfo vinfo;
     if (ioctl(fd0, FBIOGET_VSCREENINFO, &vinfo) == 0)
     {
-      vinfo.xres = width;
-      vinfo.yres = height;
-      vinfo.xres_virtual = width;
-      vinfo.yres_virtual = height * 2;
-      vinfo.bits_per_pixel = 32;
-      vinfo.activate = FB_ACTIVATE_ALL;
-      ioctl(fd0, FBIOPUT_VSCREENINFO, &vinfo);
+      if (width != vinfo.xres || height != vinfo.yres)
+      {
+        vinfo.xres = width;
+        vinfo.yres = height;
+        vinfo.xres_virtual = width;
+        vinfo.yres_virtual = height * 2;
+        vinfo.bits_per_pixel = 32;
+        vinfo.activate = FB_ACTIVATE_ALL;
+        ioctl(fd0, FBIOPUT_VSCREENINFO, &vinfo);
+      }
     }
     close(fd0);
   }
