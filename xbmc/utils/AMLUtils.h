@@ -41,7 +41,15 @@ enum AML_SUPPORT_H264_4K2K
   AML_HAS_H264_4K2K_SAME_PROFILE
 };
 
+#define AML_GXBB    0x1F
+#define AML_GXL     0x21
+#define AML_GXM     0x22
+#define AML_G12A    0x28
+#define AML_G12B    0x29
+#define AML_SM1     0x2B
+
 bool aml_present();
+int  aml_get_cpufamily_id();
 bool aml_permissions();
 bool aml_support_hevc();
 bool aml_support_hevc_4k2k();
