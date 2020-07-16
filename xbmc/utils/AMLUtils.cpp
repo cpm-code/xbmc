@@ -44,6 +44,17 @@ bool aml_present()
   return has_aml == 1;
 }
 
+int aml_get_cpufamily_id()
+{
+  static int aml_cpufamily_id = -1;
+  if (aml_cpufamily_id == -1)
+  {
+    std::string cpu_family = CServiceBroker::GetCPUInfo()->GetCPUSerial().substr (0,2);
+    aml_cpufamily_id = std::stoi (cpu_family,nullptr,16);
+  }
+  return aml_cpufamily_id;
+}
+
 bool aml_permissions()
 {
   if (!aml_present())
