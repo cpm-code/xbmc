@@ -1853,14 +1853,16 @@ void CPeripheralCecAdapter::ProcessStandbyDevices(void)
     std::unique_lock lock(m_critSection);
     int iScreensaverDelay = GetSettingInt("screensaver_delay_standby");
     if ((m_ScreensaverStandbySent.IsValid() &&
-        (CDateTime::GetCurrentDateTime() - m_ScreensaverStandbySent < CDateTimeSpan(0, 0, 0, iScreensaverDelay))) ||
-        (!m_cecAdapter->IsLibCECActiveSource()))
+        (CDateTime::GetCurrentDateTime() - m_ScreensaverStandbySent < CDateTimeSpan(0, 0, 0, iScreensaverDelay))))
       return;
     bStandby = m_bStandbyPending;
     m_bStandbyPending = false;
     m_ScreensaverStandbySent.SetValid(false);
     if (bStandby)
-      m_bGoingToStandby = true;
+      if (m_cecAdapter->IsLibCECActiveSource())
+        m_bGoingToStandby = true;
+      else
+        bStandby = false;
   }
 
   if (bStandby)
