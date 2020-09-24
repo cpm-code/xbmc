@@ -243,7 +243,7 @@ void CVideoPlayerVideo::OpenStream(CDVDStreamInfo& hint, std::unique_ptr<CDVDVid
 
   if (!codec)
   {
-    CLog::Log(LOGNOTICE, "CVideoPlayerVideo::OpenStream: - Creating video codec with codec id: {:d} fps:{:d}/{:d} options:{:02x}",
+    CLog::Log(LOGINFO, "CVideoPlayerVideo::OpenStream: - Creating video codec with codec id: {:d} fps:{:d}/{:d} options:{:02x}",
       hint.codec, hint.fpsrate, hint.fpsscale, hint.codecOptions);
     hint.pClock = m_pClock;
     hint.codecOptions |= CODEC_ALLOW_FALLBACK;
