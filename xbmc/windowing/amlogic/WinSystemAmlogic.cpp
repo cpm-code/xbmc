@@ -256,7 +256,7 @@ void CWinSystemAmlogic::UpdateResolutions()
     CServiceBroker::GetWinSystem()->GetGfxContext().ResetOverscan(resolutions[i]);
     CDisplaySettings::GetInstance().GetResolutionInfo(res_index) = resolutions[i];
 
-    CLog::Log(LOGNOTICE, "Found resolution {:d} x {:d} with {:d} x {:d}{} @ {:f} Hz\n",
+    CLog::Log(LOGINFO, "Found resolution {:d} x {:d} with {:d} x {:d}{} @ {:f} Hz\n",
       resolutions[i].iWidth,
       resolutions[i].iHeight,
       resolutions[i].iScreenWidth,
@@ -280,7 +280,7 @@ void CWinSystemAmlogic::UpdateResolutions()
   // set RES_DESKTOP
   if (ResDesktop != RES_INVALID)
   {
-    CLog::Log(LOGNOTICE, "Found ({:d}x{:d}{}@{:f}) at {:d}, setting to RES_DESKTOP at {:d}",
+    CLog::Log(LOGINFO, "Found ({:d}x{:d}{}@{:f}) at {:d}, setting to RES_DESKTOP at {:d}",
       resDesktop.iWidth, resDesktop.iHeight,
       resDesktop.dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "",
       resDesktop.fRefreshRate,
