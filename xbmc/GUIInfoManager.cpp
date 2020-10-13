@@ -1133,19 +1133,43 @@ constexpr std::array<InfoMap, 10> player_times = {{
 ///     @skinning_v17 **[New Infolabel]** \link Player_Process_audiosamplerate `Player.Process(audiosamplerate)`\endlink
 ///     <p>
 ///   }
-///   \table_row3{   <b>`Player.Process(audiobitspersample)`</b>,
-///                  \anchor Player_Process_audiobitspersample
+///   \table_row3{   <b>`Player.Process(videointerlace)`</b>,
+///                  \anchor Player_Process_videointerlace
 ///                  _string_,
-///     @return The bits per sample of the currently playing item.
+///     @return Is the currently playing item interlaced?
 ///     <p><hr>
-///     @skinning_v17 **[New Infolabel]** \link Player_Process_audiobitspersample `Player.Process(audiobitspersample)`\endlink
+///     @skinning_v17 **[New Infolabel]** \link Player_Process_videointerlace `Player.Process(videointerlace)`\endlink
+///     <p>
+///   }
+///   \table_row3{   <b>`Player.Process(amlogic.pixformat)`</b>,
+///                  \anchor Player_Process_aml_pixformat
+///                  _string_,
+///     @return The pixel format of the current display mode.
+///     <p><hr>
+///     @skinning_v17 **[New Infolabel]** \link Player_Process_aml_pixformat `Player.Process(amlogic.pixformat)`\endlink
+///     <p>
+///   }
+///   \table_row3{   <b>`Player.Process(amlogic.displaymode)`</b>,
+///                  \anchor Player_Process_aml_displaymode
+///                  _string_,
+///     @return The current display resolution and refresh rate.
+///     <p><hr>
+///     @skinning_v17 **[New Infolabel]** \link Player_Process_aml_displaymode `Player.Process(amlogic.displaymode)`\endlink
+///     <p>
+///   }
+///   \table_row3{   <b>`Player.Process(amlogic.eoft_gamut)`</b>,
+///                  \anchor Player_Process_aml_eoft_gamut
+///                  _string_,
+///     @return EOFT and Colourimetry of the current display mode.
+///     <p><hr>
+///     @skinning_v17 **[New Infolabel]** \link Player_Process_aml_eoft_gamut `Player.Process(amlogic.eoft_gamut)`\endlink
 ///     <p>
 ///   }
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
 // clang-format off
-constexpr std::array<InfoMap, 13> player_process = {{
+constexpr std::array<InfoMap, 16> player_process = {{
     {"videodecoder",        PLAYER_PROCESS_VIDEODECODER},
     {"deintmethod",         PLAYER_PROCESS_DEINTMETHOD},
     {"pixformat",           PLAYER_PROCESS_PIXELFORMAT},
@@ -1159,6 +1183,9 @@ constexpr std::array<InfoMap, 13> player_process = {{
     {"audiosamplerate",     PLAYER_PROCESS_AUDIOSAMPLERATE},
     {"audiobitspersample",  PLAYER_PROCESS_AUDIOBITSPERSAMPLE},
     {"videoscantype",       PLAYER_PROCESS_VIDEOSCANTYPE},
+    {"amlogic.pixformat",   PLAYER_PROCESS_AML_PIXELFORMAT},
+    {"amlogic.displaymode", PLAYER_PROCESS_AML_DISPLAYMODE},
+    {"amlogic.eoft_gamut",  PLAYER_PROCESS_AML_EOFT_GAMUT},
 }};
 // clang-format on
 
