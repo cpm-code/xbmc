@@ -140,6 +140,10 @@ bool CWinSystemAmlogic::InitWindowSystem()
   if (aml_get_cpufamily_id() <= AML_GXL)
     aml_set_framebuffer_resolution(1920, 1080, m_framebuffer_name);
 
+  // kill a running animation
+  CLog::Log(LOGDEBUG,"CWinSystemAmlogic: Sending SIGUSR1 to 'splash-image'\n");
+  std::system("killall -s SIGUSR1 splash-image &> /dev/null");
+
   return CWinSystemBase::InitWindowSystem();
 }
 
