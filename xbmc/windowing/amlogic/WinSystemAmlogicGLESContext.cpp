@@ -10,13 +10,19 @@
 #include "WinSystemAmlogicGLESContext.h"
 #include "utils/log.h"
 #include "threads/SingleLock.h"
+#include "windowing/WindowSystemFactory.h"
 
-std::unique_ptr<CWinSystemBase> CWinSystemBase::CreateWinSystem()
 using namespace KODI;
 using namespace KODI::WINDOWING::AML;
+
+void CWinSystemAmlogicGLESContext::Register()
 {
-  std::unique_ptr<CWinSystemBase> winSystem(new CWinSystemAmlogicGLESContext());
-  return winSystem;
+  KODI::WINDOWING::CWindowSystemFactory::RegisterWindowSystem(CreateWinSystem, "aml");
+}
+
+std::unique_ptr<CWinSystemBase> CWinSystemAmlogicGLESContext::CreateWinSystem()
+{
+  return std::make_unique<CWinSystemAmlogicGLESContext>();
 }
 
 bool CWinSystemAmlogicGLESContext::InitWindowSystem()
