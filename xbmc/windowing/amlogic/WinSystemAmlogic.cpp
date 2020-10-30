@@ -32,7 +32,7 @@
 
 #include <linux/fb.h>
 
-#include <EGL/egl.h>
+#include "system_egl.h"
 
 using namespace KODI;
 
