@@ -12,6 +12,8 @@
 #include "threads/SingleLock.h"
 
 std::unique_ptr<CWinSystemBase> CWinSystemBase::CreateWinSystem()
+using namespace KODI;
+using namespace KODI::WINDOWING::AML;
 {
   std::unique_ptr<CWinSystemBase> winSystem(new CWinSystemAmlogicGLESContext());
   return winSystem;

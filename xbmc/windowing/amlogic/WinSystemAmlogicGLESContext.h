@@ -13,6 +13,13 @@
 #include "utils/GlobalsHandling.h"
 #include "WinSystemAmlogic.h"
 
+namespace KODI
+{
+namespace WINDOWING
+{
+namespace AML
+{
+
 class CWinSystemAmlogicGLESContext : public CWinSystemAmlogic, public CRenderSystemGLES
 {
 public:
@@ -43,3 +50,7 @@ private:
   CEGLContextUtils m_pGLContext;
 
 };
+
+}
+}
+}
