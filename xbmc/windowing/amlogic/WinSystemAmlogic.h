@@ -13,7 +13,7 @@
 #include "threads/CriticalSection.h"
 #include "windowing/WinSystem.h"
 #include "threads/SystemClock.h"
-#include "EGL/egl.h"
+#include "system_egl.h"
 
 class IDispResource;
 
