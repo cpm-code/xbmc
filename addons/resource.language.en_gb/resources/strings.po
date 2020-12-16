@@ -19613,7 +19613,7 @@ msgstr ""
 
 #: system/peripherals.xml
 msgctxt "#36054"
-msgid "Seconds standby is delayed after Screensaver is activated"
+msgid "Minutes standby is delayed after Screensaver is activated"
 msgstr ""
 
 #: system/peripherals.xml
