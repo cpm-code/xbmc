@@ -1800,39 +1800,34 @@ void CPeripheralCecAdapter::ProcessActivateSource(void)
 
 void CPeripheralCecAdapter::UnregisterDevice(void)
 {
-  bool bSendStandbyCommands(false);
-  {
-    std::unique_lock lock(m_critSection);
-    bSendStandbyCommands = m_iExitCode != EXITCODE_REBOOT && m_iExitCode != EXITCODE_RESTARTAPP &&
-                           !m_bDeviceRemoved &&
-                           (!m_bGoingToStandby || GetSettingBool("standby_tv_on_pc_standby")) &&
-                           GetSettingBool("enabled");
+  if ( m_iExitCode == EXITCODE_RESTARTAPP
+    || m_iExitCode == EXITCODE_REBOOT
+    || m_bDeviceRemoved)
+      return;
 
-    if (m_bGoingToStandby)
-      m_bActiveSourceBeforeStandby = m_cecAdapter->IsLibCECActiveSource();
+  bool bActiveSource = m_cecAdapter->IsLibCECActiveSource();
+
+  if (m_bGoingToStandby)
+    m_bActiveSourceBeforeStandby = bActiveSource;
+
+  if (bActiveSource)
+  {
+    if ( GetSettingBool("standby_tv_on_pc_standby") && !m_configuration.powerOffDevices.IsEmpty())
+    {
+      CLog::Log(LOGDEBUG, "{} - sending standby commands", __FUNCTION__);
+      m_standbySent = CDateTime::GetCurrentDateTime();
+      m_cecAdapter->StandbyDevices();
+    }
+
+    if (m_bSendInactiveSource)
+    {
+      CLog::Log(LOGDEBUG, "{} - sending inactive source commands", __FUNCTION__);
+      m_cecAdapter->SetInactiveView();
+    }
   }
-
-  if (bSendStandbyCommands)
+  else
   {
-    if (m_cecAdapter->IsLibCECActiveSource())
-    {
-      if (!m_configuration.powerOffDevices.IsEmpty())
-      {
-        CLog::Log(LOGDEBUG, "{} - sending standby commands", __FUNCTION__);
-        m_standbySent = CDateTime::GetCurrentDateTime();
-        m_cecAdapter->StandbyDevices();
-      }
-      else if (m_bSendInactiveSource)
-      {
-        CLog::Log(LOGDEBUG, "{} - sending inactive source commands", __FUNCTION__);
-        m_cecAdapter->SetInactiveView();
-      }
-    }
-    else
-    {
-      CLog::Log(LOGDEBUG, "{} - XBMC is not the active source, not sending any standby commands",
-                __FUNCTION__);
-    }
+    CLog::Log(LOGDEBUG, "{} - Kodi is not the active source, not sending any unregister commands", __FUNCTION__);
   }
 }
 
