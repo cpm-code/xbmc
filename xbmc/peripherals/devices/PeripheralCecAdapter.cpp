@@ -1296,32 +1296,8 @@ void CPeripheralCecAdapter::SetConfigurationFromLibCEC(const CEC::libcec_configu
   m_configuration.deviceTypes.Clear();
   m_configuration.deviceTypes.Add(config.deviceTypes[0]);
 
-  // hide the "connected device" and "hdmi port number" settings when the PA was autodetected
-  bool bPAAutoDetected(config.bAutodetectAddress == 1);
-
-  SetSettingVisible("connected_device", !bPAAutoDetected);
-  SetSettingVisible("cec_hdmi_port", !bPAAutoDetected);
-
   // set the connected device
   m_configuration.baseDevice = config.baseDevice;
-  bChanged |=
-      SetSetting("connected_device",
-                 config.baseDevice == CECDEVICE_AUDIOSYSTEM ? LOCALISED_ID_AVR : LOCALISED_ID_TV);
-
-  // set the HDMI port number
-  m_configuration.iHDMIPort = config.iHDMIPort;
-  bChanged |= SetSetting("cec_hdmi_port", config.iHDMIPort);
-
-  // set the physical address, when baseDevice or iHDMIPort are not set
-  std::string strPhysicalAddress("0");
-  if (!bPAAutoDetected && (m_configuration.baseDevice == CECDEVICE_UNKNOWN ||
-                           m_configuration.iHDMIPort < CEC_MIN_HDMI_PORTNUMBER ||
-                           m_configuration.iHDMIPort > CEC_MAX_HDMI_PORTNUMBER))
-  {
-    m_configuration.iPhysicalAddress = config.iPhysicalAddress;
-    strPhysicalAddress = StringUtils::Format("{:x}", config.iPhysicalAddress);
-  }
-  bChanged |= SetSetting("physical_address", strPhysicalAddress);
 
   // set the devices to wake when starting
   m_configuration.wakeDevices = config.wakeDevices;
@@ -1388,7 +1364,7 @@ void CPeripheralCecAdapter::SetConfigurationFromSettings(void)
   m_configuration.bAutodetectAddress = CEC_DEFAULT_SETTING_AUTODETECT_ADDRESS;
 
   // set the physical address
-  // when set, it will override the connected device and hdmi port settings
+  // when set, it will override the connected device
   std::string strPhysicalAddress = GetSettingString("physical_address");
   int iPhysicalAddress;
   if (sscanf(strPhysicalAddress.c_str(), "%x", &iPhysicalAddress) &&
@@ -1397,17 +1373,8 @@ void CPeripheralCecAdapter::SetConfigurationFromSettings(void)
   else
     m_configuration.iPhysicalAddress = CEC_PHYSICAL_ADDRESS_TV;
 
-  // set the connected device
-  int iConnectedDevice = GetSettingInt("connected_device");
-  if (iConnectedDevice == LOCALISED_ID_AVR)
-    m_configuration.baseDevice = CECDEVICE_AUDIOSYSTEM;
-  else if (iConnectedDevice == LOCALISED_ID_TV)
-    m_configuration.baseDevice = CECDEVICE_TV;
-
-  // set the HDMI port number
-  int iHDMIPort = GetSettingInt("cec_hdmi_port");
-  if (iHDMIPort >= CEC_MIN_HDMI_PORTNUMBER && iHDMIPort <= CEC_MAX_HDMI_PORTNUMBER)
-    m_configuration.iHDMIPort = iHDMIPort;
+  // reset the HDMI port number
+  m_configuration.iHDMIPort = CEC_HDMI_PORTNUMBER_NONE;
 
   // set the tv vendor override
   int iVendor = GetSettingInt("tv_vendor");
