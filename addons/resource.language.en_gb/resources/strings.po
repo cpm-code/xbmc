@@ -19436,7 +19436,7 @@ msgstr ""
 
 #: system/peripherals.xml
 msgctxt "#36021"
-msgid "Physical address (overrules HDMI port)"
+msgid "Physical address"
 msgstr ""
 
 #empty string with id 36022
