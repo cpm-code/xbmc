@@ -208,12 +208,12 @@ void CPeripheralCecAdapter::Announce(ANNOUNCEMENT::AnnouncementFlag flag,
   else if (flag == ANNOUNCEMENT::System && sender == CAnnouncementManager::ANNOUNCEMENT_SENDER &&
            message == "OnWake")
   {
-    CLog::Log(LOGDEBUG, "{} - reconnecting to the CEC adapter after standby mode", __FUNCTION__);
-    if (ReopenConnection())
+    std::unique_lock lock(m_critSection);
+    if (m_bStarted)
     {
+      CLog::Log(LOGDEBUG, "{} - reuse open CEC adapter connection after standby mode", __FUNCTION__);
       bool bActivate(false);
       {
-        std::unique_lock lock(m_critSection);
         bActivate = m_bActiveSourceBeforeStandby;
         m_bActiveSourceBeforeStandby = false;
       }
