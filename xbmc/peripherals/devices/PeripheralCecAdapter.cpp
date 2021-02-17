@@ -31,6 +31,7 @@
 #include "resources/ResourcesComponent.h"
 #include "utils/Variant.h"
 #include "utils/log.h"
+#include "interfaces/legacy/configini.h"
 
 #include <mutex>
 
@@ -40,6 +41,7 @@ using namespace PERIPHERALS;
 using namespace CEC;
 using namespace ANNOUNCEMENT;
 using namespace std::chrono_literals;
+using namespace XBMCAddon;
 
 #define CEC_LIB_SUPPORTED_VERSION LIBCEC_VERSION_TO_UINT(4, 0, 0)
 
@@ -1167,6 +1169,7 @@ void CPeripheralCecAdapter::OnSettingChanged(const std::string& strChangedSettin
     if (!bEnabled && IsRunning())
     {
       CLog::Log(LOGDEBUG, "{} - closing the CEC connection", __FUNCTION__);
+      SetConfigurationFromSettings();
       StopThread(true);
     }
     else if (bEnabled && !IsRunning())
@@ -1175,6 +1178,31 @@ void CPeripheralCecAdapter::OnSettingChanged(const std::string& strChangedSettin
       SetConfigurationFromSettings();
       InitialiseFeature(FEATURE_CEC);
     }
+  }
+  else if (StringUtils::StartsWithNoCase(strChangedSetting, "wakeup_"))
+  {
+    m_iCec_func_config &= ~(1 << AUTO_POWER_ON_MASK);
+    m_iCec_func_config |= ((int)GetSettingBool("wakeup_cec_auto_power") << AUTO_POWER_ON_MASK);
+    m_iCec_func_config &= ~(1 << STREAMPATH_POWER_ON_MASK);
+    m_iCec_func_config |= ((int)GetSettingBool("wakeup_cec_streaming") << STREAMPATH_POWER_ON_MASK);
+    m_iCec_func_config &= ~(1 << ACTIVE_SOURCE_MASK);
+    m_iCec_func_config |= ((int)GetSettingBool("wakeup_cec_active_route") << ACTIVE_SOURCE_MASK);
+
+    XBMCAddon::xbmcvfs::configini* config_ini = new XBMCAddon::xbmcvfs::configini();
+    config_ini->set("cec_func_config", StringUtils::Format("{:x}", m_iCec_func_config));
+    delete(config_ini);
+  }
+  else if (StringUtils::EqualsNoCase(strChangedSetting, "device_name"))
+  {
+    XBMCAddon::xbmcvfs::configini* config_ini = new XBMCAddon::xbmcvfs::configini();
+    std::string device_name = GetSettingString("device_name");
+    if (device_name.length() > 14)
+    {
+      device_name = StringUtils::Left(device_name, 14);
+      SetSetting("device_name", device_name);
+    }
+    config_ini->set("cec_osd_name", device_name.c_str());
+    delete(config_ini);
   }
   else if (IsRunning())
   {
@@ -1420,6 +1448,24 @@ void CPeripheralCecAdapter::SetConfigurationFromSettings(void)
     SetSetting("pause_or_stop_playback_on_deactivate", LOCALISED_ID_PAUSE);
     SetSetting("pause_playback_on_deactivate", false);
   }
+
+  XBMCAddon::xbmcvfs::configini* config_ini = new XBMCAddon::xbmcvfs::configini();
+  std::string cec_func_config = config_ini->get("cec_func_config", "7f");
+  m_iCec_func_config = std::stoul(cec_func_config, nullptr, 16);
+
+  if (GetSettingBool("enabled") != ((m_iCec_func_config >> CEC_FUNC_MASK) & 0x1))
+  {
+    m_iCec_func_config ^= (1 << CEC_FUNC_MASK);
+    config_ini->set("cec_func_config", StringUtils::Format("{:x}", m_iCec_func_config));
+  }
+
+  config_ini->set("cec_osd_name", GetSettingString("device_name").c_str());
+
+  delete(config_ini);
+
+  SetSetting("wakeup_cec_auto_power", (bool)((m_iCec_func_config >> AUTO_POWER_ON_MASK) & 0x1));
+  SetSetting("wakeup_cec_streaming", (bool)((m_iCec_func_config >> STREAMPATH_POWER_ON_MASK) & 0x1));
+  SetSetting("wakeup_cec_active_route", (bool)((m_iCec_func_config >> ACTIVE_SOURCE_MASK) & 0x1));
 }
 
 void CPeripheralCecAdapter::ReadLogicalAddresses(const std::string& strString,
