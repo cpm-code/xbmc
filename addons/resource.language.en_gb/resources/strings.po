@@ -19621,7 +19621,27 @@ msgctxt "#36055"
 msgid "Put devices in standby by Screensaver on paused video"
 msgstr ""
 
-#empty strings from id 36056 to 36095
+#: system/peripherals.xml
+msgctxt "#36056"
+msgid "OSD name"
+msgstr ""
+
+#: system/peripherals.xml
+msgctxt "#36057"
+msgid "Wake-Up by auto power on"
+msgstr ""
+
+#: system/peripherals.xml
+msgctxt "#36058"
+msgid "Wake-Up by streaming path/routing change"
+msgstr ""
+
+#: system/peripherals.xml
+msgctxt "#36059"
+msgid "Wake-Up by active route"
+msgstr ""
+
+#empty strings from id 36060 to 36095
 
 #. Label of setting "System / Display / Use system HDR/SDR brightness balance"
 #: system/settings/settings.xml
