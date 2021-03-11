@@ -24,6 +24,7 @@
 #include "settings/DisplaySettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
+#include "settings/lib/Setting.h"
 #include "guilib/DispResource.h"
 #include "utils/AMLUtils.h"
 #include "utils/log.h"
@@ -139,6 +140,13 @@ bool CWinSystemAmlogic::InitWindowSystem()
 
   if (aml_get_cpufamily_id() <= AML_GXL)
     aml_set_framebuffer_resolution(1920, 1080, m_framebuffer_name);
+
+  auto setting = settings->GetSetting(CSettings::SETTING_VIDEOPLAYER_USEDISPLAYASCLOCK);
+  if (setting)
+  {
+    setting->SetVisible(false);
+    settings->SetBool(CSettings::SETTING_VIDEOPLAYER_USEDISPLAYASCLOCK, false);
+  }
 
   // kill a running animation
   CLog::Log(LOGDEBUG,"CWinSystemAmlogic: Sending SIGUSR1 to 'splash-image'\n");
