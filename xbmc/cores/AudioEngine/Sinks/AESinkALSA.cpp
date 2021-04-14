@@ -561,7 +561,7 @@ bool CAESinkALSA::Initialize(AEAudioFormat &format, std::string &device)
   AMLDeviceType amlDeviceType = GetAMLDeviceType(device);
   if (amlDeviceType != AML_NONE)
   {
-    int aml_digital_codec = 0;
+    int aml_digital_codec = inconfig.channels > 2 ? 6 : 0;
 
     if (m_passthrough)
     {
@@ -575,8 +575,11 @@ bool CAESinkALSA::Initialize(AEAudioFormat &format, std::string &device)
         case CAEStreamInfo::STREAM_TYPE_DTS_1024:
         case CAEStreamInfo::STREAM_TYPE_DTS_2048:
         case CAEStreamInfo::STREAM_TYPE_DTSHD_CORE:
-        case CAEStreamInfo::STREAM_TYPE_DTSHD:
           aml_digital_codec = 3;
+          break;
+
+        case CAEStreamInfo::STREAM_TYPE_DTSHD:
+          aml_digital_codec = 5;
           break;
 
         case CAEStreamInfo::STREAM_TYPE_EAC3:
