@@ -433,6 +433,8 @@ KODI_HANDLE CInputStreamAddon::cb_get_stream_transfer(KODI_HANDLE handle,
     videoStream->iHeight = stream->m_Height;
     videoStream->fAspect = static_cast<double>(stream->m_Aspect);
     videoStream->iBitRate = stream->m_BitRate;
+    videoStream->bUnknownIP = false;
+    videoStream->bInterlaced = false;
     videoStream->profile = ConvertVideoCodecProfile(stream->m_codecProfile);
 
     /*! Added on API version 2.0.8 */
