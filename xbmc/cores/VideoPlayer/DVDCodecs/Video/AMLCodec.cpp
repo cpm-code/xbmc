@@ -1755,6 +1755,15 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   // translate from generic to firmware version dependent
   m_dll->codec_init_para(&am_private->gcodec, &am_private->vcodec);
 
+  std::string config_data = GetHDRStaticMetadata();
+  if (!config_data.empty())
+  {
+    am_private->vcodec.config_len = static_cast<int>(config_data.size());
+    am_private->vcodec.config = (char*)malloc(config_data.size() + 1);
+    config_data.copy(am_private->vcodec.config, config_data.size());
+    am_private->vcodec.config[am_private->vcodec.config_len] = '\0';
+  }
+
   if (!am_private->vcodec.multi_vdec)
     SetVfmMap("default", "decoder ppmgr amlvideo deinterlace amvideo");
 
@@ -1863,6 +1872,8 @@ void CAMLCodec::CloseDecoder()
 
   am_packet_release(&am_private->am_pkt);
   am_private->extradata = {};
+  if (am_private->vcodec.config)
+    free(am_private->vcodec.config);
   // return tsync to default so external apps work
   SysfsUtils::SetInt("/sys/class/tsync/enable", 1);
 
@@ -2500,4 +2511,33 @@ unsigned int CAMLCodec::GetDecoderVideoRate()
     return vi.frame_dur;
   else
     return 0;
+}
+
+std::string CAMLCodec::GetHDRStaticMetadata()
+{
+  // add static HDR metadata for VP9 content
+  if (am_private->video_format == VFORMAT_VP9 && m_hints.masteringMetadata && m_hints.contentLightMetadata)
+  {
+    static const double MAX_CHROMATICITY = 5000;
+    std::stringstream stream;
+    stream << "HDRStaticInfo:1";
+    stream << ";mR.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[0][0]) * MAX_CHROMATICITY + 0.5);
+    stream << ";mR.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[0][1]) * MAX_CHROMATICITY + 0.5);
+    stream << ";mG.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[1][0]) * MAX_CHROMATICITY + 0.5);
+    stream << ";mG.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[1][1]) * MAX_CHROMATICITY + 0.5);
+    stream << ";mB.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[2][0]) * MAX_CHROMATICITY + 0.5);
+    stream << ";mB.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[2][1]) * MAX_CHROMATICITY + 0.5);
+    stream << ";mW.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->white_point[0]) * MAX_CHROMATICITY + 0.5);
+    stream << ";mW.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->white_point[1]) * MAX_CHROMATICITY + 0.5);
+    stream << ";mMaxDL:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->max_luminance) + 0.5);
+    stream << ";mMinDL:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->min_luminance) + 0.5);
+    stream << ";mMaxCLL:" << m_hints.contentLightMetadata->MaxCLL;
+    stream << ";mMaxFALL:" << m_hints.contentLightMetadata->MaxFALL;
+    if (m_hints.colorTransferCharacteristic != AVCOL_TRC_UNSPECIFIED)
+      stream << ";mTransfer:" << static_cast<int>(m_hints.colorTransferCharacteristic);
+    std::string config_data = stream.str();
+    CLog::Log(LOGDEBUG, "CAMLCodec::GetHDRStaticMetadata - Created the following config: {}", config_data.c_str());
+    return config_data;
+  }
+  return std::string();
 }
