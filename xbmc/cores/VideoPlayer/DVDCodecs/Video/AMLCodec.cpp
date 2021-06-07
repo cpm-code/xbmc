@@ -2516,9 +2516,11 @@ unsigned int CAMLCodec::GetDecoderVideoRate()
 std::string CAMLCodec::GetHDRStaticMetadata()
 {
   // add static HDR metadata for VP9 content
-  if (am_private->video_format == VFORMAT_VP9 && m_hints.masteringMetadata && m_hints.contentLightMetadata)
+  if (am_private->video_format == VFORMAT_VP9 && m_hints.masteringMetadata)
   {
-    static const double MAX_CHROMATICITY = 5000;
+    // for more information, see CTA+861.3-A standard document
+    static const double MAX_CHROMATICITY = 50000;
+    static const double MAX_LUMINANCE = 10000;
     std::stringstream stream;
     stream << "HDRStaticInfo:1";
     stream << ";mR.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[0][0]) * MAX_CHROMATICITY + 0.5);
@@ -2529,10 +2531,14 @@ std::string CAMLCodec::GetHDRStaticMetadata()
     stream << ";mB.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[2][1]) * MAX_CHROMATICITY + 0.5);
     stream << ";mW.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->white_point[0]) * MAX_CHROMATICITY + 0.5);
     stream << ";mW.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->white_point[1]) * MAX_CHROMATICITY + 0.5);
-    stream << ";mMaxDL:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->max_luminance) + 0.5);
-    stream << ";mMinDL:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->min_luminance) + 0.5);
-    stream << ";mMaxCLL:" << m_hints.contentLightMetadata->MaxCLL;
-    stream << ";mMaxFALL:" << m_hints.contentLightMetadata->MaxFALL;
+    stream << ";mMaxDL:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->max_luminance) * MAX_LUMINANCE + 0.5);
+    stream << ";mMinDL:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->min_luminance) * MAX_LUMINANCE + 0.5);
+    if (m_hints.contentLightMetadata)
+    {
+      stream << ";mCLLPresent:1";
+      stream << ";mMaxCLL:" << m_hints.contentLightMetadata->MaxCLL;
+      stream << ";mMaxFALL:" << m_hints.contentLightMetadata->MaxFALL;
+    }
     if (m_hints.colorTransferCharacteristic != AVCOL_TRC_UNSPECIFIED)
       stream << ";mTransfer:" << static_cast<int>(m_hints.colorTransferCharacteristic);
     std::string config_data = stream.str();
