@@ -83,18 +83,20 @@ bool CWinSystemAmlogic::InitWindowSystem()
      SysfsUtils::SetString("/sys/module/di/parameters/nr2_en", "0");
   }
 
-  int sdr2hdr = settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_SDR2HDR);
-  if (sdr2hdr != 0) // Default is Off (0)
+  int sdr2hdr = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_SDR2HDR);
+  if (sdr2hdr)
   {
     CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- setting sdr2hdr mode to {:d}", sdr2hdr);
-    SysfsUtils::SetInt("/sys/module/am_vecm/parameters/sdr_mode", sdr2hdr);
+    SysfsUtils::SetInt("/sys/module/am_vecm/parameters/sdr_mode", 1);
+    SysfsUtils::SetInt("/sys/module/amdolby_vision/parameters/dolby_vision_policy", 0);
+    SysfsUtils::SetInt("/sys/module/am_vecm/parameters/hdr_policy", 0);
   }
 
-  int hdr2sdr = settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_HDR2SDR);
-  if (hdr2sdr != 2) // Default is Auto (2)
+  int hdr2sdr = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_HDR2SDR);
+  if (hdr2sdr)
   {
     CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- setting hdr2sdr mode to {:d}", hdr2sdr);
-    SysfsUtils::SetInt("/sys/module/am_vecm/parameters/hdr_mode", hdr2sdr);
+    SysfsUtils::SetInt("/sys/module/am_vecm/parameters/hdr_mode", 1);
   }
 
   std::string attr = "";
