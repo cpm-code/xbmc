@@ -373,13 +373,13 @@ bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
   else
   {
     int width = 0, height = 0, rrate = 60;
-    char smode = 'p';
+    char smode[2] = { 0 };
 
     if (sscanf(fromMode.c_str(), "%dx%dp%dhz", &width, &height, &rrate) == 3)
     {
-      smode = 'p';
+      *smode = 'p';
     }
-    else if (sscanf(fromMode.c_str(), "%d%[ip]%dhz", &height, &smode, &rrate) >= 2)
+    else if (sscanf(fromMode.c_str(), "%d%1[ip]%dhz", &height, smode, &rrate) >= 2)
     {
       switch (height)
       {
@@ -401,14 +401,14 @@ bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
     else if (sscanf(fromMode.c_str(), "%dcvbs", &height) == 1)
     {
       width = 720;
-      smode = 'i';
+      *smode = 'i';
       rrate = (height == 576) ? 50 : 60;
     }
     else if (sscanf(fromMode.c_str(), "4k2k%d", &rrate) == 1)
     {
       width = 3840;
       height = 2160;
-      smode = 'p';
+      *smode = 'p';
     }
     else
     {
@@ -419,7 +419,7 @@ bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
     res->iHeight= nativeGui ? height : std::min(height, 1080);
     res->iScreenWidth = width;
     res->iScreenHeight = height;
-    res->dwFlags = (smode == 'p') ? D3DPRESENTFLAG_PROGRESSIVE : D3DPRESENTFLAG_INTERLACED;
+    res->dwFlags = (*smode == 'p') ? D3DPRESENTFLAG_PROGRESSIVE : D3DPRESENTFLAG_INTERLACED;
 
     switch (rrate)
     {
