@@ -141,6 +141,10 @@ bool aml_permissions()
     {
       CLog::Log(LOGERROR, "AML: no rw on /sys/class/display/mode");
     }
+    if (!SysfsUtils::Has("/sys/class/amhdmitx/amhdmitx0/allfmt_names"))
+    {
+      CLog::Log(LOGERROR, "AML: no r on /sys/class/amhdmitx/amhdmitx0/allfmt_names");
+    }
   }
 
   return permissions_ok == 1;
