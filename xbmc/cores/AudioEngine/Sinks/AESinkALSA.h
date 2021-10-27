@@ -18,6 +18,18 @@
 
 #define AE_MIN_PERIODSIZE 256
 
+// linux/amlogic/media/sound/spdif_info.h
+enum IEC958_mode_codec {
+  STEREO_PCM, DTS_RAW_MODE, DOLBY_DIGITAL, DTS, DD_PLUS, DTS_HD, MULTI_CHANNEL_LPCM, TRUEHD, _DTS_HD_MA, HIGH_SR_STEREO_LPCM,
+  CODEC_CNT
+};
+
+// sound/soc/amlogic/auge/spdif_hw.h
+enum spdif_id {
+  SPDIF_A, SPDIF_B,
+  SPDIF_ID_CNT
+};
+
 class CAESinkALSA : public IAESink
 {
 public:
@@ -53,6 +65,8 @@ private:
   static std::string ALSAchmapToString(snd_pcm_chmap_t* alsaMap);
   static CAEChannelInfo GetAlternateLayoutForm(const CAEChannelInfo& info);
   snd_pcm_chmap_t* SelectALSAChannelMap(const CAEChannelInfo& info);
+
+  void aml_configure_simple_control(std::string &device, const enum IEC958_mode_codec codec);
 
   void GetAESParams(const AEAudioFormat& format, std::string& params);
   void HandleError(const char* name, int err);
