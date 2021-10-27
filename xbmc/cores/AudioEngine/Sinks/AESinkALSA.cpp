@@ -90,6 +90,40 @@ std::string GetAMLCardName(AMLDeviceType type)
   }
 }
 
+std::string AMLCodecToStr(const enum IEC958_mode_codec codec)
+{
+  if (codec < 0 || codec >= CODEC_CNT)
+    return "UNKNOWN";
+
+  static const std::string codec_str[CODEC_CNT] = {
+    "2 CH PCM",
+    "DTS RAW Mode",
+    "Dolby Digital",
+    "DTS",
+    "DD+",
+    "DTS-HD",
+    "8 CH PCM",
+    "TrueHD",
+    "DTS-HD MA",
+    "HIGH_SR_Stereo_PCM"
+  };
+
+  return codec_str[codec];
+}
+
+std::string AMLSpdifIDToStr(enum spdif_id spdif_id)
+{
+  if (spdif_id < 0 || spdif_id >= SPDIF_ID_CNT)
+    return "Spdif";
+
+  static const std::string spdif_id_str[SPDIF_ID_CNT] = {
+    "Spdif",
+    "Spdif_b"
+  };
+
+  return spdif_id_str[spdif_id];
+}
+
 static unsigned int ALSASampleRateList[] =
 {
   5512,
@@ -531,6 +565,106 @@ void CAESinkALSA::GetAESParams(const AEAudioFormat& format, std::string& params)
   else params += ",AES3=0x01";
 }
 
+void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum IEC958_mode_codec codec)
+{
+  int err;
+  std::string sid_names_fmt[] = {
+    "Audio spdif format",   // set SPDIF-A IEC958_mode_codec
+    "Audio spdif_b format"  // set SPDIF-B codec format
+  };
+
+  int cardNr = 0;
+  std::string card = GetParamFromName(device, "DEV");
+
+  if (!card.empty())
+    cardNr = atoi(card.c_str());
+
+  if (cardNr >= 0)
+  {
+    snd_mixer_t *handle = NULL;
+    snd_mixer_elem_t *elem;
+    snd_mixer_selem_id_t *sid;
+
+    char card[64] = { 0 };
+    sprintf(card, "hw:%i", cardNr);
+
+    CLog::Log(LOGINFO, "CAESinkALSA - Use card \"{}\" and set codec format \"{}\"", card, AMLCodecToStr(codec));
+
+    snd_mixer_selem_id_alloca(&sid);
+    snd_mixer_selem_id_set_index(sid, 0);
+
+    if ((err = snd_mixer_open(&handle, 0)) < 0)
+    {
+      CLog::Log(LOGERROR, "CAESinkALSA- can not open Mixer: {}\n", snd_strerror(err));
+      return;
+    }
+
+    if ((err = snd_mixer_attach(handle, card)) < 0)
+    {
+      CLog::Log(LOGERROR, "CAESinkALSA - Mixer attach {} error: {}", card, snd_strerror(err));
+      snd_mixer_close(handle);
+      return;
+    }
+
+    if ((err = snd_mixer_selem_register(handle, NULL, NULL)) < 0)
+    {
+      CLog::Log(LOGERROR, "CAESinkALSA - Mixer register error: {}", snd_strerror(err));
+      snd_mixer_close(handle);
+      return;
+    }
+
+    if ((err = snd_mixer_load(handle)) < 0)
+    {
+      CLog::Log(LOGERROR, "CAESinkALSA- Mixer {} load error: {}", card, snd_strerror(err));
+      snd_mixer_close(handle);
+      return;
+    }
+
+    // set codec format for SPDIF-A and SPDIF-B
+    for(std::string &sid_name : sid_names_fmt)
+    {
+        CLog::Log(LOGINFO, "CAESinkALSA - Set codec for \"{}\"", sid_name);
+        snd_mixer_selem_id_set_name(sid, sid_name.c_str());
+        elem = snd_mixer_find_selem(handle, sid);
+        if (!elem) {
+          CLog::Log(LOGERROR, "CAESinkALSA - Unable to find simple control \"{}\",{:d}\n",
+            snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
+          snd_mixer_close(handle);
+          return;
+        }
+
+        snd_mixer_selem_set_enum_item(elem, (snd_mixer_selem_channel_id_t)0, codec);
+    }
+
+    // do set Spdif to HDMITX to SPDIF-A or SPDIF-B
+    AEDeviceType devType = AEDeviceTypeFromName(device);
+    enum spdif_id spdif_id = SPDIF_ID_CNT;
+
+    switch (devType) {
+      case AE_DEVTYPE_HDMI:
+        spdif_id = SPDIF_B;
+        break;
+      default:
+        spdif_id = SPDIF_A;
+        break;
+    }
+
+    CLog::Log(LOGINFO, "CAESinkALSA - Set Spdif to HDMITX to \"{}\"", AMLSpdifIDToStr(spdif_id));
+    snd_mixer_selem_id_set_name(sid, "Spdif to HDMITX Select");
+    elem = snd_mixer_find_selem(handle, sid);
+    if (!elem) {
+      CLog::Log(LOGERROR, "CAESinkALSA - Unable to find simple control '{}',{:d}\n",
+        snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
+      snd_mixer_close(handle);
+      return;
+    }
+
+    snd_mixer_selem_set_enum_item(elem, (snd_mixer_selem_channel_id_t)0, spdif_id);
+
+    snd_mixer_close(handle);
+  }
+}
+
 bool CAESinkALSA::Initialize(AEAudioFormat &format, std::string &device)
 {
   m_initDevice = device;
@@ -558,50 +692,6 @@ bool CAESinkALSA::Initialize(AEAudioFormat &format, std::string &device)
     m_passthrough   = false;
   }
 
-  AMLDeviceType amlDeviceType = GetAMLDeviceType(device);
-  if (amlDeviceType != AML_NONE)
-  {
-    int aml_digital_codec = inconfig.channels > 2 ? 6 : 0;
-
-    if (m_passthrough)
-    {
-      switch(format.m_streamInfo.m_type)
-      {
-        case CAEStreamInfo::STREAM_TYPE_AC3:
-          aml_digital_codec = 2;
-          break;
-
-        case CAEStreamInfo::STREAM_TYPE_DTS_512:
-        case CAEStreamInfo::STREAM_TYPE_DTS_1024:
-        case CAEStreamInfo::STREAM_TYPE_DTS_2048:
-        case CAEStreamInfo::STREAM_TYPE_DTSHD_CORE:
-          aml_digital_codec = 3;
-          break;
-
-        case CAEStreamInfo::STREAM_TYPE_DTSHD:
-          aml_digital_codec = 5;
-          break;
-
-        case CAEStreamInfo::STREAM_TYPE_EAC3:
-          aml_digital_codec = 4;
-          break;
-
-        case CAEStreamInfo::STREAM_TYPE_DTSHD_MA:
-          aml_digital_codec = 8;
-          break;
-
-        case CAEStreamInfo::STREAM_TYPE_TRUEHD:
-          aml_digital_codec = 7;
-          break;
-        default:
-          break;
-      }
-    }
-
-    aml_set_audio_passthrough(m_passthrough);
-    CSysfsPath("/sys/class/audiodsp/digital_codec", aml_digital_codec);
-  }
-
   if (inconfig.channels == 0)
   {
     CLog::Log(LOGERROR, "CAESinkALSA::Initialize - Unable to open the requested channel layout");
@@ -615,6 +705,55 @@ bool CAESinkALSA::Initialize(AEAudioFormat &format, std::string &device)
    * receivers don't care */
   if (m_passthrough || devType == AE_DEVTYPE_HDMI || devType == AE_DEVTYPE_IEC958)
     GetAESParams(format, AESParams);
+
+  // set codec before opening the device
+  AMLDeviceType amlDeviceType = GetAMLDeviceType(device);
+  if (amlDeviceType != AML_NONE)
+  {
+    enum IEC958_mode_codec codec = inconfig.channels > 2 ? MULTI_CHANNEL_LPCM : STEREO_PCM;
+
+    CLog::Log(LOGINFO, "CAESinkALSA::Initialize - Configure simple control for \"{}\"",
+      GetAMLCardName(amlDeviceType));
+
+    if (m_passthrough)
+    {
+      switch(format.m_streamInfo.m_type)
+      {
+        case CAEStreamInfo::STREAM_TYPE_AC3:
+          codec = DOLBY_DIGITAL;
+          break;
+
+        case CAEStreamInfo::STREAM_TYPE_DTS_512:
+        case CAEStreamInfo::STREAM_TYPE_DTS_1024:
+        case CAEStreamInfo::STREAM_TYPE_DTS_2048:
+        case CAEStreamInfo::STREAM_TYPE_DTSHD_CORE:
+          codec = DTS;
+          break;
+
+        case CAEStreamInfo::STREAM_TYPE_DTSHD:
+          codec = DTS_HD;
+          break;
+
+        case CAEStreamInfo::STREAM_TYPE_EAC3:
+          codec = DD_PLUS;
+          break;
+
+        case CAEStreamInfo::STREAM_TYPE_DTSHD_MA:
+          codec = _DTS_HD_MA;
+          break;
+
+        case CAEStreamInfo::STREAM_TYPE_TRUEHD:
+          codec = TRUEHD;
+          break;
+
+        default:
+          break;
+      }
+    }
+
+    aml_set_audio_passthrough(m_passthrough);
+    aml_configure_simple_control(device, codec);
+  }
 
   CLog::Log(LOGINFO, "CAESinkALSA::Initialize - Attempting to open device \"{}\"", device);
 
