@@ -27,6 +27,35 @@ typedef std::shared_ptr<PosixFile> PosixFilePtr;
 
 class CProcessInfo;
 
+struct vpp_pq_ctrl_s {
+	unsigned int length;
+	union {
+		void *ptr;/*point to pq_ctrl_s*/
+		long long ptr_length;
+	};
+};
+
+struct pq_ctrl_s {
+	unsigned char sharpness0_en;
+	unsigned char sharpness1_en;
+	unsigned char dnlp_en;
+	unsigned char cm_en;
+	unsigned char vadj1_en;
+	unsigned char vd1_ctrst_en;
+	unsigned char vadj2_en;
+	unsigned char post_ctrst_en;
+	unsigned char wb_en;
+	unsigned char gamma_en;
+	unsigned char lc_en;
+	unsigned char black_ext_en;
+	unsigned char chroma_cor_en;
+	unsigned char reserved;
+};
+
+#define _VE_CM  'C'
+#define AMVECM_IOC_S_PQ_CTRL  _IOW(_VE_CM, 0x69, struct vpp_pq_ctrl_s)
+#define AMVECM_IOC_G_PQ_CTRL  _IOR(_VE_CM, 0x6a, struct vpp_pq_ctrl_s)
+
 class CAMLCodec
 {
 public:
@@ -34,6 +63,7 @@ public:
   virtual ~CAMLCodec();
 
   bool          OpenDecoder(CDVDStreamInfo &hints);
+  bool          Enable_vadj1();
   void          CloseDecoder();
   void          Reset();
 
@@ -88,6 +118,7 @@ private:
   float            m_zoom = -1.0f;
   int              m_contrast = -1;
   int              m_brightness = -1;
+  bool             m_vadj1_enabled = false;
   RESOLUTION       m_video_res = RES_INVALID;
 
   static const unsigned int STATE_PREFILLED  = 1;
