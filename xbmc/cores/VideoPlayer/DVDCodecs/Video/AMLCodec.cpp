@@ -1554,6 +1554,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   m_zoom = -1.0f;
   m_contrast = -1;
   m_brightness = -1;
+  m_vadj1_enabled = false;
   m_hints = hints;
   m_state = 0;
   m_frameSizes.clear();
@@ -1838,6 +1839,43 @@ bool CAMLCodec::OpenAmlVideo(const CDVDStreamInfo &hints)
 
   m_amlVideoFile = amlVideoFile;
   m_defaultVfmMap = GetVfmMap("default");
+
+  return true;
+}
+
+bool CAMLCodec::Enable_vadj1(void)
+{
+  struct vpp_pq_ctrl_s vpp_pq_ctrl = {};
+  struct pq_ctrl_s pq_ctrl = {};
+  vpp_pq_ctrl.length = sizeof(struct pq_ctrl_s);
+  vpp_pq_ctrl.ptr = (void *)&pq_ctrl;
+
+  PosixFilePtr amvecm = std::make_shared<PosixFile>();
+  if (!amvecm->Open("/dev/amvecm", O_RDWR))
+  {
+    CLog::Log(LOGERROR, "CAMLCodec::Enable_vadj1 - cannot open amvecm driver /dev/amvecm: {}", strerror(errno));
+    return false;
+  }
+
+  if (amvecm->IOControl(AMVECM_IOC_G_PQ_CTRL, &vpp_pq_ctrl) < 0)
+  {
+    CLog::Log(LOGERROR, "CAMLCodec::Enable_vadj1 - AMVECM_IOC_G_PQ_CTRL failed: {}", strerror(errno));
+    return false;
+  }
+
+  // enable vadj1 brightness and contrast control
+  if (pq_ctrl.vadj1_en != 1)
+  {
+    pq_ctrl.vadj1_en = 1;
+
+    if (amvecm->IOControl(AMVECM_IOC_S_PQ_CTRL, &vpp_pq_ctrl) < 0)
+    {
+      CLog::Log(LOGERROR, "CAMLCodec::Enable_vadj1 - AMVECM_IOC_S_PQ_CTRL failed: {}", strerror(errno));
+      return false;
+    }
+
+    CLog::Log(LOGINFO, "CAMLCodec::Enable_vadj1 - vadj1 brightness/contrast control got enabled");
+  }
 
   return true;
 }
@@ -2311,8 +2349,8 @@ void CAMLCodec::SetVideoContrast(const int contrast)
 void CAMLCodec::SetVideoBrightness(const int brightness)
 {
   // input brightness range is 0 to 100 with default of 50.
-  // output brightness range is -127 to 127 with default of 0.
-  int aml_brightness = (127 * (brightness - 50)) / 50;
+  // output brightness range is -255 to 255 with default of 0.
+  int aml_brightness = (255 * (brightness - 50)) / 50;
   CSysfsPath("/sys/class/amvecm/brightness1", aml_brightness);
 }
 void CAMLCodec::SetVideoSaturation(const int saturation)
@@ -2334,6 +2372,9 @@ void CAMLCodec::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
   {
     m_zoom = zoom;
   }
+  // enable vadj1
+  if (!m_vadj1_enabled)
+    m_vadj1_enabled = Enable_vadj1();
   // video contrast adjustment.
   int contrast = m_processInfo.GetVideoSettings().m_Contrast;
   if (contrast != m_contrast)
