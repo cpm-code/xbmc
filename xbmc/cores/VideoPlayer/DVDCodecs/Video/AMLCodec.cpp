@@ -1679,6 +1679,9 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   am_private->gcodec.param       = NULL;
   am_private->gcodec.multi_vdec  = 1;
 
+  // DEC_CONTROL_FLAG_DISABLE_FAST_POC
+  SysfsUtils::SetInt("/sys/module/amvdec_h264/parameters/dec_control", 4);
+
   if (am_private->video_format == VFORMAT_VC1) 					/* workaround to fix slowdown VC1 progressive */
     SysfsUtils::SetInt("/sys/module/di/parameters/di_debug_flag", 0x10000);
   else
