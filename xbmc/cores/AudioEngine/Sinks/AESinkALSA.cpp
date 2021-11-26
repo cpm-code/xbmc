@@ -22,7 +22,7 @@
 
 #if defined(HAS_LIBAMCODEC)
 #include "utils/AMLUtils.h"
-#include "utils/SysfsUtils.h"
+#include "platform/linux/SysfsPath.h"
 #endif
 
 #include <algorithm>
@@ -599,7 +599,7 @@ bool CAESinkALSA::Initialize(AEAudioFormat &format, std::string &device)
     }
 
     aml_set_audio_passthrough(m_passthrough);
-    SysfsUtils::SetInt("/sys/class/audiodsp/digital_codec", aml_digital_codec);
+    CSysfsPath("/sys/class/audiodsp/digital_codec", aml_digital_codec);
   }
 
   if (inconfig.channels == 0)

@@ -28,8 +28,9 @@
 #include "guilib/DispResource.h"
 #include "utils/AMLUtils.h"
 #include "utils/log.h"
-#include "utils/SysfsUtils.h"
 #include "threads/SingleLock.h"
+
+#include "platform/linux/SysfsPath.h"
 
 #include <linux/fb.h>
 
@@ -78,27 +79,29 @@ bool CWinSystemAmlogic::InitWindowSystem()
   if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_NOISEREDUCTION))
   {
      CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- disabling noise reduction");
-     SysfsUtils::SetString("/sys/module/di/parameters/nr2_en", "0");
+     CSysfsPath("/sys/module/di/parameters/nr2_en", 0);
   }
 
   int sdr2hdr = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_SDR2HDR);
   if (sdr2hdr)
   {
     CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- setting sdr2hdr mode to {:d}", sdr2hdr);
-    SysfsUtils::SetInt("/sys/module/am_vecm/parameters/sdr_mode", 1);
-    SysfsUtils::SetInt("/sys/module/amdolby_vision/parameters/dolby_vision_policy", 0);
-    SysfsUtils::SetInt("/sys/module/am_vecm/parameters/hdr_policy", 0);
+    CSysfsPath("/sys/module/am_vecm/parameters/sdr_mode", 1);
+    CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_policy", 0);
+    CSysfsPath("/sys/module/am_vecm/parameters/hdr_policy", 0);
   }
 
   int hdr2sdr = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_HDR2SDR);
   if (hdr2sdr)
   {
     CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- setting hdr2sdr mode to {:d}", hdr2sdr);
-    SysfsUtils::SetInt("/sys/module/am_vecm/parameters/hdr_mode", 1);
+    CSysfsPath("/sys/module/am_vecm/parameters/hdr_mode", 1);
   }
 
   std::string attr = "";
-  SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/attr", attr);
+  CSysfsPath amhdmitx0_attr{"/sys/class/amhdmitx/amhdmitx0/attr"};
+  if (amhdmitx0_attr.Exists())
+    attr = amhdmitx0_attr.Get<std::string>();
   //We delay writing attr until everything is done with it to avoid multiple display resets.
   if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_FORCE422))
   {
@@ -126,7 +129,7 @@ bool CWinSystemAmlogic::InitWindowSystem()
       CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_FORCE422))
   {
      //attr.append("now");
-     SysfsUtils::SetString("/sys/class/amhdmitx/amhdmitx0/attr", attr.c_str());
+     CSysfsPath("/sys/class/amhdmitx/amhdmitx0/attr", attr);
   }
 
   m_nativeDisplay = EGL_DEFAULT_DISPLAY;
@@ -149,7 +152,7 @@ bool CWinSystemAmlogic::InitWindowSystem()
   }
 
   // kill a running animation
-  CLog::Log(LOGDEBUG,"CWinSystemAmlogic: Sending SIGUSR1 to 'splash-image'\n");
+  CLog::Log(LOGDEBUG,"CWinSystemAmlogic: Sending SIGUSR1 to 'splash-image'");
   std::system("killall -s SIGUSR1 splash-image &> /dev/null");
 
   return CWinSystemBase::InitWindowSystem();
@@ -268,7 +271,7 @@ void CWinSystemAmlogic::UpdateResolutions()
     CServiceBroker::GetWinSystem()->GetGfxContext().ResetOverscan(resolutions[i]);
     CDisplaySettings::GetInstance().GetResolutionInfo(res_index) = resolutions[i];
 
-    CLog::Log(LOGINFO, "Found resolution {:d} x {:d} with {:d} x {:d}{} @ {:f} Hz\n",
+    CLog::Log(LOGINFO, "Found resolution {:d} x {:d} with {:d} x {:d}{} @ {:f} Hz",
       resolutions[i].iWidth,
       resolutions[i].iHeight,
       resolutions[i].iScreenWidth,
@@ -309,8 +312,7 @@ bool CWinSystemAmlogic::Hide()
 
 bool CWinSystemAmlogic::Show(bool show)
 {
-  std::string blank_framebuffer = "/sys/class/graphics/" + m_framebuffer_name + "/blank";
-  SysfsUtils::SetInt(blank_framebuffer.c_str(), show ? 0 : 1);
+  CSysfsPath("/sys/class/graphics/" + m_framebuffer_name + "/blank", (show ? 0 : 1));
   return true;
 }
 

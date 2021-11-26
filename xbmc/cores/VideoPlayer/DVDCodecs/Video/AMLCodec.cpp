@@ -23,10 +23,11 @@
 #include "utils/AMLUtils.h"
 #include "utils/log.h"
 #include "utils/StringUtils.h"
-#include "utils/SysfsUtils.h"
 #include "utils/TimeUtils.h"
 #include "windowing/GraphicContext.h"
 #include "windowing/WinSystem.h"
+
+#include "platform/linux/SysfsPath.h"
 
 #include <unistd.h>
 #include <queue>
@@ -1679,12 +1680,16 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   am_private->gcodec.video_path  = FRAME_BASE_PATH_AMLVIDEO_AMVIDEO;
 
   // DEC_CONTROL_FLAG_DISABLE_FAST_POC
-  SysfsUtils::SetInt("/sys/module/amvdec_h264/parameters/dec_control", 4);
+  CSysfsPath("/sys/module/amvdec_h264/parameters/dec_control", 4);
 
-  if (am_private->video_format == VFORMAT_VC1) 					/* workaround to fix slowdown VC1 progressive */
-    SysfsUtils::SetInt("/sys/module/di/parameters/di_debug_flag", 0x10000);
-  else
-    SysfsUtils::SetInt("/sys/module/di/parameters/di_debug_flag", 0);
+  CSysfsPath di_debug_flag{"/sys/module/di/parameters/di_debug_flag"};
+  if (di_debug_flag.Exists())
+  {
+    if (am_private->video_format == VFORMAT_VC1) 					/* workaround to fix slowdown VC1 progressive */
+      di_debug_flag.Set(0x10000);
+    else
+      di_debug_flag.Set(0);
+  }
 
   switch(am_private->video_format)
   {
@@ -1787,7 +1792,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   m_dll->codec_set_cntl_avthresh(&am_private->vcodec, AV_SYNC_THRESH);
   m_dll->codec_set_cntl_syncthresh(&am_private->vcodec, 0);
   // disable tsync, we are playing video disconnected from audio.
-  SysfsUtils::SetInt("/sys/class/tsync/enable", 0);
+  CSysfsPath("/sys/class/tsync/enable", 0);
 
   am_private->am_pkt.codec = &am_private->vcodec;
   am_private->hdr_buf.size = 0;
@@ -1798,11 +1803,13 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   m_display_rect = CRect(0, 0, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iWidth, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iHeight);
 
   std::string strScaler;
-  SysfsUtils::GetString("/sys/class/ppmgr/ppscaler", strScaler);
+  CSysfsPath ppscaler{"/sys/class/ppmgr/ppscaler"};
+  if (ppscaler.Exists())
+    strScaler = ppscaler.Get<std::string>().value();
   if (strScaler.find("enabled") == std::string::npos)     // Scaler not enabled, use screen size
     m_display_rect = CRect(0, 0, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iScreenWidth, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iScreenHeight);
 
-  SysfsUtils::SetInt("/sys/class/video/freerun_mode", 1);
+  CSysfsPath("/sys/class/video/freerun_mode", 1);
 
   m_opened = true;
   // vcodec is open, update speed if it was
@@ -1831,7 +1838,9 @@ bool CAMLCodec::OpenAmlVideo(const CDVDStreamInfo &hints)
 std::string CAMLCodec::GetVfmMap(const std::string &name)
 {
   std::string vfmMap;
-  SysfsUtils::GetString("/sys/class/vfm/map", vfmMap);
+  CSysfsPath map{"/sys/class/vfm/map"};
+  if (map.Exists())
+    vfmMap = map.Get<std::string>().value();
   std::vector<std::string> sections = StringUtils::Split(vfmMap, '\n');
   std::string sectionMap;
   for (size_t i = 0; i < sections.size(); ++i)
@@ -1852,8 +1861,12 @@ std::string CAMLCodec::GetVfmMap(const std::string &name)
 
 void CAMLCodec::SetVfmMap(const std::string &name, const std::string &map)
 {
-  SysfsUtils::SetString("/sys/class/vfm/map", "rm " + name);
-  SysfsUtils::SetString("/sys/class/vfm/map", "add " + name + " " + map);
+  CSysfsPath vfm_map{"/sys/class/vfm/map"};
+  if (vfm_map.Exists())
+  {
+    vfm_map.Set("rm " + name);
+    vfm_map.Set("add " + name + " " + map);
+  }
 }
 
 void CAMLCodec::CloseDecoder()
@@ -1877,7 +1890,7 @@ void CAMLCodec::CloseDecoder()
   if (am_private->vcodec.config)
     free(am_private->vcodec.config);
   // return tsync to default so external apps work
-  SysfsUtils::SetInt("/sys/class/tsync/enable", 1);
+  CSysfsPath("/sys/class/tsync/enable", 1);
 
   ShowMainVideo(false);
 
@@ -1905,8 +1918,12 @@ void CAMLCodec::Reset()
 
   // set the system blackout_policy to leave the last frame showing
   int blackout_policy = 0;
-  SysfsUtils::GetInt("/sys/class/video/blackout_policy", blackout_policy);
-  SysfsUtils::SetInt("/sys/class/video/blackout_policy", 0);
+  CSysfsPath video_blackout_policy{"/sys/class/video/blackout_policy"};
+  if (video_blackout_policy.Exists())
+  {
+    blackout_policy = video_blackout_policy.Get<int>().value();
+    video_blackout_policy.Set(0);
+  }
 
   // restore the speed (some amcodec versions require this)
   if (m_speed != DVD_PLAYSPEED_NORMAL)
@@ -1929,7 +1946,8 @@ void CAMLCodec::Reset()
   pre_header_feeding(am_private, &am_private->am_pkt);
 
   // restore the saved system blackout_policy value
-  SysfsUtils::SetInt("/sys/class/video/blackout_policy", blackout_policy);
+  if (video_blackout_policy.Exists())
+    video_blackout_policy.Set(blackout_policy);
 
   // reset some interal vars
   m_cur_pts = DVD_NOPTS_VALUE;
@@ -2263,7 +2281,7 @@ void CAMLCodec::ShowMainVideo(const bool show)
   if (saved_disable_video == disable_video)
     return;
 
-  SysfsUtils::SetInt("/sys/class/video/disable_video", disable_video);
+  CSysfsPath("/sys/class/video/disable_video", disable_video);
   saved_disable_video = disable_video;
 }
 
@@ -2272,7 +2290,8 @@ void CAMLCodec::SetVideoZoom(const float zoom)
   // input zoom range is 0.5 to 2.0 with a default of 1.0.
   // output zoom range is 2 to 300 with default of 100.
   // we limit that to a range of 50 to 200 with default of 100.
-  SysfsUtils::SetInt("/sys/class/video/zoom", (int)(100 * zoom));
+  int aml_zoom = 100 * zoom;
+  CSysfsPath("/sys/class/video/zoom", aml_zoom);
 }
 
 void CAMLCodec::SetVideoContrast(const int contrast)
@@ -2280,19 +2299,19 @@ void CAMLCodec::SetVideoContrast(const int contrast)
   // input contrast range is 0 to 100 with default of 50.
   // output contrast range is -127 to 127 with default of 0.
   int aml_contrast = (127 * (contrast - 50)) / 50;
-  SysfsUtils::SetInt("/sys/class/amvecm/contrast1", aml_contrast);
+  CSysfsPath("/sys/class/amvecm/contrast1", aml_contrast);
 }
 void CAMLCodec::SetVideoBrightness(const int brightness)
 {
   // input brightness range is 0 to 100 with default of 50.
   // output brightness range is -127 to 127 with default of 0.
   int aml_brightness = (127 * (brightness - 50)) / 50;
-  SysfsUtils::SetInt("/sys/class/amvecm/brightness1", aml_brightness);
+  CSysfsPath("/sys/class/amvecm/brightness1", aml_brightness);
 }
 void CAMLCodec::SetVideoSaturation(const int saturation)
 {
   // output saturation range is -127 to 127 with default of 127.
-  SysfsUtils::SetInt("/sys/class/video/saturation", saturation);
+  CSysfsPath("/sys/class/video/saturation", saturation);
 }
 
 void CAMLCodec::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
@@ -2457,8 +2476,8 @@ void CAMLCodec::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
 
   int screen_mode = CDisplaySettings::GetInstance().IsNonLinearStretched() ? 4 : 1;
 
-  SysfsUtils::SetString("/sys/class/video/axis", video_axis);
-  SysfsUtils::SetInt("/sys/class/video/screen_mode", screen_mode);
+  CSysfsPath("/sys/class/video/axis", video_axis);
+  CSysfsPath("/sys/class/video/screen_mode", screen_mode);
 
   // we only get called once gui has changed to something
   // that would show video playback, so show it.
