@@ -16,7 +16,6 @@
 #include "settings/AdvancedSettings.h"
 #include "settings/MediaSettings.h"
 #include "utils/ScreenshotAML.h"
-#include "utils/SysfsUtils.h"
 #include "utils/log.h"
 
 CRendererAML::CRendererAML()
