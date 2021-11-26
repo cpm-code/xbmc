@@ -16,7 +16,6 @@
 #include "AMLUtils.h"
 #include "utils/CPUInfo.h"
 #include "utils/log.h"
-#include "utils/SysfsUtils.h"
 #include "utils/StringUtils.h"
 #include "windowing/GraphicContext.h"
 #include "utils/RegExp.h"
@@ -24,6 +23,8 @@
 #include "rendering/RenderSystem.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
+
+#include "platform/linux/SysfsPath.h"
 
 #include "linux/fb.h"
 #include <sys/ioctl.h>
@@ -34,14 +35,12 @@ bool aml_present()
   static int has_aml = -1;
   if (has_aml == -1)
   {
-    if (SysfsUtils::Has("/sys/class/audiodsp/digital_raw"))
-      has_aml = 1;
-    else
-      has_aml = 0;
+    CSysfsPath digital_raw{"/sys/class/audiodsp/digital_raw"};
+    has_aml = static_cast<int>(digital_raw.Exists());
     if (has_aml)
       CLog::Log(LOGINFO, "AML device detected");
   }
-  return has_aml == 1;
+  return (has_aml == 1);
 }
 
 int aml_get_cpufamily_id()
@@ -62,24 +61,30 @@ bool aml_support_hevc()
   if (has_hevc == -1)
   {
     std::string valstr;
-    if(SysfsUtils::GetString("/sys/class/amstream/vcodec_profile", valstr) != 0)
-      has_hevc = 0;
-    else
+    has_hevc = 0;
+    CSysfsPath vcodec_profile{"/sys/class/amstream/vcodec_profile"};
+    if (vcodec_profile.Exists())
+    {
+      valstr = vcodec_profile.Get<std::string>().value();
       has_hevc = (valstr.find("hevc:") != std::string::npos) ? 1: 0;
+    }
   }
   return (has_hevc == 1);
 }
 
 static bool aml_support_hevc_res(const char *regex)
 {
-  int has_hevc_res = -1;
+  int has_hevc_res = 0;
   CRegExp regexp;
   regexp.RegComp(regex);
   std::string valstr;
-  if (SysfsUtils::GetString("/sys/class/amstream/vcodec_profile", valstr) != 0)
-    has_hevc_res = 0;
-  else
+  CSysfsPath vcodec_profile{"/sys/class/amstream/vcodec_profile"};
+  if (vcodec_profile.Exists())
+  {
+    valstr = vcodec_profile.Get<std::string>().value();
     has_hevc_res = (regexp.RegFind(valstr) >= 0) ? 1 : 0;
+  }
+
   return has_hevc_res;
 }
 
@@ -108,10 +113,13 @@ bool aml_support_hevc_10bit()
     CRegExp regexp;
     regexp.RegComp("hevc:.*10bit");
     std::string valstr;
-    if (SysfsUtils::GetString("/sys/class/amstream/vcodec_profile", valstr) != 0)
-      has_hevc_10bit = 0;
-    else
+    has_hevc_10bit = 0;
+    CSysfsPath vcodec_profile{"/sys/class/amstream/vcodec_profile"};
+    if (vcodec_profile.Exists())
+    {
+      valstr = vcodec_profile.Get<std::string>().value();
       has_hevc_10bit = (regexp.RegFind(valstr) >= 0) ? 1 : 0;
+    }
   }
   return (has_hevc_10bit == 1);
 }
@@ -123,14 +131,16 @@ AML_SUPPORT_H264_4K2K aml_support_h264_4k2k()
   if (has_h264_4k2k == AML_SUPPORT_H264_4K2K_UNINIT)
   {
     std::string valstr;
-    if (SysfsUtils::GetString("/sys/class/amstream/vcodec_profile", valstr) != 0)
-      has_h264_4k2k = AML_NO_H264_4K2K;
-    else if (valstr.find("h264:4k") != std::string::npos)
-      has_h264_4k2k = AML_HAS_H264_4K2K_SAME_PROFILE;
-    else if (valstr.find("h264_4k2k:") != std::string::npos)
-      has_h264_4k2k = AML_HAS_H264_4K2K;
-    else
-      has_h264_4k2k = AML_NO_H264_4K2K;
+    has_h264_4k2k = AML_NO_H264_4K2K;
+    CSysfsPath vcodec_profile{"/sys/class/amstream/vcodec_profile"};
+    if (vcodec_profile.Exists())
+    {
+      valstr = vcodec_profile.Get<std::string>().value();
+      if (valstr.find("h264:4k") != std::string::npos)
+        has_h264_4k2k = AML_HAS_H264_4K2K_SAME_PROFILE;
+      else if (valstr.find("h264_4k2k:") != std::string::npos)
+        has_h264_4k2k = AML_HAS_H264_4K2K;
+    }
   }
   return has_h264_4k2k;
 }
@@ -144,10 +154,13 @@ bool aml_support_vp9()
     CRegExp regexp;
     regexp.RegComp("vp9:.*compressed");
     std::string valstr;
-    if (SysfsUtils::GetString("/sys/class/amstream/vcodec_profile", valstr) != 0)
-      has_vp9 = 0;
-    else
+    has_vp9 = 0;
+    CSysfsPath vcodec_profile{"/sys/class/amstream/vcodec_profile"};
+    if (vcodec_profile.Exists())
+    {
+      valstr = vcodec_profile.Get<std::string>().value();
       has_vp9 = (regexp.RegFind(valstr) >= 0) ? 1 : 0;
+    }
   }
   return (has_vp9 == 1);
 }
@@ -157,14 +170,17 @@ bool aml_has_frac_rate_policy()
   static int has_frac_rate_policy = -1;
 
   if (has_frac_rate_policy == -1)
-    has_frac_rate_policy = SysfsUtils::Has("/sys/class/amhdmitx/amhdmitx0/frac_rate_policy");
+  {
+    CSysfsPath amhdmitx0_frac_rate_policy{"/sys/class/amhdmitx/amhdmitx0/frac_rate_policy"};
+    has_frac_rate_policy = static_cast<int>(amhdmitx0_frac_rate_policy.Exists());
+  }
 
   return (has_frac_rate_policy == 1);
 }
 
 void aml_set_audio_passthrough(bool passthrough)
 {
-  SysfsUtils::SetInt("/sys/class/audiodsp/digital_raw", passthrough ? 2:0);
+  CSysfsPath("/sys/class/audiodsp/digital_raw", (passthrough ? 2 : 0));
 }
 
 void aml_probe_hdmi_audio()
@@ -236,7 +252,10 @@ int aml_axis_value(AML_DISPLAY_AXIS_PARAM param)
   std::string axis;
   int value[8];
 
-  SysfsUtils::GetString("/sys/class/display/axis", axis);
+  CSysfsPath display_axis{"/sys/class/display/axis"};
+  if (display_axis.Exists())
+    axis = display_axis.Get<std::string>().value();
+
   sscanf(axis.c_str(), "%d %d %d %d %d %d %d %d", &value[0], &value[1], &value[2], &value[3], &value[4], &value[5], &value[6], &value[7]);
 
   return value[param];
@@ -356,13 +375,17 @@ bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
 bool aml_get_native_resolution(RESOLUTION_INFO *res)
 {
   std::string mode;
-  SysfsUtils::GetString("/sys/class/display/mode", mode);
+  CSysfsPath display_mode{"/sys/class/display/mode"};
+  if (display_mode.Exists())
+    mode = display_mode.Get<std::string>().value();
   bool result = aml_mode_to_resolution(mode.c_str(), res);
 
   if (aml_has_frac_rate_policy())
   {
     int fractional_rate = 0;
-    SysfsUtils::GetInt("/sys/class/amhdmitx/amhdmitx0/frac_rate_policy", fractional_rate);
+    CSysfsPath frac_rate_policy{"/sys/class/amhdmitx/amhdmitx0/frac_rate_policy"};
+    if (frac_rate_policy.Exists())
+      fractional_rate = frac_rate_policy.Get<int>().value();
     if (fractional_rate == 1)
       res->fRefreshRate /= 1.001;
   }
@@ -385,27 +408,46 @@ bool aml_set_native_resolution(const RESOLUTION_INFO &res, std::string framebuff
 
 bool aml_probe_resolutions(std::vector<RESOLUTION_INFO> &resolutions)
 {
-  std::string valstr, addstr, dcapfile, daddfile;
-  dcapfile = CSpecialProtocol::TranslatePath("special://home/userdata/disp_cap");
-  daddfile = CSpecialProtocol::TranslatePath("special://home/userdata/disp_add");
+  std::string valstr, addstr;
 
-  if (SysfsUtils::GetString(dcapfile, valstr) < 0)
+  CSysfsPath user_dcapfile{CSpecialProtocol::TranslatePath("special://home/userdata/disp_cap")};
+
+  if (!user_dcapfile.Exists())
   {
-    if (SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/disp_cap", valstr) < 0)
+    CSysfsPath dcapfile{"/sys/class/amhdmitx/amhdmitx0/disp_cap"};
+    if (dcapfile.Exists())
+      valstr = dcapfile.Get<std::string>().value();
+    else
       return false;
 
-    if (SysfsUtils::Has("/flash/vesa.enable"))
+    CSysfsPath vesa{"/flash/vesa.enable"};
+    if (vesa.Exists())
     {
-      if (SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/vesa_cap", addstr) == 0)
+      CSysfsPath vesa_cap{"/sys/class/amhdmitx/amhdmitx0/vesa_cap"};
+      if (vesa_cap.Exists())
+      {
+        addstr = vesa_cap.Get<std::string>().value();
         valstr += "\n" + addstr;
+      }
     }
-    if (SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/custom_mode", addstr) == 0)
-      valstr += "\n" + addstr;
 
-    if (SysfsUtils::GetString(daddfile, addstr) == 0)
+    CSysfsPath custom_mode{"/sys/class/amhdmitx/amhdmitx0/custom_mode"};
+    if (custom_mode.Exists())
+    {
+      addstr = custom_mode.Get<std::string>().value();
       valstr += "\n" + addstr;
+    }
 
+    CSysfsPath user_daddfile{CSpecialProtocol::TranslatePath("special://home/userdata/disp_add")};
+    if (user_daddfile.Exists())
+    {
+      addstr = user_daddfile.Get<std::string>().value();
+      valstr += "\n" + addstr;
+    }
   }
+  else
+    valstr = user_dcapfile.Get<std::string>().value();
+
   std::vector<std::string> probe_str = StringUtils::Split(valstr, "\n");
 
   resolutions.clear();
@@ -443,8 +485,13 @@ bool aml_set_display_resolution(const RESOLUTION_INFO &res, std::string framebuf
   std::string cur_mode;
   std::string custom_mode;
 
-  SysfsUtils::GetString("/sys/class/display/mode", cur_mode);
-  SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/custom_mode", custom_mode);
+  CSysfsPath display_mode{"/sys/class/display/mode"};
+  if (display_mode.Exists())
+    cur_mode = display_mode.Get<std::string>().value();
+
+  CSysfsPath amhdmitx0_custom_mode{"/sys/class/amhdmitx/amhdmitx0/custom_mode"};
+  if (amhdmitx0_custom_mode.Exists())
+    custom_mode = amhdmitx0_custom_mode.Get<std::string>().value();
 
   if (custom_mode == mode)
   {
@@ -455,19 +502,24 @@ bool aml_set_display_resolution(const RESOLUTION_INFO &res, std::string framebuf
   {
     int cur_fractional_rate;
     int fractional_rate = (res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1;
-    SysfsUtils::GetInt("/sys/class/amhdmitx/amhdmitx0/frac_rate_policy", cur_fractional_rate);
+    CSysfsPath amhdmitx0_frac_rate_policy{"/sys/class/amhdmitx/amhdmitx0/frac_rate_policy"};
+    if (amhdmitx0_frac_rate_policy.Exists())
+      cur_fractional_rate = amhdmitx0_frac_rate_policy.Get<int>().value();
 
     if (cur_fractional_rate != fractional_rate)
     {
       cur_mode = "null";
-      SysfsUtils::SetString("/sys/class/display/mode", cur_mode.c_str());
-      SysfsUtils::SetInt("/sys/class/amhdmitx/amhdmitx0/frac_rate_policy", fractional_rate);
+      if (display_mode.Exists())
+        display_mode.Set(cur_mode);
+      if (amhdmitx0_frac_rate_policy.Exists())
+        amhdmitx0_frac_rate_policy.Set(fractional_rate);
     }
   }
 
   if (cur_mode != mode)
   {
-    SysfsUtils::SetString("/sys/class/display/mode", mode.c_str());
+    if (display_mode.Exists())
+      display_mode.Set(mode);
   }
 
   aml_set_framebuffer_resolution(res, framebuffer_name);
@@ -519,7 +571,7 @@ void aml_handle_display_stereo_mode(const RenderStereoMode stereo_mode)
   {
     CLog::Log(LOGDEBUG, "AMLUtils::aml_handle_display_stereo_mode setting new mode");
     lastHdmiTxConfig = command;
-    SysfsUtils::SetString("/sys/class/amhdmitx/amhdmitx0/config", command);
+    CSysfsPath("/sys/class/amhdmitx/amhdmitx0/config", command);
   }
   else
   {
@@ -534,19 +586,19 @@ void aml_enable_freeScale(const RESOLUTION_INFO &res)
   char waxis_str[256] = {0};
   sprintf(waxis_str, "0 0 %d %d", res.iScreenWidth-1, res.iScreenHeight-1);
 
-  SysfsUtils::SetInt("/sys/class/graphics/fb0/free_scale", 0);
-  SysfsUtils::SetString("/sys/class/graphics/fb0/free_scale_axis", fsaxis_str);
-  SysfsUtils::SetString("/sys/class/graphics/fb0/window_axis", waxis_str);
-  SysfsUtils::SetInt("/sys/class/graphics/fb0/scale_width", res.iWidth);
-  SysfsUtils::SetInt("/sys/class/graphics/fb0/scale_height", res.iHeight);
-  SysfsUtils::SetInt("/sys/class/graphics/fb0/free_scale", 0x10001);
+  CSysfsPath("/sys/class/graphics/fb0/free_scale", 0);
+  CSysfsPath("/sys/class/graphics/fb0/free_scale_axis", fsaxis_str);
+  CSysfsPath("/sys/class/graphics/fb0/window_axis", waxis_str);
+  CSysfsPath("/sys/class/graphics/fb0/scale_width", res.iWidth);
+  CSysfsPath("/sys/class/graphics/fb0/scale_height", res.iHeight);
+  CSysfsPath("/sys/class/graphics/fb0/free_scale", 0x10001);
 }
 
 void aml_disable_freeScale()
 {
   // turn off frame buffer freescale
-  SysfsUtils::SetInt("/sys/class/graphics/fb0/free_scale", 0);
-  SysfsUtils::SetInt("/sys/class/graphics/fb1/free_scale", 0);
+  CSysfsPath("/sys/class/graphics/fb0/free_scale", 0);
+  CSysfsPath("/sys/class/graphics/fb1/free_scale", 0);
 }
 
 void aml_set_framebuffer_resolution(const RESOLUTION_INFO &res, std::string framebuffer_name)
@@ -581,33 +633,29 @@ void aml_set_framebuffer_resolution(int width, int height, std::string framebuff
 
 bool aml_read_reg(const std::string &reg, uint32_t &reg_val)
 {
-  std::string path = "/sys/kernel/debug/aml_reg/paddr";
-  if (SysfsUtils::Has(path))
+  CSysfsPath paddr{"/sys/kernel/debug/aml_reg/paddr"};
+  if (paddr.Exists())
   {
-    if (SysfsUtils::SetString(path, reg) == 0)
+    paddr.Set(reg);
+    std::string val = paddr.Get<std::string>();
+
+    CRegExp regexp;
+    regexp.RegComp("\\[0x(?<reg>.+)\\][\\s]+=[\\s]+(?<val>.+)");
+    if (regexp.RegFind(val) == 0)
     {
-      std::string val;
-      if (SysfsUtils::GetString(path, val) == 0)
+      std::string match;
+      if (regexp.GetNamedSubPattern("reg", match))
       {
-        CRegExp regexp;
-        regexp.RegComp("\\[0x(?<reg>.+)\\][\\s]+=[\\s]+(?<val>.+)");
-        if (regexp.RegFind(val) == 0)
+        if (match == reg)
         {
-          std::string match;
-          if (regexp.GetNamedSubPattern("reg", match))
+          if (regexp.GetNamedSubPattern("val", match))
           {
-            if (match == reg)
+            try
             {
-              if (regexp.GetNamedSubPattern("val", match))
-              {
-                try
-                {
-                  reg_val = std::stoul(match, 0, 16);
-                  return true;
-                }
-                catch (...) {}
-              }
+              reg_val = std::stoul(match, 0, 16);
+              return true;
             }
+            catch (...) {}
           }
         }
       }
@@ -632,9 +680,12 @@ bool aml_set_reg_ignore_alpha()
 {
   if (aml_has_capability_ignore_alpha())
   {
-    std::string path = "/sys/class/graphics/fb0/debug";
-    if (SysfsUtils::SetString(path, "write 0x1a2d 0x7fc0") == 0)
+    CSysfsPath fb0_debug{"/sys/class/graphics/fb0/debug"};
+    if (fb0_debug.Exists())
+    {
+      fb0_debug.Set("write 0x1a2d 0x7fc0");
       return true;
+    }
   }
   return false;
 }
@@ -643,9 +694,12 @@ bool aml_unset_reg_ignore_alpha()
 {
   if (aml_has_capability_ignore_alpha())
   {
-    std::string path = "/sys/class/graphics/fb0/debug";
-    if (SysfsUtils::SetString(path, "write 0x1a2d 0x3fc0") == 0)
+    CSysfsPath fb0_debug{"/sys/class/graphics/fb0/debug"};
+    if (fb0_debug.Exists())
+    {
+      fb0_debug.Set("write 0x1a2d 0x3fc0");
       return true;
+    }
   }
   return false;
 }
