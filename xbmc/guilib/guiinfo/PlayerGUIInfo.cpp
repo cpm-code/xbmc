@@ -26,12 +26,13 @@
 #include "guilib/guiinfo/GUIInfo.h"
 #include "guilib/guiinfo/GUIInfoHelper.h"
 #include "guilib/guiinfo/GUIInfoLabels.h"
-#include "utils/SysfsUtils.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
 #include "utils/log.h"
 #include "windowing/WinSystem.h"
+
+#include "platform/linux/SysfsPath.h"
 
 #include <charconv>
 #include <chrono>
@@ -62,7 +63,9 @@ std::string CPlayerGUIInfo::GetAMLConfigInfo(std::string item) const
   std::vector<std::string> aml_config_item;
   std::vector<std::string>::iterator i;
 
-  SysfsUtils::GetString("/sys/class/amhdmitx/amhdmitx0/config", aml_config);
+  CSysfsPath config{"/sys/class/amhdmitx/amhdmitx0/config"};
+  if (config.Exists())
+    aml_config = config.Get<std::string>().value();
 
   aml_config_lines = StringUtils::Split(aml_config, "\n");
   for (i = aml_config_lines.begin(); i < aml_config_lines.end(); i++)
@@ -80,7 +83,10 @@ std::string CPlayerGUIInfo::GetAMLConfigInfo(std::string item) const
           {
             int cur_fractional_rate = 0;
             item_value = StringUtils::Left(sub_items.at(1), sub_items.at(1).length() - 4) + " ";
-            SysfsUtils::GetInt("/sys/class/amhdmitx/amhdmitx0/frac_rate_policy", cur_fractional_rate);
+
+            CSysfsPath frac_rate_policy{"/sys/class/amhdmitx/amhdmitx0/frac_rate_policy"};
+            if (frac_rate_policy.Exists())
+              cur_fractional_rate = frac_rate_policy.Get<int>().value();
 
             if (cur_fractional_rate)
             {
