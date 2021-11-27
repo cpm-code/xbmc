@@ -9,6 +9,7 @@
 #pragma once
 
 #include "utils/log.h"
+#include "utils/StringUtils.h"
 
 #include <exception>
 #include <fstream>

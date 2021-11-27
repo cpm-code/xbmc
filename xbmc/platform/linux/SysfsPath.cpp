@@ -27,9 +27,7 @@ std::optional<std::string> CSysfsPath::Get()
   {
     std::ifstream file(m_path);
 
-    std::string value;
-
-    std::getline(file, value);
+    std::string value(std::istreambuf_iterator<char>(file), {});
 
     if (file.bad())
     {
@@ -37,7 +35,7 @@ std::optional<std::string> CSysfsPath::Get()
       return std::nullopt;
     }
 
-    return value;
+    return StringUtils::Trim(value);
   }
   catch (const std::exception& e)
   {
