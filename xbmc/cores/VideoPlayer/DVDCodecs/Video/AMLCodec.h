@@ -75,10 +75,8 @@ private:
   am_private_t    *am_private;
   CDVDStreamInfo   m_hints;
   int              m_speed;
-  int64_t          m_cur_pts;
-  int64_t          m_last_pts;
-  int64_t          m_last_ptsOverflow;
-  std::deque<int64_t> m_ptsOverflows;
+  uint64_t         m_cur_pts;
+  uint64_t         m_last_pts;
   uint32_t         m_bufferIndex;
 
   CRect            m_dst_rect;

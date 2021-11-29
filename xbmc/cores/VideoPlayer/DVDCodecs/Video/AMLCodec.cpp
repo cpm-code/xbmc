@@ -121,7 +121,7 @@ public:
   virtual int codec_pause(codec_para_t *pcodec)=0;
   virtual int codec_resume(codec_para_t *pcodec)=0;
   virtual int codec_write(codec_para_t *pcodec, void *buffer, int len)=0;
-  virtual int codec_checkin_pts(codec_para_t *pcodec, unsigned long pts)=0;
+  virtual int codec_checkin_pts_us64(codec_para_t *pcodec, unsigned long long pts)=0;
   virtual int codec_get_vbuf_state(codec_para_t *pcodec, struct buf_status *buf)=0;
   virtual int codec_get_vdec_state(codec_para_t *pcodec, struct vdec_status *vdec)=0;
   virtual int codec_get_vdec_info(codec_para_t *pcodec, struct vdec_info *vdec) = 0;
@@ -149,7 +149,7 @@ class DllLibAmCodec : public DllDynamic, DllLibamCodecInterface
   DEFINE_METHOD1(int, codec_pause,              (codec_para_t *p1))
   DEFINE_METHOD1(int, codec_resume,             (codec_para_t *p1))
   DEFINE_METHOD3(int, codec_write,              (codec_para_t *p1, void *p2, int p3))
-  DEFINE_METHOD2(int, codec_checkin_pts,        (codec_para_t *p1, unsigned long p2))
+  DEFINE_METHOD2(int, codec_checkin_pts_us64,   (codec_para_t *p1, unsigned long long p2))
   DEFINE_METHOD2(int, codec_get_vbuf_state,     (codec_para_t *p1, struct buf_status * p2))
   DEFINE_METHOD2(int, codec_get_vdec_state,     (codec_para_t *p1, struct vdec_status * p2))
   DEFINE_METHOD2(int, codec_get_vdec_info,      (codec_para_t *p1, struct vdec_info * p2))
@@ -172,7 +172,7 @@ class DllLibAmCodec : public DllDynamic, DllLibamCodecInterface
     RESOLVE_METHOD(codec_pause)
     RESOLVE_METHOD(codec_resume)
     RESOLVE_METHOD(codec_write)
-    RESOLVE_METHOD(codec_checkin_pts)
+    RESOLVE_METHOD(codec_checkin_pts_us64)
     RESOLVE_METHOD(codec_get_vbuf_state)
     RESOLVE_METHOD(codec_get_vdec_state)
     RESOLVE_METHOD(codec_get_vdec_info)
@@ -240,7 +240,7 @@ public:
 #define TRICKMODE_I     0x01
 #define TRICKMODE_FFFB  0x02
 
-static const int64_t INT64_0 = 0x8000000000000000ULL;
+static const uint64_t UINT64_0 = 0x8000000000000000ULL;
 
 #define EXTERNAL_PTS    (1)
 #define SYNC_OUTSIDE    (2)
@@ -288,12 +288,12 @@ typedef struct hdr_buf {
 
 typedef struct am_packet {
     AVPacket      avpkt;
-    int64_t       avpts;
-    int64_t       avdts;
+    uint64_t      avpts;
+    uint64_t      avdts;
     int           avduration;
     int           isvalid;
     int           newflag;
-    int64_t       lastpts;
+    uint64_t      lastpts;
     unsigned char *data;
     unsigned char *buf;
     int           data_size;
@@ -561,7 +561,7 @@ static void am_packet_init(am_packet_t *pkt)
   pkt->avduration = 0;
   pkt->isvalid    = 0;
   pkt->newflag    = 0;
-  pkt->lastpts    = INT64_0;
+  pkt->lastpts    = UINT64_0;
   pkt->data       = NULL;
   pkt->buf        = NULL;
   pkt->data_size  = 0;
@@ -587,8 +587,8 @@ void am_packet_release(am_packet_t *pkt)
 int check_in_pts(am_private_t *para, am_packet_t *pkt)
 {
   if (para->stream_type == AM_STREAM_ES
-    && INT64_0 != pkt->avpts
-    && para->m_dll->codec_checkin_pts(pkt->codec, pkt->avpts) != 0)
+    && UINT64_0 != pkt->avpts
+    && para->m_dll->codec_checkin_pts_us64(pkt->codec, pkt->avpts) != 0)
   {
     CLog::Log(LOGDEBUG, "ERROR check in pts error!");
     return PLAYER_PTS_ERROR;
@@ -1505,7 +1505,6 @@ CAMLCodec::CAMLCodec(CProcessInfo &processInfo)
   , m_speed(DVD_PLAYSPEED_NORMAL)
   , m_cur_pts(DVD_NOPTS_VALUE)
   , m_last_pts(DVD_NOPTS_VALUE)
-  , m_last_ptsOverflow(0)
   , m_bufferIndex(-1)
   , m_state(0)
   , m_frameSizeSum(0)
@@ -1557,8 +1556,6 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   m_hints = hints;
   m_state = 0;
   m_frameSizes.clear();
-  m_last_ptsOverflow = 0;
-  m_ptsOverflows.clear();
   m_frameSizeSum = 0;
   m_hints.pClock = hints.pClock;
 
@@ -1938,8 +1935,6 @@ void CAMLCodec::Reset()
   m_cur_pts = DVD_NOPTS_VALUE;
   m_state = 0;
   m_frameSizes.clear();
-  m_last_ptsOverflow = 0;
-  m_ptsOverflows.clear();
   m_frameSizeSum = 0;
 
   SetSpeed(m_speed);
@@ -1998,44 +1993,25 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
   am_private->am_pkt.isvalid    = 1;
   am_private->am_pkt.avduration = 0;
 
-  // handle pts, including 31bit wrap, aml can only handle 31
-  // bit pts as it uses an int in kernel.
+  // handle pts
   if (m_hints.ptsinvalid || pts == DVD_NOPTS_VALUE)
-    am_private->am_pkt.avpts = INT64_0;
+    am_private->am_pkt.avpts = UINT64_0;
   else
   {
-    am_private->am_pkt.avpts = 0.5 + (pts * PTS_FREQ) / DVD_TIME_BASE;
+    am_private->am_pkt.avpts = pts;
     m_state |= STATE_HASPTS;
   }
 
-  // handle dts, including 31bit wrap, aml can only handle 31
-  // bit dts as it uses an int in kernel.
+  // handle dts
   if (dts == DVD_NOPTS_VALUE)
     am_private->am_pkt.avdts = am_private->am_pkt.avpts;
   else
   {
-    am_private->am_pkt.avdts = 0.5 + (dts * PTS_FREQ) / DVD_TIME_BASE;
+    am_private->am_pkt.avdts = dts;
 
     // For VC1 AML decoder uses PTS only on I-Frames
-    if (am_private->am_pkt.avpts == INT64_0 && (((size_t)am_private->gcodec.param) & KEYFRAME_PTS_ONLY))
+    if (am_private->am_pkt.avpts == UINT64_0 && (((size_t)am_private->gcodec.param) & KEYFRAME_PTS_ONLY))
       am_private->am_pkt.avpts = am_private->am_pkt.avdts;
-  }
-
-  //Handle PTS overflow for arm
-  if (sizeof(long) < 8)
-  {
-    if (am_private->am_pkt.avpts != INT64_0)
-    {
-      m_ptsOverflows.push_back(am_private->am_pkt.avpts & 0xFFFFFFFF80000000ULL);
-      am_private->am_pkt.avpts &= 0x7FFFFFFF;
-    }
-    else
-      m_ptsOverflows.push_back(0);
-
-    if (am_private->am_pkt.avdts != INT64_0)
-    {
-      am_private->am_pkt.avdts &= 0x7FFFFFFF;
-    }
   }
 
   // We use this to determine the fill state if no PTS is given
@@ -2077,12 +2053,11 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
   m_dll->codec_get_vbuf_state(&am_private->vcodec, &bs);
   if (iSize > 0)
     CLog::Log(LOGDEBUG, LOGVIDEO,
-      "CAMLCodec::AddData: dl:{:d} sum:{:d} sz:{:d} dts:{:.3f} pts:{:.3f} overflow:{:x}",
+      "CAMLCodec::AddData: dl:{:d} sum:{:d} sz:{:d} dts:{:.3f} pts:{:.3f}",
       bs.data_len, m_frameSizeSum,
       static_cast<unsigned int>(iSize),
       dts / DVD_TIME_BASE,
-      pts / DVD_TIME_BASE,
-      m_ptsOverflows.back()
+      pts / DVD_TIME_BASE
     );
   return true;
 }
@@ -2174,18 +2149,8 @@ DRAIN:
 
   m_last_pts = m_cur_pts;
 
-  if (!m_ptsOverflows.empty())
-  {
-    m_last_ptsOverflow = m_ptsOverflows.front();
-    m_ptsOverflows.pop_front();
-  }
-
-  m_cur_pts = m_last_ptsOverflow * 100 / 9 + (static_cast<int64_t>(vbuf.timestamp.tv_sec) << 32);
-  m_cur_pts += vbuf.timestamp.tv_usec & 0xFFFFFFFF;
-
-  // since ptsOverflow is calculated from decoder input, we have to check at output if the new packets caused overflow increment
-  if ((m_cur_pts - m_hints.pClock->GetClock())  > 0x7F000000LL * 100 / 9)
-    m_cur_pts -= 0x80000000LL * 100 / 9;
+  m_cur_pts =  static_cast<uint64_t>(static_cast<uint32_t>(vbuf.timestamp.tv_sec)) << 32;
+  m_cur_pts += static_cast<uint32_t>(vbuf.timestamp.tv_usec);
 
   CLog::Log(LOGDEBUG, LOGAVTIMING, "CAMLCodec::DequeueBuffer: pts:{:.3f}  idx:{:d}",
 			static_cast<double>(m_cur_pts) /  DVD_TIME_BASE, vbuf.index);
@@ -2232,7 +2197,7 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
     if (m_last_pts == DVD_NOPTS_VALUE)
       pVideoPicture->iDuration = static_cast<double>(am_private->video_rate * DVD_TIME_BASE) / UNIT_FREQ;
     else
-      pVideoPicture->iDuration = static_cast<double>(0x7FFFFFFF & (m_cur_pts - m_last_pts));
+      pVideoPicture->iDuration = static_cast<double>(m_cur_pts - m_last_pts);
 
     pVideoPicture->dts = DVD_NOPTS_VALUE;
     pVideoPicture->pts = static_cast<double>(m_cur_pts);
