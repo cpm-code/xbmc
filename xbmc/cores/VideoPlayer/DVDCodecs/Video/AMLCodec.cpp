@@ -105,8 +105,9 @@ typedef struct {
   unsigned int  status;
   unsigned int  ratio;
   unsigned long long ratio64;
-  void *param;
-  bool          multi_vdec;
+  void          *param;
+  dec_mode_t    dec_mode;
+  enum FRAME_BASE_VIDEO_PATH video_path;
 } aml_generic_param;
 
 class DllLibamCodecInterface
@@ -213,7 +214,8 @@ public:
     p_out->am_sysinfo.ratio   = p_in->ratio;
     p_out->am_sysinfo.ratio64 = p_in->ratio64;
     p_out->am_sysinfo.param   = p_in->param;
-    p_out->multi_vdec         = p_in->multi_vdec;
+    p_out->dec_mode           = p_in->dec_mode;
+    p_out->video_path         = p_in->video_path;
   }
 };
 
@@ -1490,7 +1492,7 @@ int set_header_info(am_private_t *para)
     else if (para->video_format == VFORMAT_VP9) {
       vp9_update_frame_header(pkt);
     }
-    else if (para->vcodec.multi_vdec && para->video_format == VFORMAT_MPEG12)
+    else if (para->vcodec.dec_mode == STREAM_TYPE_FRAME && para->video_format == VFORMAT_MPEG12)
       mpeg12_add_frame_dec_info(para);
 
   }
@@ -1577,8 +1579,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   am_private->video_codec_id   = hints.codec;
   am_private->video_codec_tag  = hints.codec_tag;
 
-  // FIXME
-  // am_private->video_pid        = hints.pid;
+  am_private->video_pid        = -1;
 
   // handle video ratio
   AVRational video_ratio       = av_d2q(1, SHRT_MAX);
@@ -1677,7 +1678,8 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   am_private->gcodec.ratio       = am_private->video_ratio;
   am_private->gcodec.ratio64     = am_private->video_ratio64;
   am_private->gcodec.param       = NULL;
-  am_private->gcodec.multi_vdec  = 1;
+  am_private->gcodec.dec_mode    = STREAM_TYPE_FRAME;
+  am_private->gcodec.video_path  = FRAME_BASE_PATH_AMLVIDEO_AMVIDEO;
 
   // DEC_CONTROL_FLAG_DISABLE_FAST_POC
   SysfsUtils::SetInt("/sys/module/amvdec_h264/parameters/dec_control", 4);
@@ -1738,7 +1740,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
       // vc1 in an avi file
       if (m_hints.ptsinvalid)
         am_private->gcodec.param = (void*)KEYFRAME_PTS_ONLY;
-      am_private->gcodec.multi_vdec = 0;
+      am_private->gcodec.dec_mode = STREAM_TYPE_SINGLE;
       break;
     case VFORMAT_HEVC:
       am_private->gcodec.format = VIDEO_DEC_FORMAT_HEVC;
@@ -1767,7 +1769,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
     am_private->vcodec.config[am_private->vcodec.config_len] = '\0';
   }
 
-  if (!am_private->vcodec.multi_vdec)
+  if (am_private->vcodec.dec_mode == STREAM_TYPE_SINGLE)
     SetVfmMap("default", "decoder ppmgr amlvideo deinterlace amvideo");
 
   int ret = m_dll->codec_init(&am_private->vcodec);
@@ -1889,7 +1891,7 @@ void CAMLCodec::CloseAmlVideo()
 {
   m_amlVideoFile.reset();
 
-  if (!am_private->vcodec.multi_vdec)
+  if (am_private->vcodec.dec_mode == STREAM_TYPE_SINGLE)
     SetVfmMap("default", m_defaultVfmMap);
 
   m_amlVideoFile = NULL;
