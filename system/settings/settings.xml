@@ -4455,11 +4455,11 @@
       <group id="1">
         <setting id="window.width" type="integer" label="0" help="36136">
           <level>4</level>
-          <default>720</default>
+          <default>1920</default>
         </setting>
         <setting id="window.height" type="integer" label="0" help="36137">
           <level>4</level>
-          <default>480</default>
+          <default>1080</default>
         </setting>
       </group>
     </category>
