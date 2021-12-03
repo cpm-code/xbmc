@@ -50,7 +50,6 @@ enum AML_SUPPORT_H264_4K2K
 
 bool aml_present();
 int  aml_get_cpufamily_id();
-bool aml_permissions();
 bool aml_support_hevc();
 bool aml_support_hevc_4k2k();
 bool aml_support_hevc_8k4k();
