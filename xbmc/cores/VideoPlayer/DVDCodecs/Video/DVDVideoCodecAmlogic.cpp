@@ -102,12 +102,6 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
   if ((hints.stills && hints.fpsrate == 0) || hints.width == 0)
     return false;
 
-  if (!aml_permissions())
-  {
-    CLog::Log(LOGERROR, "AML: no proper permission, please contact the device vendor. Skipping codec...");
-    return false;
-  }
-
   // allow only 1 instance here
   if (m_InstanceGuard.exchange(true))
   {

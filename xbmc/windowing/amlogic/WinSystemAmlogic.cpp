@@ -60,8 +60,6 @@ CWinSystemAmlogic::CWinSystemAmlogic() :
   m_stereo_mode = RenderStereoMode::OFF;
   m_delayDispReset = false;
 
-  aml_permissions();
-
   m_libinput->Start();
 }
 
