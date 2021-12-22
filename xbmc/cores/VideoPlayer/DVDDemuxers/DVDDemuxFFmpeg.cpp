@@ -1186,7 +1186,7 @@ DemuxPacket* CDVDDemuxFFmpeg::ReadInternal(bool keep)
     {
       if (static_cast<CDemuxStreamVideo*>(stream)->iWidth != m_pFormatContext->streams[pPacket->iStreamId]->codecpar->width ||
           static_cast<CDemuxStreamVideo*>(stream)->iHeight != m_pFormatContext->streams[pPacket->iStreamId]->codecpar->height ||
-		  (stream->disabled && stream->extraData.GetSize() != m_pFormatContext->streams[pPacket->iStreamId]->codecpar->extradata_size))
+      (stream->disabled && stream->extraData.GetSize() != static_cast<unsigned int>(m_pFormatContext->streams[pPacket->iStreamId]->codecpar->extradata_size)))
       {
         // content has changed
         stream = AddStream(pPacket->iStreamId);
@@ -1662,7 +1662,7 @@ CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
         if (fps > 24.5f && pStream->time_base.num && pStream->time_base.den &&
             pStream->codecpar->field_order != AV_FIELD_PROGRESSIVE && pStream->codecpar->field_order != AV_FIELD_UNKNOWN)
         {
-          if (static_cast<float>(pStream->time_base.den) / static_cast<float>(pStream->time_base.num) < 61.0)
+          if (static_cast<float>(pStream->time_base.den) / static_cast<float>(pStream->time_base.num) < 61.0f)
           {
             st->iFpsRate  = pStream->time_base.den;
             st->iFpsScale = pStream->time_base.num;
