@@ -128,7 +128,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
 
       // if we have SD PAL content assume it is widescreen
       // correct aspect ratio will be detected later anyway
-      if ((m_hints.width == 720 || m_hints.width == 544 || m_hints.width == 480) && m_hints.height == 576 && m_hints.aspect == 0.0f)
+      if ((m_hints.width == 720 || m_hints.width == 544 || m_hints.width == 480) && m_hints.height == 576 && m_hints.aspect == 0.0)
           m_hints.aspect = 16.0 / 9.0;
 
       m_mpeg2_sequence_pts = 0;
@@ -164,7 +164,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
         goto FAIL;
       }
 
-      if (m_hints.aspect == 0.0f)
+      if (m_hints.aspect == 0.0)
       {
         m_h264_sequence_pts = 0;
         m_h264_sequence = new h264_sequence;
@@ -194,12 +194,12 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
 
       // if we have SD PAL content assume it is widescreen
       // correct aspect ratio will be detected later anyway
-      if (m_hints.width == 720 && m_hints.height == 576 && m_hints.aspect == 0.0f)
+      if (m_hints.width == 720 && m_hints.height == 576 && m_hints.aspect == 0.0)
           m_hints.aspect = 16.0 / 9.0;
 
       // assume widescreen for "HD Lite" channels
       // correct aspect ratio will be detected later anyway
-      if ((m_hints.width == 1440 || m_hints.width ==1280) && m_hints.height == 1080 && m_hints.aspect == 0.0f)
+      if ((m_hints.width == 1440 || m_hints.width ==1280) && m_hints.height == 1080 && m_hints.aspect == 0.0)
           m_hints.aspect = 16.0 / 9.0;;
 
       break;
@@ -432,7 +432,7 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecAmlogic::GetPicture(VideoPicture* pVideoP
 
   pVideoPicture->iDisplayWidth  = pVideoPicture->iWidth;
   pVideoPicture->iDisplayHeight = pVideoPicture->iHeight;
-  if (m_aspect_ratio > 1.0 && !m_hints.forced_aspect)
+  if (m_aspect_ratio > 1.0f && !m_hints.forced_aspect)
   {
     pVideoPicture->iDisplayWidth  = ((int)lrint(pVideoPicture->iHeight * m_aspect_ratio)) & ~3;
     if (pVideoPicture->iDisplayWidth > pVideoPicture->iWidth)
@@ -496,7 +496,7 @@ void CDVDVideoCodecAmlogic::FrameRateTracking(uint8_t *pData, int iSize, double 
       {
         m_framerate = static_cast<float>(m_hints.fpsrate) / m_hints.fpsscale;
         if (m_hints.codecOptions & CODEC_UNKNOWN_I_P)
-          if (std::abs(m_framerate - 25.0f) < 0.02f || std::abs(m_framerate - 29.97f) < 0.02f)
+          if (std::abs(m_framerate - 25.0) < 0.02 || std::abs(m_framerate - 29.97) < 0.02)
           {
             m_framerate += m_framerate;
             m_hints.fpsrate += m_hints.fpsrate;
