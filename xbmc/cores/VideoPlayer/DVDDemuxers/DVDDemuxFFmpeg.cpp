@@ -1654,7 +1654,7 @@ CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
         if (fps > 24.5f && pStream->time_base.num && pStream->time_base.den &&
             pStream->codecpar->field_order != AV_FIELD_PROGRESSIVE && pStream->codecpar->field_order != AV_FIELD_UNKNOWN)
         {
-          if (static_cast<float>(pStream->time_base.den) / static_cast<float>(pStream->time_base.num) < 61.0)
+          if (static_cast<float>(pStream->time_base.den) / static_cast<float>(pStream->time_base.num) < 61.0f)
           {
             st->iFpsRate  = pStream->time_base.den;
             st->iFpsScale = pStream->time_base.num;

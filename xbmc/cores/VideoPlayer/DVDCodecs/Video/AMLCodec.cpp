@@ -1590,17 +1590,17 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   if (hints.fpsrate > 0 && hints.fpsscale != 0)
   {
     // then ffmpeg avg_frame_rate next
-    am_private->video_rate = 0.5 + (float)UNIT_FREQ * hints.fpsscale / hints.fpsrate;
+    am_private->video_rate = 0.5f + (float)UNIT_FREQ * hints.fpsscale / hints.fpsrate;
   }
   else
-    am_private->video_rate = 0.5 + (float)UNIT_FREQ * 1001 / 30000;
+    am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 30000;
 
   // check for 1920x1080, interlaced, 25 fps
   // incorrectly reported as 50 fps (yes, video_rate == 1920)
   if (hints.width == 1920 && am_private->video_rate == 1920)
   {
     CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
-    am_private->video_rate = 0.5 + (float)UNIT_FREQ * 1001 / 25000;
+    am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 25000;
   }
 
   // check for SD h264 content incorrectly reported as 60 fsp
@@ -1608,7 +1608,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   if (hints.codec == AV_CODEC_ID_H264 && hints.width <= 720 && am_private->video_rate == 1602)
   {
     CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
-    am_private->video_rate = 0.5 + (float)UNIT_FREQ * 1001 / 24000;
+    am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 24000;
   }
 
   // check for SD h264 content incorrectly reported as some form of 30 fsp
@@ -1618,7 +1618,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
     if (am_private->video_rate >= 3200 && am_private->video_rate <= 3210)
     {
       CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
-      am_private->video_rate = 0.5 + (float)UNIT_FREQ * 1001 / 24000;
+      am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 24000;
     }
   }
 
@@ -2110,7 +2110,7 @@ void CAMLCodec::SetPollDevice(int dev)
 int CAMLCodec::ReleaseFrame(const uint32_t index, bool drop)
 {
   int ret;
-  v4l2_buffer vbuf = { 0 };
+  v4l2_buffer vbuf = v4l2_buffer();
   vbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   vbuf.index = index;
 
@@ -2129,7 +2129,7 @@ int CAMLCodec::ReleaseFrame(const uint32_t index, bool drop)
 
 int CAMLCodec::DequeueBuffer()
 {
-  v4l2_buffer vbuf = { 0 };
+  v4l2_buffer vbuf = v4l2_buffer();
   vbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
   //Driver change from 10 to 0ms latency, throttle here
@@ -2205,7 +2205,7 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
     return CDVDVideoCodec::VC_ERROR;
 
   float timesize(GetTimeSize());
-  if(!m_drain && timesize < 0.2)
+  if(!m_drain && timesize < 0.2f)
     return CDVDVideoCodec::VC_BUFFER;
 
   if (DequeueBuffer() == 0)
@@ -2233,7 +2233,7 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
   }
   else if (m_drain)
     return CDVDVideoCodec::VC_EOF;
-  else if (timesize < 1.0)
+  else if (timesize < 1.0f)
     return CDVDVideoCodec::VC_BUFFER;
 
   return CDVDVideoCodec::VC_NONE;
@@ -2385,7 +2385,7 @@ void CAMLCodec::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
     case 1:
     case 3:
       {
-        double scale = static_cast<double>(dst_rect.Height()) / dst_rect.Width();
+        float scale = static_cast<float>(dst_rect.Height()) / dst_rect.Width();
         int diff = (int) ((dst_rect.Height()*scale - dst_rect.Width()) / 2);
         dst_rect = CRect(DestRect.x1 - diff, DestRect.y1, DestRect.x2 + diff, DestRect.y2);
       }
@@ -2432,17 +2432,17 @@ void CAMLCodec::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
   {
     std::string videoStereoMode = m_processInfo.GetVideoStereoMode();
     if (videoStereoMode == "left_right" || videoStereoMode == "righ_left")
-      dst_rect.x2 *= 2.0;
+      dst_rect.x2 *= 2.0f;
     else if (videoStereoMode == "top_bottom" || videoStereoMode == "bottom_top")
-      dst_rect.y2 *= 2.0;
+      dst_rect.y2 *= 2.0f;
   }
   else if (m_guiStereoMode == RenderStereoMode::SPLIT_VERTICAL)
   {
-    dst_rect.x2 *= 2.0;
+    dst_rect.x2 *= 2.0f;
   }
   else if (m_guiStereoMode == RenderStereoMode::SPLIT_HORIZONTAL)
   {
-    dst_rect.y2 *= 2.0;
+    dst_rect.y2 *= 2.0f;
   }
 
 #if 1

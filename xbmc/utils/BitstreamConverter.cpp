@@ -1778,70 +1778,70 @@ bool CBitstreamConverter::h264_sequence_header(const uint8_t *data, const uint32
                     break;
                 case 2:
                     // 12:11
-                    ratio *= 1.0909090909090908;
+                    ratio *= 1.0909090909090908f;
                     break;
                 case 3:
                     // 10:11
-                    ratio *= 0.90909090909090906;
+                    ratio *= 0.90909090909090906f;
                     break;
                 case 4:
                     // 16:11
-                    ratio *= 1.4222222222222222;
+                    ratio *= 1.4222222222222222f;
                     break;
                 case 5:
                     // 40:33
-                    ratio *= 1.2121212121212122;
+                    ratio *= 1.2121212121212122f;
                     break;
                 case 6:
                     // 24:11
-                    ratio *= 2.1818181818181817;
+                    ratio *= 2.1818181818181817f;
                     break;
                 case 7:
                     // 20:11
-                    ratio *= 1.8181818181818181;
+                    ratio *= 1.8181818181818181f;
                     break;
                 case 8:
                     // 32:11
-                    ratio *= 2.9090909090909092;
+                    ratio *= 2.9090909090909092f;
                     break;
                 case 9:
                     // 80:33
-                    ratio *= 2.4242424242424243;
+                    ratio *= 2.4242424242424243f;
                     break;
                 case 10:
                     // 18:11
-                    ratio *= 1.6363636363636365;
+                    ratio *= 1.6363636363636365f;
                     break;
                 case 11:
                     // 15:11
-                    ratio *= 1.3636363636363635;
+                    ratio *= 1.3636363636363635f;
                     break;
                 case 12:
                     // 64:33
-                    ratio *= 1.9393939393939394;
+                    ratio *= 1.9393939393939394f;
                     break;
                 case 13:
                     // 160:99
-                    ratio *= 1.6161616161616161;
+                    ratio *= 1.6161616161616161f;
                     break;
                 case 14:
                     // 4:3
-                    ratio *= 1.3333333333333333;
+                    ratio *= 1.3333333333333333f;
                     break;
                 case 15:
                     // 3:2
-                    ratio *= 1.5;
+                    ratio *= 1.5f;
                     break;
                 case 16:
                     // 2:1
-                    ratio *= 2.0;
+                    ratio *= 2.0f;
                     break;
                 case 255:
                     // EXTENDED_SAR
                     if (sar_height)
-                        ratio *= sar_width / (double)sar_height;
+                        ratio *= sar_width / (float)sar_height;
                     else
-                        ratio = 0.0;
+                        ratio = 0.0f;
                     break;
             } // switch
             if (aspect_ratio_idc != sequence->ratio_info)

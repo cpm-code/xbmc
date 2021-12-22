@@ -354,7 +354,7 @@ bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
       case 23:
       case 29:
       case 59:
-        res->fRefreshRate = (float)((rrate + 1)/1.001);
+        res->fRefreshRate = (float)((rrate + 1)/1.001f);
         break;
       default:
         res->fRefreshRate = (float)rrate;
@@ -387,7 +387,7 @@ bool aml_get_native_resolution(RESOLUTION_INFO *res)
     if (frac_rate_policy.Exists())
       fractional_rate = frac_rate_policy.Get<int>().value();
     if (fractional_rate == 1)
-      res->fRefreshRate /= 1.001;
+      res->fRefreshRate /= 1.001f;
   }
 
   return result;
@@ -467,7 +467,7 @@ bool aml_probe_resolutions(std::vector<RESOLUTION_INFO> &resolutions)
           case 24:
           case 30:
           case 60:
-            res.fRefreshRate /= 1.001;
+            res.fRefreshRate /= 1.001f;
             res.strMode       = StringUtils::Format("{:d}x{:d} @ {:.2f}{} - Full Screen", res.iScreenWidth, res.iScreenHeight, res.fRefreshRate,
               res.dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "");
             resolutions.push_back(res);
@@ -606,7 +606,7 @@ void aml_set_framebuffer_resolution(const RESOLUTION_INFO &res, std::string fram
   aml_set_framebuffer_resolution(res.iWidth, res.iHeight, framebuffer_name);
 }
 
-void aml_set_framebuffer_resolution(int width, int height, std::string framebuffer_name)
+void aml_set_framebuffer_resolution(unsigned int width, unsigned int height, std::string framebuffer_name)
 {
   int fd0;
   std::string framebuffer = "/dev/" + framebuffer_name;
