@@ -12,12 +12,7 @@
 
 bool CSysfsPath::Exists()
 {
-  std::ifstream file(m_path);
-
-  if (!file.is_open())
-    return false;
-
-  return true;
+  return (std::filesystem::exists(m_path));
 }
 
 template<>
