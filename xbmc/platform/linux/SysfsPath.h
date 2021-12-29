@@ -12,6 +12,7 @@
 #include "utils/StringUtils.h"
 
 #include <exception>
+#include <filesystem>
 #include <fstream>
 #include <optional>
 #include <string>
