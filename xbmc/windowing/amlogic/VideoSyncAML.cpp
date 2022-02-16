@@ -43,13 +43,13 @@ bool CVideoSyncAML::Setup()
 
 void CVideoSyncAML::Run(CEvent& stopEvent)
 {
-  // We use the wall clock for timout handling (no AML h/w, startup)
+  // We use the wall clock for timeout handling (no AML h/w, startup)
   std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
   unsigned int waittime (3000 / m_fps);
   uint64_t numVBlanks (0);
 
   /* This shouldn't be very busy and timing is important so increase priority */
-  CThread::GetCurrentThread()->SetPriority(CThread::GetCurrentThread()->GetPriority() + 1);
+  CThread::GetCurrentThread()->SetPriority(ThreadPriority::ABOVE_NORMAL);
 
   while (!stopEvent.Signaled() && !m_abort)
   {
