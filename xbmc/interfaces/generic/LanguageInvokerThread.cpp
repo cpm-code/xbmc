@@ -60,7 +60,7 @@ bool CLanguageInvokerThread::execute(const std::string &script, const std::vecto
     Create();
 
     /* low prio */
-    SetPriority(GetPriority()-1);
+    SetPriority(ThreadPriority::BELOW_NORMAL);
   }
   //Todo wait until running
 
