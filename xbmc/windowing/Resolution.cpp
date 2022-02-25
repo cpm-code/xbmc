@@ -75,6 +75,7 @@ RESOLUTION CResolutionUtils::ChooseBestResolution(float fps, int width, int heig
 void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int height, bool is3D, RESOLUTION &resolution)
 {
   RESOLUTION_INFO curr = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo(resolution);
+  const RESOLUTION_INFO desktop_info = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo(CDisplaySettings::GetInstance().GetCurrentResolution());
   CLog::Log(LOGINFO,
             "[WHITELIST] Searching the whitelist for: width: {}, height: {}, fps: {:0.3f}, 3D: {}",
             width, height, fps, is3D ? "true" : "false");
@@ -94,8 +95,9 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
     for (const auto& c : candidates)
     {
       info = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo(c);
-      if (info.iScreenHeight >= curr.iScreenHeight && info.iScreenWidth >= curr.iScreenWidth &&
-          (info.dwFlags & D3DPRESENTFLAG_MODEMASK) == (curr.dwFlags & D3DPRESENTFLAG_MODEMASK))
+      if (((info.iScreenWidth >= desktop_info.iScreenWidth) ||
+           (info.iScreenHeight >= curr.iScreenHeight && info.iScreenWidth >= curr.iScreenWidth)) &&
+           (info.dwFlags & D3DPRESENTFLAG_MODEMASK) == (curr.dwFlags & D3DPRESENTFLAG_MODEMASK))
       {
         // do not add half refreshrates (25, 29.97 by default) as kodi cannot cope with
         // them on playback start. Especially interlaced content is not properly detected
@@ -167,7 +169,7 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
                   "[WHITELIST] Matched an exact resolution with double the refresh rate {} ({})",
                   info.strMode, i);
         unsigned int pen = abs(info.iScreenHeight - height) + abs(info.iScreenWidth - width);
-        if (pen < penalty)
+        if (pen <= penalty)
         {
           resolution = i;
           found = true;
@@ -222,10 +224,67 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
     CLog::Log(LOGDEBUG, "[WHITELIST] No match for a resolution with a 3:2 pulldown refresh rate");
   }
 
+  CLog::Log(LOGDEBUG, "[WHITELIST] Searching for a closest resolution with an exact refresh rate");
+
+  for (const auto& mode : indexList)
+  {
+    auto i = CDisplaySettings::GetInstance().GetResFromString(mode.asString());
+    const RESOLUTION_INFO info = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo(i);
+
+    // allow resolutions that are closest resolutions but have the correct refresh rate
+    if ((info.dwFlags & D3DPRESENTFLAG_MODEMASK) == (desktop_info.dwFlags & D3DPRESENTFLAG_MODEMASK) &&
+        MathUtils::FloatEquals(info.fRefreshRate, fps, 0.01f))
+    {
+      unsigned int pen = abs(info.iScreenHeight - height) + abs(info.iScreenWidth - width);
+      if (pen < penalty)
+      {
+        CLog::Log(LOGDEBUG,
+                  "[WHITELIST] Matched a closest resolution with an exact refresh rate {} ({}), penalty {}",
+                  info.strMode, i, pen);
+        resolution = i;
+        found = true;
+        penalty = pen;
+      }
+    }
+  }
+  if (!found)
+    CLog::Log(LOGDEBUG, "[WHITELIST] No match for a closest resolution with an exact refresh rate");
+
+  if (noWhiteList || CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
+          SETTING_VIDEOSCREEN_WHITELIST_DOUBLEREFRESHRATE))
+  {
+    CLog::Log(LOGDEBUG, "[WHITELIST] Searching for a closest resolution with double refresh rate");
+
+    for (const auto& mode : indexList)
+    {
+      auto i = CDisplaySettings::GetInstance().GetResFromString(mode.asString());
+      const RESOLUTION_INFO info = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo(i);
+
+      // allow resolutions that are closest resolutions but have double refresh rate
+      if ((info.dwFlags & D3DPRESENTFLAG_MODEMASK) == (desktop_info.dwFlags & D3DPRESENTFLAG_MODEMASK) &&
+          MathUtils::FloatEquals(info.fRefreshRate, fps * 2, 0.01f))
+      {
+        unsigned int pen = abs(info.iScreenHeight - height) + abs(info.iScreenWidth - width);
+        if (pen <= penalty)
+        {
+          CLog::Log(LOGDEBUG,
+                    "[WHITELIST] Matched a closest resolution with double refresh rate {} ({}), penalty {}",
+                    info.strMode, i, pen);
+          resolution = i;
+          found = true;
+          penalty = pen;
+        }
+      }
+    }
+    if (found)
+      return;
+
+    CLog::Log(LOGDEBUG, "[WHITELIST] No match for a closest resolution with double refresh rate");
+  }
+  else if (found)
+    return;
 
   CLog::Log(LOGDEBUG, "[WHITELIST] Searching for a desktop resolution with an exact refresh rate");
-
-  const RESOLUTION_INFO desktop_info = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo(CDisplaySettings::GetInstance().GetCurrentResolution());
 
   for (const auto& mode : indexList)
   {
