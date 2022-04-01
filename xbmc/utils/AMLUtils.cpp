@@ -29,20 +29,6 @@
 #include "linux/fb.h"
 #include <sys/ioctl.h>
 
-
-bool aml_present()
-{
-  static int has_aml = -1;
-  if (has_aml == -1)
-  {
-    CSysfsPath digital_raw{"/sys/class/audiodsp/digital_raw"};
-    has_aml = static_cast<int>(digital_raw.Exists());
-    if (has_aml)
-      CLog::Log(LOGINFO, "AML device detected");
-  }
-  return (has_aml == 1);
-}
-
 int aml_get_cpufamily_id()
 {
   static int aml_cpufamily_id = -1;
