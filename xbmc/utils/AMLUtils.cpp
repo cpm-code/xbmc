@@ -12,9 +12,9 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string>
+#include <regex>
 
 #include "AMLUtils.h"
-#include "utils/CPUInfo.h"
 #include "utils/log.h"
 #include "utils/StringUtils.h"
 #include "windowing/GraphicContext.h"
@@ -48,8 +48,24 @@ int aml_get_cpufamily_id()
   static int aml_cpufamily_id = -1;
   if (aml_cpufamily_id == -1)
   {
-    std::string cpu_family = CServiceBroker::GetCPUInfo()->GetCPUSerial().substr (0,2);
-    aml_cpufamily_id = std::stoi (cpu_family,nullptr,16);
+    std::ifstream cpuinfo("/proc/cpuinfo");
+    std::regex re(".*: (.*)$");
+
+    for (std::string line; std::getline(cpuinfo, line);)
+    {
+      if (line.find("Serial") != std::string::npos)
+      {
+        std::smatch match;
+
+        if (std::regex_match(line, match, re) && match.size() == 2)
+        {
+          std::ssub_match value = match[1];
+          std::string cpu_family = value.str().substr(0, 2);
+          aml_cpufamily_id = std::stoi(cpu_family, nullptr, 16);
+          break;
+        }
+      }
+    }
   }
   return aml_cpufamily_id;
 }
