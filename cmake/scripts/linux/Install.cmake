@@ -45,6 +45,7 @@ configure_file(${CMAKE_SOURCE_DIR}/tools/Linux/kodi.desktop.in
 configure_file(${CMAKE_SOURCE_DIR}/tools/Linux/kodi.metainfo.xml.in
                ${CORE_BUILD_DIR}/${APP_PACKAGE}.metainfo.xml @ONLY)
 
+if(NOT HEADERS_ONLY)
 # Install app
 install(TARGETS ${APP_NAME_LC}
         DESTINATION ${libdir}/${APP_NAME_LC}
@@ -163,6 +164,7 @@ if(INTERNAL_TEXTUREPACKER_INSTALLABLE)
           DESTINATION ${bindir}
           RENAME "${APP_NAME_LC}-TexturePacker"
           COMPONENT kodi-tools-texturepacker)
+endif()
 endif()
 
 # Install kodi-addon-dev headers
