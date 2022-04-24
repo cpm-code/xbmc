@@ -98,6 +98,7 @@ include(CMakeDependentOption)
 include(cmake/scripts/common/DependencyOptions.cmake)
 
 # general
+option(HEADERS_ONLY       "Skip building" OFF)
 option(VERBOSE            "Enable verbose output?" OFF)
 option(VERBOSE_FIND       "Enable verbose output of library searches only?" OFF)
 option(ENABLE_CLANGTIDY   "Enable clang-tidy support?" OFF)
@@ -179,6 +180,7 @@ core_find_git_rev(APP_SCMID FULL)
 set(AUDIO_BACKENDS_LIST "" CACHE STRING "Available audio backends")
 set(GL_INTERFACES_LIST "" CACHE STRING "Available GL interfaces")
 
+if(NOT HEADERS_ONLY)
 # Dynamically loaded libraries built with the project
 add_custom_target(${APP_NAME_LC}-libraries)
 set(LIBRARY_FILES "" CACHE STRING "" FORCE)
@@ -646,6 +648,7 @@ endif()
 if(FFMPEG_XCODE_WRAPPER)
   set(CMAKE_XCODE_ATTRIBUTE_LD "${FFMPEG_XCODE_WRAPPER}")
   set(CMAKE_XCODE_ATTRIBUTE_LDPLUSPLUS "${FFMPEG_XCODE_WRAPPER}")
+endif()
 endif()
 
 # Platform specific additional extra targets
