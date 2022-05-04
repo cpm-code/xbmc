@@ -620,46 +620,66 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
       return;
     }
 
-    // set codec format for SPDIF-A and SPDIF-B
-    for(std::string &sid_name : sid_names_fmt)
-    {
-        CLog::Log(LOGINFO, "CAESinkALSA - Set codec for \"{}\"", sid_name);
-        snd_mixer_selem_id_set_name(sid, sid_name.c_str());
-        elem = snd_mixer_find_selem(handle, sid);
-        if (!elem) {
-          CLog::Log(LOGERROR, "CAESinkALSA - Unable to find simple control \"{}\",{:d}\n",
-            snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
-          snd_mixer_close(handle);
-          return;
+    AMLDeviceType amlDeviceType = GetAMLDeviceType(device);
+    switch (amlDeviceType) {
+      case AML_AUGESOUND:
+        {
+          // do set Spdif to HDMITX to SPDIF-A or SPDIF-B
+          AEDeviceType devType = AEDeviceTypeFromName(device);
+          enum spdif_id spdif_id = SPDIF_ID_CNT;
+
+          switch (devType) {
+            case AE_DEVTYPE_HDMI:
+              spdif_id = SPDIF_B;
+              break;
+            default:
+              spdif_id = SPDIF_A;
+              break;
+          }
+
+          CLog::Log(LOGINFO, "CAESinkALSA - Set Spdif to HDMITX to \"{}\"", AMLSpdifIDToStr(spdif_id).c_str());
+          snd_mixer_selem_id_set_name(sid, "Spdif to HDMITX Select");
+          elem = snd_mixer_find_selem(handle, sid);
+          if (!elem) {
+            CLog::Log(LOGERROR, "CAESinkALSA - Unable to find simple control '{}',{:d}\n",
+              snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
+            snd_mixer_close(handle);
+            return;
+          }
+
+          snd_mixer_selem_set_enum_item(elem, (snd_mixer_selem_channel_id_t)0, spdif_id);
+
+          // set codec format for SPDIF-B
+          CLog::Log(LOGINFO, "CAESinkALSA - Set codec for \"{}\"", sid_names_fmt[SPDIF_B].c_str());
+          snd_mixer_selem_id_set_name(sid, sid_names_fmt[SPDIF_B].c_str());
+          elem = snd_mixer_find_selem(handle, sid);
+          if (!elem) {
+            CLog::Log(LOGERROR, "CAESinkALSA - Unable to find simple control '{}',{:d}\n",
+              snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
+            snd_mixer_close(handle);
+            return;
+          }
+
+          snd_mixer_selem_set_enum_item(elem, (snd_mixer_selem_channel_id_t)0, codec);
         }
-
-        snd_mixer_selem_set_enum_item(elem, (snd_mixer_selem_channel_id_t)0, codec);
-    }
-
-    // do set Spdif to HDMITX to SPDIF-A or SPDIF-B
-    AEDeviceType devType = AEDeviceTypeFromName(device);
-    enum spdif_id spdif_id = SPDIF_ID_CNT;
-
-    switch (devType) {
-      case AE_DEVTYPE_HDMI:
-        spdif_id = SPDIF_B;
-        break;
+        [[fallthrough]];
       default:
-        spdif_id = SPDIF_A;
-        break;
-    }
+        {
+          // set codec format for SPDIF-A
+          CLog::Log(LOGINFO, "CAESinkALSA - Set codec for \"{}\"", sid_names_fmt[SPDIF_A].c_str());
+          snd_mixer_selem_id_set_name(sid, sid_names_fmt[SPDIF_A].c_str());
+          elem = snd_mixer_find_selem(handle, sid);
+          if (!elem) {
+            CLog::Log(LOGERROR, "CAESinkALSA - Unable to find simple control '{}',{:d}\n",
+              snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
+            snd_mixer_close(handle);
+            return;
+          }
 
-    CLog::Log(LOGINFO, "CAESinkALSA - Set Spdif to HDMITX to \"{}\"", AMLSpdifIDToStr(spdif_id));
-    snd_mixer_selem_id_set_name(sid, "Spdif to HDMITX Select");
-    elem = snd_mixer_find_selem(handle, sid);
-    if (!elem) {
-      CLog::Log(LOGERROR, "CAESinkALSA - Unable to find simple control '{}',{:d}\n",
-        snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
-      snd_mixer_close(handle);
-      return;
+          snd_mixer_selem_set_enum_item(elem, (snd_mixer_selem_channel_id_t)0, codec);
+          break;
+        }
     }
-
-    snd_mixer_selem_set_enum_item(elem, (snd_mixer_selem_channel_id_t)0, spdif_id);
 
     snd_mixer_close(handle);
   }
