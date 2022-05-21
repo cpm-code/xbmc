@@ -55,6 +55,7 @@ bool aml_support_hevc_8k4k();
 bool aml_support_hevc_10bit();
 AML_SUPPORT_H264_4K2K aml_support_h264_4k2k();
 bool aml_support_vp9();
+bool aml_support_av1();
 bool aml_has_frac_rate_policy();
 void aml_set_audio_passthrough(bool passthrough);
 bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res);
