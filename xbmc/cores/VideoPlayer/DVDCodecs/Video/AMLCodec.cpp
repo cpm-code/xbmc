@@ -42,6 +42,8 @@
 #include <sys/poll.h>
 #include <chrono>
 #include <thread>
+#include "aom_integer.h"
+#include "obu_util.h"
 
 namespace
 {
@@ -421,6 +423,9 @@ static vformat_t codecid_to_vformat(enum AVCodecID id)
       break;
     case AV_CODEC_ID_VP9:
       format = VFORMAT_VP9;
+      break;
+    case AV_CODEC_ID_AV1:
+      format = VFORMAT_AV1;
       break;
     case AV_CODEC_ID_AVS:
     case AV_CODEC_ID_CAVS:
@@ -926,6 +931,276 @@ int mpeg12_add_frame_dec_info(am_private_t *para)
   fdata[1] = 0x00;
   fdata[2] = 0x01;
   fdata[3] = 0x00;
+
+  return PLAYER_SUCCESS;
+}
+
+char obu_type_name[16][32] = {
+  "UNKNOWN",
+  "OBU_SEQUENCE_HEADER",
+  "OBU_TEMPORAL_DELIMITER",
+  "OBU_FRAME_HEADER",
+  "OBU_TILE_GROUP",
+  "OBU_METADATA",
+  "OBU_FRAME",
+  "OBU_REDUNDANT_FRAME_HEADER",
+  "OBU_TILE_LIST",
+  "UNKNOWN",
+  "UNKNOWN",
+  "UNKNOWN",
+  "UNKNOWN",
+  "UNKNOWN",
+  "UNKNOWN",
+  "OBU_PADDING"
+};
+
+char meta_type_name[6][32] = {
+  "OBU_METADATA_TYPE_RESERVED_0",
+  "OBU_METADATA_TYPE_HDR_CLL",
+  "OBU_METADATA_TYPE_HDR_MDCV",
+  "OBU_METADATA_TYPE_SCALABILITY",
+  "OBU_METADATA_TYPE_ITUT_T35",
+  "OBU_METADATA_TYPE_TIMECODE"
+};
+
+typedef struct DataBuffer {
+    const uint8_t *data;
+    size_t size;
+} DataBuffer;
+
+int av1_parser_frame(
+    int is_annexb,
+    uint8_t *data,
+    const uint8_t *data_end,
+    uint8_t *dst_data,
+    uint32_t *frame_len,
+    uint8_t *meta_buf,
+    uint32_t *meta_len) {
+    int frame_decoding_finished = 0;
+    uint32_t obu_size = 0;
+    ObuHeader obu_header;
+    memset(&obu_header, 0, sizeof(obu_header));
+    int seen_frame_header = 0;
+    uint8_t header[20] = {
+        0x00, 0x00, 0x01, 0x54,
+        0xFF, 0xFF, 0xFE, 0xAB,
+        0x00, 0x00, 0x00, 0x01,
+        0x41, 0x4D, 0x4C, 0x56,
+        0xD0, 0x82, 0x80, 0x00
+    };
+    uint8_t *p = NULL;
+    uint32_t rpu_size = 0;
+
+    // decode frame as a series of OBUs
+    while (!frame_decoding_finished) {
+        //      struct read_bit_buffer rb;
+        size_t payload_size = 0;
+        size_t header_size = 0;
+        size_t bytes_read = 0;
+        size_t bytes_written = 0;
+        const size_t bytes_available = data_end - data;
+        unsigned int i;
+        OBU_METADATA_TYPE meta_type;
+        uint64_t type;
+
+        if (bytes_available == 0 && !seen_frame_header) {
+            break;
+        }
+
+        int status =
+            aom_read_obu_header_and_size(data, bytes_available, is_annexb,
+                &obu_header, &payload_size, &bytes_read);
+
+        if (status != 0) {
+            return -1;
+        }
+
+        // Note: aom_read_obu_header_and_size() takes care of checking that this
+        // doesn't cause 'data' to advance past 'data_end'.
+
+        if ((size_t)(data_end - data - bytes_read) < payload_size) {
+            return -1;
+        }
+
+        CLog::Log(LOGDEBUG, "\tobu {} len {:d}+{:d}\n", obu_type_name[obu_header.type], bytes_read, payload_size);
+
+        obu_size = bytes_read + payload_size + 4;
+
+        if (!is_annexb) {
+            obu_size = bytes_read + payload_size + 4;
+            header_size = 20;
+            aom_uleb_encode_fixed_size(obu_size, 4, 4, header + 16, &bytes_written);
+        }
+        else {
+            obu_size = bytes_read + payload_size;
+            header_size = 16;
+        }
+        header[0] = ((obu_size + 4) >> 24) & 0xff;
+        header[1] = ((obu_size + 4) >> 16) & 0xff;
+        header[2] = ((obu_size + 4) >> 8) & 0xff;
+        header[3] = ((obu_size + 4) >> 0) & 0xff;
+        header[4] = header[0] ^ 0xff;
+        header[5] = header[1] ^ 0xff;
+        header[6] = header[2] ^ 0xff;
+        header[7] = header[3] ^ 0xff;
+        memcpy(dst_data, header, header_size);
+        dst_data += header_size;
+        memcpy(dst_data, data, bytes_read + payload_size);
+        dst_data += bytes_read + payload_size;
+
+        data += bytes_read;
+        *frame_len += 20 + bytes_read + payload_size;
+
+        switch (obu_header.type) {
+        case OBU_TEMPORAL_DELIMITER:
+            seen_frame_header = 0;
+            break;
+        case OBU_SEQUENCE_HEADER:
+            // The sequence header should not change in the middle of a frame.
+            if (seen_frame_header) {
+                return -1;
+            }
+            break;
+        case OBU_FRAME_HEADER:
+            if (data_end == data + payload_size) {
+                frame_decoding_finished = 1;
+            }
+            else {
+                seen_frame_header = 1;
+            }
+            break;
+        case OBU_REDUNDANT_FRAME_HEADER:
+        case OBU_FRAME:
+            if (obu_header.type == OBU_REDUNDANT_FRAME_HEADER) {
+                if (!seen_frame_header) {
+                    return -1;
+                }
+            }
+            else {
+                // OBU_FRAME_HEADER or OBU_FRAME.
+                if (seen_frame_header) {
+                    return -1;
+                }
+            }
+            if (obu_header.type == OBU_FRAME) {
+                if (data_end == data + payload_size) {
+                    frame_decoding_finished = 1;
+                    seen_frame_header = 0;
+                }
+            }
+            break;
+
+        case OBU_TILE_GROUP:
+            if (!seen_frame_header) {
+                return -1;
+            }
+            if (data + payload_size == data_end)
+                frame_decoding_finished = 1;
+            if (frame_decoding_finished)
+                seen_frame_header = 0;
+            break;
+        case OBU_METADATA:
+            aom_uleb_decode(data, 8, &type, &bytes_read);
+            if (type < 6)
+                meta_type = static_cast<OBU_METADATA_TYPE>(type);
+            else
+                meta_type = OBU_METADATA_TYPE_AOM_RESERVED_0;
+            p = data + bytes_read;
+            CLog::Log(LOGDEBUG, "\tmeta type {} {:d}+{:d}\n", meta_type_name[type], bytes_read, payload_size - bytes_read);
+
+            if (meta_type == OBU_METADATA_TYPE_ITUT_T35 && meta_buf != NULL) {
+                if ((p[0] == 0xb5) /* country code */
+                    && ((p[1] == 0x00) && (p[2] == 0x3b)) /* terminal_provider_code */
+                    && ((p[3] == 0x00) && (p[4] == 0x00) && (p[5] == 0x08) && (p[6] == 0x00))) { /* terminal_provider_oriented_code */
+                    CLog::Log(LOGDEBUG, "\t\tdolbyvison rpu\n");
+                    meta_buf[0] = meta_buf[1] = meta_buf[2] = 0;
+                    meta_buf[3] = 0x01;    meta_buf[4] = 0x19;
+
+                    if (p[11] & 0x10) {
+                        rpu_size = 0x100;
+                        rpu_size |= (p[11] & 0x0f) << 4;
+                        rpu_size |= (p[12] >> 4) & 0x0f;
+                        if (p[12] & 0x08) {
+                            CLog::Log(LOGDEBUG, "\tmeta rpu in obu exceed 512 bytes\n");
+                            break;
+                        }
+                        for (i = 0; i < rpu_size; i++) {
+                            meta_buf[5 + i] = (p[12 + i] & 0x07) << 5;
+                            meta_buf[5 + i] |= (p[13 + i] >> 3) & 0x1f;
+                        }
+                        rpu_size += 5;
+                    }
+                    else {
+                        rpu_size = (p[10] & 0x1f) << 3;
+                        rpu_size |= (p[11] >> 5) & 0x07;
+                        for (i = 0; i < rpu_size; i++) {
+                            meta_buf[5 + i] = (p[11 + i] & 0x0f) << 4;
+                            meta_buf[5 + i] |= (p[12 + i] >> 4) & 0x0f;
+                        }
+                        rpu_size += 5;
+                    }
+                    *meta_len = rpu_size;
+                }
+            }
+            else if (meta_type == OBU_METADATA_TYPE_HDR_CLL) {
+                CLog::Log(LOGDEBUG, "\t\thdr10 cll:\n");
+                CLog::Log(LOGDEBUG, "\t\tmax_cll = {:x}\n", (p[0] << 8) | p[1]);
+                CLog::Log(LOGDEBUG, "\t\tmax_fall = {:x}\n", (p[2] << 8) | p[3]);
+            }
+            else if (meta_type == OBU_METADATA_TYPE_HDR_MDCV) {
+                CLog::Log(LOGDEBUG, "\t\thdr10 primaries[r,g,b] = \n");
+                for (i = 0; i < 3; i++) {
+                    CLog::Log(LOGDEBUG, "\t\t {:x}, {:x}\n",
+                        (p[i * 4] << 8) | p[i * 4 + 1],
+                        (p[i * 4 + 2] << 8) | p[i * 4 + 3]);
+                }
+                CLog::Log(LOGDEBUG, "\t\twhite point = {:x}, {:x}\n", (p[12] << 8) | p[13], (p[14] << 8) | p[15]);
+                CLog::Log(LOGDEBUG, "\t\tmaxl = {:x}\n", (p[16] << 24) | (p[17] << 16) | (p[18] << 8) | p[19]);
+                CLog::Log(LOGDEBUG, "\t\tminl = {:x}\n", (p[20] << 24) | (p[21] << 16) | (p[22] << 8) | p[23]);
+            }
+                break;
+        case OBU_TILE_LIST:
+            break;
+        case OBU_PADDING:
+            break;
+        default:
+            // Skip unrecognized OBUs
+            break;
+        }
+
+        data += payload_size;
+    }
+
+    return 0;
+}
+
+int av1_add_frame_dec_info(am_private_t *para)
+{
+  int ret;
+  am_packet_t *pkt = &para->am_pkt;
+
+  unsigned int dst_frame_size = 0;
+  uint8_t *dst_data = (uint8_t *)calloc(1, pkt->data_size + 4096);
+  av1_parser_frame(0, pkt->data, pkt->data + pkt->data_size, dst_data, &dst_frame_size, NULL, NULL);
+
+  if (dst_frame_size - pkt->data_size > 0)
+  {
+    pkt->avpkt.data = pkt->data;
+    pkt->avpkt.size = pkt->data_size;
+
+    av_buffer_unref(&pkt->avpkt.buf);
+    ret = av_grow_packet(&(pkt->avpkt), dst_frame_size - pkt->data_size);
+    if (ret < 0)
+    {
+      CLog::Log(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!\n");
+      return ret;
+    }
+
+    pkt->data = pkt->avpkt.data;
+    pkt->data_size = dst_frame_size;
+    memcpy(pkt->data, dst_data, dst_frame_size);
+  }
+  free(dst_data);
 
   return PLAYER_SUCCESS;
 }
@@ -1492,6 +1767,9 @@ int set_header_info(am_private_t *para)
     }
     else if (para->video_format == VFORMAT_VP9) {
       vp9_update_frame_header(pkt);
+    }
+    else if (para->vcodec.dec_mode == STREAM_TYPE_FRAME && para->video_format == VFORMAT_AV1) {
+      av1_add_frame_dec_info(para);
     }
     else if (para->vcodec.dec_mode == STREAM_TYPE_FRAME && para->video_format == VFORMAT_MPEG12)
       mpeg12_add_frame_dec_info(para);

@@ -240,29 +240,37 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
     case AV_CODEC_ID_VP9:
       if (!aml_support_vp9())
       {
-        CLog::Log(LOGDEBUG, "{}::{} - VP9 is supported only on Amlogic S905X/D/W chips or newer", __MODULE_NAME__, __FUNCTION__);
+        CLog::Log(LOGDEBUG, "{}::{} - VP9 hardward decoder is not supported on current platform", __MODULE_NAME__, __FUNCTION__);
         goto FAIL;
       }
       m_pFormatName = "am-vp9";
+      break;
+    case AV_CODEC_ID_AV1:
+      if (!aml_support_av1())
+      {
+        CLog::Log(LOGDEBUG, "{}::{} - AV1 hardward decoder is not supported on current platform", __MODULE_NAME__, __FUNCTION__);
+        goto FAIL;
+      }
+      m_pFormatName = "am-av1";
       break;
     case AV_CODEC_ID_HEVC:
       if (aml_support_hevc()) {
         if (!aml_support_hevc_8k4k() && ((m_hints.width > 4096) || (m_hints.height > 2176)))
         {
-          CLog::Log(LOGDEBUG, "{}::{} - 8K HEVC is supported only on Amlogic S922*/A311* revB chips or newer", __MODULE_NAME__, __FUNCTION__);
+          CLog::Log(LOGDEBUG, "{}::{} - 8K HEVC hardward decoder is not supported on current platform", __MODULE_NAME__, __FUNCTION__);
           goto FAIL;
         } else if (!aml_support_hevc_4k2k() && ((m_hints.width > 1920) || (m_hints.height > 1088)))
         {
-          CLog::Log(LOGDEBUG, "{}::{} - 4K HEVC is supported only on Amlogic S812 chips or newer", __MODULE_NAME__, __FUNCTION__);
+          CLog::Log(LOGDEBUG, "{}::{} - 4K HEVC hardward decoder is not supported on current platform", __MODULE_NAME__, __FUNCTION__);
           goto FAIL;
         }
       } else {
-        CLog::Log(LOGDEBUG, "{}::{} - HEVC is supported only on S805 and S812 chips or newer", __MODULE_NAME__, __FUNCTION__);
+        CLog::Log(LOGDEBUG, "{}::{} - HEVC hardward decoder is not supported on current platform", __MODULE_NAME__, __FUNCTION__);
         goto FAIL;
       }
       if ((hints.profile == AV_PROFILE_HEVC_MAIN_10) && !aml_support_hevc_10bit())
       {
-        CLog::Log(LOGDEBUG, "{}::{} - HEVC 10-bit is supported only on S905 chips or newer", __MODULE_NAME__, __FUNCTION__);
+        CLog::Log(LOGDEBUG, "{}::{} - HEVC 10-bit hardward decoder is not supported on current platform", __MODULE_NAME__, __FUNCTION__);
         goto FAIL;
       }
       m_pFormatName = "am-h265";

@@ -167,6 +167,26 @@ bool aml_support_vp9()
   return (has_vp9 == 1);
 }
 
+bool aml_support_av1()
+{
+  static int has_av1 = -1;
+
+  if (has_av1 == -1)
+  {
+    CRegExp regexp;
+    regexp.RegComp("av1:.*compressed");
+    std::string valstr;
+    has_av1 = 0;
+    CSysfsPath vcodec_profile{"/sys/class/amstream/vcodec_profile"};
+    if (vcodec_profile.Exists())
+    {
+      valstr = vcodec_profile.Get<std::string>();
+      has_av1 = (regexp.RegFind(valstr) >= 0) ? 1 : 0;
+    }
+  }
+  return (has_av1 == 1);
+}
+
 bool aml_has_frac_rate_policy()
 {
   static int has_frac_rate_policy = -1;
