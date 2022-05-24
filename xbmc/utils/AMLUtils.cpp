@@ -56,27 +56,9 @@ int aml_get_cpufamily_id()
   return aml_cpufamily_id;
 }
 
-bool aml_support_hevc()
+static bool aml_support_vcodec_profile(const char *regex)
 {
-  static int has_hevc = -1;
-
-  if (has_hevc == -1)
-  {
-    std::string valstr;
-    has_hevc = 0;
-    CSysfsPath vcodec_profile{"/sys/class/amstream/vcodec_profile"};
-    if (vcodec_profile.Exists())
-    {
-      valstr = vcodec_profile.Get<std::string>().value();
-      has_hevc = (valstr.find("hevc:") != std::string::npos) ? 1: 0;
-    }
-  }
-  return (has_hevc == 1);
-}
-
-static bool aml_support_hevc_res(const char *regex)
-{
-  int has_hevc_res = 0;
+  int profile = 0;
   CRegExp regexp;
   regexp.RegComp(regex);
   std::string valstr;
@@ -84,25 +66,39 @@ static bool aml_support_hevc_res(const char *regex)
   if (vcodec_profile.Exists())
   {
     valstr = vcodec_profile.Get<std::string>().value();
-    has_hevc_res = (regexp.RegFind(valstr) >= 0) ? 1 : 0;
+    profile = (regexp.RegFind(valstr) >= 0) ? 1 : 0;
   }
 
-  return has_hevc_res;
+  return profile;
+}
+
+bool aml_support_hevc()
+{
+  static int has_hevc = -1;
+
+  if (has_hevc == -1)
+      has_hevc = aml_support_vcodec_profile("\\bhevc\\b:");
+
+  return (has_hevc == 1);
 }
 
 bool aml_support_hevc_4k2k()
 {
   static int has_hevc_4k2k = -1;
+
   if (has_hevc_4k2k == -1)
-    has_hevc_4k2k = aml_support_hevc_res("hevc:.*(4k|8k)");
+    has_hevc_4k2k = aml_support_vcodec_profile("\\bhevc\\b:(?!\\;).*(4k|8k)");
+
   return (has_hevc_4k2k == 1);
 }
 
 bool aml_support_hevc_8k4k()
 {
   static int has_hevc_8k4k = -1;
+
   if (has_hevc_8k4k == -1)
-    has_hevc_8k4k = aml_support_hevc_res("hevc:.*8k");
+    has_hevc_8k4k = aml_support_vcodec_profile("\\bhevc\\b:(?!\\;).*8k");
+
   return (has_hevc_8k4k == 1);
 }
 
@@ -111,18 +107,8 @@ bool aml_support_hevc_10bit()
   static int has_hevc_10bit = -1;
 
   if (has_hevc_10bit == -1)
-  {
-    CRegExp regexp;
-    regexp.RegComp("hevc:.*10bit");
-    std::string valstr;
-    has_hevc_10bit = 0;
-    CSysfsPath vcodec_profile{"/sys/class/amstream/vcodec_profile"};
-    if (vcodec_profile.Exists())
-    {
-      valstr = vcodec_profile.Get<std::string>().value();
-      has_hevc_10bit = (regexp.RegFind(valstr) >= 0) ? 1 : 0;
-    }
-  }
+    has_hevc_10bit = aml_support_vcodec_profile("\\bhevc\\b:(?!\\;).*10bit");
+
   return (has_hevc_10bit == 1);
 }
 
@@ -132,17 +118,12 @@ AML_SUPPORT_H264_4K2K aml_support_h264_4k2k()
 
   if (has_h264_4k2k == AML_SUPPORT_H264_4K2K_UNINIT)
   {
-    std::string valstr;
     has_h264_4k2k = AML_NO_H264_4K2K;
-    CSysfsPath vcodec_profile{"/sys/class/amstream/vcodec_profile"};
-    if (vcodec_profile.Exists())
-    {
-      valstr = vcodec_profile.Get<std::string>().value();
-      if (valstr.find("h264:4k") != std::string::npos)
-        has_h264_4k2k = AML_HAS_H264_4K2K_SAME_PROFILE;
-      else if (valstr.find("h264_4k2k:") != std::string::npos)
-        has_h264_4k2k = AML_HAS_H264_4K2K;
-    }
+
+    if (aml_support_vcodec_profile("\\bh264\\b:4k"))
+      has_h264_4k2k = AML_HAS_H264_4K2K_SAME_PROFILE;
+    else if (aml_support_vcodec_profile("\\bh264_4k2k\\b:"))
+      has_h264_4k2k = AML_HAS_H264_4K2K;
   }
   return has_h264_4k2k;
 }
@@ -152,18 +133,8 @@ bool aml_support_vp9()
   static int has_vp9 = -1;
 
   if (has_vp9 == -1)
-  {
-    CRegExp regexp;
-    regexp.RegComp("vp9:.*compressed");
-    std::string valstr;
-    has_vp9 = 0;
-    CSysfsPath vcodec_profile{"/sys/class/amstream/vcodec_profile"};
-    if (vcodec_profile.Exists())
-    {
-      valstr = vcodec_profile.Get<std::string>().value();
-      has_vp9 = (regexp.RegFind(valstr) >= 0) ? 1 : 0;
-    }
-  }
+    has_vp9 = aml_support_vcodec_profile("\\bvp9\\b:(?!\\;).*compressed");
+
   return (has_vp9 == 1);
 }
 
@@ -172,18 +143,8 @@ bool aml_support_av1()
   static int has_av1 = -1;
 
   if (has_av1 == -1)
-  {
-    CRegExp regexp;
-    regexp.RegComp("av1:.*compressed");
-    std::string valstr;
-    has_av1 = 0;
-    CSysfsPath vcodec_profile{"/sys/class/amstream/vcodec_profile"};
-    if (vcodec_profile.Exists())
-    {
-      valstr = vcodec_profile.Get<std::string>();
-      has_av1 = (regexp.RegFind(valstr) >= 0) ? 1 : 0;
-    }
-  }
+    has_av1 = aml_support_vcodec_profile("\\bav1\\b:(?!\\;).*compressed");
+
   return (has_av1 == 1);
 }
 
@@ -659,7 +620,7 @@ bool aml_read_reg(const std::string &reg, uint32_t &reg_val)
   if (paddr.Exists())
   {
     paddr.Set(reg);
-    std::string val = paddr.Get<std::string>();
+    std::string val = paddr.Get<std::string>().value();
 
     CRegExp regexp;
     regexp.RegComp("\\[0x(?<reg>.+)\\][\\s]+=[\\s]+(?<val>.+)");
