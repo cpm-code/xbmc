@@ -57,6 +57,30 @@ int aml_get_cpufamily_id()
   return aml_cpufamily_id;
 }
 
+std::string aml_get_cpufamily_name(int cpuid)
+{
+  switch(cpuid)
+  {
+    case AML_G12A:
+      return "G12A";
+    case AML_G12B:
+      return "G12B";
+    case AML_SM1:
+      return "SM1";
+    case AML_SC2:
+      return "SC2";
+    case AML_S4:
+      return "S4";
+    case AML_S5:
+      return "S5";
+    case AML_T7:
+      return "T7";
+    default:
+      return aml_get_cpufamily_name(aml_get_cpufamily_id());
+  }
+  return "Unknown";
+}
+
 bool aml_display_support_dv()
 {
   static int support_dv = -1;
@@ -75,28 +99,6 @@ bool aml_display_support_dv()
   }
 
   return support_dv;
-}
-
-int aml_display_get_dv_cap()
-{
-  static int dv_cap = 0;
-
-  if (dv_cap == 0)
-  {
-    CRegExp regexp_dv_rgb, regexp_dv_ll;
-    regexp_dv_rgb.RegComp("DV_RGB_444_8BIT");
-    regexp_dv_ll.RegComp("LL_YCbCr_422_12BIT");
-    std::string valstr;
-    CSysfsPath dv_cap_sys{"/sys/devices/virtual/amhdmitx/amhdmitx0/dv_cap"};
-    if (dv_cap_sys.Exists())
-    {
-      valstr = dv_cap_sys.Get<std::string>().value();
-      dv_cap |= (regexp_dv_rgb.RegFind(valstr) >= 0) ? DV_RGB_444_8BIT : 0;
-      dv_cap |= (regexp_dv_ll.RegFind(valstr) >= 0) ? LL_YCbCr_422_12BIT : 0;
-    }
-  }
-
-  return dv_cap;
 }
 
 bool aml_display_support_3d()
@@ -344,20 +346,6 @@ void aml_probe_hdmi_audio()
   }
 }
 
-int aml_axis_value(AML_DISPLAY_AXIS_PARAM param)
-{
-  std::string axis;
-  int value[8];
-
-  CSysfsPath display_axis{"/sys/class/display/axis"};
-  if (display_axis.Exists())
-    axis = display_axis.Get<std::string>().value();
-
-  sscanf(axis.c_str(), "%d %d %d %d %d %d %d %d", &value[0], &value[1], &value[2], &value[3], &value[4], &value[5], &value[6], &value[7]);
-
-  return value[param];
-}
-
 bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
 {
   if (!res)
@@ -377,16 +365,7 @@ bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
   if (StringUtils::EndsWith(fromMode, "*"))
     fromMode.erase(fromMode.size() - 1);
 
-  if (StringUtils::EqualsNoCase(fromMode, "panel"))
-  {
-    res->iWidth = aml_axis_value(AML_DISPLAY_AXIS_PARAM_WIDTH);
-    res->iHeight= aml_axis_value(AML_DISPLAY_AXIS_PARAM_HEIGHT);
-    res->iScreenWidth = aml_axis_value(AML_DISPLAY_AXIS_PARAM_WIDTH);
-    res->iScreenHeight= aml_axis_value(AML_DISPLAY_AXIS_PARAM_HEIGHT);
-    res->fRefreshRate = 60;
-    res->dwFlags = D3DPRESENTFLAG_PROGRESSIVE;
-  }
-  else if (StringUtils::EqualsNoCase(fromMode, "4k2ksmpte") || StringUtils::EqualsNoCase(fromMode, "smpte24hz"))
+  if (StringUtils::EqualsNoCase(fromMode, "4k2ksmpte") || StringUtils::EqualsNoCase(fromMode, "smpte24hz"))
   {
     res->iWidth = nativeGui ? 4096 : 1920;
     res->iHeight= nativeGui ? 2160 : 1080;
@@ -481,12 +460,347 @@ bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
   return res->iWidth > 0 && res->iHeight> 0;
 }
 
+// get drmDevice
+int aml_get_drmDevice(void)
+{
+  int fd = -1;
+  int numDevices = drmGetDevices2(0, nullptr, 0);
+  if (numDevices <= 0)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - no drm devices found: ({})", __FUNCTION__,
+              strerror(errno));
+    return fd;
+  }
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - drm devices found: {:d}", __FUNCTION__, numDevices);
+
+  std::vector<drmDevicePtr> devices(numDevices);
+
+  int ret = drmGetDevices2(0, devices.data(), devices.size());
+  if (ret < 0)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - drmGetDevices2 return an error: ({})", __FUNCTION__,
+              strerror(errno));
+    return fd;
+  }
+
+  for (const auto device : devices)
+  {
+    if (!(device->available_nodes & 1 << DRM_NODE_PRIMARY))
+      continue;
+
+    if (fd >= 0)
+      close(fd);
+
+    fd = open(device->nodes[DRM_NODE_PRIMARY], O_RDWR | O_CLOEXEC);
+    if (fd < 0)
+      continue;
+
+    break;
+  }
+
+  drmFreeDevices(devices.data(), devices.size());
+
+  return fd;
+}
+
+// get resources of drmDevice
+drmModeResPtr aml_get_drmDevice_resources(int fd)
+{
+  if (fd < 0)
+    return NULL;
+
+  return drmModeGetResources(fd);
+}
+
+// get connector of drmDevice
+drmModeConnectorPtr aml_get_drmDevice_connector(int fd, drmModeResPtr resources)
+{
+  drmModeConnectorPtr connector = NULL;
+
+  if (!resources)
+  {
+    CLog::Log(LOGDEBUG, "AMLUtils::{} - failed to get resources of drmDevice", __FUNCTION__);
+    return connector;
+  }
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - devices have {:d} connector(s)", __FUNCTION__, resources->count_connectors);
+
+  for (int i = 0; i < resources->count_connectors; i++)
+  {
+    connector = drmModeGetConnector(fd, resources->connectors[i]);
+
+    if (connector == NULL)
+      continue;
+
+    if (connector->connection == DRM_MODE_CONNECTED)
+      break;
+    else
+    {
+      drmModeFreeConnector(connector);
+      connector = NULL;
+    }
+  }
+
+  return connector;
+}
+
+// get encoder of drmDevice
+drmModeEncoderPtr aml_get_drmDevice_encoder(int fd, drmModeResPtr resources, drmModeConnectorPtr connector)
+{
+  drmModeEncoderPtr encoder = NULL;
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - connector[{:d}] is connected with {:d} encoder(s)", __FUNCTION__,
+    connector->connector_id, connector->count_encoders);
+
+  for (int i = 0; i < connector->count_encoders; i++)
+  {
+    encoder = drmModeGetEncoder(fd, connector->encoders[i]);
+
+    if (encoder == NULL)
+      continue;
+
+    if (encoder->encoder_id == connector->encoder_id)
+      break;
+    else
+    {
+      drmModeFreeEncoder(encoder);
+      encoder = NULL;
+    }
+  }
+
+  return encoder;
+}
+
+// get crtc of drmDevice
+drmModeCrtcPtr aml_get_drmDevice_crtc(int fd, drmModeResPtr resources, drmModeEncoderPtr encoder)
+{
+  drmModeCrtcPtr crtc = NULL;
+
+  // get crtc
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - check {:d} crtc(s)", __FUNCTION__, resources->count_crtcs);
+
+  for (int i = 0; i < resources->count_crtcs; i++)
+  {
+    crtc = drmModeGetCrtc(fd, resources->crtcs[i]);
+
+    if (crtc == NULL)
+      continue;
+
+    if (encoder->possible_crtcs & (1 << i) && crtc->crtc_id == encoder->crtc_id)
+      break;
+    else
+    {
+      drmModeFreeCrtc(crtc);
+      crtc = NULL;
+    }
+  }
+
+  return crtc;
+}
+
+// get all modes of current connected device
+std::string aml_get_drmDevice_modes(void)
+{
+  std::string modes ="";
+  int fd = aml_get_drmDevice();
+  drmModeResPtr resources = NULL;
+  drmModeConnectorPtr connector = NULL;
+
+  if (fd < 0)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - could not get drmDevice", __FUNCTION__);
+    return modes;
+  }
+
+  resources = aml_get_drmDevice_resources(fd);
+  if (!resources)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get resources of drmDevice", __FUNCTION__);
+    close(fd);
+    return modes;
+  }
+
+  connector = aml_get_drmDevice_connector(fd, resources);
+  if (!connector)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    close(fd);
+    return modes;
+  }
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - connector have {:d} modes", __FUNCTION__, connector->count_modes);
+  for (int i = 0; i < connector->count_modes; i++)
+  {
+    std::string mode = static_cast<std::string>(connector->modes[i].name);
+    CLog::Log(LOGDEBUG, "AMLUtils::{} - mode[{:d}]: {}", __FUNCTION__, i, mode);
+    modes += mode + "\n";
+  }
+
+  drmModeFreeResources(resources);
+  drmModeFreeConnector(connector);
+  close(fd);
+
+  return modes;
+}
+
+// get current mode of drmDevice
+std::string aml_get_drmDevice_mode(void)
+{
+  int fd = aml_get_drmDevice();
+  drmModeResPtr resources = NULL;
+  drmModeConnectorPtr connector = NULL;
+  drmModeEncoderPtr encoder = NULL;
+  drmModeCrtcPtr crtc = NULL;
+  std::string mode = "";
+
+  if (fd < 0)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - could not get drmDevice", __FUNCTION__);
+    return mode;
+  }
+
+  resources = aml_get_drmDevice_resources(fd);
+  if (!resources)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get resources of drmDevice", __FUNCTION__);
+    close(fd);
+    return mode;
+  }
+
+  connector = aml_get_drmDevice_connector(fd, resources);
+  if (!connector)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    close(fd);
+    return mode;
+  }
+
+  encoder = aml_get_drmDevice_encoder(fd, resources, connector);
+  if (!encoder)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get encoder of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    drmModeFreeConnector(connector);
+    close(fd);
+    return mode;
+  }
+
+  crtc = aml_get_drmDevice_crtc(fd, resources, encoder);
+  if (!crtc)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get crtc of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    drmModeFreeConnector(connector);
+    drmModeFreeEncoder(encoder);
+    close(fd);
+    return mode;
+  }
+
+  mode = static_cast<std::string>(crtc->mode.name);
+
+  drmModeFreeResources(resources);
+  drmModeFreeConnector(connector);
+  drmModeFreeEncoder(encoder);
+  drmModeFreeCrtc(crtc);
+  close(fd);
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - current mode: {}", __FUNCTION__, mode);
+
+  return mode;
+}
+
+bool aml_set_drmDevice_mode(unsigned int width, unsigned int height, std::string mode,
+  bool force_mode_switch)
+{
+  std::string current_mode = aml_get_drmDevice_mode();
+  bool ret = false;
+
+  int fd = aml_get_drmDevice();
+  drmModeResPtr resources = NULL;
+  drmModeConnectorPtr connector = NULL;
+  drmModeEncoderPtr encoder = NULL;
+  drmModeCrtcPtr crtc = NULL;
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - current mode: {}, new mode: {}", __FUNCTION__,
+    current_mode, mode);
+
+  if (fd < 0)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - could not get drmDevice", __FUNCTION__);
+    return ret;
+  }
+
+  resources = aml_get_drmDevice_resources(fd);
+  if (!resources)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get resources of drmDevice", __FUNCTION__);
+    close(fd);
+    return ret;
+  }
+
+  connector = aml_get_drmDevice_connector(fd, resources);
+  if (!connector)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    close(fd);
+    return ret;
+  }
+
+  encoder = aml_get_drmDevice_encoder(fd, resources, connector);
+  if (!encoder)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get encoder of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    drmModeFreeConnector(connector);
+    close(fd);
+    return ret;
+  }
+
+  crtc = aml_get_drmDevice_crtc(fd, resources, encoder);
+  if (!crtc)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get crtc of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    drmModeFreeConnector(connector);
+    drmModeFreeEncoder(encoder);
+    close(fd);
+    return ret;
+  }
+
+  for (int i = 0; i < connector->count_modes; i++)
+  {
+    if (StringUtils::EqualsNoCase(connector->modes[i].name, mode))
+    {
+      CLog::Log(LOGDEBUG, "AMLUtils::{} - found mode in connector mode list: [{:d}]:{}", __FUNCTION__, i, mode);
+      drmModeFBPtr drm_fb = drmModeGetFB(fd, crtc->buffer_id);
+
+      if (force_mode_switch)
+        drmModeSetCrtc(fd, crtc->crtc_id, 0, 0, 0, NULL, 0, NULL);
+
+      ret = drmModeSetCrtc(fd, crtc->crtc_id, drm_fb->fb_id, 0, 0,
+        resources->connectors, 1, &connector->modes[i]);
+
+      drmModeFreeFB(drm_fb);
+      break;
+    }
+  }
+
+  drmModeFreeResources(resources);
+  drmModeFreeConnector(connector);
+  drmModeFreeEncoder(encoder);
+  drmModeFreeCrtc(crtc);
+  close(fd);
+
+  return ret;
+}
+
 bool aml_get_native_resolution(RESOLUTION_INFO *res)
 {
-  std::string mode;
-  CSysfsPath display_mode{"/sys/class/display/mode"};
-  if (display_mode.Exists())
-    mode = display_mode.Get<std::string>().value();
+  std::string mode = aml_get_drmDevice_mode();
   bool result = aml_mode_to_resolution(mode.c_str(), res);
 
   if (aml_has_frac_rate_policy())
@@ -512,9 +826,6 @@ bool aml_set_native_resolution(const RESOLUTION_INFO &res, std::string framebuff
   if (stereo_mode != RenderStereoMode::OFF)
     CSysfsPath("/sys/class/amhdmitx/amhdmitx0/phy", 1);
 
-
-  aml_handle_scale(res);
-
   return result;
 }
 
@@ -526,11 +837,7 @@ bool aml_probe_resolutions(std::vector<RESOLUTION_INFO> &resolutions)
 
   if (!user_dcapfile.Exists())
   {
-    CSysfsPath dcapfile{"/sys/class/amhdmitx/amhdmitx0/disp_cap"};
-    if (dcapfile.Exists())
-      valstr = dcapfile.Get<std::string>().value();
-    else
-      return false;
+    valstr = aml_get_drmDevice_modes();
 
     CSysfsPath vesa{"/flash/vesa.enable"};
     if (vesa.Exists())
@@ -633,9 +940,7 @@ bool aml_set_display_resolution(const RESOLUTION_INFO &res, std::string framebuf
   else
     CLog::Log(LOGDEBUG, "{}: try to set mode: {}", __FUNCTION__, mode.c_str());
 
-  CSysfsPath display_mode{"/sys/class/display/mode"};
-  if (display_mode.Exists())
-    cur_mode = display_mode.Get<std::string>().value();
+  cur_mode = aml_get_drmDevice_mode();
 
   CSysfsPath amhdmitx0_custom_mode{"/sys/class/amhdmitx/amhdmitx0/custom_mode"};
   if (amhdmitx0_custom_mode.Exists())
@@ -656,31 +961,15 @@ bool aml_set_display_resolution(const RESOLUTION_INFO &res, std::string framebuf
 
     if ((cur_fractional_rate != fractional_rate) || force_mode_switch)
     {
-      cur_mode = "null";
-      if (display_mode.Exists())
-        display_mode.Set(cur_mode);
       if (amhdmitx0_frac_rate_policy.Exists())
         amhdmitx0_frac_rate_policy.Set(fractional_rate);
     }
   }
 
-  if (cur_mode != mode)
-  {
-    if (display_mode.Exists())
-      display_mode.Set(mode);
-  }
-
-  aml_set_framebuffer_resolution(res, framebuffer_name);
+  aml_set_framebuffer_resolution(res.iWidth, res.iHeight, framebuffer_name);
+  aml_set_drmDevice_mode(res.iWidth, res.iHeight, mode, force_mode_switch);
 
   return true;
-}
-
-void aml_handle_scale(const RESOLUTION_INFO &res)
-{
-  if (res.iScreenWidth > res.iWidth && res.iScreenHeight > res.iHeight)
-    aml_enable_freeScale(res);
-  else
-    aml_disable_freeScale();
 }
 
 void aml_handle_display_stereo_mode(const RenderStereoMode stereo_mode)
@@ -717,31 +1006,6 @@ void aml_handle_display_stereo_mode(const RenderStereoMode stereo_mode)
     CSysfsPath("/sys/class/amhdmitx/amhdmitx0/config", command);
     kernel_stereo_mode = stereo_mode;
   }
-}
-
-void aml_enable_freeScale(const RESOLUTION_INFO &res)
-{
-  char fsaxis_str[256] = {0};
-  sprintf(fsaxis_str, "0 0 %d %d", res.iWidth-1, res.iHeight-1);
-  char waxis_str[256] = {0};
-  sprintf(waxis_str, "0 0 %d %d", res.iScreenWidth-1, res.iScreenHeight-1);
-
-  CSysfsPath("/sys/class/graphics/fb0/free_scale", 0);
-  CSysfsPath("/sys/class/graphics/fb0/free_scale_axis", fsaxis_str);
-  CSysfsPath("/sys/class/graphics/fb0/window_axis", waxis_str);
-  CSysfsPath("/sys/class/graphics/fb0/free_scale", 0x10001);
-}
-
-void aml_disable_freeScale()
-{
-  // turn off frame buffer freescale
-  CSysfsPath("/sys/class/graphics/fb0/free_scale", 0);
-  CSysfsPath("/sys/class/graphics/fb1/free_scale", 0);
-}
-
-void aml_set_framebuffer_resolution(const RESOLUTION_INFO &res, std::string framebuffer_name)
-{
-  aml_set_framebuffer_resolution(res.iWidth, res.iHeight, framebuffer_name);
 }
 
 void aml_set_framebuffer_resolution(unsigned int width, unsigned int height, std::string framebuffer_name)
