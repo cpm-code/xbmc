@@ -297,8 +297,6 @@ typedef struct hdr_buf {
 } hdr_buf_t;
 
 #define FLAG_FORCE_DV_LL        (unsigned int)(0x4000)
-#define DOLBY_VISION_LL_DISABLE (unsigned int)(0)
-#define DOLBY_VISION_LL_YUV422  (unsigned int)(1)
 
 typedef struct am_packet {
     AVPacket      avpkt;
@@ -2028,20 +2026,13 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
     CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", 'Y');
 
     // force player led mode when enabled
-    CSysfsPath dolby_vision_flags{"/sys/module/amdolby_vision/parameters/dolby_vision_flags"};
-    CSysfsPath dolby_vision_ll_policy{"/sys/module/amdolby_vision/parameters/dolby_vision_ll_policy"};
-    if (dolby_vision_flags.Exists() && dolby_vision_ll_policy.Exists())
+    CSysfsPath dolby_vision_flags{"/sys/module/aml_media/parameters/dolby_vision_flags"};
+    if (dolby_vision_flags.Exists())
     {
       if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_LED) == AML_DV_PLAYER_LED)
-      {
         dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() | FLAG_FORCE_DV_LL);
-        dolby_vision_ll_policy.Set(DOLBY_VISION_LL_YUV422);
-      }
       else
-      {
         dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() & ~(FLAG_FORCE_DV_LL));
-        dolby_vision_ll_policy.Set(DOLBY_VISION_LL_DISABLE);
-      }
     }
 
     am_private->gcodec.dv_enable = 1;
@@ -2051,17 +2042,13 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
       {
         CSysfsPath amdolby_vision_debug{"/sys/class/amdolby_vision/debug"};
         if (amdolby_vision_debug.Exists())
+        {
           amdolby_vision_debug.Set("enable_fel 1");
           amdolby_vision_debug.Set("enable_mel 1");
         }
         am_private->gcodec.dec_mode = STREAM_TYPE_STREAM;
       }
     }
-  }
-  else if (device_support_dv)
-  {
-    // disable Dolby Vision
-    CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", 'N');
   }
 
   // DEC_CONTROL_FLAG_DISABLE_FAST_POC
@@ -2338,7 +2325,10 @@ void CAMLCodec::CloseDecoder()
 
   CSysfsPath amdolby_vision_debug{"/sys/class/amdolby_vision/debug"};
   if (amdolby_vision_debug.Exists())
+  {
     amdolby_vision_debug.Set("enable_fel 0");
+    amdolby_vision_debug.Set("enable_mel 0");
+  }
 
   ShowMainVideo(false);
 
