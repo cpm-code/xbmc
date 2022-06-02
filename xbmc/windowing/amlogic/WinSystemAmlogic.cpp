@@ -69,7 +69,7 @@ void CWinSystemAmlogic::SettingOptionsComponentsFiller(const SettingConstPtr& se
                                                  std::vector<IntegerSettingOption>& list,
                                                  int& current)
 {
-  int dv_cap = aml_display_get_dv_cap();
+  int dv_cap = aml_get_drmProperty("dv_cap", DRM_MODE_OBJECT_CONNECTOR);
 
   if ((dv_cap & DV_RGB_444_8BIT) != 0)
     list.emplace_back(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(14426),
@@ -127,7 +127,7 @@ bool CWinSystemAmlogic::InitWindowSystem()
     CServiceBroker::GetSettingsComponent()->GetSettings()->
       GetSettingsManager()->RegisterSettingOptionsFiller("dv_led_modes", SettingOptionsComponentsFiller);
 
-    int dv_cap = aml_display_get_dv_cap();
+    int dv_cap = aml_get_drmProperty("dv_cap", DRM_MODE_OBJECT_CONNECTOR);
     AML_DISPLAY_DV_LED old_value = static_cast<AML_DISPLAY_DV_LED>(
       settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_LED));
     AML_DISPLAY_DV_LED new_value = old_value;
