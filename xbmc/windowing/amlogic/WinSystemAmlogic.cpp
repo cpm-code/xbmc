@@ -249,69 +249,43 @@ void CWinSystemAmlogic::UpdateResolutions()
 {
   CWinSystemBase::UpdateResolutions();
 
+  CDisplaySettings::GetInstance().ClearCustomResolutions();
+
   RESOLUTION_INFO resDesktop, curDisplay;
   std::vector<RESOLUTION_INFO> resolutions;
 
   if (!aml_probe_resolutions(resolutions) || resolutions.empty())
-  {
     CLog::Log(LOGWARNING, "{}: ProbeResolutions failed.",__FUNCTION__);
-  }
 
-  /* ProbeResolutions includes already all resolutions.
-   * Only get desktop resolution so we can replace xbmc's desktop res
-   */
+  // get all resolutions supported by connected device
   if (aml_get_native_resolution(&curDisplay))
-  {
     resDesktop = curDisplay;
-  }
 
-  RESOLUTION ResDesktop = RES_INVALID;
-  RESOLUTION res_index  = RES_DESKTOP;
-
-  for (size_t i = 0; i < resolutions.size(); i++)
+  for (auto& res : resolutions)
   {
-    // if this is a new setting,
-    // create a new empty setting to fill in.
-    if ((int)CDisplaySettings::GetInstance().ResolutionInfoSize() <= res_index)
-    {
-      RESOLUTION_INFO res;
-      CDisplaySettings::GetInstance().AddResolutionInfo(res);
-    }
-
-    CServiceBroker::GetWinSystem()->GetGfxContext().ResetOverscan(resolutions[i]);
-    CDisplaySettings::GetInstance().GetResolutionInfo(res_index) = resolutions[i];
-
     CLog::Log(LOGINFO, "Found resolution {:d} x {:d} with {:d} x {:d}{} @ {:f} Hz",
-      resolutions[i].iWidth,
-      resolutions[i].iHeight,
-      resolutions[i].iScreenWidth,
-      resolutions[i].iScreenHeight,
-      resolutions[i].dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "",
-      resolutions[i].fRefreshRate);
+      res.iWidth,
+      res.iHeight,
+      res.iScreenWidth,
+      res.iScreenHeight,
+      res.dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "",
+      res.fRefreshRate);
 
-    if(resDesktop.iWidth == resolutions[i].iWidth &&
-       resDesktop.iHeight == resolutions[i].iHeight &&
-       resDesktop.iScreenWidth == resolutions[i].iScreenWidth &&
-       resDesktop.iScreenHeight == resolutions[i].iScreenHeight &&
-       (resDesktop.dwFlags & D3DPRESENTFLAG_MODEMASK) == (resolutions[i].dwFlags & D3DPRESENTFLAG_MODEMASK) &&
-       fabs(resDesktop.fRefreshRate - resolutions[i].fRefreshRate) < FLT_EPSILON)
+    // add new custom resolution
+    CServiceBroker::GetWinSystem()->GetGfxContext().ResetOverscan(res);
+    CDisplaySettings::GetInstance().AddResolutionInfo(res);
+
+    // check if resolution match current mode
+    if(resDesktop.iWidth == res.iWidth &&
+       resDesktop.iHeight == res.iHeight &&
+       resDesktop.iScreenWidth == res.iScreenWidth &&
+       resDesktop.iScreenHeight == res.iScreenHeight &&
+       (resDesktop.dwFlags & D3DPRESENTFLAG_MODEMASK) == (res.dwFlags & D3DPRESENTFLAG_MODEMASK) &&
+       fabs(resDesktop.fRefreshRate - res.fRefreshRate) < FLT_EPSILON)
     {
-      ResDesktop = res_index;
+      // update desktop resolution
+      CDisplaySettings::GetInstance().GetResolutionInfo(RES_DESKTOP) = res;
     }
-
-    res_index = (RESOLUTION)((int)res_index + 1);
-  }
-
-  // set RES_DESKTOP
-  if (ResDesktop != RES_INVALID)
-  {
-    CLog::Log(LOGINFO, "Found ({:d}x{:d}{}@{:f}) at {:d}, setting to RES_DESKTOP at {:d}",
-      resDesktop.iWidth, resDesktop.iHeight,
-      resDesktop.dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "",
-      resDesktop.fRefreshRate,
-      (int)ResDesktop, (int)RES_DESKTOP);
-
-    CDisplaySettings::GetInstance().GetResolutionInfo(RES_DESKTOP) = CDisplaySettings::GetInstance().GetResolutionInfo(ResDesktop);
   }
 }
 
