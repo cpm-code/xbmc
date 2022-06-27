@@ -92,6 +92,9 @@ static bool write_resolution_ini(RESOLUTION_INFO res)
   struct statfs fsInfo;
   std::string aml_res_path = "/flash";
   std::string aml_res_file = "resolution.ini";
+  std::string fmt_attr = ",";
+  std::string force_cs[] = { "rgb", "420", "422", "444" };
+  std::string limit_cd[] = { "8bit", "10bit", "12bit", "16bit" };
   auto result = statfs(aml_res_path.c_str(), &fsInfo);
   const bool nativeGui = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING);
 
@@ -109,6 +112,13 @@ static bool write_resolution_ini(RESOLUTION_INFO res)
     ofs << "kernel_hdmimode=" << res.strId.c_str() << "\n";
     ofs << "frac_rate_policy=" << std::to_string((res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1).c_str() << "\n";
     ofs << "native_4k_gui=" << std::to_string(nativeGui).c_str() << "\n";
+    ofs << "hdmitx=";
+    if (settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_FORCE_CS) > 0)
+      fmt_attr += std::string(force_cs[settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_FORCE_CS) - 1] + ",").c_str();
+    if (settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_LIMIT_CD) > 0)
+      fmt_attr += limit_cd[settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_LIMIT_CD) - 1].c_str();
+    ofs << fmt_attr.c_str() << "\n";
+    CSysfsPath("/sys/class/amhdmitx/amhdmitx0/attr", fmt_attr);
     ofs << "allfmt_names=" << allfmt_names.c_str() << "\n";
     ofs.close();
     CLog::Log(LOGDEBUG, "CDisplaySettings: Amlogic resolution got saved to {}/{}", aml_res_path.c_str(), aml_res_file.c_str());
@@ -391,7 +401,9 @@ bool CDisplaySettings::OnSettingChanging(const std::shared_ptr<const CSetting>& 
 #endif
   }
 #endif
-  else if (settingId == CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING)
+  else if (settingId == CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING ||
+    settingId == CSettings::SETTING_COREELEC_AMLOGIC_FORCE_CS ||
+    settingId == CSettings::SETTING_COREELEC_AMLOGIC_LIMIT_CD)
   {
     const RESOLUTION_INFO res_info = GetResolutionInfo(GetCurrentResolution());
     write_resolution_ini(res_info);

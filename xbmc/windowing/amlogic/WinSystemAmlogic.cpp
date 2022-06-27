@@ -98,40 +98,6 @@ bool CWinSystemAmlogic::InitWindowSystem()
     CSysfsPath("/sys/module/am_vecm/parameters/hdr_mode", 1);
   }
 
-  std::string attr = "";
-  CSysfsPath amhdmitx0_attr{"/sys/class/amhdmitx/amhdmitx0/attr"};
-  if (amhdmitx0_attr.Exists())
-    attr = amhdmitx0_attr.Get<std::string>();
-  //We delay writing attr until everything is done with it to avoid multiple display resets.
-  if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_FORCE422))
-  {
-     CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- Setting 422 output");
-     if (attr.find("444") != std::string::npos ||
-         attr.find("422") != std::string::npos ||
-         attr.find("420") != std::string::npos)
-       attr.replace(attr.find("4"),3,"422");
-     else
-       attr.append("422");
-  }
-  if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_LIMIT8BIT))
-  {
-     CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- Limiting display to 8bit colour depth");
-     if (attr.find("10bit") != std::string::npos)
-       attr.replace(attr.find("10bit"),5,"8bit");
-     else if (attr.find("12bit") != std::string::npos)
-       attr.replace(attr.find("12bit"),5,"8bit");
-     else if (attr.find("8bit") != std::string::npos)
-       ; //do nothing
-     else
-       attr.append("8bit");
-  }
-  if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_LIMIT8BIT) ||
-      CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_FORCE422))
-  {
-     //attr.append("now");
-     CSysfsPath("/sys/class/amhdmitx/amhdmitx0/attr", attr);
-  }
-
   m_nativeDisplay = EGL_DEFAULT_DISPLAY;
 
   CDVDVideoCodecAmlogic::Register();
