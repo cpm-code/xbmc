@@ -8909,22 +8909,22 @@ msgstr ""
 
 #: system/settings/settings.xml
 msgctxt "#14408"
-msgid "Limit display colour depth to 8-bit"
+msgid "Force display colour depth"
 msgstr ""
 
 #: system/settings/settings.xml
 msgctxt "#14409"
-msgid "Enable this to limit the display colour depth to 8-bit. Requires reboot."
+msgid "Force display colour depth to set value if display mode does support it. Requires resolution change to get active."
 msgstr ""
 
 #: system/settings/settings.xml
 msgctxt "#14410"
-msgid "Use 4:2:2 colour subsampling"
+msgid "Force colour subsampling"
 msgstr ""
 
 #: system/settings/settings.xml
 msgctxt "#14411"
-msgid "Enable this to use 4:2:2 colour subsampling. Some displays (usually LG) work better with this. Requires reboot."
+msgid "Force colour subsampling to set value. Requires resolution change to get active."
 msgstr ""
 
 #: system/settings/settings.xml
@@ -8935,6 +8935,54 @@ msgstr ""
 #: system/settings/settings.xml
 msgctxt "#14413"
 msgid "For optimal performance across all devices, the GUI is rendered at 1080P and scaled to 4K by default, this option disables that scaling and renders the GUI at 4K. This can make thumbnails and other textures sharper, however some devices may have issues with this option being set. Requires reboot."
+msgstr ""
+
+#. Force colour subsampling
+#: system/settings/settings.xml
+msgctxt "#14414"
+msgid "RGB"
+msgstr ""
+
+#. Force colour subsampling
+#: system/settings/settings.xml
+msgctxt "#14415"
+msgid "4:2:0"
+msgstr ""
+
+#. Force colour subsampling
+#: system/settings/settings.xml
+msgctxt "#14416"
+msgid "4:2:2"
+msgstr ""
+
+#. Force colour subsampling
+#: system/settings/settings.xml
+msgctxt "#14417"
+msgid "4:4:4"
+msgstr ""
+
+#. Display colour depth limit
+#: system/settings/settings.xml
+msgctxt "#14418"
+msgid "8 bits"
+msgstr ""
+
+#. Display colour depth limit
+#: system/settings/settings.xml
+msgctxt "#14419"
+msgid "10 bits"
+msgstr ""
+
+#. Display colour depth limit
+#: system/settings/settings.xml
+msgctxt "#14420"
+msgid "12 bits"
+msgstr ""
+
+#. Display colour depth limit
+#: system/settings/settings.xml
+msgctxt "#14421"
+msgid "16 bits"
 msgstr ""
 
 #: xbmc/music/MusicDatabase.cpp

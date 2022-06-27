@@ -2934,6 +2934,34 @@
           <default>false</default>
           <control type="toggle" />
         </setting>
+        <setting id="coreelec.amlogic.limitcd" type="integer" parent="videoscreen.screen" label="14408" help="14409">
+          <level>3</level>
+          <default>0</default> <!-- Auto -->
+          <constraints>
+            <options>
+              <option label="37026">0</option>
+              <option label="14418">1</option>
+              <option label="14419">2</option>
+              <option label="14420">3</option>
+              <option label="14421">4</option>
+            </options>
+          </constraints>
+          <control type="list" format="string" />
+        </setting>
+        <setting id="coreelec.amlogic.forcecs" type="integer" parent="videoscreen.screen" label="14410" help="14411">
+          <level>3</level>
+          <default>0</default> <!-- Auto -->
+          <constraints>
+            <options>
+              <option label="37026">0</option>
+              <option label="14414">1</option>
+              <option label="14415">2</option>
+              <option label="14416">3</option>
+              <option label="14417">4</option>
+            </options>
+          </constraints>
+          <control type="list" format="string" />
+        </setting>
         <setting id="videoscreen.delayrefreshchange" type="integer" parent="videoscreen.screen" label="13550" help="36165">
           <level>2</level>
           <default>0</default>
@@ -3924,16 +3952,6 @@
           <dependencies>
             <dependency type="enable" setting="coreelec.amlogic.sdr2hdr" operator="is">false</dependency>
           </dependencies>
-        </setting>
-        <setting id="coreelec.amlogic.limit8bit" type="boolean" label="14408" help="14409">
-          <requirement>HAVE_AMCODEC</requirement>
-          <default>false</default>
-          <control type="toggle" />
-        </setting>
-        <setting id="coreelec.amlogic.force422" type="boolean" label="14410" help="14411">
-          <requirement>HAVE_AMCODEC</requirement>
-          <default>false</default>
-          <control type="toggle" />
         </setting>
       </group>
     </category>
