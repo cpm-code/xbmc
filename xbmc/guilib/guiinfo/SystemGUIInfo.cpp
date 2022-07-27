@@ -23,6 +23,7 @@
 #include "guilib/guiinfo/GUIInfo.h"
 #include "guilib/guiinfo/GUIInfoHelper.h"
 #include "guilib/guiinfo/GUIInfoLabels.h"
+#include "platform/linux/SysfsPath.h"
 #include "powermanagement/PowerManager.h"
 #include "profiles/ProfileManager.h"
 #include "rendering/RenderSystem.h"
@@ -704,11 +705,8 @@ bool CSystemGUIInfo::GetBool(bool& value,
     }
     case SYSTEM_PATH_EXIST:
     {
-      struct stat path_info;
-      value = false;
-
-      if (stat(info.GetData3().c_str(), &path_info) == 0)
-        value = (path_info.st_mode & S_IFDIR) != 0;
+      CSysfsPath path_info{info.GetData3().c_str()};
+      value = path_info.Exists();
 
       return true;
     }
