@@ -117,6 +117,9 @@ bool CWinSystemAmlogic::InitWindowSystem()
     settings->SetBool(CSettings::SETTING_VIDEOPLAYER_USEDISPLAYASCLOCK, false);
   }
 
+  // Close the OpenVFD splash and switch the display into time mode.
+  CSysfsPath("/tmp/openvfd_service", 0);
+
   // kill a running animation
   CLog::Log(LOGDEBUG,"CWinSystemAmlogic: Sending SIGUSR1 to 'splash-image'");
   std::system("killall -s SIGUSR1 splash-image &> /dev/null");
