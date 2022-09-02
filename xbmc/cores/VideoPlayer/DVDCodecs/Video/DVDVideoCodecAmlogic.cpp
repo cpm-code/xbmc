@@ -78,7 +78,7 @@ CDVDVideoCodecAmlogic::CDVDVideoCodecAmlogic(CProcessInfo &processInfo)
 
 CDVDVideoCodecAmlogic::~CDVDVideoCodecAmlogic()
 {
-  Dispose();
+  Close();
 }
 
 std::unique_ptr<CDVDVideoCodec> CDVDVideoCodecAmlogic::Create(CProcessInfo& processInfo)
@@ -92,8 +92,6 @@ bool CDVDVideoCodecAmlogic::Register()
   return true;
 }
 
-std::atomic<bool> CDVDVideoCodecAmlogic::m_InstanceGuard(false);
-
 bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
 {
   if (!CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_VIDEOPLAYER_USEAMCODEC))
@@ -101,14 +99,9 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
   if ((hints.stills && hints.fpsrate == 0) || hints.width == 0)
     return false;
 
-  // allow only 1 instance here
-  if (m_InstanceGuard.exchange(true))
-  {
-    CLog::Log(LOGERROR, "CDVDVideoCodecAmlogic::Open - InstanceGuard locked\n");
-    return false;
-  }
-
-  m_opened = false;
+  // close open decoder if necessary
+  if (m_opened)
+    Close();
 
   m_hints = hints;
   m_hints.pClock = hints.pClock;
@@ -324,12 +317,14 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
   CLog::Log(LOGINFO, "{}: Opened Amlogic Codec", __MODULE_NAME__);
   return true;
 FAIL:
-  Dispose();
+  Close();
   return false;
 }
 
-void CDVDVideoCodecAmlogic::Dispose(void)
+void CDVDVideoCodecAmlogic::Close(void)
 {
+  CLog::Log(LOGDEBUG, "{}::{}", __MODULE_NAME__, __FUNCTION__);
+
   m_videoBufferPool = nullptr;
 
   if (m_Codec)
@@ -349,7 +344,6 @@ void CDVDVideoCodecAmlogic::Dispose(void)
     delete m_bitparser, m_bitparser = NULL;
 
   m_opened = false;
-  m_InstanceGuard.exchange(false);
 }
 
 bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
