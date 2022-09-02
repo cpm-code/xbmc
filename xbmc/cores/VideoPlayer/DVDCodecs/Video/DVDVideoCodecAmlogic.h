@@ -76,7 +76,7 @@ public:
   virtual const char* GetName(void) override { return (const char*)m_pFormatName; }
 
 protected:
-  void            Dispose(void);
+  void            Close(void);
   void            FrameRateTracking(uint8_t *pData, int iSize, double dts, double pts);
   //void            RemoveInfo(CDVDAmlogicInfo* info);
 
