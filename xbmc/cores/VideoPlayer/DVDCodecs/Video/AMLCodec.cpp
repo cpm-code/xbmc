@@ -919,7 +919,7 @@ int mpeg12_add_frame_dec_info(am_private_t *para)
   ret = av_grow_packet(&(pkt->avpkt), 4);
   if (ret < 0)
   {
-    CLog::Log(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!\n");
+    CLog::Log(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!");
     return ret;
   }
 
@@ -1022,7 +1022,7 @@ int av1_parser_frame(
             return -1;
         }
 
-        CLog::Log(LOGDEBUG, "\tobu {} len {:d}+{:d}\n", obu_type_name[obu_header.type], bytes_read, payload_size);
+        CLog::Log(LOGDEBUG, "\tobu {} len {:d}+{:d}", obu_type_name[obu_header.type], bytes_read, payload_size);
 
         obu_size = bytes_read + payload_size + 4;
 
@@ -1106,13 +1106,13 @@ int av1_parser_frame(
             else
                 meta_type = OBU_METADATA_TYPE_AOM_RESERVED_0;
             p = data + bytes_read;
-            CLog::Log(LOGDEBUG, "\tmeta type {} {:d}+{:d}\n", meta_type_name[type], bytes_read, payload_size - bytes_read);
+            CLog::Log(LOGDEBUG, "\tmeta type {} {:d}+{:d}", meta_type_name[type], bytes_read, payload_size - bytes_read);
 
             if (meta_type == OBU_METADATA_TYPE_ITUT_T35 && meta_buf != NULL) {
                 if ((p[0] == 0xb5) /* country code */
                     && ((p[1] == 0x00) && (p[2] == 0x3b)) /* terminal_provider_code */
                     && ((p[3] == 0x00) && (p[4] == 0x00) && (p[5] == 0x08) && (p[6] == 0x00))) { /* terminal_provider_oriented_code */
-                    CLog::Log(LOGDEBUG, "\t\tdolbyvison rpu\n");
+                    CLog::Log(LOGDEBUG, "\t\tdolbyvison rpu");
                     meta_buf[0] = meta_buf[1] = meta_buf[2] = 0;
                     meta_buf[3] = 0x01;    meta_buf[4] = 0x19;
 
@@ -1121,7 +1121,7 @@ int av1_parser_frame(
                         rpu_size |= (p[11] & 0x0f) << 4;
                         rpu_size |= (p[12] >> 4) & 0x0f;
                         if (p[12] & 0x08) {
-                            CLog::Log(LOGDEBUG, "\tmeta rpu in obu exceed 512 bytes\n");
+                            CLog::Log(LOGDEBUG, "\tmeta rpu in obu exceed 512 bytes");
                             break;
                         }
                         for (i = 0; i < rpu_size; i++) {
@@ -1143,20 +1143,20 @@ int av1_parser_frame(
                 }
             }
             else if (meta_type == OBU_METADATA_TYPE_HDR_CLL) {
-                CLog::Log(LOGDEBUG, "\t\thdr10 cll:\n");
-                CLog::Log(LOGDEBUG, "\t\tmax_cll = {:x}\n", (p[0] << 8) | p[1]);
-                CLog::Log(LOGDEBUG, "\t\tmax_fall = {:x}\n", (p[2] << 8) | p[3]);
+                CLog::Log(LOGDEBUG, "\t\thdr10 cll:");
+                CLog::Log(LOGDEBUG, "\t\tmax_cll = {:x}", (p[0] << 8) | p[1]);
+                CLog::Log(LOGDEBUG, "\t\tmax_fall = {:x}", (p[2] << 8) | p[3]);
             }
             else if (meta_type == OBU_METADATA_TYPE_HDR_MDCV) {
-                CLog::Log(LOGDEBUG, "\t\thdr10 primaries[r,g,b] = \n");
+                CLog::Log(LOGDEBUG, "\t\thdr10 primaries[r,g,b] =");
                 for (i = 0; i < 3; i++) {
-                    CLog::Log(LOGDEBUG, "\t\t {:x}, {:x}\n",
+                    CLog::Log(LOGDEBUG, "\t\t {:x}, {:x}",
                         (p[i * 4] << 8) | p[i * 4 + 1],
                         (p[i * 4 + 2] << 8) | p[i * 4 + 3]);
                 }
-                CLog::Log(LOGDEBUG, "\t\twhite point = {:x}, {:x}\n", (p[12] << 8) | p[13], (p[14] << 8) | p[15]);
-                CLog::Log(LOGDEBUG, "\t\tmaxl = {:x}\n", (p[16] << 24) | (p[17] << 16) | (p[18] << 8) | p[19]);
-                CLog::Log(LOGDEBUG, "\t\tminl = {:x}\n", (p[20] << 24) | (p[21] << 16) | (p[22] << 8) | p[23]);
+                CLog::Log(LOGDEBUG, "\t\twhite point = {:x}, {:x}", (p[12] << 8) | p[13], (p[14] << 8) | p[15]);
+                CLog::Log(LOGDEBUG, "\t\tmaxl = {:x}", (p[16] << 24) | (p[17] << 16) | (p[18] << 8) | p[19]);
+                CLog::Log(LOGDEBUG, "\t\tminl = {:x}", (p[20] << 24) | (p[21] << 16) | (p[22] << 8) | p[23]);
             }
                 break;
         case OBU_TILE_LIST:
@@ -1192,7 +1192,7 @@ int av1_add_frame_dec_info(am_private_t *para)
     ret = av_grow_packet(&(pkt->avpkt), dst_frame_size - pkt->data_size);
     if (ret < 0)
     {
-      CLog::Log(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!\n");
+      CLog::Log(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!");
       return ret;
     }
 
@@ -1230,12 +1230,12 @@ int vp9_update_frame_header(am_packet_t *pkt)
     frame_number = (marker & 0x7) + 1;
     mag = ((marker >> 3) & 0x3) + 1;
     index_sz = 2 + mag * frame_number;
-    CLog::Log(LOGDEBUG, " frame_number : {:d}, mag : {:d}; index_sz : {:d}\n", frame_number, mag, index_sz);
+    CLog::Log(LOGDEBUG, " frame_number : {:d}, mag : {:d}; index_sz : {:d}", frame_number, mag, index_sz);
     offset[0] = 0;
     mag_ptr = dsize - mag * frame_number - 2;
     if (buf[mag_ptr] != marker)
     {
-      CLog::Log(LOGDEBUG, " Wrong marker2 : 0x{:X} --> 0x{:X}\n", marker, buf[mag_ptr]);
+      CLog::Log(LOGDEBUG, " Wrong marker2 : 0x{:X} --> 0x{:X}", marker, buf[mag_ptr]);
       return PLAYER_SUCCESS;
     }
 
@@ -1272,7 +1272,7 @@ int vp9_update_frame_header(am_packet_t *pkt)
 
   if (total_datasize > dsize)
   {
-    CLog::Log(LOGDEBUG, "DATA overflow : 0x{:X} --> 0x{:X}\n", total_datasize, dsize);
+    CLog::Log(LOGDEBUG, "DATA overflow : 0x{:X} --> 0x{:X}", total_datasize, dsize);
     return PLAYER_SUCCESS;
   }
 
@@ -1287,7 +1287,7 @@ int vp9_update_frame_header(am_packet_t *pkt)
     ret = av_grow_packet(&(pkt->avpkt), need_more);
     if (ret < 0)
     {
-      CLog::Log(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!\n");
+      CLog::Log(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!");
       return ret;
     }
 
@@ -1331,11 +1331,11 @@ int vp9_update_frame_header(am_packet_t *pkt)
     }
     else if (old_header > fdata + 16 + framesize)
     {
-      CLog::Log(LOGDEBUG, "data has gaps,set to 0\n");
+      CLog::Log(LOGDEBUG, "data has gaps,set to 0");
       memset(fdata + 16 + framesize, 0, (old_header - fdata + 16 + framesize));
     }
     else if (old_header < fdata + 16 + framesize)
-      CLog::Log(LOGDEBUG, "ERROR!!! data over writed!!!! over write {:d}\n", fdata + 16 + framesize - old_header);
+      CLog::Log(LOGDEBUG, "ERROR!!! data over writed!!!! over write {:d}", fdata + 16 + framesize - old_header);
 
     old_header = fdata;
   }
@@ -1430,14 +1430,14 @@ static int mpeg_add_header(am_private_t *para, am_packet_t *pkt)
     packet_wrapper[5] = size & 0xff ;
     memcpy(pkt->hdr->data, packet_wrapper, sizeof(packet_wrapper));
     size = sizeof(packet_wrapper);
-    //CLog::Log(LOGDEBUG, "[mpeg_add_header:{:d}]wrapper size={:d}\n",__LINE__,size);
+    //CLog::Log(LOGDEBUG, "[mpeg_add_header:{:d}]wrapper size={:d}",__LINE__,size);
     memcpy(pkt->hdr->data + size, para->extradata.GetData(), para->extradata.GetSize());
     size += para->extradata.GetSize();
-    //CLog::Log(LOGDEBUG, "[mpeg_add_header:{:d}]wrapper+seq size={:d}\n",__LINE__,size);
+    //CLog::Log(LOGDEBUG, "[mpeg_add_header:{:d}]wrapper+seq size={:d}",__LINE__,size);
     memset(pkt->hdr->data + size, 0xff, STUFF_BYTES_LENGTH);
     size += STUFF_BYTES_LENGTH;
     pkt->hdr->size = size;
-    //CLog::Log(LOGDEBUG, "[mpeg_add_header:{:d}]hdr_size={:d}\n",__LINE__,size);
+    //CLog::Log(LOGDEBUG, "[mpeg_add_header:{:d}]hdr_size={:d}",__LINE__,size);
     if (1) {
         pkt->codec = &para->vcodec;
     } else {
