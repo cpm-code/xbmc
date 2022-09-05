@@ -277,7 +277,7 @@ void aml_set_3d_video_mode(unsigned int mode, bool framepacking_support, int vie
       CLog::Log(LOGERROR, "AMLUtils::{} - unable to set 3D video mode 0x%x", __FUNCTION__, mode);
     close(fd);
 
-    CSysfsPath("/sys/module/amvideo/parameters/framepacking_support", framepacking_support ? 1 : 0);
+    CSysfsPath("/sys/module/aml_media/parameters/framepacking_support", framepacking_support ? 1 : 0);
     CSysfsPath("/sys/module/amvdec_h264mvc/parameters/view_mode", view_mode);
   }
 }
