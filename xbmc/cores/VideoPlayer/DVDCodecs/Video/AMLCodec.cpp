@@ -2023,7 +2023,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   if (dv_enable)
   {
     // enable Dolby Vision
-    CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", 'Y');
+    CSysfsPath("/sys/module/aml_media/parameters/dolby_vision_enable", 'Y');
 
     // force player led mode when enabled
     CSysfsPath dolby_vision_flags{"/sys/module/aml_media/parameters/dolby_vision_flags"};
@@ -2054,7 +2054,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   // DEC_CONTROL_FLAG_DISABLE_FAST_POC
   CSysfsPath("/sys/module/amvdec_h264/parameters/dec_control", 4);
 
-  CSysfsPath di_debug_flag{"/sys/module/di/parameters/di_debug_flag"};
+  CSysfsPath di_debug_flag{"/sys/module/aml_media/parameters/di_debug_flag"};
   CSysfsPath di_debug{"/sys/class/deinterlace/di0/debug"};
   if (di_debug_flag.Exists() && di_debug.Exists())
   {
@@ -2310,7 +2310,7 @@ void CAMLCodec::CloseDecoder()
   // return tsync to default so external apps work
   CSysfsPath("/sys/class/tsync/enable", 1);
   // disable Dolby Vision driver
-  CSysfsPath dolby_vision_enable{"/sys/module/amdolby_vision/parameters/dolby_vision_enable"};
+  CSysfsPath dolby_vision_enable{"/sys/module/aml_media/parameters/dolby_vision_enable"};
   if (dolby_vision_enable.Exists() && StringUtils::EqualsNoCase(dolby_vision_enable.Get<std::string>().value(), "Y"))
   {
     CSysfsPath dv_video_on{"/sys/class/amdolby_vision/dv_video_on"};
