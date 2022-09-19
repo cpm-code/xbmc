@@ -1171,18 +1171,6 @@ void CPeripheralCecAdapter::OnSettingChanged(const std::string& strChangedSettin
     config_ini->set("cec_func_config", StringUtils::Format("{:x}", m_iCec_func_config));
     delete(config_ini);
   }
-  else if (StringUtils::EqualsNoCase(strChangedSetting, "device_name"))
-  {
-    XBMCAddon::xbmcvfs::configini* config_ini = new XBMCAddon::xbmcvfs::configini();
-    std::string device_name = GetSettingString("device_name");
-    if (device_name.length() > 14)
-    {
-      device_name = StringUtils::Left(device_name, 14);
-      SetSetting("device_name", device_name);
-    }
-    config_ini->set("cec_osd_name", device_name.c_str());
-    delete(config_ini);
-  }
   else if (IsRunning())
   {
     if (m_queryThread->IsRunning())
@@ -1437,8 +1425,6 @@ void CPeripheralCecAdapter::SetConfigurationFromSettings(void)
     m_iCec_func_config ^= (1 << CEC_FUNC_MASK);
     config_ini->set("cec_func_config", StringUtils::Format("{:x}", m_iCec_func_config));
   }
-
-  config_ini->set("cec_osd_name", GetSettingString("device_name").c_str());
 
   delete(config_ini);
 

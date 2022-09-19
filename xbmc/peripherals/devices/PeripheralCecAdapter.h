@@ -82,7 +82,7 @@ typedef enum
   VOLUME_CHANGE_MUTE
 } CecVolumeChange;
 
-// CEC Wake Up flags from u-boot(bl301)
+// CEC Wake Up flags from u-boot 2019
 typedef enum
 {
   CEC_FUNC_MASK = 0,
