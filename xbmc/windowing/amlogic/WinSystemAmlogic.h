@@ -14,6 +14,7 @@
 #include "windowing/WinSystem.h"
 #include "threads/SystemClock.h"
 #include "system_egl.h"
+#include <EGL/fbdev_window.h>
 
 class IDispResource;
 
@@ -21,7 +22,6 @@ class CWinSystemAmlogic : public CWinSystemBase
 {
 public:
   CWinSystemAmlogic();
-  virtual ~CWinSystemAmlogic();
 
   bool InitWindowSystem() override;
   bool DestroyWindowSystem() override;
@@ -42,7 +42,7 @@ public:
 protected:
   std::string m_framebuffer_name;
   EGLDisplay m_nativeDisplay;
-  EGLNativeWindowType m_nativeWindow;
+  fbdev_window *m_nativeWindow;
 
   int m_displayWidth;
   int m_displayHeight;
