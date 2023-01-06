@@ -274,6 +274,40 @@ void CWinSystemAmlogic::UpdateResolutions()
   }
 }
 
+bool CWinSystemAmlogic::IsHDRDisplay()
+{
+  CSysfsPath hdr_cap{"/sys/class/amhdmitx/amhdmitx0/hdr_cap"};
+  CSysfsPath dv_cap{"/sys/class/amhdmitx/amhdmitx0/dv_cap"};
+  std::string valstr;
+
+  if (hdr_cap.Exists())
+  {
+    valstr = hdr_cap.Get<std::string>().value();
+    if (valstr.find("Traditional HDR: 1") != std::string::npos)
+      hdr_caps.SetHDR10();
+
+    if (valstr.find("HDR10Plus Supported: 1") != std::string::npos)
+      hdr_caps.SetHDR10Plus();
+
+    if (valstr.find("Hybrid Log-Gamma: 1") != std::string::npos)
+      hdr_caps.SetHLG();
+  }
+
+  if (dv_cap.Exists())
+  {
+    valstr = dv_cap.Get<std::string>().value();
+    if (valstr.find("DolbyVision RX support list") != std::string::npos)
+      hdr_caps.SetDolbyVision();
+  }
+
+  return (hdr_caps.SupportsHDR10() | hdr_caps.SupportsHDR10Plus() | hdr_caps.SupportsHLG());
+}
+
+CHDRCapabilities CWinSystemAmlogic::GetDisplayHDRCapabilities() const
+{
+  return hdr_caps;
+}
+
 bool CWinSystemAmlogic::Hide()
 {
   return false;
