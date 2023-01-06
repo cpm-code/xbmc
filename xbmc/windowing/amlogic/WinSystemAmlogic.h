@@ -32,6 +32,8 @@ public:
 
   bool DestroyWindow() override;
   void UpdateResolutions() override;
+  bool IsHDRDisplay() override;
+  CHDRCapabilities GetDisplayHDRCapabilities() const override;
 
   bool Hide() override;
   bool Show(bool show = true) override;
@@ -53,4 +55,5 @@ protected:
   CCriticalSection m_resourceSection;
   std::vector<IDispResource*> m_resources;
   std::unique_ptr<CLibInputHandler> m_libinput;
+  CHDRCapabilities hdr_caps;
 };
