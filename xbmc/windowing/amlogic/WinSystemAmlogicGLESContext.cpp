@@ -58,16 +58,18 @@ bool CWinSystemAmlogicGLESContext::InitWindowSystem()
   return true;
 }
 
+bool CWinSystemAmlogicGLESContext::DestroyWindowSystem()
+{
+  m_pGLContext.DestroyContext();
+  m_pGLContext.Destroy();
+  return CWinSystemAmlogic::DestroyWindowSystem();
+}
+
 bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
                                                bool fullScreen,
                                                RESOLUTION_INFO& res)
 {
   m_pGLContext.DestroySurface();
-
-  if (!CWinSystemAmlogic::DestroyWindow())
-  {
-    return false;
-  }
 
   if (!CWinSystemAmlogic::CreateNewWindow(name, fullScreen, res))
   {
@@ -93,6 +95,12 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
   }
 
   return true;
+}
+
+bool CWinSystemAmlogicGLESContext::DestroyWindow()
+{
+  m_pGLContext.DestroySurface();
+  return CWinSystemAmlogic::DestroyWindow();
 }
 
 bool CWinSystemAmlogicGLESContext::ResizeWindow(int newWidth, int newHeight, int newLeft, int newTop)
