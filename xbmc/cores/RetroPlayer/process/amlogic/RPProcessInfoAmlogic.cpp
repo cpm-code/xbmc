@@ -18,9 +18,9 @@ CRPProcessInfoAmlogic::CRPProcessInfoAmlogic() :
 {
 }
 
-CRPProcessInfo* CRPProcessInfoAmlogic::Create()
+std::unique_ptr<CRPProcessInfo> CRPProcessInfoAmlogic::Create()
 {
-  return new CRPProcessInfoAmlogic();
+  return std::make_unique<CRPProcessInfoAmlogic>();
 }
 
 void CRPProcessInfoAmlogic::Register()
