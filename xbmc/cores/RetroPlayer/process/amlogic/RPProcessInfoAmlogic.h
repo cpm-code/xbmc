@@ -19,7 +19,7 @@ namespace RETRO
   public:
     CRPProcessInfoAmlogic();
 
-    static CRPProcessInfo* Create();
+    static std::unique_ptr<CRPProcessInfo> Create();
     static void Register();
 
     // Implementation of CRPProcessInfo
