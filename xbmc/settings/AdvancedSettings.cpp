@@ -215,6 +215,8 @@ void CAdvancedSettings::Initialize()
   m_videoDefaultLatency = 0.0;
   m_videoDefaultHdrExtraLatency = 0.0;
 
+  m_videoDecoderTimeout = 5;
+
   m_musicUseTimeSeeking = true;
   m_musicTimeSeekForward = 10;
   m_musicTimeSeekBackward = -10;
@@ -857,6 +859,8 @@ void CAdvancedSettings::ParseSettingsFile(const std::string &file)
       XMLUtils::GetFloat(pVideoLatency, "hdrextradelay", m_videoDefaultHdrExtraLatency, -600.0f,
                          600.0f);
     }
+
+    XMLUtils::GetInt(pElement, "decodertimeout", m_videoDecoderTimeout, 1, 60);
   }
 
   pElement = pRootElement->FirstChildElement("musiclibrary");
