@@ -418,6 +418,8 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     uint32_t m_nfsTimeout;
     int m_nfsRetries;
 
+    int  m_videoDecoderTimeout;
+
   private:
     void Initialize();
     void Clear();
