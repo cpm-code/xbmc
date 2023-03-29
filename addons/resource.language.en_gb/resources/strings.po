@@ -8985,6 +8985,16 @@ msgctxt "#14421"
 msgid "16 bits"
 msgstr ""
 
+#: system/settings/settings.xml
+msgctxt "#14422"
+msgid "Disable Dolby Vision support"
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#14423"
+msgid "Use this option to disable Dolby Vision support if available."
+msgstr ""
+
 #: xbmc/music/MusicDatabase.cpp
 #: xbmc/video/VideoDatabase.cpp
 msgctxt "#15011"
