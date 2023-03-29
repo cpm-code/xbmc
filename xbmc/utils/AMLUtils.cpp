@@ -148,6 +148,28 @@ bool aml_support_av1()
   return (has_av1 == 1);
 }
 
+bool aml_support_dolby_vision()
+{
+  static int support_dv = -1;
+
+  if (support_dv == -1)
+  {
+    CSysfsPath support_info{"/sys/class/amdolby_vision/support_info"};
+    support_dv = 0;
+    if (support_info.Exists())
+    {
+      support_dv = (int)((support_info.Get<int>().value() & 7) == 7);
+      if (support_dv == 1) {
+        CSysfsPath ko_info{"/sys/class/amdolby_vision/ko_info"};
+        if (ko_info.Exists())
+          CLog::Log(LOGDEBUG, "Amlogic Dolby Vision info: {}", ko_info.Get<std::string>().value().c_str());
+      }
+    }
+  }
+
+  return (support_dv == 1);
+}
+
 bool aml_has_frac_rate_policy()
 {
   static int has_frac_rate_policy = -1;
