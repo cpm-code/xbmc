@@ -22,6 +22,7 @@
 #include "settings/SettingsComponent.h"
 #include "utils/AMLUtils.h"
 #include "utils/log.h"
+#include "utils/StreamDetails.h"
 #include "utils/StringUtils.h"
 #include "utils/TimeUtils.h"
 #include "windowing/GraphicContext.h"
@@ -111,6 +112,7 @@ typedef struct {
   void          *param;
   dec_mode_t    dec_mode;
   enum FRAME_BASE_VIDEO_PATH video_path;
+  unsigned int  dv_enable;
 } aml_generic_param;
 
 class DllLibamCodecInterface
@@ -219,6 +221,7 @@ public:
     p_out->am_sysinfo.param   = p_in->param;
     p_out->dec_mode           = p_in->dec_mode;
     p_out->video_path         = p_in->video_path;
+    p_out->dv_enable          = p_in->dv_enable;
   }
 };
 
@@ -1962,6 +1965,15 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
     hints.aspect, video_ratio.num, video_ratio.den);
   CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hints.orientation({:d}), hints.forced_aspect({:d}), hints.extrasize({:d})",
     hints.orientation, hints.forced_aspect, hints.extradata.GetSize());
+
+  std::string hdrType = CStreamDetails::HdrTypeToString(hints.hdrType);
+  if (hdrType.size())
+    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hdr type: {}", hdrType);
+
+  if (hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
+    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DOVI: version {:d}.{:d}, profile {:d}",
+      hints.dovi.dv_version_major, hints.dovi.dv_version_minor, hints.dovi.dv_profile);
+
   m_processInfo.SetVideoDAR(hints.aspect);
   CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder decoder timeout: {:d}s",
     m_decoder_timeout);
@@ -1980,6 +1992,33 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   am_private->gcodec.param       = NULL;
   am_private->gcodec.dec_mode    = STREAM_TYPE_FRAME;
   am_private->gcodec.video_path  = FRAME_BASE_PATH_AMLVIDEO_AMVIDEO;
+
+  // enable Dolby Vision driver when 'dovi.ko' is available
+  bool device_support_dv(aml_support_dolby_vision());
+  bool user_dv_disable(CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_DISABLE));
+  bool dv_enable(device_support_dv && !user_dv_disable && hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
+  CLog::Log(LOGINFO, "CAMLCodec::OpenDecoder Amlogic device {} support DV, DV is {} by user, DV system is {}",
+    device_support_dv ? "does" : "does not", user_dv_disable ? "disabled" : "enabled",
+    dv_enable ? "enabled" : "disabled");
+  if (dv_enable)
+  {
+    // enable Dolby Vision
+    CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", 1);
+
+    am_private->gcodec.dv_enable = 1;
+    if (hints.dovi.dv_profile == 7)
+    {
+      CSysfsPath amdolby_vision_debug{"/sys/class/amdolby_vision/debug"};
+      if (amdolby_vision_debug.Exists())
+        amdolby_vision_debug.Set("enable_fel 1");
+      am_private->gcodec.dec_mode  = STREAM_TYPE_STREAM;
+    }
+  }
+  else if (device_support_dv)
+  {
+    // disable Dolby Vision
+    CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", 0);
+  }
 
   // DEC_CONTROL_FLAG_DISABLE_FAST_POC
   CSysfsPath("/sys/module/amvdec_h264/parameters/dec_control", 4);
@@ -2237,6 +2276,12 @@ void CAMLCodec::CloseDecoder()
     free(am_private->vcodec.config);
   // return tsync to default so external apps work
   CSysfsPath("/sys/class/tsync/enable", 1);
+  // disable Dolby Vision driver
+  //CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", 0);
+  // don't disable it as it would not switch back to non DV mode anymore
+  CSysfsPath amdolby_vision_debug{"/sys/class/amdolby_vision/debug"};
+  if (amdolby_vision_debug.Exists())
+    amdolby_vision_debug.Set("enable_fel 0");
 
   ShowMainVideo(false);
 
