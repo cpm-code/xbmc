@@ -3953,6 +3953,11 @@
             <dependency type="enable" setting="coreelec.amlogic.sdr2hdr" operator="is">false</dependency>
           </dependencies>
         </setting>
+        <setting id="coreelec.amlogic.disabledolbyvision" type="boolean" label="14422" help="14423">
+          <requirement>HAVE_AMCODEC</requirement>
+          <default>false</default>
+          <control type="toggle" />
+        </setting>
       </group>
     </category>
     <category id="cache" label="439" help="36399">
