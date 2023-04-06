@@ -30,6 +30,7 @@
 #include "settings/lib/SettingsManager.h"
 #include "guilib/DispResource.h"
 #include "utils/AMLUtils.h"
+#include "utils/BitstreamConverter.h"
 #include "utils/log.h"
 #include "threads/SingleLock.h"
 
