@@ -299,11 +299,13 @@
           <default>true</default>
           <control type="toggle" />
         </setting>
-        <setting id="videoplayer.convertdovi" type="boolean" label="39196" help="39197">
-          <requirement><!-- Android and webOS use CBitstreamConverter -->
+        <setting id="videoplayer.convertdovi" type="integer" label="39196" help="39197">
+          <visible>false</visible>
+          <requirement>
             <or>
               <condition>HAS_MEDIACODEC</condition>
               <condition>HAVE_WEBOS</condition>
+              <condition>HAVE_AMCODEC</condition>
             </or>
           </requirement>
           <dependencies>
@@ -315,7 +317,7 @@
             </dependency>
           </dependencies>
           <level>2</level>
-          <default>false</default>
+          <default>2</default>
           <control type="toggle" />
         </setting>
         <setting id="videoplayer.allowedhdrformats" type="list[integer]" label="39198" help="39199">
@@ -338,25 +340,6 @@
             <multiselect>true</multiselect>
             <hidevalue>false</hidevalue>
           </control>
-        </setting>
-        <setting id="videoplayer.dovizerolevel5" type="boolean" label="39209" help="39210">
-          <requirement><!-- Android and webOS use CBitstreamConverter -->
-            <or>
-              <condition>HAS_MEDIACODEC</condition>
-              <condition>HAVE_WEBOS</condition>
-            </or>
-          </requirement>
-          <dependencies>
-            <dependency type="visible">
-              <or>
-                <condition on="property" name="supportsdolbyvision" />
-                <condition>HAVE_WEBOS</condition>
-              </or>
-            </dependency>
-          </dependencies>
-          <level>2</level>
-          <default>false</default>
-          <control type="toggle" />
         </setting>
       </group>
       <group id="4" label="14232">
@@ -4002,6 +3985,15 @@
             <options>dv_led_modes</options>
           </constraints>
           <control type="spinner" format="string" />
+        </setting>
+        <setting id="videoplayer.dovizerolevel5" type="boolean" label="39209" help="39210">
+          <requirement>HAVE_AMCODEC</requirement>
+          <dependencies>
+            <dependency type="visible" setting="coreelec.amlogic.dolbyvisionled" operator="is">0</dependency>
+          </dependencies>
+          <level>2</level>
+          <default>true</default>
+          <control type="toggle" />
         </setting>
       </group>
     </category>
