@@ -307,6 +307,43 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       m_pFormatName = "am-h265";
       m_bitstream = new CBitstreamConverter();
       m_bitstream->Open(m_hints.codec, m_hints.extradata.GetData(), m_hints.extradata.GetSize(), true);
+
+      // check for hevc-hvcC and convert to h265-annex-b
+      if (m_hints.extradata && !m_hints.cryptoSession)
+      {
+        if (aml_support_dolby_vision())
+        {
+          enum DOVIMode convertDovi = static_cast<enum DOVIMode>(CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
+              CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI));
+          bool user_dv_disable = CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
+              CSettings::SETTING_COREELEC_AMLOGIC_DV_DISABLE);
+
+          if (!user_dv_disable && CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
+                  CSettings::SETTING_COREELEC_AMLOGIC_DV_LED) == AML_DV_TV_LED)
+          {
+            m_bitstream->SetDoviZeroLevel5(
+                CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
+                    CSettings::SETTING_VIDEOPLAYER_DOVIZEROLEVEL5));
+          }
+
+          if ((m_hints.dovi.dv_profile == 4 || m_hints.dovi.dv_profile == 7) && (convertDovi > DOVIMode::MODE_LOSSLESS) && !user_dv_disable)
+          {
+            CLog::Log(LOGINFO, "{}::{} - HEVC bitstream profile {} will be converted to profile {}", __MODULE_NAME__, __FUNCTION__,
+              m_hints.dovi.dv_profile,
+              convertDovi == DOVIMode::MODE_TOMEL ? "7 minimum enhancement layer" :
+             (convertDovi == DOVIMode::MODE_TO81 || convertDovi == DOVIMode::MODE_PROFILE5TO81) ?  "8.1" :
+              convertDovi == DOVIMode::MODE_TO84 ?  "8.4" :
+              convertDovi == DOVIMode::MODE_TO81MAPPINGPRESERVED ?  "8.1 mapping reserved" : "unknown");
+
+            if (convertDovi > DOVIMode::MODE_TOMEL)
+              m_hints.dovi.dv_profile = 8;
+
+            m_hints.dovi.el_present_flag = false;
+            m_bitstream->SetConvertDovi(convertDovi);
+          }
+        }
+      }
+
       // make sure we do not leak the existing m_hints.extradata
       m_hints.extradata = {};
       m_hints.extradata = FFmpegExtraData(m_bitstream->GetExtraSize());
