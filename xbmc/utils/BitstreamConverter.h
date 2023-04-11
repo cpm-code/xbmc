@@ -87,6 +87,16 @@ typedef struct
   int frame_crop_bottom_offset;
 } sps_info_struct;
 
+enum DOVIMode : int
+{
+  MODE_NONE = -1,
+  MODE_LOSSLESS = 0,
+  MODE_TOMEL,
+  MODE_TO81,
+  MODE_PROFILE5TO81,
+  MODE_TO84,
+  MODE_TO81MAPPINGPRESERVED
+};
 
 class CBitstreamParser
 {
@@ -117,7 +127,7 @@ public:
   int               GetExtraSize() const;
   void              ResetStartDecode(void);
   bool              CanStartDecode() const;
-  void              SetConvertDovi(int value) { m_convert_dovi = value; }
+  void              SetConvertDovi(enum DOVIMode value) { m_convert_dovi = value; }
   void              SetConvertHdr10Plus(bool value) { m_convert_Hdr10Plus = value; }
   void              SetPreferCovertHdr10Plus(bool value) { m_prefer_Hdr10Plus_conversion = value; }
   void              SetConvertHdr10PlusPeakBrightnessSource(enum PeakBrightnessSource value) { m_convert_Hdr10Plus_peak_brightness_source = value; };
@@ -185,7 +195,7 @@ protected:
   CProcessInfo&     m_processInfo;
   StreamHdrType     m_intial_hdrType;
   bool              m_start_decode;
-  bool              m_convert_dovi;
+  enum DOVIMode     m_convert_dovi;
   bool              m_removeDovi;
   bool              m_removeHdr10Plus;
   bool              m_convert_Hdr10Plus;
