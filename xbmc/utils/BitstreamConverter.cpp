@@ -379,7 +379,7 @@ CBitstreamConverter::CBitstreamConverter()
   m_convert_bytestream = false;
   m_sps_pps_context.sps_pps_data = NULL;
   m_start_decode = true;
-  m_convert_dovi = false;
+  m_convert_dovi = DOVIMode::MODE_NONE;
   m_removeDovi = false;
   m_removeHdr10Plus = false;
   m_setDoviZeroLevel5 = false;
@@ -837,10 +837,10 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
       }
       else
       {
-        if (!m_convert_dovi)
+        if (m_convert_dovi == DOVIMode::MODE_NONE)
           BitstreamAllocAndCopy(&m_convertBuffer, &offset, buf, size, HEVC_NAL_UNSPEC63);
       }
-      if (!m_convert_dovi || nal_type == HEVC_NAL_UNSPEC62)
+      if (m_convert_dovi == DOVIMode::MODE_NONE || nal_type == HEVC_NAL_UNSPEC62)
         CLog::Log(LOGDEBUG, LOGVIDEO, "CBitstreamConverter::Convert: EL nal_type: {}, size: {}",
           nal_type, size);
 
@@ -1365,7 +1365,7 @@ bool CBitstreamConverter::BitstreamConvert(uint8_t* pData,
           }
 #endif
         }
-        else if (m_convert_dovi && unit_type == HEVC_NAL_UNSPEC63)
+        else if (m_convert_dovi != DOVIMode::MODE_NONE && unit_type == HEVC_NAL_UNSPEC63)
         {
           // Ignore the enhancement layer, may or may not help
           write_buf = false;
@@ -2046,7 +2046,7 @@ bool CBitstreamConverter::h264_sequence_header(const uint8_t *data, const uint32
 
 #ifdef HAVE_LIBDOVI
 // Processes Dolby Vision RPU
-//   - Converts to profile 8.1 if `m_convert_dovi` is enabled
+//   - Converts to set profile if `m_convert_dovi` is not mode MODE_NONE
 //   - Updates `m_dovi_el_type` according to the current header
 //   - Sets level 5 metadata to 0 offsets if `m_setDoviZeroLevel5` is enabled
 //
@@ -2080,9 +2080,9 @@ const DoviData* CBitstreamConverter::processDoviRpu(uint8_t* buf, uint32_t nalSi
       m_dovi_el_type = ELType::TYPE_MEL;
   }
 
-  if (m_convert_dovi && header->guessed_profile == 7)
+  if (m_convert_dovi != DOVIMode::MODE_NONE && header->guessed_profile == 7)
   {
-    ret = dovi_convert_rpu_with_mode(rpu, 2);
+    ret = dovi_convert_rpu_with_mode(rpu, m_convert_dovi);
     processed = true;
   }
 
