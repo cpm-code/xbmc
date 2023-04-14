@@ -645,6 +645,233 @@ std::string aml_get_drmDevice_modes(void)
   return modes;
 }
 
+int get_drmProp(int fd, unsigned int id, std::string name, unsigned int obj_type)
+{
+  int ret = -1;
+  unsigned int i;
+  drmModeObjectPropertiesPtr props = NULL;
+
+  props = drmModeObjectGetProperties(fd, id, obj_type);
+  if (!props)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get properties", __FUNCTION__);
+    return ret;
+  }
+
+  for(i = 0; i < props->count_props; i++)
+  {
+    drmModePropertyPtr prop = drmModeGetProperty(fd, props->props[i]);
+
+    if (!prop)
+      continue;
+
+    if (StringUtils::EqualsNoCase(prop->name, name))
+    {
+      ret = (int)props->prop_values[i];
+      CLog::Log(LOGDEBUG, "AMLUtils::{} - get property '{}', value: {:d}", __FUNCTION__, prop->name, ret);
+      drmModeFreeProperty(prop);
+      break;
+    }
+
+    drmModeFreeProperty(prop);
+  }
+
+  drmModeFreeObjectProperties(props);
+  return ret;
+}
+
+void set_drmProp(int fd, unsigned int id, std::string name, unsigned int obj_type, unsigned int value)
+{
+  unsigned int i;
+  drmModeObjectPropertiesPtr props = NULL;
+
+  props = drmModeObjectGetProperties(fd, id, obj_type);
+  if (!props)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get properties", __FUNCTION__);
+    return;
+  }
+
+  for(i = 0; i < props->count_props; i++)
+  {
+    drmModePropertyPtr prop = drmModeGetProperty(fd, props->props[i]);
+
+    if (!prop)
+      continue;
+
+    if (StringUtils::EqualsNoCase(prop->name, name))
+    {
+      if (drmModeObjectSetProperty(fd, id, obj_type, props->props[i], value))
+        CLog::Log(LOGERROR, "AMLUtils::{} - unable to set property '{}', value: {:d}", __FUNCTION__, prop->name, value);
+
+      CLog::Log(LOGDEBUG, "AMLUtils::{} - set property '{}', value: {:d}", __FUNCTION__, prop->name, value);
+      drmModeFreeProperty(prop);
+      break;
+    }
+
+    drmModeFreeProperty(prop);
+  }
+
+  drmModeFreeObjectProperties(props);
+}
+
+// set a property
+void aml_set_drmProperty(std::string name, unsigned int obj_type, unsigned int value)
+{
+  int fd = aml_get_drmDevice();
+  drmModeResPtr resources = NULL;
+  drmModeConnectorPtr connector = NULL;
+  drmModeEncoderPtr encoder = NULL;
+  drmModeCrtcPtr crtc = NULL;
+  unsigned int id;
+
+  if (fd < 0)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - could not get drmDevice", __FUNCTION__);
+    return;
+  }
+
+  resources = aml_get_drmDevice_resources(fd);
+  if (!resources)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get resources of drmDevice", __FUNCTION__);
+    close(fd);
+    return;
+  }
+
+  connector = aml_get_drmDevice_connector(fd, resources);
+  if (!connector)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    close(fd);
+    return;
+  }
+
+  encoder = aml_get_drmDevice_encoder(fd, resources, connector);
+  if (!encoder)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get encoder of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    drmModeFreeConnector(connector);
+    close(fd);
+    return;
+  }
+
+  crtc = aml_get_drmDevice_crtc(fd, resources, encoder);
+  if (!crtc)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get crtc of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    drmModeFreeConnector(connector);
+    drmModeFreeEncoder(encoder);
+    close(fd);
+    return;
+  }
+
+  switch (obj_type) {
+    case DRM_MODE_OBJECT_CRTC:
+      id = crtc->crtc_id;
+      break;
+    case DRM_MODE_OBJECT_CONNECTOR:
+      id = connector->connector_id;
+      break;
+    case DRM_MODE_OBJECT_ENCODER:
+      id = encoder->encoder_id;
+      break;
+    default:
+      return;
+  }
+
+  set_drmProp(fd, id, name, obj_type, value);
+
+  drmModeFreeResources(resources);
+  drmModeFreeConnector(connector);
+  drmModeFreeEncoder(encoder);
+  drmModeFreeCrtc(crtc);
+  close(fd);
+}
+
+// get a property
+int aml_get_drmProperty(std::string name, unsigned int obj_type)
+{
+  int ret = -1;
+  int fd = aml_get_drmDevice();
+  drmModeResPtr resources = NULL;
+  drmModeConnectorPtr connector = NULL;
+  drmModeEncoderPtr encoder = NULL;
+  drmModeCrtcPtr crtc = NULL;
+  unsigned int id;
+
+  if (fd < 0)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - could not get drmDevice", __FUNCTION__);
+    return ret;
+  }
+
+  resources = aml_get_drmDevice_resources(fd);
+  if (!resources)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get resources of drmDevice", __FUNCTION__);
+    close(fd);
+    return ret;
+  }
+
+  connector = aml_get_drmDevice_connector(fd, resources);
+  if (!connector)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    close(fd);
+    return ret;
+  }
+
+  encoder = aml_get_drmDevice_encoder(fd, resources, connector);
+  if (!encoder)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get encoder of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    drmModeFreeConnector(connector);
+    close(fd);
+    return ret;
+  }
+
+  crtc = aml_get_drmDevice_crtc(fd, resources, encoder);
+  if (!crtc)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get crtc of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    drmModeFreeConnector(connector);
+    drmModeFreeEncoder(encoder);
+    close(fd);
+    return ret;
+  }
+
+  switch (obj_type) {
+    case DRM_MODE_OBJECT_CRTC:
+      id = crtc->crtc_id;
+      break;
+    case DRM_MODE_OBJECT_CONNECTOR:
+      id = connector->connector_id;
+      break;
+    case DRM_MODE_OBJECT_ENCODER:
+      id = encoder->encoder_id;
+      break;
+    default:
+      return ret;
+  }
+
+  ret = get_drmProp(fd, id, name, obj_type);
+
+  drmModeFreeResources(resources);
+  drmModeFreeConnector(connector);
+  drmModeFreeEncoder(encoder);
+  drmModeFreeCrtc(crtc);
+  close(fd);
+
+  return ret;
+}
+
 // get current mode of drmDevice
 std::string aml_get_drmDevice_mode(void)
 {
