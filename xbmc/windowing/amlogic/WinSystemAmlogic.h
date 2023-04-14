@@ -40,6 +40,10 @@ public:
   bool Show(bool show = true) override;
   virtual void Register(IDispResource *resource);
   virtual void Unregister(IDispResource *resource);
+
+  static void SettingOptionsComponentsFiller(const std::shared_ptr<const CSetting>& setting,
+                                             std::vector<IntegerSettingOption>& list,
+                                             int& current);
 protected:
   std::string m_framebuffer_name;
   EGLDisplay m_nativeDisplay;
