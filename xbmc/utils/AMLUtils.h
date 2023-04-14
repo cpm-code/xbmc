@@ -88,3 +88,6 @@ void aml_set_framebuffer_resolution(unsigned int width, unsigned int height, std
 bool aml_has_capability_ignore_alpha();
 bool aml_set_reg_ignore_alpha();
 bool aml_unset_reg_ignore_alpha();
+
+void aml_set_drmProperty(std::string name, unsigned int obj_type, unsigned int value);
+int aml_get_drmProperty(std::string name, unsigned int obj_type);
