@@ -41,6 +41,15 @@ enum AML_SUPPORT_H264_4K2K
   AML_HAS_H264_4K2K_SAME_PROFILE
 };
 
+enum AML_DISPLAY_DV_LED
+{
+  AML_DV_TV_LED = 0,
+  AML_DV_PLAYER_LED
+};
+
+#define DV_RGB_444_8BIT     (int)(1<<3)
+#define LL_YCbCr_422_12BIT  (int)(1<<5)
+
 #define AML_GXBB    0x1F
 #define AML_GXL     0x21
 #define AML_GXM     0x22
@@ -49,6 +58,7 @@ enum AML_SUPPORT_H264_4K2K
 #define AML_SM1     0x2B
 
 int  aml_get_cpufamily_id();
+int aml_display_get_dv_cap();
 bool aml_support_hevc();
 bool aml_support_hevc_4k2k();
 bool aml_support_hevc_8k4k();

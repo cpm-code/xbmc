@@ -292,6 +292,8 @@ typedef struct hdr_buf {
     int size;
 } hdr_buf_t;
 
+#define FLAG_FORCE_DV_LL        (unsigned int)(0x4000)
+
 typedef struct am_packet {
     AVPacket      avpkt;
     uint64_t      avpts;
@@ -2004,6 +2006,16 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
   {
     // enable Dolby Vision
     CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", 1);
+
+    // force player led mode when enabled
+    CSysfsPath dolby_vision_flags{"/sys/module/amdolby_vision/parameters/dolby_vision_flags"};
+    if (dolby_vision_flags.Exists())
+    {
+      if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_LED) == AML_DV_PLAYER_LED)
+        dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() | FLAG_FORCE_DV_LL);
+      else
+        dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() & ~(FLAG_FORCE_DV_LL));
+    }
 
     am_private->gcodec.dv_enable = 1;
     if (hints.dovi.dv_profile == 7)

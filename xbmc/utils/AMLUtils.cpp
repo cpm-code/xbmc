@@ -56,6 +56,28 @@ int aml_get_cpufamily_id()
   return aml_cpufamily_id;
 }
 
+int aml_display_get_dv_cap()
+{
+  static int dv_cap = 0;
+
+  if (dv_cap == 0)
+  {
+    CRegExp regexp_dv_rgb, regexp_dv_ll;
+    regexp_dv_rgb.RegComp("DV_RGB_444_8BIT");
+    regexp_dv_ll.RegComp("LL_YCbCr_422_12BIT");
+    std::string valstr;
+    CSysfsPath dv_cap_sys{"/sys/devices/virtual/amhdmitx/amhdmitx0/dv_cap"};
+    if (dv_cap_sys.Exists())
+    {
+      valstr = dv_cap_sys.Get<std::string>().value();
+      dv_cap |= (regexp_dv_rgb.RegFind(valstr) >= 0) ? DV_RGB_444_8BIT : 0;
+      dv_cap |= (regexp_dv_ll.RegFind(valstr) >= 0) ? LL_YCbCr_422_12BIT : 0;
+    }
+  }
+
+  return dv_cap;
+}
+
 static bool aml_support_vcodec_profile(const char *regex)
 {
   int profile = 0;
