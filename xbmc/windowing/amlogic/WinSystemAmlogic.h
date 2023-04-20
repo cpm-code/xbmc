@@ -48,9 +48,6 @@ protected:
   EGLDisplay m_nativeDisplay;
   fbdev_window *m_nativeWindow;
 
-  int m_displayWidth;
-  int m_displayHeight;
-
   RenderStereoMode m_stereo_mode;
 
   bool m_delayDispReset;
@@ -59,5 +56,6 @@ protected:
   CCriticalSection m_resourceSection;
   std::vector<IDispResource*> m_resources;
   std::unique_ptr<CLibInputHandler> m_libinput;
-  CHDRCapabilities hdr_caps;
+  CHDRCapabilities m_hdr_caps;
+  bool m_force_mode_switch;
 };
