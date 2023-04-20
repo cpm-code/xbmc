@@ -8,12 +8,22 @@
 
 #include "VideoSyncAML.h"
 #include "WinSystemAmlogicGLESContext.h"
+#include "platform/linux/SysfsPath.h"
+#include "ServiceBroker.h"
+#include "utils/AMLUtils.h"
 #include "utils/log.h"
 #include "threads/SingleLock.h"
+#include "windowing/GraphicContext.h"
 #include "windowing/WindowSystemFactory.h"
 
 using namespace KODI;
 using namespace KODI::WINDOWING::AML;
+
+CWinSystemAmlogicGLESContext::CWinSystemAmlogicGLESContext()
+:  m_cs(-1)
+,  m_cd(-1)
+{
+}
 
 void CWinSystemAmlogicGLESContext::Register()
 {
@@ -69,7 +79,84 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
                                                bool fullScreen,
                                                RESOLUTION_INFO& res)
 {
-  m_pGLContext.DestroySurface();
+  RESOLUTION_INFO current_resolution;
+  current_resolution.iWidth = current_resolution.iHeight = 0;
+  const RenderStereoMode stereo_mode = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
+
+  // check for frac_rate_policy change
+  int fractional_rate = (res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1;
+  int cur_fractional_rate = fractional_rate;
+  if (aml_has_frac_rate_policy())
+  {
+    CSysfsPath amhdmitx0_frac_rate_policy{"/sys/class/amhdmitx/amhdmitx0/frac_rate_policy"};
+    cur_fractional_rate = amhdmitx0_frac_rate_policy.Get<int>().value();
+
+    if (cur_fractional_rate != fractional_rate)
+      amhdmitx0_frac_rate_policy.Set(fractional_rate);
+  }
+
+  // check for colour subsampling/depth change
+  CSysfsPath amhdmitx0_cs{"/sys/class/amhdmitx/amhdmitx0/cs"};
+  CSysfsPath amhdmitx0_cd{"/sys/class/amhdmitx/amhdmitx0/cd"};
+  int cs = 0;
+  int cd = 0;
+  if (amhdmitx0_cs.Exists() && amhdmitx0_cd.Exists())
+  {
+    cs = amhdmitx0_cs.Get<int>().value();
+    cd = amhdmitx0_cd.Get<int>().value();
+  }
+
+  // get current used resolution
+  if (!aml_get_native_resolution(&current_resolution))
+  {
+    CLog::Log(LOGERROR, "CWinSystemAmlogicGLESContext::{}: failed to receive current resolution", __FUNCTION__);
+    return false;
+  }
+
+  CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: "
+    "m_bWindowCreated: {}, "
+    "frac rate {:d}({:d}), "
+    "cs: {:d}({:d}), cd: {:d}({:d})",
+    __FUNCTION__,
+    m_bWindowCreated,
+    fractional_rate, cur_fractional_rate,
+    cs, m_cs, cd, m_cd);
+  CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: "
+    "cur: iWidth: {:04d}, iHeight: {:04d}, iScreenWidth: {:04d}, iScreenHeight: {:04d}, fRefreshRate: {:02.2f}, dwFlags: {:02x}",
+    __FUNCTION__,
+    current_resolution.iWidth, current_resolution.iHeight, current_resolution.iScreenWidth, current_resolution.iScreenHeight,
+    current_resolution.fRefreshRate, current_resolution.dwFlags);
+  CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: "
+    "res: iWidth: {:04d}, iHeight: {:04d}, iScreenWidth: {:04d}, iScreenHeight: {:04d}, fRefreshRate: {:02.2f}, dwFlags: {:02x}",
+    __FUNCTION__,
+    res.iWidth, res.iHeight, res.iScreenWidth, res.iScreenHeight, res.fRefreshRate, res.dwFlags);
+
+  // check if mode switch is needed
+  if (current_resolution.iWidth == res.iWidth && current_resolution.iHeight == res.iHeight &&
+      current_resolution.iScreenWidth == res.iScreenWidth && current_resolution.iScreenHeight == res.iScreenHeight &&
+      m_bFullScreen == fullScreen && current_resolution.fRefreshRate == res.fRefreshRate &&
+      (current_resolution.dwFlags & D3DPRESENTFLAG_MODEMASK) == (res.dwFlags & D3DPRESENTFLAG_MODEMASK) &&
+      m_stereo_mode == stereo_mode && m_bWindowCreated &&
+      ((m_cs != -1 && m_cd != -1) && (m_cs == cs && m_cd == cd)) &&
+      (fractional_rate == cur_fractional_rate))
+  {
+    CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: No need to create a new window", __FUNCTION__);
+    return true;
+  }
+
+  // destroy old window, then create a new one
+  DestroyWindow();
+
+  // check if a forced mode switch is required
+  if ((current_resolution.iWidth == res.iWidth && current_resolution.iHeight == res.iHeight &&
+       current_resolution.iScreenWidth == res.iScreenWidth && current_resolution.iScreenHeight == res.iScreenHeight &&
+       current_resolution.fRefreshRate == res.fRefreshRate) &&
+       (((m_cs != -1 && m_cd != -1) && (m_cs != cs || m_cd != cd)) ||
+       (fractional_rate != cur_fractional_rate)))
+  {
+    m_force_mode_switch = true;
+    CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: force mode switch", __FUNCTION__);
+  }
 
   if (!CWinSystemAmlogic::CreateNewWindow(name, fullScreen, res))
   {
@@ -93,6 +180,16 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
     for (std::vector<IDispResource *>::iterator i = m_resources.begin(); i != m_resources.end(); ++i)
       (*i)->OnResetDisplay();
   }
+
+  // backup data after mode switch
+  if (amhdmitx0_cs.Exists() && amhdmitx0_cd.Exists())
+  {
+    m_cs = amhdmitx0_cs.Get<int>().value();
+    m_cd = amhdmitx0_cd.Get<int>().value();
+  }
+
+  m_stereo_mode = stereo_mode;
+  m_bFullScreen = fullScreen;
 
   return true;
 }
