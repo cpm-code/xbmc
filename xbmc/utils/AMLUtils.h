@@ -58,6 +58,7 @@ enum AML_DISPLAY_DV_LED
 #define AML_SM1     0x2B
 
 int  aml_get_cpufamily_id();
+bool aml_display_support_dv();
 int aml_display_get_dv_cap();
 bool aml_support_hevc();
 bool aml_support_hevc_4k2k();

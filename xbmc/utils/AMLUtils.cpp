@@ -56,6 +56,26 @@ int aml_get_cpufamily_id()
   return aml_cpufamily_id;
 }
 
+bool aml_display_support_dv()
+{
+  static int support_dv = -1;
+
+  if (support_dv == -1)
+  {
+    CRegExp regexp;
+    regexp.RegComp("The Rx don't support DolbyVision");
+    std::string valstr;
+    CSysfsPath dv_cap{"/sys/devices/virtual/amhdmitx/amhdmitx0/dv_cap"};
+    if (dv_cap.Exists())
+    {
+      valstr = dv_cap.Get<std::string>().value();
+      support_dv = (regexp.RegFind(valstr) >= 0) ? 0 : 1;
+    }
+  }
+
+  return support_dv;
+}
+
 int aml_display_get_dv_cap()
 {
   static int dv_cap = 0;
