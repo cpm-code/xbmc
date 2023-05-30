@@ -24,10 +24,11 @@ enum IEC958_mode_codec {
   CODEC_CNT
 };
 
-// sound/soc/amlogic/auge/spdif_hw.h
+// sound/soc/amlogic/auge/card.h
 enum spdif_id {
-  SPDIF_A, SPDIF_B,
-  SPDIF_ID_CNT
+  HDMITX_SRC_SPDIF, HDMITX_SRC_SPDIF_B,
+  HDMITX_SRC_TDM_A, HDMITX_SRC_TDM_B, HDMITX_SRC_TDM_C,
+  HDMITX_SRC_NUM
 };
 
 class CAESinkALSA : public IAESink
