@@ -113,12 +113,15 @@ std::string AMLCodecToStr(const enum IEC958_mode_codec codec)
 
 std::string AMLSpdifIDToStr(enum spdif_id spdif_id)
 {
-  if (spdif_id < 0 || spdif_id >= SPDIF_ID_CNT)
+  if (spdif_id < 0 || spdif_id >= HDMITX_SRC_NUM)
     return "Spdif";
 
-  static const std::string spdif_id_str[SPDIF_ID_CNT] = {
+  static const std::string spdif_id_str[HDMITX_SRC_NUM] = {
     "Spdif",
-    "Spdif_b"
+    "Spdif_b",
+    "Tdm_A",
+    "Tdm_B",
+    "Tdm_C"
   };
 
   return spdif_id_str[spdif_id];
@@ -626,19 +629,19 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
         {
           // do set Spdif to HDMITX to SPDIF-A or SPDIF-B
           AEDeviceType devType = AEDeviceTypeFromName(device);
-          enum spdif_id spdif_id = SPDIF_ID_CNT;
+          enum spdif_id spdif_id = HDMITX_SRC_NUM;
 
           switch (devType) {
             case AE_DEVTYPE_HDMI:
-              spdif_id = SPDIF_B;
+              spdif_id = HDMITX_SRC_SPDIF_B;
               break;
             default:
-              spdif_id = SPDIF_A;
+              spdif_id = HDMITX_SRC_SPDIF;
               break;
           }
 
           CLog::Log(LOGINFO, "CAESinkALSA - Set Spdif to HDMITX to \"{}\"", AMLSpdifIDToStr(spdif_id).c_str());
-          snd_mixer_selem_id_set_name(sid, "Spdif to HDMITX Select");
+          snd_mixer_selem_id_set_name(sid, "HDMITX Audio Source Select");
           elem = snd_mixer_find_selem(handle, sid);
           if (!elem) {
             CLog::Log(LOGERROR, "CAESinkALSA - Unable to find simple control '{}',{:d}\n",
@@ -650,8 +653,8 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
           snd_mixer_selem_set_enum_item(elem, (snd_mixer_selem_channel_id_t)0, spdif_id);
 
           // set codec format for SPDIF-B
-          CLog::Log(LOGINFO, "CAESinkALSA - Set codec for \"{}\"", sid_names_fmt[SPDIF_B].c_str());
-          snd_mixer_selem_id_set_name(sid, sid_names_fmt[SPDIF_B].c_str());
+          CLog::Log(LOGINFO, "CAESinkALSA - Set codec for \"{}\"", sid_names_fmt[HDMITX_SRC_SPDIF_B].c_str());
+          snd_mixer_selem_id_set_name(sid, sid_names_fmt[HDMITX_SRC_SPDIF_B].c_str());
           elem = snd_mixer_find_selem(handle, sid);
           if (!elem) {
             CLog::Log(LOGERROR, "CAESinkALSA - Unable to find simple control '{}',{:d}\n",
@@ -666,8 +669,8 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
       default:
         {
           // set codec format for SPDIF-A
-          CLog::Log(LOGINFO, "CAESinkALSA - Set codec for \"{}\"", sid_names_fmt[SPDIF_A].c_str());
-          snd_mixer_selem_id_set_name(sid, sid_names_fmt[SPDIF_A].c_str());
+          CLog::Log(LOGINFO, "CAESinkALSA - Set codec for \"{}\"", sid_names_fmt[HDMITX_SRC_SPDIF].c_str());
+          snd_mixer_selem_id_set_name(sid, sid_names_fmt[HDMITX_SRC_SPDIF].c_str());
           elem = snd_mixer_find_selem(handle, sid);
           if (!elem) {
             CLog::Log(LOGERROR, "CAESinkALSA - Unable to find simple control '{}',{:d}\n",
