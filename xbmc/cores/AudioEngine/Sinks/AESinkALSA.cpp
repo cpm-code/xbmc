@@ -633,6 +633,7 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
 
           switch (devType) {
             case AE_DEVTYPE_HDMI:
+            case AE_DEVTYPE_PCM:
               spdif_id = HDMITX_SRC_SPDIF_B;
               break;
             default:
