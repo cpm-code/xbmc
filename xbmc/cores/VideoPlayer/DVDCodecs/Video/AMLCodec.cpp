@@ -586,7 +586,7 @@ void am_packet_release(am_packet_t *pkt)
       free(pkt->hdr->data), pkt->hdr->data = NULL;
     free(pkt->hdr), pkt->hdr = NULL;
   }
-
+  av_buffer_unref(&pkt->avpkt.buf);
   pkt->codec = NULL;
 }
 
