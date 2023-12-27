@@ -1814,6 +1814,8 @@ CAMLCodec::CAMLCodec(CProcessInfo &processInfo)
   , m_bufferIndex(-1)
   , m_state(0)
   , m_processInfo(processInfo)
+  , m_is_dv_p7_mel(false)
+  , m_dolby_vision_wait_delay(0)
 {
   am_private = new am_private_t();
   m_dll = new DllLibAmCodec;
@@ -2018,12 +2020,19 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
     }
 
     am_private->gcodec.dv_enable = 1;
-    if (hints.dovi.dv_profile == 7)
+    if (!m_is_dv_p7_mel && hints.dovi.dv_profile == 7)
     {
       CSysfsPath amdolby_vision_debug{"/sys/class/amdolby_vision/debug"};
       if (amdolby_vision_debug.Exists())
         amdolby_vision_debug.Set("enable_fel 1");
       am_private->gcodec.dec_mode  = STREAM_TYPE_STREAM;
+
+      CSysfsPath dolby_vision_wait_delay{"/sys/module/amdolby_vision/parameters/dolby_vision_wait_delay"};
+      if (dolby_vision_wait_delay.Exists())
+      {
+        m_dolby_vision_wait_delay = dolby_vision_wait_delay.Get<unsigned int>().value();
+        CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DoVi P7 MEL detection frame delay got set to {:d} frames", m_dolby_vision_wait_delay);
+      }
     }
   }
   else if (device_support_dv)
@@ -2637,6 +2646,21 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
 
     CLog::Log(LOGDEBUG, LOGVIDEO, "CAMLCodec::GetPicture: index: {:d}, pts: {:.3f}, dur:{:.3f}ms ar:{:.2f} elf:{:d}ms",
       m_bufferIndex, pVideoPicture->pts / DVD_TIME_BASE, pVideoPicture->iDuration / 1000, m_hints.aspect, elapsed_since_last_frame.count());
+
+    if (m_dolby_vision_wait_delay > 0 && !m_is_dv_p7_mel)
+    {
+      m_dolby_vision_wait_delay--;
+      CSysfsPath is_mel{"/sys/module/amdolby_vision/parameters/is_mel"};
+      if (is_mel.Exists())
+      {
+        if (is_mel.Get<char>().value() == 'Y')
+        {
+          CLog::Log(LOGDEBUG, LOGVIDEO, "CAMLCodec::GetPicture: DoVi P7 MEL content detected, request to reopen decoder");
+          m_is_dv_p7_mel = true;
+          return CDVDVideoCodec::VC_REOPEN;
+        }
+      }
+    }
 
     return CDVDVideoCodec::VC_PICTURE;
   }

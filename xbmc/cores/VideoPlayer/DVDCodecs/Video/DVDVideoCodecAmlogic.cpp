@@ -415,6 +415,12 @@ void CDVDVideoCodecAmlogic::Reset(void)
     m_bitstream->ResetStartDecode();
 }
 
+void CDVDVideoCodecAmlogic::Reopen(void)
+{
+  if (m_Codec && !m_Codec->OpenDecoder(m_hints))
+    CLog::Log(LOGERROR, "{}: Failed to reopen Amlogic Codec", __MODULE_NAME__);
+}
+
 CDVDVideoCodec::VCReturn CDVDVideoCodecAmlogic::GetPicture(VideoPicture* pVideoPicture)
 {
   if (!m_Codec)
@@ -422,7 +428,11 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecAmlogic::GetPicture(VideoPicture* pVideoP
 
   VCReturn retVal = m_Codec->GetPicture(&m_videobuffer);
 
-  if (retVal == VC_PICTURE)
+  if (retVal == VC_REOPEN)
+  {
+    m_Codec->CloseDecoder();
+  }
+  else if (retVal == VC_PICTURE)
   {
     pVideoPicture->SetParams(m_videobuffer);
 
