@@ -119,6 +119,13 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       if (m_hints.width <= CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_USEAMCODECMPEG2))
         goto FAIL;
 
+      switch(m_hints.profile)
+      {
+        case AV_PROFILE_MPEG2_422:
+          CLog::Log(LOGDEBUG, "{}: MPEG2 unsupported hints.profile({:d})", __MODULE_NAME__, m_hints.profile);
+          goto FAIL;
+      }
+
       // if we have SD PAL content assume it is widescreen
       // correct aspect ratio will be detected later anyway
       if ((m_hints.width == 720 || m_hints.width == 544 || m_hints.width == 480) && m_hints.height == 576 && m_hints.aspect == 0.0)
