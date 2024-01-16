@@ -184,8 +184,8 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
   // backup data after mode switch
   if (amhdmitx0_cs.Exists() && amhdmitx0_cd.Exists())
   {
-    m_cs = amhdmitx0_cs.Get<int>().value();
-    m_cd = amhdmitx0_cd.Get<int>().value();
+    m_cs = cs;
+    m_cd = cd;
   }
 
   m_stereo_mode = stereo_mode;
