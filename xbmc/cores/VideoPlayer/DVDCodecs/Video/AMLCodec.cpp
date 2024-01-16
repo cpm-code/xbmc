@@ -2634,7 +2634,7 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
   if (!m_opened)
     return CDVDVideoCodec::VC_ERROR;
 
-  if ((!m_drain && buffer_level > 1.0f) && (ret = DequeueBuffer()) == 0)
+  if ((!m_drain && buffer_level > 5.0f) && (ret = DequeueBuffer()) == 0)
   {
     pVideoPicture->iFlags = 0;
     m_tp_last_frame = std::chrono::system_clock::now();
@@ -2675,7 +2675,7 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
   }
   else if (m_drain)
     return CDVDVideoCodec::VC_EOF;
-  else if (buffer_level > 2.0f)
+  else if (buffer_level > 10.0f)
     return CDVDVideoCodec::VC_NONE;
   else if (ret != EAGAIN || elapsed_since_last_frame > std::chrono::seconds(m_decoder_timeout))
   {
