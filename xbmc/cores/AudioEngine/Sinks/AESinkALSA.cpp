@@ -572,8 +572,11 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
 {
   int err;
   std::string sid_names_fmt[] = {
-    "Audio spdif format",   // set SPDIF-A IEC958_mode_codec
-    "Audio spdif_b format"  // set SPDIF-B codec format
+    "Audio spdif format",          // set SPDIF-A IEC958_mode_codec
+    "Audio spdif_b format",        // set SPDIF-B codec format
+    "",
+    "",
+    "Audio I2S to HDMITX Format"  // set TDM-C codec format
   };
 
   int cardNr = 0;
@@ -630,11 +633,27 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
           // do set Spdif to HDMITX to SPDIF-A or SPDIF-B
           AEDeviceType devType = AEDeviceTypeFromName(device);
           enum spdif_id spdif_id = HDMITX_SRC_NUM;
+          int soc_id = aml_get_cpufamily_id();
 
           switch (devType) {
             case AE_DEVTYPE_HDMI:
             case AE_DEVTYPE_PCM:
-              spdif_id = HDMITX_SRC_SPDIF_B;
+              switch (soc_id) {
+                case AML_T7:
+                  switch (codec) {
+                    case TRUEHD:
+                    case _DTS_HD_MA:
+                      spdif_id = HDMITX_SRC_TDM_C;
+                      break;
+                    default:
+                      spdif_id = HDMITX_SRC_SPDIF_B;
+                      break;
+                  }
+                  break;
+                default:
+                  spdif_id = HDMITX_SRC_SPDIF_B;
+                  break;
+              }
               break;
             default:
               spdif_id = HDMITX_SRC_SPDIF;
@@ -656,6 +675,19 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
           // set codec format for SPDIF-B
           CLog::Log(LOGINFO, "CAESinkALSA - Set codec for \"{}\"", sid_names_fmt[HDMITX_SRC_SPDIF_B].c_str());
           snd_mixer_selem_id_set_name(sid, sid_names_fmt[HDMITX_SRC_SPDIF_B].c_str());
+          elem = snd_mixer_find_selem(handle, sid);
+          if (!elem) {
+            CLog::Log(LOGERROR, "CAESinkALSA - Unable to find simple control '{}',{:d}\n",
+              snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
+            snd_mixer_close(handle);
+            return;
+          }
+
+          snd_mixer_selem_set_enum_item(elem, (snd_mixer_selem_channel_id_t)0, codec);
+
+          // set codec format for I2S to HDMITX
+          CLog::Log(LOGINFO, "CAESinkALSA - Set codec for \"{}\"", sid_names_fmt[HDMITX_SRC_TDM_C].c_str());
+          snd_mixer_selem_id_set_name(sid, sid_names_fmt[HDMITX_SRC_TDM_C].c_str());
           elem = snd_mixer_find_selem(handle, sid);
           if (!elem) {
             CLog::Log(LOGERROR, "CAESinkALSA - Unable to find simple control '{}',{:d}\n",
