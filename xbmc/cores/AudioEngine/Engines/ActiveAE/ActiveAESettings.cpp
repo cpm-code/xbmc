@@ -176,6 +176,11 @@ void CActiveAESettings::SettingOptionsAudioDevicesFillerGeneral(
   {
     for (AEDeviceList::const_iterator sink = sinkList.begin(); sink != sinkList.end(); ++sink)
     {
+      // filter L-PCM device when passthrough on Amlogic T7
+      if (passthrough && aml_get_cpufamily_id() == AML_T7 &&
+          StringUtils::StartsWith(sink->second, "ALSA:surround71"))
+        continue;
+
       if (sink == sinkList.begin())
         firstDevice = sink->second;
 
