@@ -263,11 +263,6 @@ bool aml_video_started()
   return (StringUtils::EqualsNoCase(videostarted.Get<std::string>().value(), "0x1"));
 }
 
-void aml_set_audio_passthrough(bool passthrough)
-{
-  CSysfsPath("/sys/class/audiodsp/digital_raw", (passthrough ? 2 : 0));
-}
-
 void aml_set_3d_video_mode(unsigned int mode, bool framepacking_support, int view_mode)
 {
   int fd;

@@ -75,7 +75,6 @@ bool aml_support_dolby_vision();
 bool aml_dolby_vision_enabled();
 bool aml_has_frac_rate_policy();
 bool aml_video_started();
-void aml_set_audio_passthrough(bool passthrough);
 void aml_set_3d_video_mode(unsigned int mode, bool framepacking_support, int view_mode);
 bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res);
 bool aml_get_native_resolution(RESOLUTION_INFO *res);

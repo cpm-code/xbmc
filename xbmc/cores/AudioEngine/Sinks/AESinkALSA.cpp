@@ -775,7 +775,6 @@ bool CAESinkALSA::Initialize(AEAudioFormat &format, std::string &device)
       }
     }
 
-    aml_set_audio_passthrough(m_passthrough);
     aml_configure_simple_control(device, codec);
   }
 
