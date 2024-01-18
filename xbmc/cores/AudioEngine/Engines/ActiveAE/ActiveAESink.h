@@ -16,6 +16,8 @@
 #include "threads/SystemClock.h"
 #include "threads/Thread.h"
 #include "utils/ActorProtocol.h"
+#include "utils/AMLUtils.h"
+#include "utils/StringUtils.h"
 
 #include <memory>
 #include <utility>

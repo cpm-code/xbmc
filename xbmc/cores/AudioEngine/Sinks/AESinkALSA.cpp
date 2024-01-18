@@ -1607,9 +1607,10 @@ void CAESinkALSA::EnumerateDevicesEx(AEDeviceInfoList &list, bool force)
 
 AEDeviceType CAESinkALSA::AEDeviceTypeFromName(const std::string &name)
 {
-  if (name.substr(0, 4) == "hdmi")
+  if (name.substr(0, name.find(':')) == "hdmi" ||
+     (aml_get_cpufamily_id() == AML_T7 && name.substr(0, name.find(':')) == "surround71"))
     return AE_DEVTYPE_HDMI;
-  else if (name.substr(0, 6) == "iec958" || name.substr(0, 5) == "spdif")
+  else if (name.substr(0, name.find(':')) == "iec958" || name.substr(0, name.find(':')) == "spdif")
     return AE_DEVTYPE_IEC958;
 
   return AE_DEVTYPE_PCM;
@@ -1870,25 +1871,54 @@ void CAESinkALSA::EnumerateDevice(AEDeviceInfoList &list, const std::string &dev
       info.m_displayNameExtra = "S/PDIF";
     else if (info.m_deviceType != AE_DEVTYPE_HDMI)
     {
-      if (device.substr(0, 10) == "surround71")
+      if (device.substr(0, device.find(':')) == "surround71")
         info.m_displayNameExtra = "HDMI Multi Ch PCM";
       else
         info.m_displayNameExtra = "PCM";
     }
+    else if (aml_get_cpufamily_id() == AML_T7 && info.m_deviceType == AE_DEVTYPE_HDMI)
+    {
+      if (device.substr(0, device.find(':')) == "surround71")
+        info.m_displayNameExtra = "HDMI Multi Ch PCM";
+    }
   }
 
+  // we don't trust ELD information and push back our supported formats explicitly
   if (info.m_deviceType == AE_DEVTYPE_HDMI)
   {
-    // we don't trust ELD information and push back our supported formats explicitly
-    info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_AC3);
-    info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD);
-    info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
-    info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_CORE);
-    info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_1024);
-    info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_2048);
-    info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_512);
-    info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_EAC3);
-    info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_TRUEHD);
+    switch (aml_get_cpufamily_id())
+    {
+      case AML_T7:
+        {
+          if (device.substr(0, device.find(':')) == "surround71")
+          {
+            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
+            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_TRUEHD);
+          }
+          else
+          {
+            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_AC3);
+            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD);
+            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_CORE);
+            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_1024);
+            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_2048);
+            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_512);
+            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_EAC3);
+          }
+          break;
+        }
+      default:
+        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_AC3);
+        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD);
+        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
+        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_CORE);
+        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_1024);
+        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_2048);
+        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_512);
+        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_EAC3);
+        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_TRUEHD);
+        break;
+    }
 
     // indicate that we can do AE_FMT_RAW
     info.m_dataFormats.push_back(AE_FMT_RAW);
