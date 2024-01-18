@@ -777,7 +777,7 @@ void CActiveAE::StateMachine(int signal, Protocol *port, Message *msg)
           if(stream)
           {
             msg->Reply(CActiveAEDataProtocol::ACC, &stream, sizeof(CActiveAEStream*));
-            LoadSettings();
+            LoadSettings(&streamMsg->format);
             Configure();
             if (!m_extError)
             {
@@ -2715,12 +2715,36 @@ void CActiveAE::Deamplify(CSoundPacket &dstSample)
 // Configuration
 //-----------------------------------------------------------------------------
 
-void CActiveAE::LoadSettings()
+void CActiveAE::LoadSettings(AEAudioFormat *format)
 {
   const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
 
   m_settings.device = settings->GetString(CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE);
   m_settings.passthroughdevice = settings->GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE);
+
+  switch (aml_get_cpufamily_id())
+  {
+    case AML_T7:
+      {
+        // find on NEWSTREAM the matching passthrough device by device type
+        if (format != NULL)
+        {
+          std::string device(m_settings.passthroughdevice);
+          if (SupportsFormat(*format, &device))
+          {
+            if (device != m_settings.passthroughdevice)
+            {
+              CLog::LogF(LOGINFO, "Change temporary passthrough output device because of Amlogic SoC '{}', stream type: {:d}",
+                 aml_get_cpufamily_name(), format->m_streamInfo.m_type);
+              m_settings.passthroughdevice = device;
+            }
+          }
+        }
+        break;
+      }
+    default:
+      break;
+  }
 
   m_settings.config = settings->GetInt(CSettings::SETTING_AUDIOOUTPUT_CONFIG);
   m_settings.channels = (m_sink.GetDeviceType(m_settings.device) == AE_DEVTYPE_IEC958) ? AE_CH_LAYOUT_2_0 : settings->GetInt(CSettings::SETTING_AUDIOOUTPUT_CHANNELS);
