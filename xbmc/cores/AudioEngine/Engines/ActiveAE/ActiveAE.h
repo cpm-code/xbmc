@@ -259,6 +259,7 @@ public:
   IAE::SoundPtr MakeSound(const std::string& file) override;
 
   void EnumerateOutputDevices(AEDeviceList &devices, bool passthrough) override;
+  bool SupportsFormat(AEAudioFormat &format, std::string *device = NULL);
   bool SupportsRaw(AEAudioFormat &format) override;
   bool SupportsSilenceTimeout() override;
   bool UsesDtsCoreFallback() override;
