@@ -2818,6 +2818,30 @@ void CActiveAE::OnSettingsChange()
   m_controlPort.SendOutMessage(CActiveAEControlProtocol::RECONFIGURE);
 }
 
+bool CActiveAE::SupportsFormat(AEAudioFormat &format, std::string *device)
+{
+  AEDeviceList devices;
+  AEDeviceType pt_device_type =
+    m_sink.GetDeviceType(CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE));
+
+  m_sink.EnumerateOutputDevices(devices, true);
+
+  for (AEDeviceList::const_iterator sink = devices.begin(); sink != devices.end(); ++sink)
+  {
+    if (m_sink.GetDeviceType(sink->second) == pt_device_type)
+    {
+      if (m_sink.SupportsFormat(sink->second, format))
+      {
+        if (device != NULL)
+          *device = static_cast<std::string>(sink->second);
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 bool CActiveAE::SupportsRaw(AEAudioFormat &format)
 {
   // check if passthrough is enabled
@@ -2848,7 +2872,7 @@ bool CActiveAE::SupportsRaw(AEAudioFormat &format)
   if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA && !m_settings.dtshdpassthrough)
     return false;
 
-  if (!m_sink.SupportsFormat(CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE), format))
+  if (!SupportsFormat(format))
     return false;
 
   return true;
@@ -2916,7 +2940,7 @@ bool CActiveAE::IsSettingVisible(const std::string &settingId)
     format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_DTS_512;
     format.m_sampleRate = 48000;
     const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-    if (m_sink.SupportsFormat(settings->GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE), format) &&
+    if (SupportsFormat(format) &&
         settings->GetInt(CSettings::SETTING_AUDIOOUTPUT_CONFIG) != AE_CONFIG_FIXED)
       return true;
   }
@@ -2927,7 +2951,7 @@ bool CActiveAE::IsSettingVisible(const std::string &settingId)
     format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_TRUEHD;
     format.m_streamInfo.m_sampleRate = 192000;
     const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-    if (m_sink.SupportsFormat(settings->GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE), format) &&
+    if (SupportsFormat(format) &&
         settings->GetInt(CSettings::SETTING_AUDIOOUTPUT_CONFIG) != AE_CONFIG_FIXED)
       return true;
   }
@@ -2937,7 +2961,7 @@ bool CActiveAE::IsSettingVisible(const std::string &settingId)
     format.m_dataFormat = AE_FMT_RAW;
     format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_DTSHD;
     const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-    if (m_sink.SupportsFormat(settings->GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE), format) &&
+    if (SupportsFormat(format) &&
         settings->GetInt(CSettings::SETTING_AUDIOOUTPUT_CONFIG) != AE_CONFIG_FIXED)
       return true;
   }
@@ -2947,7 +2971,7 @@ bool CActiveAE::IsSettingVisible(const std::string &settingId)
     format.m_dataFormat = AE_FMT_RAW;
     format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_EAC3;
     const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-    if (m_sink.SupportsFormat(settings->GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE), format) &&
+    if (SupportsFormat(format) &&
         settings->GetInt(CSettings::SETTING_AUDIOOUTPUT_CONFIG) != AE_CONFIG_FIXED)
       return true;
   }
