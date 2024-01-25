@@ -409,6 +409,13 @@ bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
       height = 2160;
       *smode = 'p';
     }
+    else if (StringUtils::EqualsNoCase(fromMode, "dummy_l"))
+    {
+      width = 1920;
+      height = 1080;
+      rrate = 60;
+      *smode = 'p';
+    }
     else
     {
       return false;
@@ -509,7 +516,7 @@ drmModeResPtr aml_get_drmDevice_resources(int fd)
 }
 
 // get connector of drmDevice
-drmModeConnectorPtr aml_get_drmDevice_connector(int fd, drmModeResPtr resources)
+drmModeConnectorPtr aml_get_drmDevice_connector(int fd, drmModeResPtr resources, drmModeConnection *connection)
 {
   drmModeConnectorPtr connector = NULL;
 
@@ -528,13 +535,12 @@ drmModeConnectorPtr aml_get_drmDevice_connector(int fd, drmModeResPtr resources)
     if (connector == NULL)
       continue;
 
-    if (connector->connection == DRM_MODE_CONNECTED)
+    // connector state as always connected but encoder_id == 0 if not connected
+    if (connection)
+      *connection = (connector->encoder_id ? DRM_MODE_CONNECTED : DRM_MODE_DISCONNECTED);
+
+    if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
       break;
-    else
-    {
-      drmModeFreeConnector(connector);
-      connector = NULL;
-    }
   }
 
   return connector;
@@ -594,6 +600,47 @@ drmModeCrtcPtr aml_get_drmDevice_crtc(int fd, drmModeResPtr resources, drmModeEn
   return crtc;
 }
 
+// get modes count and status if current device is connected
+int aml_get_drmDevice_modes_count(drmModeConnection *connection)
+{
+  int mode_count = 0;
+  int fd = aml_get_drmDevice();
+  drmModeResPtr resources = NULL;
+  drmModeConnectorPtr connector = NULL;
+
+  if (fd < 0)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - could not get drmDevice", __FUNCTION__);
+    return mode_count;
+  }
+
+  resources = aml_get_drmDevice_resources(fd);
+  if (!resources)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get resources of drmDevice", __FUNCTION__);
+    close(fd);
+    return mode_count;
+  }
+
+  connector = aml_get_drmDevice_connector(fd, resources, connection);
+  if (!connector)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    close(fd);
+    return mode_count;
+  }
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - connector have {:d} modes", __FUNCTION__, connector->count_modes);
+  mode_count = connector->count_modes;
+
+  drmModeFreeResources(resources);
+  drmModeFreeConnector(connector);
+  close(fd);
+
+  return mode_count;
+}
+
 // get all modes of current connected device
 std::string aml_get_drmDevice_modes(void)
 {
@@ -616,7 +663,7 @@ std::string aml_get_drmDevice_modes(void)
     return modes;
   }
 
-  connector = aml_get_drmDevice_connector(fd, resources);
+  connector = aml_get_drmDevice_connector(fd, resources, NULL);
   if (!connector)
   {
     CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
@@ -675,9 +722,10 @@ int get_drmProp(int fd, unsigned int id, std::string name, unsigned int obj_type
   return ret;
 }
 
-void set_drmProp(int fd, unsigned int id, std::string name, unsigned int obj_type, unsigned int value)
+void set_drmProp(int fd, unsigned int id, std::string name, unsigned int obj_type, unsigned int value, drmModeAtomicReqPtr req)
 {
   unsigned int i;
+  int res;
   drmModeObjectPropertiesPtr props = NULL;
 
   props = drmModeObjectGetProperties(fd, id, obj_type);
@@ -696,8 +744,16 @@ void set_drmProp(int fd, unsigned int id, std::string name, unsigned int obj_typ
 
     if (StringUtils::EqualsNoCase(prop->name, name))
     {
-      if (drmModeObjectSetProperty(fd, id, obj_type, props->props[i], value))
-        CLog::Log(LOGERROR, "AMLUtils::{} - unable to set property '{}', value: {:d}", __FUNCTION__, prop->name, value);
+      if (req == NULL)
+      {
+        if ((res = drmModeObjectSetProperty(fd, id, obj_type, props->props[i], value)) != 0)
+          CLog::Log(LOGERROR, "AMLUtils::{} - unable to set property '{}', value: {:d}, res: {:d}", __FUNCTION__, prop->name, value, res);
+      }
+      else
+      {
+        if ((res = drmModeAtomicAddProperty(req, id, props->props[i], value)) < 0)
+          CLog::Log(LOGERROR, "AMLUtils::{} - unable to add property '{}', value: {:d}, res: {:d}", __FUNCTION__, prop->name, value, res);
+      }
 
       CLog::Log(LOGDEBUG, "AMLUtils::{} - set property '{}', value: {:d}", __FUNCTION__, prop->name, value);
       drmModeFreeProperty(prop);
@@ -719,6 +775,7 @@ void aml_set_drmProperty(std::string name, unsigned int obj_type, unsigned int v
   drmModeEncoderPtr encoder = NULL;
   drmModeCrtcPtr crtc = NULL;
   unsigned int id;
+  drmModeConnection connection;
 
   if (fd < 0)
   {
@@ -734,11 +791,20 @@ void aml_set_drmProperty(std::string name, unsigned int obj_type, unsigned int v
     return;
   }
 
-  connector = aml_get_drmDevice_connector(fd, resources);
+  connector = aml_get_drmDevice_connector(fd, resources, &connection);
   if (!connector)
   {
     CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
     drmModeFreeResources(resources);
+    close(fd);
+    return;
+  }
+
+  if (connection != DRM_MODE_CONNECTED)
+  {
+    CLog::Log(LOGWARNING, "AMLUtils::{} - connector of drmDevice is not connected", __FUNCTION__);
+    drmModeFreeResources(resources);
+    drmModeFreeConnector(connector);
     close(fd);
     return;
   }
@@ -778,7 +844,7 @@ void aml_set_drmProperty(std::string name, unsigned int obj_type, unsigned int v
       return;
   }
 
-  set_drmProp(fd, id, name, obj_type, value);
+  set_drmProp(fd, id, name, obj_type, value, NULL);
 
   drmModeFreeResources(resources);
   drmModeFreeConnector(connector);
@@ -797,6 +863,7 @@ int aml_get_drmProperty(std::string name, unsigned int obj_type)
   drmModeEncoderPtr encoder = NULL;
   drmModeCrtcPtr crtc = NULL;
   unsigned int id;
+  drmModeConnection connection;
 
   if (fd < 0)
   {
@@ -812,13 +879,30 @@ int aml_get_drmProperty(std::string name, unsigned int obj_type)
     return ret;
   }
 
-  connector = aml_get_drmDevice_connector(fd, resources);
+  connector = aml_get_drmDevice_connector(fd, resources, &connection);
   if (!connector)
   {
     CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
     drmModeFreeResources(resources);
     close(fd);
     return ret;
+  }
+
+  if (connection != DRM_MODE_CONNECTED)
+  {
+    CLog::Log(LOGWARNING, "AMLUtils::{} - connector of drmDevice is not connected", __FUNCTION__);
+
+    switch (obj_type) {
+      case DRM_MODE_OBJECT_CONNECTOR:
+        id = connector->connector_id;
+        ret = get_drmProp(fd, id, name, obj_type);
+        [[fallthrough]];
+      default:
+        drmModeFreeResources(resources);
+        drmModeFreeConnector(connector);
+        close(fd);
+        return ret;
+    }
   }
 
   encoder = aml_get_drmDevice_encoder(fd, resources, connector);
@@ -876,6 +960,8 @@ std::string aml_get_drmDevice_mode(void)
   drmModeEncoderPtr encoder = NULL;
   drmModeCrtcPtr crtc = NULL;
   std::string mode = "";
+  std::string default_mode = "dummy_l";
+  drmModeConnection connection;
 
   if (fd < 0)
   {
@@ -891,11 +977,21 @@ std::string aml_get_drmDevice_mode(void)
     return mode;
   }
 
-  connector = aml_get_drmDevice_connector(fd, resources);
+  connector = aml_get_drmDevice_connector(fd, resources, &connection);
   if (!connector)
   {
     CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
     drmModeFreeResources(resources);
+    close(fd);
+    return mode;
+  }
+
+  if (connection != DRM_MODE_CONNECTED)
+  {
+    mode.assign(default_mode);
+    CLog::Log(LOGWARNING, "AMLUtils::{} - connector of drmDevice is not connected, use default mode '{}'", __FUNCTION__, mode);
+    drmModeFreeResources(resources);
+    drmModeFreeConnector(connector);
     close(fd);
     return mode;
   }
@@ -934,6 +1030,191 @@ std::string aml_get_drmDevice_mode(void)
   return mode;
 }
 
+// get preferred mode of drmDevice
+std::string aml_get_drmDevice_preferred_mode(void)
+{
+  std::string mode, modes = "";
+  int fd = aml_get_drmDevice();
+  drmModeResPtr resources = NULL;
+  drmModeConnectorPtr connector = NULL;
+
+  if (fd < 0)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - could not get drmDevice", __FUNCTION__);
+    return modes;
+  }
+
+  resources = aml_get_drmDevice_resources(fd);
+  if (!resources)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get resources of drmDevice", __FUNCTION__);
+    close(fd);
+    return modes;
+  }
+
+  connector = aml_get_drmDevice_connector(fd, resources, NULL);
+  if (!connector)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    close(fd);
+    return modes;
+  }
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - connector have {:d} modes", __FUNCTION__, connector->count_modes);
+  for (int i = 0; i < connector->count_modes; i++)
+  {
+    if (connector->modes[i].type & DRM_MODE_TYPE_PREFERRED)
+    {
+      mode.assign(connector->modes[i].name);
+      break;
+    }
+  }
+
+  drmModeFreeResources(resources);
+  drmModeFreeConnector(connector);
+  close(fd);
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - preferred mode: {}", __FUNCTION__, mode);
+
+  return mode;
+}
+
+std::string aml_get_preferred_mode(void)
+{
+  std::string mode = "";
+
+  CSysfsPath cmdline{"/proc/cmdline"};
+  if (cmdline.Exists())
+  {
+    std::vector<std::string> cmdlinestr = StringUtils::Split(cmdline.Get<std::string>().value(), " ");
+
+    for (std::vector<std::string>::const_iterator item = cmdlinestr.end(); item != cmdlinestr.begin(); --item)
+    {
+      std::vector<std::string> itemstr = StringUtils::Split(*item, "=");
+      if (itemstr.size() == 2)
+      {
+        std::string key = itemstr.front();
+        std::string value = itemstr.back();
+        if (StringUtils::EqualsNoCase(key, "vout"))
+        {
+          std::vector<std::string> vout = StringUtils::Split(value, ",");
+          if (vout.size() > 0)
+          {
+            mode.assign(vout.front());
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (mode.empty())
+    mode = aml_get_drmDevice_preferred_mode();
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - preferred mode: {}", __FUNCTION__, mode);
+
+  return mode;
+}
+
+bool aml_set_hotplug_mode(std::string mode)
+{
+  std::string current_mode = aml_get_drmDevice_mode();
+  bool ret = false;
+  int res;
+
+  int fd = aml_get_drmDevice();
+  drmModeResPtr resources = NULL;
+  drmModeConnectorPtr connector = NULL;
+  drmModeCrtcPtr crtc = NULL;
+  drmModeModeInfoPtr drmDevicemode = NULL;
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - current mode: {}, new mode: {}", __FUNCTION__,
+    current_mode, mode);
+
+  if (fd < 0)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - could not get drmDevice", __FUNCTION__);
+    return ret;
+  }
+
+  if (StringUtils::EqualsNoCase(current_mode, mode))
+  {
+    CLog::Log(LOGDEBUG, "AMLUtils::{} - hotplug mode already changed: {}", __FUNCTION__, mode);
+    ret = true;
+    close(fd);
+    return ret;
+  }
+
+  res = drmSetClientCap(fd, DRM_CLIENT_CAP_ATOMIC, 1);
+  if (res)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to set client cap of drmDevice ({:d})", __FUNCTION__, res);
+    close(fd);
+    return ret;
+  }
+
+  resources = aml_get_drmDevice_resources(fd);
+  if (!resources)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get resources of drmDevice", __FUNCTION__);
+    close(fd);
+    return ret;
+  }
+
+  connector = aml_get_drmDevice_connector(fd, resources, NULL);
+  if (!connector)
+  {
+    CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
+    drmModeFreeResources(resources);
+    close(fd);
+    return ret;
+  }
+
+  for (int i = 0; i < connector->count_modes; i++)
+  {
+    std::string connector_mode = static_cast<std::string>(connector->modes[i].name);
+    if (StringUtils::EqualsNoCase(connector_mode, mode))
+    {
+      CLog::Log(LOGDEBUG, "AMLUtils::{} - use mode[{:d}]: {}", __FUNCTION__, i, connector_mode);
+      drmDevicemode = &connector->modes[i];
+      break;
+    }
+  }
+
+  if (drmDevicemode != NULL)
+  {
+    uint32_t mode_blobid = 0;
+    drmModeAtomicReqPtr req = drmModeAtomicAlloc();
+
+    if (req)
+    {
+      crtc = drmModeGetCrtc(fd, resources->crtcs[0]);
+
+      set_drmProp(fd, connector->connector_id, "CRTC_ID", DRM_MODE_OBJECT_CONNECTOR, crtc->crtc_id, req);
+
+      drmModeCreatePropertyBlob(fd, drmDevicemode, sizeof(*drmDevicemode), &mode_blobid);
+
+      set_drmProp(fd, crtc->crtc_id, "MODE_ID", DRM_MODE_OBJECT_CRTC, mode_blobid, req);
+      set_drmProp(fd, crtc->crtc_id, "ACTIVE", DRM_MODE_OBJECT_CRTC, 1, req);
+
+      ret = drmModeAtomicCommit(fd, req, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
+      if (ret)
+        CLog::Log(LOGDEBUG, "AMLUtils::{} - failed to set drmDevice mode: {}", __FUNCTION__, drmDevicemode->name);
+
+      drmModeAtomicFree(req);
+    }
+  }
+
+  drmModeFreeResources(resources);
+  drmModeFreeConnector(connector);
+  close(fd);
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - reset of drmDevice finished", __FUNCTION__);
+
+  return ret;
+}
+
 bool aml_set_drmDevice_mode(unsigned int width, unsigned int height, std::string mode,
   bool force_mode_switch)
 {
@@ -945,6 +1226,7 @@ bool aml_set_drmDevice_mode(unsigned int width, unsigned int height, std::string
   drmModeConnectorPtr connector = NULL;
   drmModeEncoderPtr encoder = NULL;
   drmModeCrtcPtr crtc = NULL;
+  drmModeConnection connection;
 
   CLog::Log(LOGDEBUG, "AMLUtils::{} - current mode: {}, new mode: {}", __FUNCTION__,
     current_mode, mode);
@@ -963,11 +1245,21 @@ bool aml_set_drmDevice_mode(unsigned int width, unsigned int height, std::string
     return ret;
   }
 
-  connector = aml_get_drmDevice_connector(fd, resources);
+  connector = aml_get_drmDevice_connector(fd, resources, &connection);
   if (!connector)
   {
     CLog::Log(LOGERROR, "AMLUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
     drmModeFreeResources(resources);
+    close(fd);
+    return ret;
+  }
+
+  if (connection != DRM_MODE_CONNECTED)
+  {
+    CLog::Log(LOGWARNING, "AMLUtils::{} - connector of drmDevice is not connected", __FUNCTION__);
+    ret = true;
+    drmModeFreeResources(resources);
+    drmModeFreeConnector(connector);
     close(fd);
     return ret;
   }
@@ -1094,21 +1386,27 @@ bool aml_probe_resolutions(std::vector<RESOLUTION_INFO> &resolutions)
     if (((StringUtils::StartsWith(i->c_str(), "4k2k")) && (aml_support_h264_4k2k() > AML_NO_H264_4K2K)) || !(StringUtils::StartsWith(i->c_str(), "4k2k")))
     {
       if (aml_mode_to_resolution(i->c_str(), &res))
-        resolutions.push_back(res);
-
-      if (aml_has_frac_rate_policy())
       {
-        // Add fractional frame rates: 23.976, 29.97 and 59.94 Hz
-        switch ((int)res.fRefreshRate)
+        // skip 'dummy_l' resolution when HDMI is connected
+        if (StringUtils::EqualsNoCase(i->c_str(), "dummy_l") && resolutions.size() > 0)
+          continue;
+        else
+          resolutions.push_back(res);
+
+        if (aml_has_frac_rate_policy())
         {
-          case 24:
-          case 30:
-          case 60:
-            res.fRefreshRate /= 1.001f;
-            res.strMode       = StringUtils::Format("{:d}x{:d} @ {:.2f}{} - Full Screen", res.iScreenWidth, res.iScreenHeight, res.fRefreshRate,
-              res.dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "");
-            resolutions.push_back(res);
-            break;
+          // Add fractional frame rates: 23.976, 29.97 and 59.94 Hz
+          switch ((int)res.fRefreshRate)
+          {
+            case 24:
+            case 30:
+            case 60:
+              res.fRefreshRate /= 1.001f;
+              res.strMode       = StringUtils::Format("{:d}x{:d} @ {:.2f}{} - Full Screen", res.iScreenWidth, res.iScreenHeight, res.fRefreshRate,
+                res.dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "");
+              resolutions.push_back(res);
+              break;
+          }
         }
       }
     }

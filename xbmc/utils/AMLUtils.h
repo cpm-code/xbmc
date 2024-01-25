@@ -94,3 +94,7 @@ bool aml_unset_reg_ignore_alpha();
 
 void aml_set_drmProperty(std::string name, unsigned int obj_type, unsigned int value);
 int aml_get_drmProperty(std::string name, unsigned int obj_type);
+
+int aml_get_drmDevice_modes_count(drmModeConnection *connection);
+std::string aml_get_preferred_mode(void);
+bool aml_set_hotplug_mode(std::string mode);

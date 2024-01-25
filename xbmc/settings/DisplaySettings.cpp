@@ -121,7 +121,7 @@ static bool write_resolution_ini(RESOLUTION_INFO res)
   if (!result && fsInfo.f_flags & MS_RDONLY)
     result = mount(NULL, aml_res_path.c_str(), NULL, MS_NOATIME | MS_REMOUNT, NULL);
 
-  if (!result && !res.strId.empty())
+  if (!result && !res.strId.empty() && !StringUtils::EqualsNoCase(res.strId, "dummy_l"))
   {
     std::ofstream ofs(aml_res_path + "/" + aml_res_file, std::ofstream::out);
     ofs << "# WARNING DO NOT MODIFY THIS FILE! ALL CHANGES WILL BE LOST!\n";
