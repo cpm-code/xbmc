@@ -19,12 +19,6 @@
 using namespace KODI;
 using namespace KODI::WINDOWING::AML;
 
-CWinSystemAmlogicGLESContext::CWinSystemAmlogicGLESContext()
-:  m_cs(-1)
-,  m_cd(-1)
-{
-}
-
 void CWinSystemAmlogicGLESContext::Register()
 {
   KODI::WINDOWING::CWindowSystemFactory::RegisterWindowSystem(CreateWinSystem, "aml");
@@ -95,16 +89,11 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
       amhdmitx0_frac_rate_policy.Set(fractional_rate);
   }
 
-  // check for colour subsampling/depth change
-  CSysfsPath amhdmitx0_cs{"/sys/class/amhdmitx/amhdmitx0/cs"};
-  CSysfsPath amhdmitx0_cd{"/sys/class/amhdmitx/amhdmitx0/cd"};
-  int cs = 0;
-  int cd = 0;
-  if (amhdmitx0_cs.Exists() && amhdmitx0_cd.Exists())
-  {
-    cs = amhdmitx0_cs.Get<int>().value();
-    cd = amhdmitx0_cd.Get<int>().value();
-  }
+  StreamHdrType hdrType = CServiceBroker::GetWinSystem()->GetGfxContext().GetHDRType();
+  bool force_mode_switch_by_dv = false;
+  if ((m_hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION && hdrType != StreamHdrType::HDR_TYPE_DOLBYVISION) ||
+      (m_hdrType != StreamHdrType::HDR_TYPE_DOLBYVISION && hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION))
+      force_mode_switch_by_dv = true;
 
   // get current used resolution
   if (!aml_get_native_resolution(&current_resolution))
@@ -113,14 +102,16 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
     return false;
   }
 
+  const std::string new_hdrStr = CStreamDetails::HdrTypeToString(hdrType);
+  const std::string old_hdrStr = CStreamDetails::HdrTypeToString(m_hdrType);
   CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: "
     "m_bWindowCreated: {}, "
     "frac rate {:d}({:d}), "
-    "cs: {:d}({:d}), cd: {:d}({:d})",
+    "hdrType: {}({}), force mode switch: {}",
     __FUNCTION__,
     m_bWindowCreated,
     fractional_rate, cur_fractional_rate,
-    cs, m_cs, cd, m_cd);
+    new_hdrStr.empty() ? "none" : new_hdrStr, old_hdrStr.empty() ? "none" : old_hdrStr, force_mode_switch_by_dv);
   CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: "
     "cur: iWidth: {:04d}, iHeight: {:04d}, iScreenWidth: {:04d}, iScreenHeight: {:04d}, fRefreshRate: {:02.2f}, dwFlags: {:02x}",
     __FUNCTION__,
@@ -137,7 +128,7 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
       m_bFullScreen == fullScreen && current_resolution.fRefreshRate == res.fRefreshRate &&
       (current_resolution.dwFlags & D3DPRESENTFLAG_MODEMASK) == (res.dwFlags & D3DPRESENTFLAG_MODEMASK) &&
       m_stereo_mode == stereo_mode && m_bWindowCreated &&
-      ((m_cs != -1 && m_cd != -1) && (m_cs == cs && m_cd == cd)) &&
+      !force_mode_switch_by_dv &&
       (fractional_rate == cur_fractional_rate))
   {
     CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: No need to create a new window", __FUNCTION__);
@@ -151,7 +142,7 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
   if ((current_resolution.iWidth == res.iWidth && current_resolution.iHeight == res.iHeight &&
        current_resolution.iScreenWidth == res.iScreenWidth && current_resolution.iScreenHeight == res.iScreenHeight &&
        current_resolution.fRefreshRate == res.fRefreshRate) &&
-       (((m_cs != -1 && m_cd != -1) && (m_cs != cs || m_cd != cd)) ||
+       (force_mode_switch_by_dv ||
        (fractional_rate != cur_fractional_rate)))
   {
     m_force_mode_switch = true;
@@ -182,12 +173,7 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
   }
 
   // backup data after mode switch
-  if (amhdmitx0_cs.Exists() && amhdmitx0_cd.Exists())
-  {
-    m_cs = cs;
-    m_cd = cd;
-  }
-
+  m_hdrType = hdrType;
   m_stereo_mode = stereo_mode;
   m_bFullScreen = fullScreen;
 
