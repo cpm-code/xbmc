@@ -11,6 +11,7 @@
 #include "utils/EGLUtils.h"
 #include "rendering/gles/RenderSystemGLES.h"
 #include "utils/GlobalsHandling.h"
+#include "utils/StreamDetails.h"
 #include "WinSystemAmlogic.h"
 
 namespace KODI
@@ -23,7 +24,7 @@ namespace AML
 class CWinSystemAmlogicGLESContext : public CWinSystemAmlogic, public CRenderSystemGLES
 {
 public:
-  CWinSystemAmlogicGLESContext();
+  CWinSystemAmlogicGLESContext() = default;
   virtual ~CWinSystemAmlogicGLESContext() = default;
 
   using CWinSystemAmlogic::Register;
@@ -54,8 +55,7 @@ protected:
 
 private:
   CEGLContextUtils m_pGLContext;
-  int m_cs;
-  int m_cd;
+  StreamHdrType m_hdrType = StreamHdrType::HDR_TYPE_NONE;
 };
 
 }
