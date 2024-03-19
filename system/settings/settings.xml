@@ -1010,7 +1010,7 @@
       <group id="1" label="14188">
         <setting id="videoplayer.queuetimesize" type="integer" label="37130" help="37131">
           <level>2</level>
-          <default>40</default> <!-- 4.0 s -->
+          <default>80</default> <!-- 8.0 s -->
           <constraints>
             <options>playerqueuetimesizes</options>
           </constraints>
@@ -1018,7 +1018,7 @@
         </setting>
         <setting id="videoplayer.queuedatasize" type="integer" label="37132" help="37133">
           <level>2</level>
-          <default>256</default> <!-- 256 MB -->
+          <default>40</default> <!-- 40 MB -->
           <constraints>
             <options>playerqueuedatasizes</options>
           </constraints>
