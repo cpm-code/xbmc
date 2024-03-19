@@ -41,6 +41,7 @@ void CPlayerSettings::SettingOptionsQueueDataSizesFiller(const SettingConstPtr& 
 
   list.emplace_back(StringUtils::Format(mb, 16), 16);
   list.emplace_back(StringUtils::Format(mb, 32), 32);
+  list.emplace_back(StringUtils::Format(mb, 40), 40);
   list.emplace_back(StringUtils::Format(mb, 64), 64);
   list.emplace_back(StringUtils::Format(mb, 128), 128);
   list.emplace_back(StringUtils::Format(mb, 256), 256);
