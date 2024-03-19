@@ -12,6 +12,7 @@
 #include "DVDStreamInfo.h"
 #include "threads/CriticalSection.h"
 #include "cores/VideoPlayer/Buffers/VideoBuffer.h"
+#include "utils/BitstreamConverter.h"
 
 #include <set>
 #include <atomic>
@@ -70,7 +71,6 @@ public:
   virtual bool Open(CDVDStreamInfo &hints, CDVDCodecOptions &options) override;
   virtual bool AddData(const DemuxPacket &packet) override;
   virtual void Reset() override;
-  virtual void Reopen() override;
   virtual VCReturn GetPicture(VideoPicture* pVideoPicture) override;
   virtual void SetSpeed(int iSpeed) override;
   virtual void SetCodecControl(int flags) override;

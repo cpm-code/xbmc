@@ -1816,8 +1816,6 @@ CAMLCodec::CAMLCodec(CProcessInfo &processInfo)
   , m_bufferIndex(-1)
   , m_state(0)
   , m_processInfo(processInfo)
-  , m_is_dv_p7_mel(false)
-  , m_dolby_vision_wait_delay(0)
 {
   am_private = new am_private_t();
   m_dll = new DllLibAmCodec;
@@ -1853,7 +1851,7 @@ int CAMLCodec::GetAmlDuration() const
   return am_private ? (am_private->video_rate * PTS_FREQ) / UNIT_FREQ : 0;
 };
 
-bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
+bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
 {
   m_speed = DVD_PLAYSPEED_NORMAL;
   m_drain = false;
@@ -1977,8 +1975,10 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
     CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hdr type: {}", hdrType);
 
   if (hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
-    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DOVI: version {:d}.{:d}, profile {:d}",
-      hints.dovi.dv_version_major, hints.dovi.dv_version_minor, hints.dovi.dv_profile);
+    CLog::Log(LOGINFO, "CAMLCodec::OpenDecoder DOVI: version {:d}.{:d}, profile {:d}{}",
+      hints.dovi.dv_version_major, hints.dovi.dv_version_minor, hints.dovi.dv_profile,
+      (hints.dovi.dv_profile == 4 || hints.dovi.dv_profile == 7) ?
+     ((dovi_el_type == ELType::TYPE_FEL) ? ", full enhancement layer" : ", minimum enhancement layer") : "");
 
   m_processInfo.SetVideoDAR(hints.aspect);
   CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder decoder timeout: {:d}s",
@@ -2029,18 +2029,16 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
     }
 
     am_private->gcodec.dv_enable = 1;
-    if (!m_is_dv_p7_mel && (hints.dovi.dv_profile == 4 || hints.dovi.dv_profile == 7))
+    if (hints.dovi.dv_profile == 4 || hints.dovi.dv_profile == 7)
     {
-      CSysfsPath amdolby_vision_debug{"/sys/class/amdolby_vision/debug"};
-      if (amdolby_vision_debug.Exists())
-        amdolby_vision_debug.Set("enable_fel 1");
-      am_private->gcodec.dec_mode  = STREAM_TYPE_STREAM;
-
-      CSysfsPath dolby_vision_wait_delay{"/sys/module/amdolby_vision/parameters/dolby_vision_wait_delay"};
-      if (dolby_vision_wait_delay.Exists())
+      if (dovi_el_type != ELType::TYPE_MEL) // use stream path if not MEL
       {
-        m_dolby_vision_wait_delay = dolby_vision_wait_delay.Get<unsigned int>().value();
-        CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DoVi P{:d} MEL detection frame delay got set to {:d} frames", hints.dovi.dv_profile, m_dolby_vision_wait_delay);
+        CSysfsPath amdolby_vision_debug{"/sys/class/amdolby_vision/debug"};
+        if (amdolby_vision_debug.Exists())
+          amdolby_vision_debug.Set("enable_fel 1");
+          amdolby_vision_debug.Set("enable_mel 1");
+        }
+        am_private->gcodec.dec_mode = STREAM_TYPE_STREAM;
       }
     }
   }
@@ -2655,22 +2653,6 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
 
     CLog::Log(LOGDEBUG, LOGVIDEO, "CAMLCodec::GetPicture: index: {:d}, pts: {:.3f}, dur:{:.3f}ms ar:{:.2f} elf:{:d}ms",
       m_bufferIndex, pVideoPicture->pts / DVD_TIME_BASE, pVideoPicture->iDuration / 1000, m_hints.aspect, elapsed_since_last_frame.count());
-
-    if (m_dolby_vision_wait_delay > 0 && !m_is_dv_p7_mel)
-    {
-      m_dolby_vision_wait_delay--;
-      CSysfsPath is_mel{"/sys/module/amdolby_vision/parameters/is_mel"};
-      if (is_mel.Exists())
-      {
-        if (is_mel.Get<char>().value() == 'Y')
-        {
-          CLog::Log(LOGDEBUG, LOGVIDEO, "CAMLCodec::GetPicture: DoVi P{:d} MEL content detected, request to reopen decoder",
-            m_hints.dovi.dv_profile);
-          m_is_dv_p7_mel = true;
-          return CDVDVideoCodec::VC_REOPEN;
-        }
-      }
-    }
 
     return CDVDVideoCodec::VC_PICTURE;
   }
