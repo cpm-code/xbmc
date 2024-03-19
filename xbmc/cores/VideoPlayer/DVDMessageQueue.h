@@ -80,8 +80,8 @@ public:
   void WaitUntilEmpty();
 
   // non messagequeue related functions
-  bool IsFull() const { return GetLevel() == 100; }
-  int GetLevel() const;
+  bool IsFull() const { return GetLevel(true) == 100; }
+  int GetLevel(bool data_level = false) const;
 
   void SetMaxDataSize(int iMaxDataSize) { m_iMaxDataSize = iMaxDataSize; }
   void SetMaxTimeSize(double sec) { m_TimeSize = 1.0 / sec; }
@@ -102,15 +102,14 @@ private:
   bool m_bInitialized;
   bool m_drain = false;
 
-  int m_iDataSize;
+  uint64_t m_iDataSize;
   double m_TimeFront;
   double m_TimeBack;
   double m_TimeSize;
 
-  int m_iMaxDataSize;
+  uint64_t m_iMaxDataSize;
   std::string m_owner;
 
   std::list<DVDMessageListItem> m_messages;
   std::list<DVDMessageListItem> m_prioMessages;
 };
-
