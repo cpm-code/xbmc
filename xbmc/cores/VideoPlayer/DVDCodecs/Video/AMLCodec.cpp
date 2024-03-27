@@ -1866,6 +1866,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   m_hints.pClock = hints.pClock;
   m_tp_last_frame = std::chrono::system_clock::now();
   m_decoder_timeout = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoDecoderTimeout;
+  m_buffer_level_ready = false;
 
   if (!OpenAmlVideo(hints))
   {
@@ -2394,6 +2395,12 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
   int data_len, free_len;
   int chunk_size = calc_chunk_size(iSize);
   float new_buffer_level = GetBufferLevel(chunk_size, data_len, free_len);
+  bool streambuffer(am_private->gcodec.dec_mode == STREAM_TYPE_STREAM);
+
+  if (!m_buffer_level_ready)
+    m_buffer_level_ready = (streambuffer ? (new_buffer_level > 90.0f) : (new_buffer_level > 5.0f));
+
+  m_minimum_buffer_level = (streambuffer ? 10.0f : 5.0f);
 
   if (!m_opened || !pData || free_len == 0 || new_buffer_level >= 100.0f)
   {
@@ -2628,13 +2635,17 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
   float buffer_level = GetBufferLevel();
   std::chrono::milliseconds elapsed_since_last_frame(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()
     - m_tp_last_frame).count());
+  bool streambuffer(am_private->gcodec.dec_mode == STREAM_TYPE_STREAM);
 
   if (!m_opened)
     return CDVDVideoCodec::VC_ERROR;
 
-  if ((!m_drain && buffer_level > 5.0f) && (ret = DequeueBuffer()) == 0)
+  if (!m_drain && m_buffer_level_ready && buffer_level > m_minimum_buffer_level && (ret = DequeueBuffer()) == 0)
   {
     pVideoPicture->iFlags = 0;
+
+    m_minimum_buffer_level = (streambuffer ? m_minimum_buffer_level : 0.0f);
+
     m_tp_last_frame = std::chrono::system_clock::now();
 
     if (m_last_pts == DVD_NOPTS_VALUE)
@@ -2658,7 +2669,7 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture *pVideoPicture)
   }
   else if (m_drain)
     return CDVDVideoCodec::VC_EOF;
-  else if (buffer_level > 10.0f)
+  else if (buffer_level > (streambuffer ? 100.0f : 10.0f))
     return CDVDVideoCodec::VC_NONE;
   else if (ret != EAGAIN || elapsed_since_last_frame > std::chrono::seconds(m_decoder_timeout))
   {
