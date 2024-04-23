@@ -225,6 +225,12 @@ bool aml_has_frac_rate_policy()
   return (has_frac_rate_policy == 1);
 }
 
+bool aml_video_started()
+{
+  CSysfsPath videostarted{"/sys/class/tsync/videostarted"};
+  return (StringUtils::EqualsNoCase(videostarted.Get<std::string>().value(), "0x1"));
+}
+
 void aml_set_audio_passthrough(bool passthrough)
 {
   CSysfsPath("/sys/class/audiodsp/digital_raw", (passthrough ? 2 : 0));

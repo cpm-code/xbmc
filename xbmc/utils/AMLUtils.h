@@ -69,6 +69,7 @@ bool aml_support_vp9();
 bool aml_support_av1();
 bool aml_support_dolby_vision();
 bool aml_has_frac_rate_policy();
+bool aml_video_started();
 void aml_set_audio_passthrough(bool passthrough);
 bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res);
 bool aml_get_native_resolution(RESOLUTION_INFO *res);
