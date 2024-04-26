@@ -25,6 +25,8 @@ class CBitstreamConverter;
 
 class CDVDVideoCodecAmlogic;
 
+typedef std::tuple<uint8_t*, uint32_t, bool> DLDemuxPacket;
+
 class CAMLVideoBuffer : public CVideoBuffer
 {
 public:
@@ -102,4 +104,6 @@ protected:
 private:
   std::shared_ptr<CAMLVideoBufferPool> m_videoBufferPool;
   static std::atomic<bool> m_InstanceGuard;
+
+  std::list<DLDemuxPacket> m_packages;
 };
