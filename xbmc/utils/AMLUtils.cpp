@@ -212,6 +212,17 @@ bool aml_support_dolby_vision()
   return (support_dv == 1);
 }
 
+bool aml_dolby_vision_enabled()
+{
+  static int dv_enabled = -1;
+  bool dv_user_enabled(!CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_DISABLE));
+
+  if (dv_enabled == -1)
+    dv_enabled = (!!aml_support_dolby_vision() && !!aml_display_support_dv());
+
+  return ((dv_enabled && !!dv_user_enabled) == 1);
+}
+
 bool aml_has_frac_rate_policy()
 {
   static int has_frac_rate_policy = -1;
