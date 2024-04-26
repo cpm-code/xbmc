@@ -112,6 +112,7 @@ public:
   void Close();
   bool NeedConvert() const { return m_convert_bitstream; }
   bool Convert(uint8_t* pData, int iSize);
+  bool Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pData_el, int iSize_el);
   uint8_t* GetConvertBuffer() const;
   int GetConvertSize() const;
   uint8_t* GetExtraData();
@@ -150,6 +151,11 @@ protected:
                                     const uint8_t* in,
                                     uint32_t in_size,
                                     uint8_t nal_type);
+  static void BitstreamAllocAndCopy(uint8_t** poutbuf,
+                                    uint32_t* poutbuf_size,
+                                    const uint8_t* in,
+                                    uint32_t in_size,
+                                    uint8_t nal_type);
 
 #ifdef HAVE_LIBDOVI
   const DoviData* processDoviRpu(uint8_t* buf, uint32_t nalSize);
@@ -172,6 +178,7 @@ protected:
   omx_bitstream_ctx m_sps_pps_context;
   bool m_convert_bitstream;
   bool m_to_annexb;
+  bool m_combine;
 
   FFmpegExtraData m_extraData;
   bool m_convert_3byteTo4byteNALSize;
