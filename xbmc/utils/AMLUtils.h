@@ -68,6 +68,7 @@ AML_SUPPORT_H264_4K2K aml_support_h264_4k2k();
 bool aml_support_vp9();
 bool aml_support_av1();
 bool aml_support_dolby_vision();
+bool aml_dolby_vision_enabled();
 bool aml_has_frac_rate_policy();
 bool aml_video_started();
 void aml_set_audio_passthrough(bool passthrough);
