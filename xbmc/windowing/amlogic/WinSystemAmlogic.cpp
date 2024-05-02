@@ -105,7 +105,7 @@ bool CWinSystemAmlogic::InitWindowSystem()
     CSysfsPath("/sys/module/am_vecm/parameters/hdr_mode", 1);
   }
 
-  if (!aml_support_dolby_vision())
+  if (!aml_support_dolby_vision() || !aml_display_support_dv())
   {
     auto setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_DV_DISABLE);
     if (setting)
