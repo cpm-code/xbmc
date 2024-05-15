@@ -8865,6 +8865,26 @@ msgctxt "#14304"
 msgid "RDS Radio"
 msgstr ""
 
+#: system/settings/settings.xml
+msgctxt "#14310"
+msgid "Tone map SDR to Dolby Vision"
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#14311"
+msgid "Intended for Dolby Vision enabled displays. SDR content will be tone mapped by Dolby Vision VS-Engine."
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#14312"
+msgid "Tone map HDR to Dolby Vision"
+msgstr ""
+
+#: system/settings/settings.xml
+msgctxt "#14313"
+msgid "Intended for Dolby Vision enabled displays. HDR content will be tone mapped by Dolby Vision VS-Engine."
+msgstr ""
+
 #empty strings from id 14305 to 15010
 
 #: system/settings/settings.xml
