@@ -2004,7 +2004,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   bool device_support_dv(aml_support_dolby_vision());
   bool user_dv_disable(CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_DISABLE));
   bool dv_enable(device_support_dv && !user_dv_disable &&
-    hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION && aml_display_support_dv());
+    hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION && (aml_display_support_dv() || hints.dovi.dv_profile == 5));
   CLog::Log(LOGINFO, "CAMLCodec::OpenDecoder Amlogic device {} support DV, DV is {} by user, display {} support DV, DV system is {}",
     device_support_dv ? "does" : "does not", user_dv_disable ? "disabled" : "enabled",
     aml_display_support_dv() ? "does" : "does not", dv_enable ? "enabled" : "disabled");
