@@ -274,6 +274,24 @@ bool aml_dolby_vision_enabled()
   return ((dv_enabled && !!dv_user_enabled) == 1);
 }
 
+bool aml_convert_to_dv_by_vs_engine(StreamHdrType hdrType)
+{
+  static int convert_to_dv = -1;
+  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+  bool dv_user_enabled(!settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_DISABLE));
+  bool user_convert_to_dv;
+
+  if (hdrType == StreamHdrType::HDR_TYPE_NONE)
+    user_convert_to_dv = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_SDR2DV);
+  else
+    user_convert_to_dv = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_HDR2DV);
+
+  if (convert_to_dv == -1)
+    convert_to_dv = (!!aml_support_dolby_vision() && !!aml_display_support_dv());
+
+  return ((convert_to_dv && !!user_convert_to_dv && !!dv_user_enabled) == 1);
+}
+
 bool aml_video_started()
 {
   CSysfsPath videostarted{"/sys/class/tsync/videostarted"};
