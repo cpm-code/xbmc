@@ -11,6 +11,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
+#include "utils/StreamDetails.h"
 #include "windowing/Resolution.h"
 
 #include <string>
@@ -80,6 +81,7 @@ bool aml_support_avs2();
 bool aml_support_avs3();
 bool aml_support_dolby_vision();
 bool aml_dolby_vision_enabled();
+bool aml_convert_to_dv_by_vs_engine(StreamHdrType hdrType);
 bool aml_video_started();
 void aml_set_3d_video_mode(unsigned int mode, bool framepacking_support, int view_mode);
 bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res);
