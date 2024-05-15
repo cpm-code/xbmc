@@ -223,6 +223,12 @@ bool CWinSystemAmlogic::InitWindowSystem()
     {
       setting->SetVisible(false);
       settings->SetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_DISABLE, false);
+      setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_SDR2DV);
+      setting->SetVisible(false);
+      settings->SetBool(CSettings::SETTING_COREELEC_AMLOGIC_SDR2DV, false);
+      setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_HDR2DV);
+      setting->SetVisible(false);
+      settings->SetBool(CSettings::SETTING_COREELEC_AMLOGIC_HDR2DV, false);
     }
 
     setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_DV_LED);
