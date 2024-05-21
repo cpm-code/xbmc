@@ -35,6 +35,7 @@ public:
   bool CanDoWindowed() override { return false; }
   bool IsHDRDisplay() override;
   CHDRCapabilities GetDisplayHDRCapabilities() const override;
+  float GetGuiSdrPeakLuminance() const override;
 
   bool Hide() override;
   bool Show(bool show = true) override;
