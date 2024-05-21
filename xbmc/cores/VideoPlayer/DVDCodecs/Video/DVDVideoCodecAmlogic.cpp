@@ -332,6 +332,11 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
     }
   }
 
+  m_videobuffer.hdrType = m_hints.hdrType;
+  m_videobuffer.color_space = m_hints.colorSpace;
+  m_videobuffer.color_primaries = m_hints.colorPrimaries;
+  m_videobuffer.color_transfer = m_hints.colorTransferCharacteristic;
+
   m_processInfo.SetVideoDecoderName(m_pFormatName, true);
   m_processInfo.SetVideoDimensions(m_hints.width, m_hints.height);
   m_processInfo.SetVideoDeintMethod("hardware");
