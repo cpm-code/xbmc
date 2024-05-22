@@ -173,7 +173,10 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
         m_h264_sequence->ratio  = m_hints.aspect;
       }
 
-      m_pFormatName = "am-h264";
+      if (m_hints.codec_tag == MKTAG('M', 'V', 'C', '1'))
+        m_pFormatName = "am-h264mvc";
+      else
+        m_pFormatName = "am-h264";
       // convert h264-avcC to h264-annex-b as h264-avcC
       // under streamers can have issues when seeking.
       if (m_hints.extradata && m_hints.extradata.GetData()[0] == 1)
