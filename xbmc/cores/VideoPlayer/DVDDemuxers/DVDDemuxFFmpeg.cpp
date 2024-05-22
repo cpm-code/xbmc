@@ -23,6 +23,7 @@
 #include "filesystem/CurlFile.h"
 #include "filesystem/Directory.h"
 #include "filesystem/File.h"
+#include "libavutil/intreadwrite.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
@@ -1563,6 +1564,44 @@ void CDVDDemuxFFmpeg::DisposeStreams()
   m_parsers.clear();
 }
 
+bool CDVDDemuxFFmpeg::ProcessH264MVCExtradata(uint8_t *data, int data_size)
+{
+  uint8_t* extradata = data;
+  uint32_t extradata_size = data_size;
+
+
+  if (*(char *)extradata == 1) {
+    // Find "mvcC" atom
+    uint32_t state = -1;
+    uint32_t i = 0;
+    for (; i < extradata_size; i++) {
+      state = (state << 8) | extradata[i];
+      if (state == MKBETAG('m', 'v', 'c', 'C'))
+        break;
+    }
+
+    if (i == extradata_size || i < 8)
+      return false;
+
+    // Update pointers to the start of the mvcC atom
+    extradata = extradata + i - 7;
+    extradata_size = extradata_size - i + 7;
+    uint32_t sizeAtom = AV_RB32(extradata);
+
+    // verify size atom and actual size
+    if ((sizeAtom + 4) > extradata_size || extradata_size < 14)
+      return false;
+
+    // Skip atom headers
+    extradata += 8;
+    extradata_size -= 8;
+
+    if (*(char *)extradata == 1)
+      return true;
+  }
+  return false;
+}
+
 CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
 {
   AVStream* pStream = m_pFormatContext->streams[streamIdx];
@@ -1832,6 +1871,12 @@ CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
         }
         if (av_dict_get(pStream->metadata, "title", NULL, 0))
           st->m_description = av_dict_get(pStream->metadata, "title", NULL, 0)->value;
+
+        if (pStream->codecpar->codec_id == AV_CODEC_ID_H264 && aml_display_support_3d())
+        {
+          if (ProcessH264MVCExtradata(pStream->codecpar->extradata, pStream->codecpar->extradata_size))
+            pStream->codecpar->codec_tag = MKTAG('M', 'V', 'C', '1');
+        }
 
         break;
       }
