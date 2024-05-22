@@ -511,6 +511,8 @@ static vdec_type_t codec_tag_to_vdec_type(unsigned int codec_tag)
     case CODEC_TAG_avc1:
     case CODEC_TAG_H264:
     case CODEC_TAG_h264:
+    case CODEC_TAG_AMVC:
+    case CODEC_TAG_MVC1:
     case AV_CODEC_ID_H264:
       // h264
       dec_type = VIDEO_DEC_FORMAT_H264;
@@ -1469,7 +1471,9 @@ int pre_header_feeding(am_private_t *para, am_packet_t *pkt)
             }
         }
 
-        if (VFORMAT_H264 == para->video_format || VFORMAT_H264_4K2K == para->video_format) {
+        if (para->video_format == VFORMAT_H264 ||
+            para->video_format == VFORMAT_H264_4K2K ||
+            para->video_format == VFORMAT_H264MVC) {
             ret = h264_write_header(para, pkt);
             if (ret != PLAYER_SUCCESS) {
                 return ret;
@@ -1945,6 +1949,12 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
     && (aml_support_h264_4k2k() == AML_HAS_H264_4K2K))
   {
     am_private->video_format = VFORMAT_H264_4K2K;
+  }
+  else if ((am_private->video_format == VFORMAT_H264) &&
+          ((am_private->video_codec_tag == CODEC_TAG_AMVC) ||
+           (am_private->video_codec_tag == CODEC_TAG_MVC1)))
+  {
+    am_private->video_format = VFORMAT_H264MVC;
   }
   switch (am_private->video_format)
   {
