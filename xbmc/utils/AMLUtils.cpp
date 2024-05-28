@@ -636,45 +636,37 @@ void aml_handle_scale(const RESOLUTION_INFO &res)
 
 void aml_handle_display_stereo_mode(const RenderStereoMode stereo_mode)
 {
-  static std::string lastHdmiTxConfig = "3doff";
+  static RenderStereoMode kernel_stereo_mode = RenderStereoMode::UNDEFINED;
 
-  std::string command = "3doff";
-  switch (stereo_mode)
+  if (kernel_stereo_mode == RenderStereoMode::UNDEFINED)
   {
-    case RenderStereoMode::SPLIT_VERTICAL:
-      command = "3dlr";
-      break;
-    case RenderStereoMode::SPLIT_HORIZONTAL:
-      command = "3dtb";
-      break;
-    default:
-      // nothing - command is already initialised to "3doff"
-      break;
+    CSysfsPath _kernel_stereo_mode{"/sys/class/amhdmitx/amhdmitx0/stereo_mode"};
+    if (_kernel_stereo_mode.Exists())
+      kernel_stereo_mode = static_cast<RenderStereoMode>(_kernel_stereo_mode.Get<int>().value());
   }
 
-  CLog::Log(LOGDEBUG, "AMLUtils::aml_handle_display_stereo_mode old mode {} new mode {}", lastHdmiTxConfig.c_str(), command.c_str());
-  // there is no way to read back current mode from sysfs
-  // so we track state internal. Because even
-  // when setting the same mode again - kernel driver
-  // will initiate a new hdmi handshake which is not
-  // what we want of course.
-  // for 3d mode we are called 2 times and need to allow both calls
-  // to succeed. Because the first call doesn't switch mode (i guessi its
-  // timing issue between switching the refreshrate and switching to 3d mode
-  // which needs to occure in the correct order, else switching refresh rate
-  // might reset 3dmode).
-  // So we set the 3d mode - if the last command is different from the current
-  // command - or in case they are the same - we ensure that its not the 3doff
-  // command that gets repeated here.
-  if (lastHdmiTxConfig != command || command != "3doff")
+  if (kernel_stereo_mode != stereo_mode)
   {
-    CLog::Log(LOGDEBUG, "AMLUtils::aml_handle_display_stereo_mode setting new mode");
-    lastHdmiTxConfig = command;
+    std::string command = "3doff";
+    switch (stereo_mode)
+    {
+      case RenderStereoMode::SPLIT_VERTICAL:
+        command = "3dlr";
+        break;
+      case RenderStereoMode::SPLIT_HORIZONTAL:
+        command = "3dtb";
+        break;
+      case RenderStereoMode::HARDWAREBASED:
+        command = "3dfp";
+        break;
+      default:
+        // nothing - command is already initialised to "3doff"
+        break;
+    }
+
+    CLog::Log(LOGDEBUG, "AMLUtils::{} setting new mode: {}", __FUNCTION__, command);
     CSysfsPath("/sys/class/amhdmitx/amhdmitx0/config", command);
-  }
-  else
-  {
-    CLog::Log(LOGDEBUG, "AMLUtils::aml_handle_display_stereo_mode - no change needed");
+    kernel_stereo_mode = stereo_mode;
   }
 }
 
