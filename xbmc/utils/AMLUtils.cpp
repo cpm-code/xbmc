@@ -466,6 +466,18 @@ bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
   res->strMode       = StringUtils::Format("{:d}x{:d} @ {:.2f}{} - Full Screen", res->iScreenWidth, res->iScreenHeight, res->fRefreshRate,
     res->dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "");
 
+  if (fromMode.find("FramePacking") != std::string::npos)
+  {
+    res->iBlanking   = res->iScreenHeight == 1080 ? 45 : 30;
+    res->dwFlags |= D3DPRESENTFLAG_MODE3DFP;
+  }
+
+  if (fromMode.find("TopBottom") != std::string::npos)
+    res->dwFlags |= D3DPRESENTFLAG_MODE3DTB;
+
+  if (fromMode.find("SidebySide") != std::string::npos)
+    res->dwFlags |= D3DPRESENTFLAG_MODE3DSBS;
+
   return res->iWidth > 0 && res->iHeight> 0;
 }
 
