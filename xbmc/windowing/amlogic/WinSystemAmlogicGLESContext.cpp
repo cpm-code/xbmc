@@ -139,15 +139,21 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
   DestroyWindow();
 
   // check if a forced mode switch is required
-  if ((current_resolution.iWidth == res.iWidth && current_resolution.iHeight == res.iHeight &&
-       current_resolution.iScreenWidth == res.iScreenWidth && current_resolution.iScreenHeight == res.iScreenHeight &&
-       current_resolution.fRefreshRate == res.fRefreshRate) &&
+  if (((current_resolution.iWidth == res.iWidth && current_resolution.iHeight == res.iHeight &&
+        current_resolution.iScreenWidth == res.iScreenWidth && current_resolution.iScreenHeight == res.iScreenHeight &&
+        current_resolution.fRefreshRate == res.fRefreshRate) &&
        (force_mode_switch_by_dv ||
-       (fractional_rate != cur_fractional_rate)))
+       (fractional_rate != cur_fractional_rate))) ||
+       (m_stereo_mode != stereo_mode))
   {
     m_force_mode_switch = true;
     CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: force mode switch", __FUNCTION__);
   }
+
+  // refresh backup data
+  m_hdrType = hdrType;
+  m_stereo_mode = stereo_mode;
+  m_bFullScreen = fullScreen;
 
   if (!CWinSystemAmlogic::CreateNewWindow(name, fullScreen, res))
   {
@@ -171,11 +177,6 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
     for (std::vector<IDispResource *>::iterator i = m_resources.begin(); i != m_resources.end(); ++i)
       (*i)->OnResetDisplay();
   }
-
-  // backup data after mode switch
-  m_hdrType = hdrType;
-  m_stereo_mode = stereo_mode;
-  m_bFullScreen = fullScreen;
 
   return true;
 }
