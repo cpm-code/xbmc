@@ -73,15 +73,35 @@ std::string ModeFlagsToString(unsigned int flags, bool identifier)
   else
     res += "p";
 
-  if(!identifier)
-    res += " ";
-
-  if(flags & D3DPRESENTFLAG_MODE3DSBS)
-    res += "sbs";
-  else if(flags & D3DPRESENTFLAG_MODE3DTB)
-    res += "tab";
-  else if(identifier)
+  if((flags & (D3DPRESENTFLAG_MODE3DSBS | D3DPRESENTFLAG_MODE3DTB | D3DPRESENTFLAG_MODE3DFP)) != 0)
+  {
+    if(flags & D3DPRESENTFLAG_MODE3DSBS)
+    {
+      if(!identifier)
+        res += " ";
+      res += "sbs";
+    }
+    if(flags & D3DPRESENTFLAG_MODE3DTB)
+    {
+      if(!identifier)
+        res += " ";
+      res += "tab";
+    }
+    if(flags & D3DPRESENTFLAG_MODE3DFP)
+    {
+      if(!identifier)
+        res += " ";
+      res += "frp";
+    }
+  }
+  else
+  {
+    if(!identifier)
+      res += " ";
+    if(identifier)
     res += "std";
+  }
+
   return res;
 }
 } // unnamed namespace
@@ -723,10 +743,12 @@ RESOLUTION CDisplaySettings::GetResolutionFromString(const std::string &strResol
     if(StringUtils::Mid(strResolution, 19,1) == "i")
       flags |= D3DPRESENTFLAG_INTERLACED;
 
-    if(StringUtils::Mid(strResolution, 20,3) == "sbs")
+    if (strResolution.find("sbs") != std::string::npos)
       flags |= D3DPRESENTFLAG_MODE3DSBS;
-    else if(StringUtils::Mid(strResolution, 20,3) == "tab")
+    if (strResolution.find("tab") != std::string::npos)
       flags |= D3DPRESENTFLAG_MODE3DTB;
+    if (strResolution.find("frp") != std::string::npos)
+      flags |= D3DPRESENTFLAG_MODE3DFP;
 
     std::map<RESOLUTION, RESOLUTION_INFO> resolutionInfos;
     for (size_t resolution = RES_DESKTOP; resolution < CDisplaySettings::GetInstance().ResolutionInfoSize(); resolution++)
