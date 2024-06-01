@@ -25,11 +25,13 @@
 #define D3DPRESENTFLAG_PROGRESSIVE  4
 #define D3DPRESENTFLAG_MODE3DSBS    8
 #define D3DPRESENTFLAG_MODE3DTB    16
+#define D3DPRESENTFLAG_MODE3DFP    32
 
 /* what types are important for mode setting */
 #define D3DPRESENTFLAG_MODEMASK ( D3DPRESENTFLAG_INTERLACED \
                                   | D3DPRESENTFLAG_MODE3DSBS  \
-                                  | D3DPRESENTFLAG_MODE3DTB   )
+                                  | D3DPRESENTFLAG_MODE3DTB   \
+                                  | D3DPRESENTFLAG_MODE3DFP   )
 
 enum VIEW_TYPE { VIEW_TYPE_NONE = 0,
                  VIEW_TYPE_LIST,
