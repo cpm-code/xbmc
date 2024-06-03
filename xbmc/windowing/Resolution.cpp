@@ -384,6 +384,38 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
               "[WHITELIST] No match for a desktop resolution with a 3:2 pulldown refresh rate");
   }
 
+  if (is3D && curr.fRefreshRate > 30)
+  {
+    CLog::Log(LOGDEBUG, "[WHITELIST] No resolution matched but refresh rate is {:0.3f}", curr.fRefreshRate);
+    for (const auto& mode : indexList)
+    {
+      auto i = CDisplaySettings::GetInstance().GetResFromString(mode.asString());
+      const RESOLUTION_INFO info = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo(i);
+
+      // allow resolutions that are exact and have the correct refresh rate
+      // allow macroblock alignment / padding errors (e.g. 1080 mod16 == 8)
+      if (((height == info.iScreenHeight && width <= info.iScreenWidth + 8) ||
+           (width == info.iScreenWidth && height <= info.iScreenHeight + 8)) &&
+          (info.dwFlags & dwFlags) == dwFlags &&
+          MathUtils::FloatEquals(info.fRefreshRate, curr.fRefreshRate, 0.01f))
+      {
+        CLog::Log(LOGDEBUG,
+                  "[WHITELIST] Matched an fallback resolution with an exact refresh rate {} ({})",
+                  info.strMode, i);
+        unsigned int pen = abs(info.iScreenHeight - height) + abs(info.iScreenWidth - width);
+        if (pen < penalty)
+        {
+          resolution = i;
+          found = true;
+          penalty = pen;
+        }
+      }
+    }
+  }
+
+  if (found)
+    return;
+
   CLog::Log(LOGDEBUG, "[WHITELIST] No resolution matched");
 }
 
