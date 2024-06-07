@@ -63,9 +63,4 @@ protected:
   std::unique_ptr<CLibInputHandler> m_libinput;
   CHDRCapabilities m_hdr_caps;
   bool m_force_mode_switch;
-
-  bool m_support_std_dv;
-  bool m_support_ll_dv;
-  bool m_support_hdr_dv;
-  bool m_support_dv;
 };

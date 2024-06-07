@@ -2019,7 +2019,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type, boo
   bool content_is_dv(hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
 
   // Get bit depth for SDR handling - if not 8 or 10, then will default to the SDR8 handling.
-  int bitdepth = hints.hdrType.bitdepth;
+  int bitdepth = hints.bitdepth;
   if ((bitdepth != 8) && (bitdepth != 10)) bitdepth = 8;
 
   unsigned int vs10_sdr8_mode((unsigned int)settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8));
@@ -2042,7 +2042,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type, boo
   CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DV mode [{}],  DV type [{}], DV on [{}]", dv_mode, dv_type, dv_on);
 
   // If DV Mode ON in Kodi Menu, then Set graphics max to 0 (auto - i.e. do lookup in AMLogic side) record current OSD max for Kodi menu to restore later.
-  if (dv_mode == DV_MODE_ON) m_dv_osd_max = aml_dv_osd_max(0);
+  if (dv_mode == DV_MODE_ON) m_dv_osd_max = aml_dv_set_osd_max(0);
   
   if (dv_on)
   {

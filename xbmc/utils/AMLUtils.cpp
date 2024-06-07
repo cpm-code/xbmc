@@ -68,6 +68,18 @@ int aml_get_cpufamily_id()
   return aml_cpufamily_id;
 }
 
+bool aml_display_support_hdr()
+{
+  bool support_hdr = false;
+  CSysfsPath hdr_cap{"/sys/class/amhdmitx/amhdmitx0/hdr_cap"};
+  if (hdr_cap.Exists())
+  {
+    std::string valstr = hdr_cap.Get<std::string>().value();
+    support_hdr = (valstr.find("Traditional HDR: 1") != std::string::npos);
+  }
+  return support_hdr;
+}
+
 bool aml_display_support_dv()
 {
   int support_dv = 0;
@@ -80,7 +92,6 @@ bool aml_display_support_dv()
     valstr = dv_cap.Get<std::string>().value();
     support_dv = (regexp.RegFind(valstr) >= 0) ? 0 : 1;
   }
-
   return support_dv;
 }
 
@@ -333,9 +344,10 @@ void aml_dv_off(bool disable)
 int aml_dv_set_osd_max(int max)
 {
   // Set the OSD DV graphic max, only set if currently 0 (auto) - i.e. not already set, or want to reset to 0 (auto)
+  int existing_max = 0;
   CSysfsPath dolby_vision_graphic_max{"/sys/module/amdolby_vision/parameters/dolby_vision_graphic_max"};
   if (dolby_vision_graphic_max.Exists()) {
-    existing_max = dolby_vision_graphic_max.Get<unsigned int>().value();
+    existing_max = dolby_vision_graphic_max.Get<int>().value();
     if (existing_max == 0 || max == 0) dolby_vision_graphic_max.Set(max);
   }
   return existing_max;
