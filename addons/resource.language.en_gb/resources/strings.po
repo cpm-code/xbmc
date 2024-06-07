@@ -24615,10 +24615,16 @@ msgctxt "#50024"
 msgid "Player Led (DV-LL)"
 msgstr ""
 
-#. "Dolby Vision VSDBV"
+#. "Dolby Vision Type"
 #: system/settings/settings.xml
 msgctxt "#50025"
 msgid "Player Led (HDR)"
+msgstr ""
+
+#. "Dolby Vision Type"
+#: system/settings/settings.xml
+msgctxt "#50026"
+msgid "VS10 Only"
 msgstr ""
 
 #. "Dolby Vision VSDB"

@@ -3925,6 +3925,7 @@
           <default>false</default>
           <dependencies>
             <dependency type="visible" setting="coreelec.amlogic.dolbyvision.mode" operator="!is">2</dependency>
+            <dependency type="visible" setting="coreelec.amlogic.dolbyvision.type" operator="!is">4</dependency>
           </dependencies>
           <control type="toggle" />
         </setting>
@@ -3935,6 +3936,7 @@
           <default></default>
           <dependencies>
             <dependency type="visible" setting="coreelec.amlogic.dolbyvision.mode" operator="!is">2</dependency>
+            <dependency type="visible" setting="coreelec.amlogic.dolbyvision.type" operator="!is">4</dependency>
             <dependency type="visible" setting="coreelec.amlogic.dolbyvision.vsvdb.inject" operator="is">true</dependency>
           </dependencies>
           <constraints>
