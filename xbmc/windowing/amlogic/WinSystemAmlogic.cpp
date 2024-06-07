@@ -45,21 +45,58 @@
 
 using namespace KODI;
 
-void SettingOptionsDolbyVisionTypeFiller(
-    const SettingConstPtr& setting,
-    std::vector<IntegerSettingOption>& list,
-    int& current,
-    void* data)
+void SettingOptionsDolbyVisionTypeFiller(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data)
 {
+  list.clear();    
+  if (m_support_std_dv) list.emplace_back(g_localizeStrings.Get(50023), DV_TYPE_DISPLAY_LED); 
+  if (m_support_ll_dv) list.emplace_back(g_localizeStrings.Get(50024), DV_TYPE_PLAYER_LED_LLDV);
+  if (m_support_hdr_dv) list.emplace_back(g_localizeStrings.Get(50025), DV_TYPE_PLAYER_LED_HDR); 
+  if (aml_support_dolby_vision()) list.emplace_back(g_localizeStrings.Get(50026), DV_TYPE_VS10_ONLY); 
+}
 
-  // Resolve DV type once only - for the case where the display is not dv capable and a dv_info is injected this will allow options that will not work.
-  if (!m_dv_type_resolved) {      
-    list.clear();    
-    if (aml_display_support_dv()) list.emplace_back(g_localizeStrings.Get(50023), DV_TYPE_DISPLAY_LED); 
-    if (aml_dv_support_ll()) list.emplace_back(g_localizeStrings.Get(50024), DV_TYPE_PLAYER_LED_LLDV);
-    list.emplace_back(g_localizeStrings.Get(50025), DV_TYPE_PLAYER_LED_HDR); 
-    m_dv_type_resolved = true;
-  }
+void SettingOptionsDolbyVisionVS10SDR8Filler(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data)
+{
+  list.clear();      
+  list.emplace_back(g_localizeStrings.Get(50063), DOLBY_VISION_OUTPUT_MODE_BYPASS); // Off
+  list.emplace_back(g_localizeStrings.Get(50065), DOLBY_VISION_OUTPUT_MODE_SDR10);
+  if (m_hdr_caps.SupportsHDR10()) list.emplace_back(g_localizeStrings.Get(50066), DOLBY_VISION_OUTPUT_MODE_HDR10);
+  if (m_support_dv) list.emplace_back(g_localizeStrings.Get(50066), DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL);
+}
+
+void SettingOptionsDolbyVisionVS10SDR10Filler(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data)
+{
+  list.clear();      
+  list.emplace_back(g_localizeStrings.Get(50063), DOLBY_VISION_OUTPUT_MODE_BYPASS); // Off
+  list.emplace_back(g_localizeStrings.Get(50064), DOLBY_VISION_OUTPUT_MODE_SDR8);
+  if (m_hdr_caps.SupportsHDR10()) list.emplace_back(g_localizeStrings.Get(50066), DOLBY_VISION_OUTPUT_MODE_HDR10);
+  if (m_support_dv) list.emplace_back(g_localizeStrings.Get(50066), DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL);
+}
+
+void SettingOptionsDolbyVisionVS10HDR10Filler(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data)
+{
+  list.clear();      
+  list.emplace_back(g_localizeStrings.Get(50063), DOLBY_VISION_OUTPUT_MODE_BYPASS); // Off
+  list.emplace_back(g_localizeStrings.Get(50064), DOLBY_VISION_OUTPUT_MODE_SDR8);
+  list.emplace_back(g_localizeStrings.Get(50065), DOLBY_VISION_OUTPUT_MODE_SDR10);
+  if (m_support_dv) list.emplace_back(g_localizeStrings.Get(50066), DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL);
+}
+
+void SettingOptionsDolbyVisionVS10HDRHLGFiller(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data)
+{
+  list.clear();      
+  list.emplace_back(g_localizeStrings.Get(50063), DOLBY_VISION_OUTPUT_MODE_BYPASS); // Off
+  list.emplace_back(g_localizeStrings.Get(50064), DOLBY_VISION_OUTPUT_MODE_SDR8);
+  list.emplace_back(g_localizeStrings.Get(50065), DOLBY_VISION_OUTPUT_MODE_SDR10);
+  if (m_hdr_caps.SupportsHDR10()) list.emplace_back(g_localizeStrings.Get(50066), DOLBY_VISION_OUTPUT_MODE_HDR10);
+  if (m_support_dv) list.emplace_back(g_localizeStrings.Get(50066), DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL);
+}
+
+void SettingOptionsDolbyVisionVS10DVFiller(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data)
+{
+  list.clear();      
+  list.emplace_back(g_localizeStrings.Get(50063), DOLBY_VISION_OUTPUT_MODE_BYPASS); // Off
+  list.emplace_back(g_localizeStrings.Get(50064), DOLBY_VISION_OUTPUT_MODE_SDR8);
+  list.emplace_back(g_localizeStrings.Get(50065), DOLBY_VISION_OUTPUT_MODE_SDR10);
 }
 
 CWinSystemAmlogic::CWinSystemAmlogic()
@@ -88,10 +125,24 @@ CWinSystemAmlogic::CWinSystemAmlogic()
 
 bool CWinSystemAmlogic::InitWindowSystem()
 {
+
+  IsHDRDisplay() // Populate HDR Support.
+
+  m_support_std_dv = (aml_support_dolby_vision() && aml_display_support_dv())
+  m_support_ll_dv = (aml_support_dolby_vision() && aml_dv_support_ll());  
+  m_support_hdr_dv = (aml_support_dolby_vision() && m_hdr_caps.SupportsHDR10());  
+  m_support_dv = (m_support_std_dv || m_support_ll_dv || m_support_hdr_dv)
+
   const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
   const auto settingsManager = settings->GetSettingsManager();
 
   settingsManager->RegisterSettingOptionsFiller("DolbyVisionType", SettingOptionsDolbyVisionTypeFiller);
+  settingsManager->RegisterSettingOptionsFiller("DolbyVisionVS10SDR8", SettingOptionsDolbyVisionVS10SDR8Filler);
+  settingsManager->RegisterSettingOptionsFiller("DolbyVisionVS10SDR10", SettingOptionsDolbyVisionVS10SDR10Filler);
+  settingsManager->RegisterSettingOptionsFiller("DolbyVisionVS10HDR10", SettingOptionsDolbyVisionVS10HDR10Filler);
+  settingsManager->RegisterSettingOptionsFiller("DolbyVisionVS10HDR10Plus", SettingOptionsDolbyVisionVS10HDR10PlusFiller);
+  settingsManager->RegisterSettingOptionsFiller("DolbyVisionVS10HDRHLG", SettingOptionsDolbyVisionVS10HDRHLGFiller);
+  settingsManager->RegisterSettingOptionsFiller("DolbyVisionVS10DV", SettingOptionsDolbyVisionVS10DVFiller);
 
   if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_NOISEREDUCTION))
   {
@@ -115,9 +166,6 @@ bool CWinSystemAmlogic::InitWindowSystem()
     CSysfsPath("/sys/module/am_vecm/parameters/hdr_mode", 1);
   }
 
-  bool device_support_dv = aml_support_dolby_vision();
-  bool all_support_dv = (device_support_dv && aml_display_support_dv());
-
   auto setBln = [&](const std::string& id, const bool support, const bool value) {
     if (auto setting = settings->GetSetting(id)) setting->SetVisible(support);
     if (!support) settings->SetBool(id, value);
@@ -133,16 +181,18 @@ bool CWinSystemAmlogic::InitWindowSystem()
     if (!support) settings->SetString(id, value);
   };
 
-  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE, device_support_dv, DV_MODE_OFF);
-  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE, device_support_dv, DV_TYPE_PLAYER_LED_HDR);
-  setBln(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_INJECT, device_support_dv, false);
-  setStr(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB, device_support_dv, "");
-  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_COLORIMETRY_FOR_STD, all_support_dv, 0);
-  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR, device_support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
-  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10, device_support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
-  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS, device_support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
-  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG, device_support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
-  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_DV, device_support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
+  bool support_dv = (m_support_std_dv || m_support_ll_dv || m_support_hdr_dv)
+
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE, support_dv, DV_MODE_OFF);
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE, support_dv, DV_TYPE_VS10_ONLY);
+  setBln(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_INJECT, support_dv, false);
+  setStr(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB, support_dv, "");
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_COLORIMETRY_FOR_STD, m_support_std_dv, 0);
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR, support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10, support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS, support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG, support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_DV, support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
 
   // Always update (reset) the reg and lut on mode changes.
   CSysfsPath("/sys/module/amdolby_vision/parameters/force_update_reg", 31);

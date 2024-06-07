@@ -3969,12 +3969,7 @@
             <dependency type="visible" setting="coreelec.amlogic.dolbyvision.mode" operator="!is">2</dependency>
           </dependencies>
           <constraints>
-            <options>
-              <option label="50063">5</option> <!-- Off DOLBY_VISION_OUTPUT_MODE_BYPASS -->
-              <option label="50065">3</option> <!-- SDR10 DOLBY_VISION_OUTPUT_MODE_SDR10 -->
-              <option label="50066">2</option> <!-- HDR10 DOLBY_VISION_OUTPUT_MODE_HDR10 -->
-              <option label="50067">1</option> <!-- DoVi DOLBY_VISION_OUTPUT_MODE_IPT / DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL -->
-            </options>
+            <options>DolbyVisionVS10SDR8</options>
           </constraints>
           <control type="spinner" format="string" />
         </setting>
@@ -3987,12 +3982,7 @@
             <dependency type="visible" setting="coreelec.amlogic.dolbyvision.mode" operator="!is">2</dependency>
           </dependencies>
           <constraints>
-            <options>
-              <option label="50063">5</option> <!-- Off DOLBY_VISION_OUTPUT_MODE_BYPASS -->
-              <option label="50064">4</option> <!-- SDR8 DOLBY_VISION_OUTPUT_MODE_SDR8 -->
-              <option label="50066">2</option> <!-- HDR10 DOLBY_VISION_OUTPUT_MODE_HDR10 -->
-              <option label="50067">1</option> <!-- DoVi DOLBY_VISION_OUTPUT_MODE_IPT / DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL -->
-            </options>
+            <options>DolbyVisionVS10SDR10</options>
           </constraints>
           <control type="spinner" format="string" />
         </setting>
@@ -4005,12 +3995,7 @@
             <dependency type="visible" setting="coreelec.amlogic.dolbyvision.mode" operator="!is">2</dependency>
           </dependencies>
           <constraints>
-            <options>
-              <option label="50063">5</option> <!-- Off DOLBY_VISION_OUTPUT_MODE_BYPASS -->
-              <option label="50064">4</option> <!-- SDR8 DOLBY_VISION_OUTPUT_MODE_SDR8 -->
-              <option label="50065">3</option> <!-- SDR10 DOLBY_VISION_OUTPUT_MODE_SDR10 -->
-              <option label="50067">1</option> <!-- DoVi DOLBY_VISION_OUTPUT_MODE_IPT / DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL -->
-            </options>
+            <options>DolbyVisionVS10HDR10</options>
           </constraints>
           <control type="spinner" format="string" />
         </setting>
@@ -4023,12 +4008,7 @@
             <dependency type="visible" setting="coreelec.amlogic.dolbyvision.mode" operator="!is">2</dependency>
           </dependencies>
           <constraints>
-            <options>
-              <option label="50063">5</option> <!-- Off DOLBY_VISION_OUTPUT_MODE_BYPASS -->
-              <option label="50064">4</option> <!-- SDR8 DOLBY_VISION_OUTPUT_MODE_SDR8 -->
-              <option label="50065">3</option> <!-- SDR10 DOLBY_VISION_OUTPUT_MODE_SDR10 -->
-              <option label="50067">1</option> <!-- DoVi DOLBY_VISION_OUTPUT_MODE_IPT / DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL -->
-            </options>
+            <options>DolbyVisionVS10HDR10</options>
           </constraints>
           <control type="spinner" format="string" />
         </setting>
@@ -4041,13 +4021,7 @@
             <dependency type="visible" setting="coreelec.amlogic.dolbyvision.mode" operator="!is">2</dependency>
           </dependencies>
           <constraints>
-            <options>
-              <option label="50063">5</option> <!-- Off DOLBY_VISION_OUTPUT_MODE_BYPASS -->
-              <option label="50064">4</option> <!-- SDR8 DOLBY_VISION_OUTPUT_MODE_SDR8 -->
-              <option label="50065">3</option> <!-- SDR10 DOLBY_VISION_OUTPUT_MODE_SDR10 -->
-              <option label="50066">2</option> <!-- HDR10 DOLBY_VISION_OUTPUT_MODE_HDR10 -->
-              <option label="50067">1</option> <!-- DoVi DOLBY_VISION_OUTPUT_MODE_IPT / DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL -->
-            </options>
+            <options>DolbyVisionVS10HDRHLG</options>
           </constraints>
           <control type="spinner" format="string" />
         </setting>
@@ -4060,11 +4034,7 @@
             <dependency type="visible" setting="coreelec.amlogic.dolbyvision.mode" operator="!is">2</dependency>
           </dependencies>
           <constraints>
-            <options>
-              <option label="50063">5</option> <!-- Off DOLBY_VISION_OUTPUT_MODE_BYPASS -->
-              <option label="50064">4</option> <!-- SDR8 DOLBY_VISION_OUTPUT_MODE_SDR8 -->
-              <option label="50065">3</option> <!-- SDR10 DOLBY_VISION_OUTPUT_MODE_SDR10 -->
-            </options>
+            <options>DolbyVisionVS10DV</options>
           </constraints>
           <control type="spinner" format="string" />
         </setting>
