@@ -24,11 +24,14 @@
 #include "settings/DisplaySettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
+#include "settings/lib/SettingsManager.h"
 #include "settings/lib/Setting.h"
 #include "guilib/DispResource.h"
+#include "guilib/LocalizeStrings.h"
 #include "utils/AMLUtils.h"
 #include "utils/log.h"
 #include "threads/SingleLock.h"
+#include "interfaces/AnnouncementManager.h"
 
 #include "platform/linux/SysfsPath.h"
 
@@ -37,7 +40,27 @@
 
 #include "system_egl.h"
 
+#define DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL (unsigned int)(1)
+#define DOLBY_VISION_OUTPUT_MODE_BYPASS     (unsigned int)(5)
+
 using namespace KODI;
+
+void SettingOptionsDolbyVisionTypeFiller(
+    const SettingConstPtr& setting,
+    std::vector<IntegerSettingOption>& list,
+    int& current,
+    void* data)
+{
+
+  // Resolve DV type once only - for the case where the display is not dv capable and a dv_info is injected this will allow options that will not work.
+  if (!m_dv_type_resolved) {      
+    list.clear();    
+    if (aml_display_support_dv()) list.emplace_back(g_localizeStrings.Get(50023), DV_TYPE_DISPLAY_LED); 
+    if (aml_dv_support_ll()) list.emplace_back(g_localizeStrings.Get(50024), DV_TYPE_PLAYER_LED_LLDV);
+    list.emplace_back(g_localizeStrings.Get(50025), DV_TYPE_PLAYER_LED_HDR); 
+    m_dv_type_resolved = true;
+  }
+}
 
 CWinSystemAmlogic::CWinSystemAmlogic()
 :  m_nativeWindow(NULL)
@@ -65,7 +88,10 @@ CWinSystemAmlogic::CWinSystemAmlogic()
 
 bool CWinSystemAmlogic::InitWindowSystem()
 {
-  const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+  const auto settingsManager = settings->GetSettingsManager();
+
+  settingsManager->RegisterSettingOptionsFiller("DolbyVisionType", SettingOptionsDolbyVisionTypeFiller);
 
   if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_NOISEREDUCTION))
   {
@@ -89,29 +115,40 @@ bool CWinSystemAmlogic::InitWindowSystem()
     CSysfsPath("/sys/module/am_vecm/parameters/hdr_mode", 1);
   }
 
-  if (!aml_support_dolby_vision() || !aml_display_support_dv())
-  {
-    auto setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_DV_DISABLE);
-    if (setting)
-    {
-      setting->SetVisible(false);
-      settings->SetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_DISABLE, false);
-    }
+  bool device_support_dv = aml_support_dolby_vision();
+  bool all_support_dv = (device_support_dv && aml_display_support_dv());
 
-    setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_USE_PLAYERLED);
-    if (setting)
-    {
-      setting->SetVisible(false);
-      settings->SetBool(CSettings::SETTING_COREELEC_AMLOGIC_USE_PLAYERLED, false);
-    }
-  }
-  else if (aml_dv_support_ll())
-  {
-    CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- display do support Dolby Vision Low Latency");
-    auto setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_USE_PLAYERLED);
-    if (setting)
-      setting->SetVisible(true);
-  }
+  auto setBln = [&](const std::string& id, const bool support, const bool value) {
+    if (auto setting = settings->GetSetting(id)) setting->SetVisible(support);
+    if (!support) settings->SetBool(id, value);
+  };
+
+  auto setInt = [&](const std::string& id, const bool support, const int value) {
+    if (auto setting = settings->GetSetting(id)) setting->SetVisible(support);
+    if (!support) settings->SetInt(id, value);
+  };
+
+  auto setStr = [&](const std::string& id, const bool support, const std::string& value) {
+    if (auto setting = settings->GetSetting(id)) setting->SetVisible(support);
+    if (!support) settings->SetString(id, value);
+  };
+
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE, device_support_dv, DV_MODE_OFF);
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE, device_support_dv, DV_TYPE_PLAYER_LED_HDR);
+  setBln(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_INJECT, device_support_dv, false);
+  setStr(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB, device_support_dv, "");
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_COLORIMETRY_FOR_STD, all_support_dv, 0);
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR, device_support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10, device_support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS, device_support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG, device_support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
+  setInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_DV, device_support_dv, static_cast<int>(DOLBY_VISION_OUTPUT_MODE_BYPASS));
+
+  // Always update (reset) the reg and lut on mode changes.
+  CSysfsPath("/sys/module/amdolby_vision/parameters/force_update_reg", 31);
+
+  // Turn on dv - if dv mode is on, limit the menu lumincance as menu now can be in DV/HDR. 
+  aml_dv_start();
 
   if (((LINUX_VERSION_CODE >> 16) & 0xFF) < 5)
   {
@@ -149,7 +186,20 @@ bool CWinSystemAmlogic::InitWindowSystem()
   CLog::Log(LOGDEBUG,"CWinSystemAmlogic: Sending SIGUSR1 to 'splash-image'");
   std::system("killall -s SIGUSR1 splash-image &> /dev/null");
 
+  // register for announcements to capture OnWake and re-apply DV if needed.
+  auto announcer = CServiceBroker::GetAnnouncementManager();
+  announcer->AddAnnouncer(this);
+
   return CWinSystemBase::InitWindowSystem();
+}
+
+void CWinSystemAmlogic::Announce(ANNOUNCEMENT::AnnouncementFlag flag,
+              const std::string& sender,
+              const std::string& message,
+              const CVariant& data)
+{
+  // When Wake from Suspend re-trigger DV if in DV_MODE_ON
+  if ((flag == ANNOUNCEMENT::System) && (message == "OnWake")) aml_dv_start();
 }
 
 bool CWinSystemAmlogic::DestroyWindowSystem()
@@ -199,6 +249,9 @@ bool CWinSystemAmlogic::CreateNewWindow(const std::string& name,
       (*i)->OnResetDisplay();
     }
   }
+
+  // Make sure DV Display acitivates if enabled.
+  aml_dv_display_trigger();
 
   m_bWindowCreated = true;
   return true;
