@@ -298,6 +298,35 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       m_pFormatName = "am-h265";
       m_bitstream = new CBitstreamConverter();
       m_bitstream->Open(m_hints.codec, m_hints.extradata.GetData(), m_hints.extradata.GetSize(), true);
+
+      // check for hevc-hvcC and convert to h265-annex-b
+      if (m_hints.extradata && !m_hints.cryptoSession)
+      {
+        if (m_bitstream && aml_support_dolby_vision())
+        {
+          auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+          bool user_dv_disable = (settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE) == DV_MODE_OFF);
+          if (!user_dv_disable)
+          {
+            int convertDovi = settings->GetInt(CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI);
+            if (convertDovi)
+            {
+              CLog::Log(LOGDEBUG, "{}::{} - HEVC bitstream profile 7 will be converted by chosen mode {:d}",
+                __MODULE_NAME__, __FUNCTION__, convertDovi);
+              m_bitstream->SetConvertDovi(convertDovi);
+            }
+            int vs10_hdr10plus = settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS);
+            if (vs10_hdr10plus < 5)
+            {
+              // for VS10 conversion need to remove the HDR10plus metadata.
+              CLog::Log(LOGDEBUG, "{}::{} - HEVC bitstream hdr10plus metadata will be removed to allow VS10",
+                __MODULE_NAME__, __FUNCTION__);
+              m_bitstream->SetRemoveHdr10Plus(true);
+            }
+          }
+        }
+      }
+
       // make sure we do not leak the existing m_hints.extradata
       m_hints.extradata = {};
       m_hints.extradata = FFmpegExtraData(m_bitstream->GetExtraSize());
@@ -388,6 +417,7 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
   uint8_t *pData(packet.pData);
   uint32_t iSize(packet.iSize);
   enum ELType dovi_el_type = ELType::TYPE_NONE;
+  bool is_hdr10plus = false;
   int data_added = false;
   bool dual_layer_converted = false;
 
@@ -451,6 +481,7 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
       pData = m_bitstream->GetConvertBuffer();
       iSize = m_bitstream->GetConvertSize();
       dovi_el_type = m_bitstream->GetDoviElType();
+      is_hdr10plus = m_bitstream->IsHdr10Plus();
     }
     else if (!m_has_keyframe && m_bitparser)
     {
@@ -470,7 +501,7 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
         m_hints.ptsinvalid = true;
 
       CLog::Log(LOGINFO, "CDVDVideoCodecAmlogic::{}: Open decoder: fps:{:d}/{:d}", __FUNCTION__, m_hints.fpsrate, m_hints.fpsscale);
-      if (m_Codec && !m_Codec->OpenDecoder(m_hints, dovi_el_type))
+      if (m_Codec && !m_Codec->OpenDecoder(m_hints, dovi_el_type, is_hdr10plus))
         CLog::Log(LOGERROR, "CDVDVideoCodecAmlogic::{}: Failed to open Amlogic Codec", __FUNCTION__);
 
       m_videoBufferPool = std::shared_ptr<CAMLVideoBufferPool>(new CAMLVideoBufferPool());

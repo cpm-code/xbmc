@@ -10,6 +10,7 @@
 
 #include "cores/FFmpeg.h"
 
+#include <optional>
 #include <stdint.h>
 
 extern "C" {
@@ -119,6 +120,7 @@ public:
   void SetRemoveDovi(bool value) { m_removeDovi = value; }
   void SetRemoveHdr10Plus(bool value) { m_removeHdr10Plus = value; }
   enum ELType GetDoviElType() const { return m_dovi_el_type; }
+  bool IsHdr10Plus() const { return m_is_hdr10plus; }
 
   static bool       mpeg2_sequence_header(const uint8_t *data, const uint32_t size, mpeg2_sequence *sequence);
   static bool       h264_sequence_header(const uint8_t *data, const uint32_t size, h264_sequence *sequence);
@@ -174,4 +176,6 @@ protected:
   bool              m_removeDovi;
   bool              m_removeHdr10Plus;
   enum ELType       m_dovi_el_type;
+  bool              m_is_hdr10plus;
+  bool              m_first_convert;
 };

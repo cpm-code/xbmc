@@ -397,6 +397,8 @@ CBitstreamConverter::CBitstreamConverter()
   m_removeHdr10Plus = false;
   m_dovi_el_type = ELType::TYPE_NONE;
   m_combine = false;
+  m_is_hdr10plus = false;
+  m_first_convert = true;
 }
 
 CBitstreamConverter::~CBitstreamConverter()
@@ -1163,6 +1165,14 @@ bool CBitstreamConverter::BitstreamConvert(uint8_t* pData, int iSize, uint8_t **
       if (m_removeDovi && (unit_type == HEVC_NAL_UNSPEC62 || unit_type == HEVC_NAL_UNSPEC63))
         write_buf = false;
 
+      if (m_first_convert && unit_type == HEVC_NAL_SEI_PREFIX) {
+        std::vector<uint8_t> buf2;
+        std::vector<CHevcSei> messages = CHevcSei::ParseSeiRbspUnclearedEmulation(buf, nal_size, buf2);
+        if (auto res = CHevcSei::FindHdr10PlusSeiMessage(buf2, messages)) {
+          m_is_hdr10plus = true;
+        }
+      }
+
       // Try removing HDR10+ only if the NAL is big enough, optimization
       if (m_removeHdr10Plus && unit_type == HEVC_NAL_SEI_PREFIX && nal_size >= 7)
       {
@@ -1224,6 +1234,8 @@ bool CBitstreamConverter::BitstreamConvert(uint8_t* pData, int iSize, uint8_t **
     buf += nal_size;
     cumul_size += nal_size + m_sps_pps_context.length_size;
   } while (cumul_size < buf_size);
+
+  m_first_convert = false;
 
   return true;
 
