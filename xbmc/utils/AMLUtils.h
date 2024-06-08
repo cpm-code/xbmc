@@ -70,7 +70,8 @@ enum DV_COLORIMETRY : int
 #define AML_SM1     0x2B
 
 int  aml_get_cpufamily_id();
-bool aml_display_support_hdr();
+bool aml_display_support_hdr_pq();
+bool aml_display_support_hdr_hlg();
 bool aml_display_support_dv();
 bool aml_dv_support_ll();
 bool aml_dv_support_std();

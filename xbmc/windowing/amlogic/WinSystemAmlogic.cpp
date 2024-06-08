@@ -51,21 +51,21 @@ using namespace KODI;
 void dv_type_filler(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data) {
   
   // Only do first time - becasue if injecting a Dolby VSVDB then more options will show which are not valid
-  // Means user will need to restart kodi if they change the Display / EDID.
-  static bool isFirstRun = true;
-  if (isFirstRun) 
-  {
-    list.clear();
-    if (aml_support_dolby_vision() && aml_dv_support_std()) list.emplace_back(g_localizeStrings.Get(50023), DV_TYPE_DISPLAY_LED); 
-    if (aml_support_dolby_vision() && aml_dv_support_ll()) list.emplace_back(g_localizeStrings.Get(50024), DV_TYPE_PLAYER_LED_LLDV);
-    if (aml_support_dolby_vision() && aml_display_support_hdr()) list.emplace_back(g_localizeStrings.Get(50025), DV_TYPE_PLAYER_LED_HDR); 
-    if (aml_support_dolby_vision()) list.emplace_back(g_localizeStrings.Get(50026), DV_TYPE_VS10_ONLY); 
-    isFirstRun = false;
-  }
+  // Means user will need to restart kodi if they change the Display / EDID to see more options.
+  const bool dv_std = aml_support_dolby_vision() && aml_dv_support_std();
+  const bool dv_ll = aml_support_dolby_vision() && aml_dv_support_ll();
+  const bool dv_hdr_pq = aml_support_dolby_vision() && aml_display_support_hdr_pq();
+  const bool dv = aml_support_dolby_vision();
+
+  list.clear();
+  if (dv_std) list.emplace_back(g_localizeStrings.Get(50023), DV_TYPE_DISPLAY_LED); 
+  if (dv_ll) list.emplace_back(g_localizeStrings.Get(50024), DV_TYPE_PLAYER_LED_LLDV);
+  if (dv_hdr_pq) list.emplace_back(g_localizeStrings.Get(50025), DV_TYPE_PLAYER_LED_HDR); 
+  if (dv) list.emplace_back(g_localizeStrings.Get(50026), DV_TYPE_VS10_ONLY); 
 }
 
 bool support_dv() {
-  return (aml_support_dolby_vision() && (aml_dv_support_std() || aml_dv_support_ll() || aml_display_support_hdr()));
+  return (aml_support_dolby_vision() && (aml_dv_support_std() || aml_dv_support_ll() || aml_display_support_hdr_pq()));
 }
 
 void add_vs10_bypass(std::vector<IntegerSettingOption>& list) {list.emplace_back(g_localizeStrings.Get(50063), DOLBY_VISION_OUTPUT_MODE_BYPASS);}
@@ -79,7 +79,7 @@ void vs10_sdr8_filler(const SettingConstPtr& setting, std::vector<IntegerSetting
   list.clear();
   add_vs10_bypass(list);
   add_vs10_sdr10(list);
-  if (aml_display_support_hdr()) add_vs10_hdr10(list);
+  if (aml_display_support_hdr_pq()) add_vs10_hdr10(list);
   if (support_dv()) add_vs10_dv(list); 
 }
 
@@ -88,14 +88,14 @@ void vs10_sdr10_filler(const SettingConstPtr& setting, std::vector<IntegerSettin
   list.clear();
   add_vs10_bypass(list);
   add_vs10_sdr8(list);
-  if (aml_display_support_hdr()) add_vs10_hdr10(list);
+  if (aml_display_support_hdr_pq()) add_vs10_hdr10(list);
   if (support_dv()) add_vs10_dv(list); 
 }
 
 void vs10_hdr10_filler(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data)
 {
   list.clear();
-  add_vs10_bypass(list);
+  if (aml_display_support_hdr_pq()) add_vs10_bypass(list);
   add_vs10_sdr8(list);
   add_vs10_sdr10(list);
   if (support_dv()) add_vs10_dv(list); 
@@ -104,17 +104,17 @@ void vs10_hdr10_filler(const SettingConstPtr& setting, std::vector<IntegerSettin
 void vs10_hdr_hlg_filler(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data)
 {
   list.clear();
-  add_vs10_bypass(list);
+  if (aml_display_support_hdr_hlg()) add_vs10_bypass(list);
   add_vs10_sdr8(list);
   add_vs10_sdr10(list);
-  if (aml_display_support_hdr()) add_vs10_hdr10(list);
+  if (aml_display_support_hdr_pq()) add_vs10_hdr10(list);
   if (support_dv()) add_vs10_dv(list); 
 }
 
 void vs10_dv_filler(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data)
 {
   list.clear();
-  add_vs10_bypass(list);
+  if (support_dv()) add_vs10_bypass(list);
   add_vs10_sdr8(list);
   add_vs10_sdr10(list);
 }
@@ -145,9 +145,6 @@ CWinSystemAmlogic::CWinSystemAmlogic()
 
 bool CWinSystemAmlogic::InitWindowSystem()
 {
-
-  IsHDRDisplay(); // Populate HDR Support.
-
   const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
   const auto settingsManager = settings->GetSettingsManager();
 

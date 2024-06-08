@@ -68,16 +68,28 @@ int aml_get_cpufamily_id()
   return aml_cpufamily_id;
 }
 
-bool aml_display_support_hdr()
+bool aml_display_support_hdr_pq()
 {
-  bool support_hdr = false;
+  bool support = false;
   CSysfsPath hdr_cap{"/sys/class/amhdmitx/amhdmitx0/hdr_cap"};
   if (hdr_cap.Exists())
   {
     std::string valstr = hdr_cap.Get<std::string>().value();
-    support_hdr = (valstr.find("Traditional HDR: 1") != std::string::npos);
+    support = (valstr.find("SMPTE ST 2084: 1") != std::string::npos);
   }
-  return support_hdr;
+  return support;
+}
+
+bool aml_display_support_hdr_hlg()
+{
+  bool support = false;
+  CSysfsPath hdr_cap{"/sys/class/amhdmitx/amhdmitx0/hdr_cap"};
+  if (hdr_cap.Exists())
+  {
+    std::string valstr = hdr_cap.Get<std::string>().value();
+    support = (valstr.find("Hybrid Log-Gamma: 1") != std::string::npos);
+  }
+  return support;
 }
 
 bool aml_display_support_dv()
