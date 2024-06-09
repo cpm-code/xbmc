@@ -24594,14 +24594,14 @@ msgstr ""
 #. "Dolby Vision"
 #: system/settings/settings.xml
 msgctxt "#50016"
-msgid "Maximum luminance"
+msgid "GUI max luminance in menus"
 msgstr ""
 
 #. "Dolby Vision"
 #: system/settings/settings.xml
 msgctxt "#50017"
-msgid "Set the maximum allowable luminance for the GUI in cd/m2 (nits)"
-msgstr "Set the maximum allowable luminance for the GUI in cd/m² (nits)"
+msgid "Set the maximum luminance for the GUI menus in cd/m2 (nits)"
+msgstr ""
 
 #. "Dolby Vision Type"
 #: system/settings/settings.xml
