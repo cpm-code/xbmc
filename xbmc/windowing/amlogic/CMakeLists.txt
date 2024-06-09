@@ -1,8 +1,10 @@
 set(SOURCES WinSystemAmlogic.cpp
-            VideoSyncAML.cpp)
+            VideoSyncAML.cpp
+            DolbyVisionAML.cpp)
 
 set(HEADERS WinSystemAmlogic.h
-            VideoSyncAML.h)
+            VideoSyncAML.h
+            DolbyVisionAML.h)
 
 if(OPENGLES_FOUND)
   list(APPEND SOURCES WinSystemAmlogicGLESContext.cpp)
