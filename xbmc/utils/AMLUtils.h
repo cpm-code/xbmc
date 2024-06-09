@@ -58,7 +58,8 @@ enum DV_TYPE : int
 
 enum DV_COLORIMETRY : int
 {
-  DV_COLORIMETRY_BT2020NC = 1,
+  DV_COLORIMETRY_AMLOGIC = 0,
+  DV_COLORIMETRY_BT2020NC,
   DV_COLORIMETRY_REMOVE
 };
 
@@ -93,6 +94,7 @@ void aml_dv_disable();
 bool aml_is_dv_enable();
 void aml_dv_display_trigger();
 void aml_dv_start();
+void aml_dv_always_update_reg();
 bool aml_has_frac_rate_policy();
 bool aml_video_started();
 void aml_video_mute(bool mute);

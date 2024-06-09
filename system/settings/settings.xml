@@ -3906,6 +3906,8 @@
           <control type="spinner" format="string" />
         </setting>
         <setting id="coreelec.amlogic.dolbyvision.mode.on.luminance" type="integer" label="50016" help="50017" parent="coreelec.amlogic.dolbyvision.mode">
+          <requirement>HAVE_AMCODEC</requirement>
+          <visible>false</visible>
           <level>2</level>
           <default>100</default>
           <dependencies>
@@ -3920,7 +3922,7 @@
         </setting>
         <setting id="coreelec.amlogic.dolbyvision.type" type="integer" label="50021" help="50022">
           <requirement>HAVE_AMCODEC</requirement>
-          <visible>true</visible>
+          <visible>false</visible>
           <level>2</level>
           <default>0</default>
           <dependencies>
@@ -3933,7 +3935,7 @@
         </setting>
         <setting id="coreelec.amlogic.dolbyvision.vsvdb.inject" type="boolean" label="50031" help="50032" parent="coreelec.amlogic.dolbyvision.type">
           <requirement>HAVE_AMCODEC</requirement>
-          <visible>true</visible>
+          <visible>false</visible>
           <level>2</level>
           <default>false</default>
           <dependencies>
@@ -3944,7 +3946,7 @@
         </setting>
         <setting id="coreelec.amlogic.dolbyvision.vsvdb" type="string" label="50033" help="50034" parent="coreelec.amlogic.dolbyvision.vsvdb.inject">
           <requirement>HAVE_AMCODEC</requirement>
-          <visible>true</visible>
+          <visible>false</visible>
           <level>2</level>
           <default></default>
           <dependencies>
@@ -3959,7 +3961,7 @@
         </setting>
         <setting id="coreelec.amlogic.dolbyvision.colorimtry.for.std" type="integer" label="50041" help="50042" parent="coreelec.amlogic.dolbyvision.type">
           <requirement>HAVE_AMCODEC</requirement>
-          <visible>true</visible>
+          <visible>false</visible>
           <level>2</level>
           <default>2</default>
           <dependencies>
@@ -3977,7 +3979,7 @@
         </setting>
         <setting id="coreelec.amlogic.dolbyvision.vs10.sdr8" type="integer" label="50051" help="50052" parent="coreelec.amlogic.dolbyvision.type">
           <requirement>HAVE_AMCODEC</requirement>
-          <visible>true</visible>
+          <visible>false</visible>
           <level>2</level>
           <default>5</default>
           <dependencies>
@@ -3990,7 +3992,7 @@
         </setting>
         <setting id="coreelec.amlogic.dolbyvision.vs10.sdr10" type="integer" label="50053" help="50054" parent="coreelec.amlogic.dolbyvision.type">
           <requirement>HAVE_AMCODEC</requirement>
-          <visible>true</visible>
+          <visible>false</visible>
           <level>2</level>
           <default>5</default>
           <dependencies>
@@ -4003,7 +4005,7 @@
         </setting>
         <setting id="coreelec.amlogic.dolbyvision.vs10.hdr10" type="integer" label="50055" help="50056" parent="coreelec.amlogic.dolbyvision.type">
           <requirement>HAVE_AMCODEC</requirement>
-          <visible>true</visible>
+          <visible>false</visible>
           <level>2</level>
           <default>5</default>
           <dependencies>
@@ -4016,7 +4018,7 @@
         </setting>
         <setting id="coreelec.amlogic.dolbyvision.vs10.hdr10plus" type="integer" label="50057" help="50058" parent="coreelec.amlogic.dolbyvision.type">
           <requirement>HAVE_AMCODEC</requirement>
-          <visible>true</visible>
+          <visible>false</visible>
           <level>2</level>
           <default>5</default>
           <dependencies>
@@ -4029,7 +4031,7 @@
         </setting>
         <setting id="coreelec.amlogic.dolbyvision.vs10.hdrhlg" type="integer" label="50059" help="50060" parent="coreelec.amlogic.dolbyvision.type">
           <requirement>HAVE_AMCODEC</requirement>
-          <visible>true</visible>
+          <visible>false</visible>
           <level>2</level>
           <default>5</default>
           <dependencies>
@@ -4042,7 +4044,7 @@
         </setting>
         <setting id="coreelec.amlogic.dolbyvision.vs10.dv" type="integer" label="50061" help="50062" parent="coreelec.amlogic.dolbyvision.type">
           <requirement>HAVE_AMCODEC</requirement>
-          <visible>true</visible>
+          <visible>false</visible>
           <level>2</level>
           <default>5</default>
           <dependencies>

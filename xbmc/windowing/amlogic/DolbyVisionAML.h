@@ -18,7 +18,7 @@ public:
   CDolbyVisionAML();
 
   // Setup
-  void Setup();
+  bool Setup();
 
   // implementation of IAnnouncer
   void Announce(ANNOUNCEMENT::AnnouncementFlag flag,

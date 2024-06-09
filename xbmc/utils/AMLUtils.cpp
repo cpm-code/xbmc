@@ -395,6 +395,11 @@ void aml_dv_start()
   }
 }
 
+void aml_dv_always_update_reg()
+{
+  CSysfsPath("/sys/module/amdolby_vision/parameters/force_update_reg", 31);
+}
+
 bool aml_has_frac_rate_policy()
 {
   static int has_frac_rate_policy = -1;
