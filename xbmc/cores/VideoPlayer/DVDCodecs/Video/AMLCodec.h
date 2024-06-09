@@ -140,6 +140,4 @@ private:
 
   bool            m_buffer_level_ready;
   float           m_minimum_buffer_level;
-
-  unsigned int    m_dv_osd_max;
 };

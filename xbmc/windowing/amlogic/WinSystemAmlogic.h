@@ -19,7 +19,8 @@
 class IDispResource;
 
 class CWinSystemAmlogic : public CWinSystemBase,
-                          public ANNOUNCEMENT::IAnnouncer // Application callback
+                          public ANNOUNCEMENT::IAnnouncer, // Application callback
+                          public ISettingCallback          // Settings callback
 {
 public:
   CWinSystemAmlogic();
@@ -47,6 +48,9 @@ public:
                 const std::string& sender,
                 const std::string& message,
                 const CVariant& data) override;
+
+  // implementation of ISettingCallback
+  void OnSettingChanged(const std::shared_ptr<const CSetting>& setting) override;
 
 protected:
   std::string m_framebuffer_name;

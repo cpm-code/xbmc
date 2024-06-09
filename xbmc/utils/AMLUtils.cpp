@@ -353,16 +353,10 @@ void aml_dv_off(bool disable)
   }
 }
 
-int aml_dv_set_osd_max(int max)
+void aml_dv_set_osd_max(int max)
 {
-  // Set the OSD DV graphic max, only set if currently 0 (auto) - i.e. not already set, or want to reset to 0 (auto)
-  int existing_max = 0;
-  CSysfsPath dolby_vision_graphic_max{"/sys/module/amdolby_vision/parameters/dolby_vision_graphic_max"};
-  if (dolby_vision_graphic_max.Exists()) {
-    existing_max = dolby_vision_graphic_max.Get<int>().value();
-    if (existing_max == 0 || max == 0) dolby_vision_graphic_max.Set(max);
-  }
-  return existing_max;
+  // Set the OSD DV graphic max.
+  CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_graphic_max", max);
 }
 
 void aml_dv_enable()
@@ -394,7 +388,8 @@ void aml_dv_start()
   const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
   enum DV_MODE dv_mode(static_cast<DV_MODE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE)));
   if (dv_mode == DV_MODE_ON) {
-    aml_dv_set_osd_max(100);
+    int max(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE));
+    aml_dv_set_osd_max(max);
     aml_dv_off(true);
     aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL, true);
   }

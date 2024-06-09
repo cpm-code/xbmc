@@ -2041,8 +2041,8 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type, boo
   bool dv_on((dv_mode == DV_MODE_ON || dv_mode == DV_MODE_ON_DEMAND) && dv_request);
   CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DV mode [{}],  DV type [{}], DV on [{}]", dv_mode, dv_type, dv_on);
 
-  // If DV Mode ON in Kodi Menu, then Set graphics max to 0 (auto - i.e. do lookup in AMLogic side) record current OSD max for Kodi menu to restore later.
-  if (dv_mode == DV_MODE_ON) m_dv_osd_max = aml_dv_set_osd_max(0);
+  // If DV Mode ON in Kodi Menu, then Set graphics max to 0 (handled by amlogic).
+  if (dv_mode == DV_MODE_ON) aml_dv_set_osd_max(0);
   
   if (dv_on)
   {
@@ -2375,11 +2375,16 @@ void CAMLCodec::CloseDecoder()
 
   CloseAmlVideo();
 
-  // If DV Mode ON in Kodi Menu, then restore the DV osd max.
-  if (dv_mode == DV_MODE_ON) aml_dv_set_osd_max(m_dv_osd_max);
+  // If DV Mode ON in Kodi Menu.
+  if (dv_mode == DV_MODE_ON) {
 
-  // Switch on DV - Incase VS10 is off for the content type.
-  if ((dv_mode == DV_MODE_ON) && !aml_is_dv_enable()) aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL, true);
+    // Set the max luminance for menu.
+    int max(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE));
+    aml_dv_set_osd_max(max);
+
+    // Switch on DV - Incase VS10 is off for the content type.
+    if (!aml_is_dv_enable()) aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL, true);
+  }
 }
 
 void CAMLCodec::CloseAmlVideo()

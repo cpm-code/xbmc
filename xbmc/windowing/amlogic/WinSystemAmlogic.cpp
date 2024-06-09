@@ -214,6 +214,12 @@ bool CWinSystemAmlogic::InitWindowSystem()
   // Turn on dv - if dv mode is on, limit the menu lumincance as menu now can be in DV/HDR. 
   aml_dv_start();
 
+  // Register for ui dv mode change - to change on the fly.
+  std::set<std::string> settingSet;
+  settingSet.insert(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE);
+  settingSet.insert(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE);
+  settingsManager->RegisterCallback(this, settingSet);
+
   if (((LINUX_VERSION_CODE >> 16) & 0xFF) < 5)
   {
     auto setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING);
@@ -264,6 +270,25 @@ void CWinSystemAmlogic::Announce(ANNOUNCEMENT::AnnouncementFlag flag,
 {
   // When Wake from Suspend re-trigger DV if in DV_MODE_ON
   if ((flag == ANNOUNCEMENT::System) && (message == "OnWake")) aml_dv_start();
+}
+
+void CWinSystemAmlogic::OnSettingChanged(const std::shared_ptr<const CSetting>& setting) 
+{
+  if (!setting) return;
+
+  const std::string& settingId = setting->GetId();
+
+  if (settingId == CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE) {
+    enum DV_MODE dv_mode(static_cast<DV_MODE>(std::dynamic_pointer_cast<const CSettingInt>(setting)->GetValue()));
+    if (dv_mode == DV_MODE_ON) {
+      aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL, true);
+    } else if (aml_is_dv_enable()) {
+      aml_dv_off(true);
+    }
+  } else if (settingId == CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE) {
+    int max(std::dynamic_pointer_cast<const CSettingInt>(setting)->GetValue());
+    aml_dv_set_osd_max(max);
+  }
 }
 
 bool CWinSystemAmlogic::DestroyWindowSystem()

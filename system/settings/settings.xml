@@ -3905,6 +3905,19 @@
           </constraints>
           <control type="spinner" format="string" />
         </setting>
+        <setting id="coreelec.amlogic.dolbyvision.mode.on.luminance" type="integer" label="50016" help="50017" parent="coreelec.amlogic.dolbyvision.mode">
+          <level>2</level>
+          <default>100</default>
+          <dependencies>
+            <dependency type="visible" setting="coreelec.amlogic.dolbyvision.mode" operator="is">0</dependency>
+          </dependencies>
+          <constraints>
+            <minimum>50</minimum>
+            <step>1</step>
+            <maximum>200</maximum>
+          </constraints>
+          <control type="slider" format="integer" />
+        </setting>
         <setting id="coreelec.amlogic.dolbyvision.type" type="integer" label="50021" help="50022">
           <requirement>HAVE_AMCODEC</requirement>
           <visible>true</visible>
