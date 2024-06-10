@@ -1855,7 +1855,7 @@ int CAMLCodec::GetAmlDuration() const
   return am_private ? (am_private->video_rate * PTS_FREQ) / UNIT_FREQ : 0;
 };
 
-bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type, bool is_hdr10plus)
+bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
 {
   m_speed = DVD_PLAYSPEED_NORMAL;
   m_drain = false;
@@ -1984,8 +1984,6 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type, boo
   std::string hdrType = CStreamDetails::HdrTypeToString(hints.hdrType);
   if (hdrType.size())
     CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hdr type: {}", hdrType);
-  if (hints.hdrType == StreamHdrType::HDR_TYPE_HDR10)
-    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hdr is hdr10plus: {}", is_hdr10plus);
   if (hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
     CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DOVI: version {:d}.{:d}, profile {:d}, el type {:d}",
       hints.dovi.dv_version_major, hints.dovi.dv_version_minor, hints.dovi.dv_profile, dovi_el_type);
@@ -2028,8 +2026,8 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type, boo
 
   bool vs10_sdr8_on((vs10_sdr8_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS) && (hints.hdrType == StreamHdrType::HDR_TYPE_NONE) && (bitdepth == 8));
   bool vs10_sdr10_on((vs10_sdr10_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS) && (hints.hdrType == StreamHdrType::HDR_TYPE_NONE) && (bitdepth == 10));
-  bool vs10_hdr10_on((vs10_hdr10_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS) && (hints.hdrType == StreamHdrType::HDR_TYPE_HDR10) && !is_hdr10plus);
-  bool vs10_hdr10plus_on((vs10_hdr10plus_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS) && (hints.hdrType == StreamHdrType::HDR_TYPE_HDR10) && is_hdr10plus);
+  bool vs10_hdr10_on((vs10_hdr10_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS) && (hints.hdrType == StreamHdrType::HDR_TYPE_HDR10));
+  bool vs10_hdr10plus_on((vs10_hdr10plus_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS) && (hints.hdrType == StreamHdrType::HDR_TYPE_HDR10PLUS));
   bool vs10_hdrhlg_on((vs10_hdrhlg_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS) && (hints.hdrType == StreamHdrType::HDR_TYPE_HLG));
   bool vs10_dv_on((vs10_dv_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS) && content_is_dv);
   bool dv_request(vs10_sdr8_on || vs10_sdr10_on || vs10_hdr10_on || vs10_hdr10plus_on || vs10_hdrhlg_on || content_is_dv);

@@ -417,7 +417,6 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
   uint8_t *pData(packet.pData);
   uint32_t iSize(packet.iSize);
   enum ELType dovi_el_type = ELType::TYPE_NONE;
-  bool is_hdr10plus = false;
   int data_added = false;
   bool dual_layer_converted = false;
 
@@ -481,7 +480,10 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
       pData = m_bitstream->GetConvertBuffer();
       iSize = m_bitstream->GetConvertSize();
       dovi_el_type = m_bitstream->GetDoviElType();
-      is_hdr10plus = m_bitstream->IsHdr10Plus();
+      if (m_bitstream->IsHdr10Plus()) {
+        CLog::Log(LOGINFO, "CDVDVideoCodecAmlogic::{}: change hints hdrType from {} to {}", __FUNCTION__, m_hints.hdrType, StreamHdrType::HDR_TYPE_HDR10PLUS);
+        m_hints.hdrType = StreamHdrType::HDR_TYPE_HDR10PLUS;
+      }
     }
     else if (!m_has_keyframe && m_bitparser)
     {
@@ -501,7 +503,7 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
         m_hints.ptsinvalid = true;
 
       CLog::Log(LOGINFO, "CDVDVideoCodecAmlogic::{}: Open decoder: fps:{:d}/{:d}", __FUNCTION__, m_hints.fpsrate, m_hints.fpsscale);
-      if (m_Codec && !m_Codec->OpenDecoder(m_hints, dovi_el_type, is_hdr10plus))
+      if (m_Codec && !m_Codec->OpenDecoder(m_hints, dovi_el_type))
         CLog::Log(LOGERROR, "CDVDVideoCodecAmlogic::{}: Failed to open Amlogic Codec", __FUNCTION__);
 
       m_videoBufferPool = std::shared_ptr<CAMLVideoBufferPool>(new CAMLVideoBufferPool());
