@@ -70,6 +70,20 @@ enum DV_COLORIMETRY : int
 #define AML_G12B    0x29
 #define AML_SM1     0x2B
 
+#define FLAG_FORCE_DV_LL        (unsigned int)(0x4000)
+#define DOLBY_VISION_LL_DISABLE (unsigned int)(0)
+#define DOLBY_VISION_LL_YUV422  (unsigned int)(1)
+
+#define DOLBY_VISION_FOLLOW_SOURCE     (unsigned int)(1)
+#define DOLBY_VISION_FORCE_OUTPUT_MODE (unsigned int)(2)
+
+#define DOLBY_VISION_OUTPUT_MODE_IPT        (unsigned int)(0)
+#define DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL (unsigned int)(1)
+#define DOLBY_VISION_OUTPUT_MODE_HDR10      (unsigned int)(2)
+#define DOLBY_VISION_OUTPUT_MODE_SDR10      (unsigned int)(3)
+#define DOLBY_VISION_OUTPUT_MODE_SDR8       (unsigned int)(4)
+#define DOLBY_VISION_OUTPUT_MODE_BYPASS     (unsigned int)(5)
+
 int  aml_get_cpufamily_id();
 bool aml_display_support_hdr_pq();
 bool aml_display_support_hdr_hlg();
@@ -95,6 +109,7 @@ bool aml_is_dv_enable();
 void aml_dv_display_trigger();
 void aml_dv_start();
 void aml_dv_always_update_reg();
+unsigned int aml_vs10_mode(const std::string setting);
 bool aml_has_frac_rate_policy();
 bool aml_video_started();
 void aml_video_mute(bool mute);

@@ -30,17 +30,6 @@
 #include <sys/ioctl.h>
 #include <amcodec/codec.h>
 
-#define FLAG_FORCE_DV_LL        (unsigned int)(0x4000)
-#define DOLBY_VISION_LL_DISABLE (unsigned int)(0)
-#define DOLBY_VISION_LL_YUV422  (unsigned int)(1)
-
-#define DOLBY_VISION_FOLLOW_SOURCE     (unsigned int)(1)
-#define DOLBY_VISION_FORCE_OUTPUT_MODE (unsigned int)(2)
-
-#define DOLBY_VISION_OUTPUT_MODE_IPT        (unsigned int)(0)
-#define DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL (unsigned int)(1)
-#define DOLBY_VISION_OUTPUT_MODE_BYPASS     (unsigned int)(5)
-
 int aml_get_cpufamily_id()
 {
   static int aml_cpufamily_id = -1;
@@ -320,9 +309,9 @@ void aml_dv_on(unsigned int mode, bool enable)
     }
   }
 
-  // Convert to non tunnel if not DV_TYPE_DISPLAY_LED.
-  if ((mode == DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) && (dv_type != DV_TYPE_DISPLAY_LED)) 
-    mode = DOLBY_VISION_OUTPUT_MODE_IPT;
+  // change mode to tunnel if DV_TYPE_DISPLAY_LED.
+  if ((mode == DOLBY_VISION_OUTPUT_MODE_IPT) && (dv_type == DV_TYPE_DISPLAY_LED)) 
+    mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL;
 
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_mode", mode);
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_policy", DOLBY_VISION_FORCE_OUTPUT_MODE);
@@ -391,13 +380,19 @@ void aml_dv_start()
     int max(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE));
     aml_dv_set_osd_max(max);
     aml_dv_off(true);
-    aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL, true);
+    aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT, true);
   }
 }
 
 void aml_dv_always_update_reg()
 {
   CSysfsPath("/sys/module/amdolby_vision/parameters/force_update_reg", 31);
+}
+
+unsigned int aml_vs10_mode(const std::string setting)
+{
+  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+  return static_cast<unsigned int>(settings->GetInt(setting));
 }
 
 bool aml_has_frac_rate_policy()

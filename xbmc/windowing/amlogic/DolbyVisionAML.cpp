@@ -18,12 +18,6 @@
 #include "utils/log.h"
 #include "interfaces/AnnouncementManager.h"
 
-#define DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL (unsigned int)(1)
-#define DOLBY_VISION_OUTPUT_MODE_HDR10      (unsigned int)(2)
-#define DOLBY_VISION_OUTPUT_MODE_SDR10      (unsigned int)(3)
-#define DOLBY_VISION_OUTPUT_MODE_SDR8       (unsigned int)(4)
-#define DOLBY_VISION_OUTPUT_MODE_BYPASS     (unsigned int)(5)
-
 using namespace KODI;
 
 void dv_type_filler(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data) {
@@ -49,7 +43,7 @@ void add_vs10_bypass(std::vector<IntegerSettingOption>& list) {list.emplace_back
 void add_vs10_sdr8(std::vector<IntegerSettingOption>& list) {list.emplace_back(g_localizeStrings.Get(50064), DOLBY_VISION_OUTPUT_MODE_SDR8);}
 void add_vs10_sdr10(std::vector<IntegerSettingOption>& list) {list.emplace_back(g_localizeStrings.Get(50065), DOLBY_VISION_OUTPUT_MODE_SDR10);}
 void add_vs10_hdr10(std::vector<IntegerSettingOption>& list) {list.emplace_back(g_localizeStrings.Get(50066), DOLBY_VISION_OUTPUT_MODE_HDR10);}
-void add_vs10_dv(std::vector<IntegerSettingOption>& list) {list.emplace_back(g_localizeStrings.Get(50067), DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL);}
+void add_vs10_dv(std::vector<IntegerSettingOption>& list) {list.emplace_back(g_localizeStrings.Get(50067), DOLBY_VISION_OUTPUT_MODE_IPT);}
 
 void vs10_sdr8_filler(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data)
 {
@@ -96,7 +90,7 @@ void vs10_dv_filler(const SettingConstPtr& setting, std::vector<IntegerSettingOp
   add_vs10_sdr10(list);
 }
 
-void set_visible(std::shared_ptr<CSettings> settings, const std::string& id, bool visible) {
+void set_visible(const std::shared_ptr<CSettings> settings, const std::string& id, bool visible) {
   if (auto setting = settings->GetSetting(id)) setting->SetVisible(visible);
 }
 
@@ -173,7 +167,7 @@ void CDolbyVisionAML::OnSettingChanged(const std::shared_ptr<const CSetting>& se
     /*
     enum DV_MODE dv_mode(static_cast<DV_MODE>(std::dynamic_pointer_cast<const CSettingInt>(setting)->GetValue()));
     if (dv_mode == DV_MODE_ON) 
-      aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL, true);
+      aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT, true);
     else
       aml_dv_off(true);
     */
@@ -192,7 +186,7 @@ void CDolbyVisionAML::OnSettingChanged(const std::shared_ptr<const CSetting>& se
     enum DV_TYPE dv_type(static_cast<DV_TYPE>(std::dynamic_pointer_cast<const CSettingInt>(setting)->GetValue()));
     if (dv_mode == DV_MODE_ON) {
       aml_dv_off(true);
-      aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL, true);
+      aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT, true);
     }
     */
   }

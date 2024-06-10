@@ -295,9 +295,6 @@ typedef struct hdr_buf {
     int size;
 } hdr_buf_t;
 
-#define DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL (unsigned int)(1)
-#define DOLBY_VISION_OUTPUT_MODE_BYPASS     (unsigned int)(5)
-
 typedef struct am_packet {
     AVPacket      avpkt;
     uint64_t      avpts;
@@ -2022,12 +2019,12 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type, boo
   int bitdepth = hints.bitdepth;
   if ((bitdepth != 8) && (bitdepth != 10)) bitdepth = 8;
 
-  unsigned int vs10_sdr8_mode((unsigned int)settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8));
-  unsigned int vs10_sdr10_mode((unsigned int)settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR10));
-  unsigned int vs10_hdr10_mode((unsigned int)settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10));
-  unsigned int vs10_hdr10plus_mode((unsigned int)settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS));
-  unsigned int vs10_hdrhlg_mode((unsigned int)settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG));
-  unsigned int vs10_dv_mode((unsigned int)settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_DV));
+  unsigned int vs10_sdr8_mode(aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8));
+  unsigned int vs10_sdr10_mode(aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR10));
+  unsigned int vs10_hdr10_mode(aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10));
+  unsigned int vs10_hdr10plus_mode(aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS));
+  unsigned int vs10_hdrhlg_mode(aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG));
+  unsigned int vs10_dv_mode(aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_DV));
 
   bool vs10_sdr8_on((vs10_sdr8_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS) && (hints.hdrType == StreamHdrType::HDR_TYPE_NONE) && (bitdepth == 8));
   bool vs10_sdr10_on((vs10_sdr10_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS) && (hints.hdrType == StreamHdrType::HDR_TYPE_NONE) && (bitdepth == 10));
@@ -2061,7 +2058,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type, boo
     } else if (vs10_dv_on) {
       mode = vs10_dv_mode;
     } else if (content_is_dv) {
-      mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL;
+      mode = DOLBY_VISION_OUTPUT_MODE_IPT;
     }
 
     CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DV type [{}] VS10 mode [{}] enabled for [{}] ", dv_type, mode, content_is_dv ? "content" : "mapping");
@@ -2383,7 +2380,7 @@ void CAMLCodec::CloseDecoder()
     aml_dv_set_osd_max(max);
 
     // Switch on DV - Incase VS10 is off for the content type.
-    if (!aml_is_dv_enable()) aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL, true);
+    if (!aml_is_dv_enable()) aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT, true);
   }
 }
 
