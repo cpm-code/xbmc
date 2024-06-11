@@ -479,10 +479,9 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
       }
       pData = m_bitstream->GetConvertBuffer();
       iSize = m_bitstream->GetConvertSize();
-      dovi_el_type = m_bitstream->GetDoviElType();
-      if (m_bitstream->IsHdr10Plus()) {
-        CLog::Log(LOGINFO, "CDVDVideoCodecAmlogic::{}: change hints hdrType from {} to {}", __FUNCTION__, m_hints.hdrType, StreamHdrType::HDR_TYPE_HDR10PLUS);
-        m_hints.hdrType = StreamHdrType::HDR_TYPE_HDR10PLUS;
+      if (!m_opened) {
+        dovi_el_type = m_bitstream->GetDoviElType();
+        if (m_bitstream->IsHdr10Plus()) m_hints.hdrType = StreamHdrType::HDR_TYPE_HDR10PLUS;
       }
     }
     else if (!m_has_keyframe && m_bitparser)
