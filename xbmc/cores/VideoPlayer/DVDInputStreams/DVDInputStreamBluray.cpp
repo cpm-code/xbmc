@@ -1299,6 +1299,27 @@ bool CDVDInputStreamBluray::ProcessItem(int playitem)
   return true;
 }
 
+int CDVDInputStreamBluray::Get3dSubtitlePlane(uint16_t pid)
+{
+  if (!m_bMVCDisabled)
+  {
+    MPLS_PL *mpls = bd_get_title_mpls(m_bd);
+    if (mpls)
+    {
+      for (int i = 0; i < mpls->list_count; i++)
+      {
+        for (int s = 0; s < mpls->play_item[i].stn.num_pg; s++)
+        {
+          if (mpls->play_item[i].stn.pg[s].pid == pid && mpls->play_item[i].stn.pg[s].ss_offset_sequence_id != 0xff)
+            return mpls->play_item[i].stn.pg[s].ss_offset_sequence_id;
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+
 bool CDVDInputStreamBluray::OpenNextStream()
 {
   if (m_clipQueue.empty())
