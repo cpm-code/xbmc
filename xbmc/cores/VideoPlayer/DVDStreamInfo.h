@@ -94,6 +94,7 @@ public:
   uint64_t channellayout;
 
   // SUBTITLE
+  int m_3dSubtitlePlane;
 
   // CODEC EXTRADATA
   FFmpegExtraData extradata; // extra data for codec to use
