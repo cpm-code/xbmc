@@ -2043,22 +2043,14 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   {
     // For VS10 set the mode according to the user choice, otherwise if DV Content then set to IPT (Tunnel).
     unsigned int mode(DOLBY_VISION_OUTPUT_MODE_BYPASS);
-    if (vs10_sdr8_on) {
-      mode = vs10_sdr8_mode;
-    } else if (vs10_sdr10_on) {
-      mode = vs10_sdr10_mode;
-    } else if (vs10_hdr10_on) {
-      mode = vs10_hdr10_mode;
-    } else if (vs10_hdr10plus_on) {
-      mode = vs10_hdr10plus_mode;
-    } else if (vs10_hdrhlg_on) {
-      mode = vs10_hdrhlg_mode;
-    } else if (vs10_dv_on) {
-      mode = vs10_dv_mode;
-    } else if (content_is_dv) {
-      mode = DOLBY_VISION_OUTPUT_MODE_IPT;
-    }
-
+    if (vs10_sdr8_on) mode = vs10_sdr8_mode;
+    else if (vs10_sdr10_on) mode = vs10_sdr10_mode;
+    else if (vs10_hdr10_on) mode = vs10_hdr10_mode;
+    else if (vs10_hdr10plus_on) mode = vs10_hdr10plus_mode;
+    else if (vs10_hdrhlg_on) mode = vs10_hdrhlg_mode;
+    else if (vs10_dv_on) mode = vs10_dv_mode;
+    else if (content_is_dv) mode = DOLBY_VISION_OUTPUT_MODE_IPT;
+  
     CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DV type [{}] VS10 mode [{}] enabled for [{}] ", dv_type, mode, content_is_dv ? "content" : "mapping");
     aml_dv_on(mode);
 
