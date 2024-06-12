@@ -80,6 +80,9 @@ namespace OVERLAY {
     float m_source_width{0}; // Video source width resolution used to calculate aspect ratio
     float m_source_height{0}; // Video source height resolution used to calculate aspect ratio
 
+    int m_3dSubtitleDepth{0};
+    bool m_pgsSubtitle{false};
+
   protected:
     /*!
      * \brief Given the resolution ratio determines if it is a 4/3 resolution
