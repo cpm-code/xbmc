@@ -81,7 +81,6 @@ enum DV_COLORIMETRY : int
 #define DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL (unsigned int)(1)
 #define DOLBY_VISION_OUTPUT_MODE_HDR10      (unsigned int)(2)
 #define DOLBY_VISION_OUTPUT_MODE_SDR10      (unsigned int)(3)
-#define DOLBY_VISION_OUTPUT_MODE_SDR8       (unsigned int)(4)
 #define DOLBY_VISION_OUTPUT_MODE_BYPASS     (unsigned int)(5)
 
 int  aml_get_cpufamily_id();
