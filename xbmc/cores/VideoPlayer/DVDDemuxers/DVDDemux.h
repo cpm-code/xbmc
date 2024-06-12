@@ -205,6 +205,8 @@ class CDemuxStreamSubtitle : public CDemuxStream
 {
 public:
   CDemuxStreamSubtitle() : CDemuxStream(StreamType::SUBTITLE) {}
+
+  int m_3dSubtitlePlane = 0;
 };
 
 class CDemuxStreamTeletext : public CDemuxStream

@@ -79,6 +79,7 @@ void CDVDStreamInfo::Clear()
 
   orientation = 0;
   bitdepth = 0;
+  m_3dSubtitlePlane = 0;
 }
 
 bool CDVDStreamInfo::Equal(const CDVDStreamInfo& right, int compare)
@@ -167,6 +168,8 @@ bool CDVDStreamInfo::Equal(const CDVDStreamInfo& right, int compare)
     return false;
 
   // SUBTITLE
+  if (m_3dSubtitlePlane != right.m_3dSubtitlePlane)
+    return false;
 
   // Crypto
   if ((cryptoSession == nullptr) != (right.cryptoSession == nullptr))
@@ -247,6 +250,7 @@ void CDVDStreamInfo::Assign(const CDVDStreamInfo& right, bool withextradata)
   channellayout = right.channellayout;
 
   // SUBTITLE
+  m_3dSubtitlePlane = right.m_3dSubtitlePlane;
 }
 
 void CDVDStreamInfo::Assign(const CDemuxStream& right, bool withextradata)
@@ -314,5 +318,7 @@ void CDVDStreamInfo::Assign(const CDemuxStream& right, bool withextradata)
   }
   else if (right.type == StreamType::SUBTITLE)
   {
+    const CDemuxStreamSubtitle *stream = static_cast<const CDemuxStreamSubtitle*>(&right);
+    m_3dSubtitlePlane = stream->m_3dSubtitlePlane;
   }
 }
