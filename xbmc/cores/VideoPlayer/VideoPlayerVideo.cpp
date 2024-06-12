@@ -898,6 +898,9 @@ void CVideoPlayerVideo::ProcessOverlays(const VideoPicture* pSource, double pts)
 
       if((pOverlay->iPTSStartTime <= pts2 && (pOverlay->iPTSStopTime > pts2 || pOverlay->iPTSStopTime == 0LL)))
       {
+
+        pOverlay->m_3dSubtitleDepth = pSource->m_3dSubtitleDepth;
+
         if(pOverlay->IsOverlayType(DVDOVERLAY_TYPE_GROUP))
           overlays.insert(overlays.end(),
                           static_cast<CDVDOverlayGroup&>(*pOverlay).m_overlays.begin(),

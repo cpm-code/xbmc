@@ -132,6 +132,8 @@ public:
 
   void GetStreamInfo(int pid, std::string &language);
 
+  int Get3dSubtitlePlane(uint16_t pid);
+
   void OverlayCallback(const BD_OVERLAY * const);
 #ifdef HAVE_LIBBLURAY_BDJ
   void OverlayCallbackARGB(const struct bd_argb_overlay_s * const);

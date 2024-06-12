@@ -43,6 +43,8 @@ void VideoPicture::Reset()
   colorBits = 8;
   stereoMode.clear();
 
+  m_3dSubtitleDepth = 0;
+
   qp_table = nullptr;
   qstride = 0;
   qscale_type = 0;

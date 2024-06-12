@@ -30,6 +30,7 @@ extern "C"
       isELPackage = false;
       demuxerId = -1;
       iGroupId = -1;
+      subtitlePlane = 0;
 
       pSideData = nullptr;
       iSideDataElems = 0;
@@ -40,6 +41,8 @@ extern "C"
       dispTime = 0;
       recoveryPoint = false;
 
+      subtitlePlane = 0;
+
       cryptoInfo = nullptr;
     }
 
@@ -49,6 +52,8 @@ extern "C"
     bool isDualStream;
     //! @brief Indicate package is from a Dolby Vision enhancement layer.
     bool isELPackage;
+    /// @brief The 3D MVC subtitle plane
+    int subtitlePlane;
   };
 
 #ifdef __cplusplus

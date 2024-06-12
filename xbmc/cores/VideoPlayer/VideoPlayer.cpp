@@ -1719,6 +1719,11 @@ void CVideoPlayer::Process()
     CheckBetterStream(m_CurrentRadioRDS, pStream);
     CheckBetterStream(m_CurrentAudioID3, pStream);
 
+    // if it's a video packet then set the 3D MVC subtitle plane
+    if (CheckIsCurrent(m_CurrentVideo, pStream, pPacket)) {
+      pPacket->subtitlePlane = m_CurrentSubtitle.hint.m_3dSubtitlePlane;
+    }
+
     // demux video stream
     if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_SUBTITLES_PARSECAPTIONS) && CheckIsCurrent(m_CurrentVideo, pStream, pPacket))
     {

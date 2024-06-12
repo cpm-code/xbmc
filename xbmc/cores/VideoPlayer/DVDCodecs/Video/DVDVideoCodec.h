@@ -60,6 +60,8 @@ public:
   unsigned int colorBits = 8;
   std::string stereoMode;
 
+  int m_3dSubtitleDepth;
+
   int8_t* qp_table;                //< Quantization parameters, primarily used by filters
   int qstride;
   int qscale_type;
