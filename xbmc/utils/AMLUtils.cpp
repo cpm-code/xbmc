@@ -597,6 +597,24 @@ bool aml_set_display_resolution(const RESOLUTION_INFO &res, std::string framebuf
   std::string mode = res.strId.c_str();
   std::string cur_mode;
   std::string custom_mode;
+  std::vector<std::string> _mode = StringUtils::Split(mode, ' ');
+  std::string mode_options;
+
+  if (_mode.size() > 1)
+  {
+    mode = _mode[0];
+    unsigned int i = 1;
+    while(i < (_mode.size() - 1))
+    {
+      if (i > 1)
+        mode_options.append(" ");
+      mode_options.append(_mode[i]);
+      i++;
+    }
+    CLog::Log(LOGDEBUG, "{}: try to set mode: {} ({})", __FUNCTION__, mode.c_str(), mode_options.c_str());
+  }
+  else
+    CLog::Log(LOGDEBUG, "{}: try to set mode: {}", __FUNCTION__, mode.c_str());
 
   CSysfsPath display_mode{"/sys/class/display/mode"};
   if (display_mode.Exists())
