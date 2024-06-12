@@ -2011,13 +2011,12 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   enum DV_MODE dv_mode(static_cast<DV_MODE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE)));
   enum DV_TYPE dv_type(static_cast<DV_TYPE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE)));
 
-  CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder with DV mode: [{}], DV type: [{}]", dv_mode, dv_type);
+  CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder Checking DV for DV mode: [{}], DV type: [{}]", dv_mode, dv_type);
 
   // if DV_MODE_ON (i.e. on in Kodi Menu), then set graphics max to 0 (graphics OSD luminance will be handled by amlogic).
   if (dv_mode == DV_MODE_ON) aml_dv_set_osd_max(0);
 
-  bool dv_enabled(dv_mode == DV_MODE_ON || dv_mode == DV_MODE_ON_DEMAND);
-  if (dv_enabled) {
+  if (dv_mode == DV_MODE_ON || dv_mode == DV_MODE_ON_DEMAND) {
 
     unsigned int vs10_sdr8_mode(aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8));
     unsigned int vs10_sdr10_mode(aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR10));
@@ -2029,7 +2028,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
     // get bit depth for SDR handling - if not 8 or 10, then will default to the SDR8 handling.
     int bitdepth = hints.bitdepth;
     if ((bitdepth != 8) && (bitdepth != 10)) bitdepth = 8;
-  
+
     bool content_is_dv(hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
     bool vs10_sdr8_on(((hints.hdrType == StreamHdrType::HDR_TYPE_NONE) && (bitdepth == 8) && (vs10_sdr8_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS));
     bool vs10_sdr10_on((hints.hdrType == StreamHdrType::HDR_TYPE_NONE) && (bitdepth == 10) && (vs10_sdr10_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS));
@@ -2039,12 +2038,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
     bool vs10_dv_on(content_is_dv && (vs10_dv_mode < DOLBY_VISION_OUTPUT_MODE_BYPASS));
     bool dv_requested(vs10_sdr8_on || vs10_sdr10_on || vs10_hdr10_on || vs10_hdr10plus_on || vs10_hdrhlg_on || content_is_dv);
 
-    // dv mode on or on demand and this is dv/vs10.
-    bool dv_on(dv_enabled && dv_requested);
-
-    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DV enabled: [{}], DV requested: [{}], DV on: [{}]", dv_enabled, dv_requested, dv_on);
-
-    if (dv_on)
+    if (dv_requested)
     {
       // For VS10 set the mode according to the user choice, otherwise if DV Content then set to IPT (Tunnel).
       unsigned int mode(DOLBY_VISION_OUTPUT_MODE_BYPASS);
@@ -2056,15 +2050,15 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
       else if (vs10_dv_on) mode = vs10_dv_mode;
       else if (content_is_dv) mode = DOLBY_VISION_OUTPUT_MODE_IPT;
 
-      CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder Change to DV mode: [{}] set fo:r [{}]",  mode, content_is_dv ? "content" : "mapping");
+      CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DV requested for content mode: [{}], set for: [{}]",  mode, content_is_dv ? "content" : "mapping");
       aml_dv_on(mode);
-  
+
       // For DV Content - enable DV now. (for VS10 enable later after codec setup)
       if (content_is_dv) {
         am_private->gcodec.dv_enable = 1;
         aml_dv_enable(); // enable Dolby Vision
       }
-  
+
       if ((hints.dovi.dv_profile == 4 || hints.dovi.dv_profile == 7) && settings->GetInt(CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI) == 0)
       {
         if (dovi_el_type != ELType::TYPE_MEL) // use stream path if not MEL
