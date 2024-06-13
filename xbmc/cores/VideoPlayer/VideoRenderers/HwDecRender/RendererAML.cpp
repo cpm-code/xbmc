@@ -73,11 +73,13 @@ bool CRendererAML::Configure(const VideoPicture &picture, float fps, unsigned in
 
   // Configure GUI/OSD for HDR PQ when display is in HDR PQ mode
 
+  // TODO: Similar logic to OpenDecoder VS10 mode - can refactor into AMUtil? and share.
+
   bool hdr_display(CServiceBroker::GetWinSystem()->IsHDRDisplay());
   bool dv_display(aml_display_support_dv() || hdr_display);
   bool device_dv_ready(aml_support_dolby_vision());
   bool user_dv_disable(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE) == DV_MODE_OFF);
-  bool dv_on(device_dv_ready && !user_dv_disable);
+  bool dv_ready(device_dv_ready && !user_dv_disable);
 
   // Get bit depth for SDR handling - if not 8 or 10, then will default to the SDR8 handling.
   int bitdepth = picture.colorBits;
@@ -93,16 +95,16 @@ bool CRendererAML::Configure(const VideoPicture &picture, float fps, unsigned in
   bool hdrhlg(picture.hdrType == StreamHdrType::HDR_TYPE_HLG);
   bool dv(picture.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
 
-  bool set = ((sdr8 && dv_on && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8, false)) ||
-              (sdr10 && dv_on && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR10, false)) ||
-              (hdr10 && !dv_on && hdr_display) ||
-              (hdr10 && dv && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10, true)) ||
-              (hdr10plus && !dv_on && hdr_display) ||
-              (hdr10plus && dv && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS, true)) ||
-              (hdrhlg && !dv_on && hdr_display) ||
-              (hdrhlg && dv && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG, true)) ||
-              (dv && !dv_on && hdr_display) ||
-              (dv && dv_on && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG, true)));
+  bool set = ((sdr8      && dv_ready  && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8, false)) ||
+              (sdr10     && dv_ready  && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR10, false)) ||
+              (hdr10     && !dv_ready && hdr_display) ||
+              (hdr10     && dv_ready  && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10, true)) ||
+              (hdr10plus && !dv_ready && hdr_display) ||
+              (hdr10plus && dv_ready  && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS, true)) ||
+              (hdrhlg    && !dv_ready && hdr_display) ||
+              (hdrhlg    && dv_ready  && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG, true)) ||
+              (dv        && !dv_ready && hdr_display) ||
+              (dv        && dv_ready  && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_DV, true)));
 
   bool hdr = (hdr10 || hdr10plus || hdrhlg);
 
@@ -113,7 +115,7 @@ bool CRendererAML::Configure(const VideoPicture &picture, float fps, unsigned in
             hdr ? "used" : "not used",
             set ? "set" : "not set");
 
-  CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(set) ;
+  CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(set);
 
   m_bConfigured = true;
 
