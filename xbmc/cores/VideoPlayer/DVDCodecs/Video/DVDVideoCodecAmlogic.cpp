@@ -481,7 +481,8 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
       iSize = m_bitstream->GetConvertSize();
       if (!m_opened) {
         dovi_el_type = m_bitstream->GetDoviElType();
-        if (m_bitstream->IsHdr10Plus()) m_hints.hdrType = StreamHdrType::HDR_TYPE_HDR10PLUS;
+        if (m_bitstream->IsHdr10Plus() && (m_hints.hdrType == StreamHdrType::HDR_TYPE_HDR10))
+          m_hints.hdrType = StreamHdrType::HDR_TYPE_HDR10PLUS;
       }
     }
     else if (!m_has_keyframe && m_bitparser)
