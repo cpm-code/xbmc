@@ -25,7 +25,12 @@ struct SDirState
 
 void CBlurayCallback::bluray_logger(const char* msg)
 {
-  CLog::Log(LOGDEBUG, "CBlurayCallback::Logger - {}", msg);
+  std::string msgStr(msg);
+
+  for (char newLine: "\n")
+      msgStr.erase(std::remove(msgStr.begin(), msgStr.end(), newLine), msgStr.end());
+
+  CLog::Log(LOGDEBUG, "CBlurayCallback::Logger - {}", msgStr);
 }
 
 void CBlurayCallback::dir_close(BD_DIR_H *dir)
