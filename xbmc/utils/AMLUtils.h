@@ -9,6 +9,7 @@
 #pragma once
 
 #include "windowing/Resolution.h"
+#include "utils/StreamDetails.h"
 
 #include <string>
 #include <vector>
@@ -108,7 +109,8 @@ bool aml_is_dv_enable();
 void aml_dv_display_trigger();
 void aml_dv_start();
 void aml_dv_always_update_reg();
-unsigned int aml_vs10_mode(const std::string setting);
+unsigned int aml_vs10_by_setting(const std::string setting);
+unsigned int aml_vs10_by_hdrtype(StreamHdrType hdrType, unsigned int bitDepth);
 bool aml_has_frac_rate_policy();
 bool aml_video_started();
 void aml_video_mute(bool mute);

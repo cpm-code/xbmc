@@ -48,11 +48,6 @@ bool CRendererAML::Register()
   return true;
 }
 
-bool hdr_used(std::string setting, bool bypass) {
-  unsigned int mode(aml_vs10_mode(setting));
-  return (mode <= DOLBY_VISION_OUTPUT_MODE_HDR10 || (bypass && (mode == DOLBY_VISION_OUTPUT_MODE_BYPASS)));
-}
-
 bool CRendererAML::Configure(const VideoPicture &picture, float fps, unsigned int orientation)
 {
   m_sourceWidth = picture.iWidth;
@@ -73,49 +68,41 @@ bool CRendererAML::Configure(const VideoPicture &picture, float fps, unsigned in
 
   // Configure GUI/OSD for HDR PQ when display is in HDR PQ mode
 
-  // TODO: Similar logic to OpenDecoder VS10 mode - can refactor into AMUtil? and share.
-
   bool hdr_display(CServiceBroker::GetWinSystem()->IsHDRDisplay());
   bool dv_display(aml_display_support_dv() || hdr_display);
   bool device_dv_ready(aml_support_dolby_vision());
   bool user_dv_disable(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE) == DV_MODE_OFF);
   bool dv_ready(device_dv_ready && !user_dv_disable);
 
-  // Get bit depth for SDR handling - if not 8 or 10, then will default to the SDR8 handling.
-  int bitdepth = picture.colorBits;
-  if ((bitdepth != 8) && (bitdepth != 10)) bitdepth = 8;
+  bool vs10_hdr(false);
+  bool native_hdr(false);
 
-  bool sdr8((picture.hdrType == StreamHdrType::HDR_TYPE_NONE) && (bitdepth == 8));
-  bool sdr10((picture.hdrType == StreamHdrType::HDR_TYPE_NONE) && (bitdepth == 10));
-  bool hdr10(picture.hdrType == StreamHdrType::HDR_TYPE_HDR10);
+   // FIXME: picture.hdrType will not be correct for hdr10+ until upstream can identify correctly.
+  if (dv_display && dv_ready) {
+    vs10_hdr = (aml_vs10_by_hdrtype(picture.hdrType, picture.colorBits) <= DOLBY_VISION_OUTPUT_MODE_HDR10);
+  } else if (hdr_display) {
+    switch (picture.hdrType) {
+      case StreamHdrType::HDR_TYPE_HDR10:
+      case StreamHdrType::HDR_TYPE_HDR10PLUS:
+      case StreamHdrType::HDR_TYPE_HLG:
+      case StreamHdrType::HDR_TYPE_DOLBYVISION:
+        native_hdr = true;
+        break;
+      default:
+        break;
+    }
+  }
 
-  // FIXME: picture.hdrType will not be correct for hdr10+ until upstream can identify correctly.
-  bool hdr10plus(picture.hdrType == StreamHdrType::HDR_TYPE_HDR10PLUS);
+  bool hdr(vs10_hdr || native_hdr);
+  std::string hdrType = CStreamDetails::HdrTypeToString(picture.hdrType);
 
-  bool hdrhlg(picture.hdrType == StreamHdrType::HDR_TYPE_HLG);
-  bool dv(picture.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
+  CLog::Log(LOGDEBUG, "CRendererAML::Configure {}DV support, {}, HDR type is {}, transfer PQ is {}",
+          device_dv_ready ? "" : "no ",
+          user_dv_disable ? "disabled" : "enabled",
+          hdrType,
+          hdr ? (vs10_hdr ? "set by VS10 mapping" : "set by HDR type") : "not set");
 
-  bool set = ((sdr8      && dv_ready  && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8, false)) ||
-              (sdr10     && dv_ready  && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR10, false)) ||
-              (hdr10     && !dv_ready && hdr_display) ||
-              (hdr10     && dv_ready  && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10, true)) ||
-              (hdr10plus && !dv_ready && hdr_display) ||
-              (hdr10plus && dv_ready  && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS, true)) ||
-              (hdrhlg    && !dv_ready && hdr_display) ||
-              (hdrhlg    && dv_ready  && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG, true)) ||
-              (dv        && !dv_ready && hdr_display) ||
-              (dv        && dv_ready  && dv_display && hdr_used(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_DV, true)));
-
-  bool hdr = (hdr10 || hdr10plus || hdrhlg);
-
-  CLog::Log(LOGDEBUG, "CRendererAML::Configure {}DV support, {}, DV system is {}, HDR is {} transfer pq is {}", 
-            device_dv_ready ? "" : "no ",
-            user_dv_disable ? "disabled" : "enabled", 
-            dv ? "enabled" : "disabled", 
-            hdr ? "used" : "not used",
-            set ? "set" : "not set");
-
-  CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(set);
+  CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(hdr);
 
   m_bConfigured = true;
 

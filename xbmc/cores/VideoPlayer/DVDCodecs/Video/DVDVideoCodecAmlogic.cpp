@@ -315,7 +315,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
                 __MODULE_NAME__, __FUNCTION__, convertDovi);
               m_bitstream->SetConvertDovi(convertDovi);
             }
-            unsigned int mode(aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS));
+            unsigned int mode(aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS));
             if (mode < DOLBY_VISION_OUTPUT_MODE_BYPASS)
             {
               // for VS10 conversion need to remove the HDR10plus metadata.

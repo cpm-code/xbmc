@@ -2021,29 +2021,8 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   
   if (dv_mode == DV_MODE_ON || dv_mode == DV_MODE_ON_DEMAND) {
 
-    unsigned int vs10_mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
-    switch (hints.hdrType) {
-      case StreamHdrType::HDR_TYPE_NONE:
-        if (hints.bitdepth == 10)
-          vs10_mode = aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR10);
-        else
-          vs10_mode = aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8);
-        break;
-      case StreamHdrType::HDR_TYPE_HDR10:
-        vs10_mode = aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10);
-        break;
-      case StreamHdrType::HDR_TYPE_HDR10PLUS:
-        vs10_mode = aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS);
-        break;
-      case StreamHdrType::HDR_TYPE_HLG:
-        vs10_mode = aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG);
-        break;
-      case StreamHdrType::HDR_TYPE_DOLBYVISION:
-        vs10_mode = aml_vs10_mode(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_DV);
-        break;
-    }
-
-    bool dv_requested = (vs10_mode != DOLBY_VISION_OUTPUT_MODE_BYPASS);
+    unsigned int vs10_mode = aml_vs10_by_hdrtype(hints.hdrType, hints.bitdepth);
+    dv_requested = (vs10_mode != DOLBY_VISION_OUTPUT_MODE_BYPASS);
     if (dv_requested) {
    
       CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DV requested with vs10 mode: [{}], set for: [{}]",  vs10_mode, content_is_dv ? "content" : "mapping");

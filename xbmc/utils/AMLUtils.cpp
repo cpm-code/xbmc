@@ -389,10 +389,36 @@ void aml_dv_always_update_reg()
   CSysfsPath("/sys/module/amdolby_vision/parameters/force_update_reg", 31);
 }
 
-unsigned int aml_vs10_mode(const std::string setting)
+unsigned int aml_vs10_by_setting(const std::string setting)
 {
   const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
   return static_cast<unsigned int>(settings->GetInt(setting));
+}
+
+unsigned int aml_vs10_by_hdrtype(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  unsigned int vs10_mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
+  switch (hdrType) {
+    case StreamHdrType::HDR_TYPE_NONE:
+      if (bitDepth == 10)
+        vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR10);
+      else
+        vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8);
+      break;
+    case StreamHdrType::HDR_TYPE_HDR10:
+      vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10);
+      break;
+    case StreamHdrType::HDR_TYPE_HDR10PLUS:
+      vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS);
+      break;
+    case StreamHdrType::HDR_TYPE_HLG:
+      vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG);
+      break;
+    case StreamHdrType::HDR_TYPE_DOLBYVISION:
+      vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_DV);
+      break;
+  }
+  return vs10_mode;
 }
 
 bool aml_has_frac_rate_policy()
