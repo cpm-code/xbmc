@@ -560,6 +560,23 @@ bool aml_probe_resolutions(std::vector<RESOLUTION_INFO> &resolutions)
   else
     valstr = user_dcapfile.Get<std::string>().value();
 
+  if (aml_display_support_3d())
+  {
+    CSysfsPath user_dcapfile_3d{CSpecialProtocol::TranslatePath("special://home/userdata/disp_cap_3d")};
+    if (!user_dcapfile_3d.Exists())
+    {
+      CSysfsPath dcapfile3d{"/sys/class/amhdmitx/amhdmitx0/disp_cap_3d"};
+      if (dcapfile3d.Exists())
+      {
+        addstr = dcapfile3d.Get<std::string>().value();
+        valstr += "\n" + addstr;
+      }
+    }
+    else
+      valstr = user_dcapfile_3d.Get<std::string>().value();
+  }
+
+
   std::vector<std::string> probe_str = StringUtils::Split(valstr, "\n");
 
   resolutions.clear();
