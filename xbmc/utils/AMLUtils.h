@@ -103,6 +103,7 @@ bool aml_dolby_vision_enabled();
 void aml_dv_on(unsigned int mode, bool enable = false);
 void aml_dv_off(bool disable = false);
 void aml_dv_set_osd_max(int max);
+void aml_dv_reset_osd_max();
 void aml_dv_enable();
 void aml_dv_disable();
 bool aml_is_dv_enable();

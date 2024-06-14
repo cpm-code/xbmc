@@ -2337,12 +2337,8 @@ void CAMLCodec::CloseDecoder()
   CloseAmlVideo();
 
   // If DV Mode ON in Kodi Menu.
-  if (dv_mode == DV_MODE_ON) {
-
-    // Set the max luminance for menu.
-    int max(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE));
-    aml_dv_set_osd_max(max);
-
+  if (dv_mode == DV_MODE_ON) {    
+    aml_dv_reset_osd_max(); // Reset the max luminance for menu.
     // Switch on DV - Incase VS10 is off for the content type.
     if (!aml_is_dv_enable()) aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT, true);
   }

@@ -348,6 +348,13 @@ void aml_dv_set_osd_max(int max)
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_graphic_max", max);
 }
 
+void aml_dv_reset_osd_max()
+{
+  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+  enum int max(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE)));
+  aml_dv_set_osd_max(max);
+}
+
 void aml_dv_enable()
 {
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", "Y");
