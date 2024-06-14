@@ -111,6 +111,8 @@ void aml_dv_start();
 void aml_dv_always_update_reg();
 unsigned int aml_vs10_by_setting(const std::string setting);
 unsigned int aml_vs10_by_hdrtype(StreamHdrType hdrType, unsigned int bitDepth);
+enum DV_MODE aml_dv_mode();
+enum DV_TYPE aml_dv_type();
 bool aml_has_frac_rate_policy();
 bool aml_video_started();
 void aml_video_mute(bool mute);

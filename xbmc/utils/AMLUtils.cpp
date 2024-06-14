@@ -389,6 +389,18 @@ void aml_dv_always_update_reg()
   CSysfsPath("/sys/module/amdolby_vision/parameters/force_update_reg", 31);
 }
 
+enum DV_MODE aml_dv_mode()
+{
+  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+  enum DV_MODE dv_mode(static_cast<DV_MODE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE)));
+}
+
+enum DV_TYPE aml_dv_type()
+{
+  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+  enum DV_TYPE dv_type(static_cast<DV_TYPE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE)));
+}
+
 unsigned int aml_vs10_by_setting(const std::string setting)
 {
   const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
