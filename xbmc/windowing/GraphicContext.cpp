@@ -1029,13 +1029,6 @@ const std::string& CGraphicContext::GetMediaDir() const
 void CGraphicContext::Flip(bool rendered, bool videoLayer)
 {
   CServiceBroker::GetRenderSystem()->PresentRender(rendered, videoLayer);
-
-  if(m_stereoMode != m_nextStereoMode)
-  {
-    m_stereoMode = m_nextStereoMode;
-    SetVideoResolution(GetVideoResolution(), true);
-    CServiceBroker::GetGUI()->GetWindowManager().SendMessage(GUI_MSG_NOTIFY_ALL, 0, 0, GUI_MSG_RENDERER_RESET);
-  }
 }
 
 void CGraphicContext::GetAllowedResolutions(std::vector<RESOLUTION> &res)
