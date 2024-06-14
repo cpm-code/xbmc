@@ -33,6 +33,7 @@
 #include "settings/SettingsComponent.h"
 #include "settings/lib/Setting.h"
 #include "settings/lib/SettingsManager.h"
+#include "utils/AMLUtils.h"
 #include "utils/RegExp.h"
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
@@ -509,10 +510,14 @@ void CStereoscopicsManager::ApplyStereoMode(const RenderStereoMode mode, bool no
     CLog::Log(LOGDEBUG, "StereoscopicsManager: stereo mode changed to {}",
               ConvertGuiStereoModeToString(mode));
     if (notify)
+    {
+      CServiceBroker::GetWinSystem()->GetGfxContext().SetVideoResolution(
+        CServiceBroker::GetWinSystem()->GetGfxContext().GetVideoResolution(), false);
       CGUIDialogKaiToast::QueueNotification(
           CGUIDialogKaiToast::Info,
           CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(36501),
           GetLabelForStereoMode(mode));
+    }
   }
 }
 
@@ -540,7 +545,8 @@ void CStereoscopicsManager::OnStreamChange()
   RenderStereoMode mode = GetStereoMode();
 
   // early return if playback mode should be ignored and we're in no stereoscopic mode right now
-  if (playbackMode == STEREOSCOPIC_PLAYBACK_MODE_IGNORE && mode == RenderStereoMode::OFF)
+  if ((playbackMode == STEREOSCOPIC_PLAYBACK_MODE_IGNORE && mode == RenderStereoMode::OFF) ||
+      !aml_display_support_3d())
     return;
 
   if (!CStereoscopicsManager::IsVideoStereoscopic())
