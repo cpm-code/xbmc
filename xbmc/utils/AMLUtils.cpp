@@ -30,6 +30,11 @@
 #include <sys/ioctl.h>
 #include <amcodec/codec.h>
 
+static std::shared_ptr<CSettings> settings()
+{
+  return CServiceBroker::GetSettingsComponent()->GetSettings();
+}
+
 int aml_get_cpufamily_id()
 {
   static int aml_cpufamily_id = -1;
@@ -262,8 +267,7 @@ bool aml_support_dolby_vision()
 bool aml_dolby_vision_enabled()
 {
   static int dv_enabled = -1;
-  bool dv_user_enabled(CServiceBroker::GetSettingsComponent()->GetSettings()
-                       ->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE) != DV_MODE_OFF);
+  bool dv_user_enabled(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE) != DV_MODE_OFF);
 
   if (dv_enabled == -1)
     dv_enabled = (!!aml_support_dolby_vision());
@@ -273,18 +277,17 @@ bool aml_dolby_vision_enabled()
 
 void aml_dv_on(unsigned int mode, bool enable)
 {
-  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  enum DV_TYPE dv_type(static_cast<DV_TYPE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE)));
+  enum DV_TYPE dv_type(aml_dv_type());
 
   // Set the Dolby VSVDB parameter to latest value from user.
-  bool dv_dolby_vsvdb_inject(settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_INJECT));
+  bool dv_dolby_vsvdb_inject(settings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_INJECT));
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_dolby_vsvdb_inject", dv_dolby_vsvdb_inject ? 1 : 0);
 
-  std::string dv_dolby_vsvdb_payload(settings->GetString(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB));
+  std::string dv_dolby_vsvdb_payload(settings()->GetString(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB));
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_dolby_vsvdb_payload", dv_dolby_vsvdb_payload);
 
   // Set the Colorimetery to latest value from user.
-  int colorimetry(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_COLORIMETRY_FOR_STD));
+  int colorimetry(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_COLORIMETRY_FOR_STD));
   CSysfsPath("/sys/module/hdmitx20/parameters/dovi_tv_led_bt2020", (colorimetry == DV_COLORIMETRY_BT2020NC) ? 'Y' : 'N');
   CSysfsPath("/sys/module/hdmitx20/parameters/dovi_tv_led_no_colorimetry", (colorimetry == DV_COLORIMETRY_REMOVE) ? 'Y' : 'N');
 
@@ -350,8 +353,7 @@ void aml_dv_set_osd_max(int max)
 
 void aml_dv_reset_osd_max()
 {
-  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  enum int max(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE)));
+  int max(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE));
   aml_dv_set_osd_max(max);
 }
 
@@ -381,11 +383,8 @@ void aml_dv_display_trigger()
 
 void aml_dv_start()
 {
-  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  enum DV_MODE dv_mode(static_cast<DV_MODE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE)));
-  if (dv_mode == DV_MODE_ON) {
-    int max(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE));
-    aml_dv_set_osd_max(max);
+  if (aml_dv_mode() == DV_MODE_ON) {
+    aml_dv_reset_osd_max();
     aml_dv_off(true);
     aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT, true);
   }
@@ -398,20 +397,17 @@ void aml_dv_always_update_reg()
 
 enum DV_MODE aml_dv_mode()
 {
-  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  enum DV_MODE dv_mode(static_cast<DV_MODE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE)));
+  return static_cast<DV_MODE>(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE));
 }
 
 enum DV_TYPE aml_dv_type()
 {
-  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  enum DV_TYPE dv_type(static_cast<DV_TYPE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE)));
+  return static_cast<DV_TYPE>(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE));
 }
 
 unsigned int aml_vs10_by_setting(const std::string setting)
 {
-  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  return static_cast<unsigned int>(settings->GetInt(setting));
+  return static_cast<unsigned int>(settings()->GetInt(setting));
 }
 
 unsigned int aml_vs10_by_hdrtype(StreamHdrType hdrType, unsigned int bitDepth)
