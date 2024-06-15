@@ -2024,17 +2024,18 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
     unsigned int vs10_mode = aml_vs10_by_hdrtype(hints.hdrType, hints.bitdepth);
     dv_requested = (vs10_mode != DOLBY_VISION_OUTPUT_MODE_BYPASS);
     if (dv_requested) {
-   
-      CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DV requested with vs10 mode: [{}], set for: [{}]",  vs10_mode, content_is_dv ? "content" : "mapping");
+
+      CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DV requested with vs10 mode: [{}], set for: [{}]", vs10_mode, content_is_dv ? "content" : "mapping");
       aml_dv_on(vs10_mode);
 
-      // For DV Content - enable DV now. (for VS10 enable later after codec setup)
+      // For DV Content - enable DV now. (for VS10 DV mapping enable later after codec setup)
       if (content_is_dv) {
         am_private->gcodec.dv_enable = 1;
-        aml_dv_enable(); // enable Dolby Vision
+        aml_dv_enable();
       }
 
-      if ((hints.dovi.dv_profile == 4 || hints.dovi.dv_profile == 7) && settings->GetInt(CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI) == 0)
+      if ((hints.dovi.dv_profile == 4 || hints.dovi.dv_profile == 7) && CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
+          CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI) == 0)
       {
         if (dovi_el_type != ELType::TYPE_MEL) // use stream path if not MEL
         {
@@ -2199,7 +2200,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   SetSpeed(m_speed);
   SetPollDevice(am_private->vcodec.cntl_handle);
 
-  // For non-DV Content (i.e. VS10) - enable DV as final step after other codec setup - to avoid lockup issues.
+  // For non-DV Content (i.e. VS10 DV mapping) - enable DV as final step after other codec setup - to avoid lockup issues.
   if (!content_is_dv && dv_requested) aml_dv_enable();
 
   return true;
