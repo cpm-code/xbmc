@@ -108,10 +108,13 @@ bool CDolbyVisionAML::Setup()
 {
   const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
 
+  CLog::Log(LOGDEBUG, "CDolbyVisionAML::Setup - Begin");
+
   if (!aml_support_dolby_vision())
   {
     set_visible(settings, CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE, false);
     settings->SetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE, DV_MODE_OFF);
+    CLog::Log(LOGDEBUG, "CDolbyVisionAML::Setup - Device does not support Dolby Vision - exiting setup");
     return false;
   }
 
@@ -154,6 +157,8 @@ bool CDolbyVisionAML::Setup()
   // Turn on dv - if dv mode is on, limit the menu lumincance as menu now can be in DV/HDR. 
   aml_dv_start();
 
+  CLog::Log(LOGDEBUG, "CDolbyVisionAML::Setup - Complete");
+
   return true;
 }
 
@@ -164,7 +169,7 @@ void CDolbyVisionAML::OnSettingChanged(const std::shared_ptr<const CSetting>& se
   const std::string& settingId = setting->GetId();
   if (settingId == CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE) 
   {
-    // Not working - needs video playback for mode switch to work
+    // Not working for some cases - needs video playback for mode switch to work correctly everytime.
     /*
     enum DV_MODE dv_mode(static_cast<DV_MODE>(std::dynamic_pointer_cast<const CSettingInt>(setting)->GetValue()));
     if (dv_mode == DV_MODE_ON) 
@@ -180,7 +185,7 @@ void CDolbyVisionAML::OnSettingChanged(const std::shared_ptr<const CSetting>& se
   }
   else if (settingId == CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE)
   {
-    // Not working - needs video playback for mode switch to work
+    // Not working for some cases - needs video playback for mode switch to work correctly everytime.
     /*
     const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
     enum DV_MODE dv_mode(static_cast<DV_MODE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE)));
