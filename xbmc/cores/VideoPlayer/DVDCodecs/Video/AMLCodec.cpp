@@ -2007,9 +2007,8 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   am_private->gcodec.dec_mode    = STREAM_TYPE_FRAME;
   am_private->gcodec.video_path  = FRAME_BASE_PATH_AMLVIDEO_AMVIDEO;
 
-  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  enum DV_MODE dv_mode(static_cast<DV_MODE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE)));
-  enum DV_TYPE dv_type(static_cast<DV_TYPE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE)));
+  enum DV_MODE dv_mode(aml_dv_mode());
+  enum DV_TYPE dv_type(aml_dv_type());
 
   CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder Checking DV for DV mode: [{}], DV type: [{}]", dv_mode, dv_type);
 
@@ -2295,10 +2294,8 @@ void CAMLCodec::SetVfmMap(const std::string &name, const std::string &map)
 void CAMLCodec::CloseDecoder()
 {
   CLog::Log(LOGDEBUG, "CAMLCodec::CloseDecoder");
-
-  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  enum DV_MODE dv_mode(static_cast<DV_MODE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE)));
-
+  
+  enum DV_MODE dv_mode(aml_dv_mode());
   if ((dv_mode == DV_MODE_ON_DEMAND) && aml_is_dv_enable()) aml_dv_off(false);
 
   SetPollDevice(-1);

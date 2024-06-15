@@ -267,7 +267,7 @@ bool aml_support_dolby_vision()
 bool aml_dolby_vision_enabled()
 {
   static int dv_enabled = -1;
-  bool dv_user_enabled(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE) != DV_MODE_OFF);
+  bool dv_user_enabled(aml_dv_mode() != DV_MODE_OFF);
 
   if (dv_enabled == -1)
     dv_enabled = (!!aml_support_dolby_vision());
@@ -329,7 +329,7 @@ void aml_dv_off(bool disable)
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_mode", DOLBY_VISION_OUTPUT_MODE_BYPASS);
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_policy", DOLBY_VISION_FOLLOW_SOURCE);
   
-  // If diable wait for mode change and then disable.
+  // If disable wait for mode change and then disable.
   if (disable) {
     CSysfsPath dolby_vision_target_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_target_mode"};
     if (dolby_vision_target_mode.Exists())

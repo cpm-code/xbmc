@@ -302,27 +302,23 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       // check for hevc-hvcC and convert to h265-annex-b
       if (m_hints.extradata && !m_hints.cryptoSession)
       {
-        if (m_bitstream && aml_support_dolby_vision())
+        if (m_bitstream && (aml_dv_mode() != DV_MODE_OFF))
         {
           auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-          bool user_dv_disable = (settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE) == DV_MODE_OFF);
-          if (!user_dv_disable)
+          int convertDovi = settings->GetInt(CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI);
+          if (convertDovi)
           {
-            int convertDovi = settings->GetInt(CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI);
-            if (convertDovi)
-            {
-              CLog::Log(LOGDEBUG, "{}::{} - HEVC bitstream profile 7 will be converted by chosen mode {:d}",
-                __MODULE_NAME__, __FUNCTION__, convertDovi);
-              m_bitstream->SetConvertDovi(convertDovi);
-            }
-            unsigned int mode(aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS));
-            if (mode < DOLBY_VISION_OUTPUT_MODE_BYPASS)
-            {
-              // for VS10 conversion need to remove the HDR10plus metadata.
-              CLog::Log(LOGDEBUG, "{}::{} - HEVC bitstream hdr10plus metadata will be removed to allow VS10",
-                __MODULE_NAME__, __FUNCTION__);
-              m_bitstream->SetRemoveHdr10Plus(true);
-            }
+            CLog::Log(LOGDEBUG, "{}::{} - HEVC bitstream profile 7 will be converted by chosen mode {:d}",
+              __MODULE_NAME__, __FUNCTION__, convertDovi);
+            m_bitstream->SetConvertDovi(convertDovi);
+          }
+          unsigned int mode(aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS));
+          if (mode < DOLBY_VISION_OUTPUT_MODE_BYPASS)
+          {
+            // for VS10 conversion need to remove the HDR10plus metadata.
+            CLog::Log(LOGDEBUG, "{}::{} - HEVC bitstream hdr10plus metadata will be removed to allow VS10",
+              __MODULE_NAME__, __FUNCTION__);
+            m_bitstream->SetRemoveHdr10Plus(true);
           }
         }
       }

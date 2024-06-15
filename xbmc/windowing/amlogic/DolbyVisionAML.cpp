@@ -169,10 +169,7 @@ void CDolbyVisionAML::OnSettingChanged(const std::shared_ptr<const CSetting>& se
   {
     // Not working for some cases - needs video playback for mode switch to work correctly everytime.
     /*
-    const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-    enum DV_MODE dv_mode(static_cast<DV_MODE>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE)));
-    enum DV_TYPE dv_type(static_cast<DV_TYPE>(std::dynamic_pointer_cast<const CSettingInt>(setting)->GetValue()));
-    if (dv_mode == DV_MODE_ON) {
+    if (aml_dv_mode() == DV_MODE_ON) {
       aml_dv_off(true);
       aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT, true);
     }

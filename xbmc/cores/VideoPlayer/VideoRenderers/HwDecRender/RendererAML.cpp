@@ -64,8 +64,6 @@ bool CRendererAML::Configure(const VideoPicture &picture, float fps, unsigned in
   SetViewMode(m_videoSettings.m_ViewMode);
   ManageRenderArea();
 
-  auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-
   // Configure GUI/OSD for HDR PQ when display is in HDR PQ mode
 
   bool hdr_display(CServiceBroker::GetWinSystem()->IsHDRDisplay());
