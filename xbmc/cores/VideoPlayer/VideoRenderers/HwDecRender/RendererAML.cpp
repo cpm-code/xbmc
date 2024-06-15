@@ -65,40 +65,41 @@ bool CRendererAML::Configure(const VideoPicture &picture, float fps, unsigned in
   ManageRenderArea();
 
   // Configure GUI/OSD for HDR PQ when display is in HDR PQ mode
+  bool hdr_display(CServiceBroker::GetWinSystem()->IsHDRDisplay() || aml_display_support_dv());
+  bool dv_on(aml_dv_mode() != DV_MODE_OFF);
 
-  bool hdr_display(CServiceBroker::GetWinSystem()->IsHDRDisplay());
-  bool dv_display(aml_display_support_dv() || hdr_display);
-  bool device_dv_ready(aml_support_dolby_vision());
-  bool user_dv_disable(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE) == DV_MODE_OFF);
-  bool dv_ready(device_dv_ready && !user_dv_disable);
+  bool hdr(false);
 
-  bool vs10_hdr(false);
-  bool native_hdr(false);
+  // FIXME: picture.hdrType will not be correct for hdr10+ until upstream can identify correctly.
+  if (hdr_display) { // Only relevant with an hdr_display [should really test display supports each hdr content (inc fallback) specifically]
 
-   // FIXME: picture.hdrType will not be correct for hdr10+ until upstream can identify correctly.
-  if (dv_display && dv_ready) {
-    vs10_hdr = (aml_vs10_by_hdrtype(picture.hdrType, picture.colorBits) <= DOLBY_VISION_OUTPUT_MODE_HDR10);
-  } else if (hdr_display) {
     switch (picture.hdrType) {
       case StreamHdrType::HDR_TYPE_HDR10:
       case StreamHdrType::HDR_TYPE_HDR10PLUS:
       case StreamHdrType::HDR_TYPE_HLG:
       case StreamHdrType::HDR_TYPE_DOLBYVISION:
-        native_hdr = true;
+        hdr = true;
         break;
       default:
         break;
     }
+
+    // Check for vs10 up or down mapping.
+    if (dv_on) {
+      unsigned int mode = aml_vs10_by_hdrtype(picture.hdrType, picture.colorBits);
+      hdr = (((mode == DOLBY_VISION_OUTPUT_MODE_BYPASS) && hdr) ||
+              (mode <= DOLBY_VISION_OUTPUT_MODE_HDR10));
+    }
   }
 
-  bool hdr(vs10_hdr || native_hdr);
   std::string hdrType = CStreamDetails::HdrTypeToString(picture.hdrType);
+  bool device_dv_ready(aml_support_dolby_vision());
 
   CLog::Log(LOGDEBUG, "CRendererAML::Configure {}DV support, {}, HDR type is {}, transfer PQ is {}",
           device_dv_ready ? "" : "no ",
-          user_dv_disable ? "disabled" : "enabled",
+          dv_on ? "enabled" : "disabled",
           hdrType,
-          hdr ? (vs10_hdr ? "set by VS10 mapping" : "set by HDR type") : "not set");
+          hdr ? "set" : "not set");
 
   CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(hdr);
 
