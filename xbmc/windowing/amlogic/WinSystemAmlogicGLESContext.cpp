@@ -84,9 +84,6 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
   {
     CSysfsPath amhdmitx0_frac_rate_policy{"/sys/class/amhdmitx/amhdmitx0/frac_rate_policy"};
     cur_fractional_rate = amhdmitx0_frac_rate_policy.Get<int>().value();
-
-    if (cur_fractional_rate != fractional_rate)
-      amhdmitx0_frac_rate_policy.Set(fractional_rate);
   }
 
   StreamHdrType hdrType = CServiceBroker::GetWinSystem()->GetGfxContext().GetHDRType();
