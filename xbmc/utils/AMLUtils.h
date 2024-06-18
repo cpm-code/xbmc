@@ -71,7 +71,9 @@ enum DV_COLORIMETRY : int
 #define AML_G12B    0x29
 #define AML_SM1     0x2B
 
-#define FLAG_FORCE_DV_LL        (unsigned int)(0x4000)
+#define FLAG_FORCE_DOVI_LL      (unsigned int)(0x4000)
+#define FLAG_TOGGLE_FRAME       (unsigned int)(0x80000000)
+
 #define DOLBY_VISION_LL_DISABLE (unsigned int)(0)
 #define DOLBY_VISION_LL_YUV422  (unsigned int)(1)
 
@@ -108,6 +110,7 @@ void aml_dv_enable();
 void aml_dv_disable();
 bool aml_is_dv_enable();
 void aml_dv_display_trigger();
+void aml_dv_toggle_frame();
 void aml_dv_start();
 void aml_dv_always_update_reg();
 unsigned int aml_vs10_by_setting(const std::string setting);

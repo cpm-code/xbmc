@@ -302,12 +302,12 @@ void aml_dv_on(unsigned int mode, bool enable)
   {
     if (dv_type == DV_TYPE_DISPLAY_LED) // Display Led (DV-Std)
     {
-      dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() & ~(FLAG_FORCE_DV_LL));
+      dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() & ~(FLAG_FORCE_DOVI_LL));
       dolby_vision_ll_policy.Set(DOLBY_VISION_LL_DISABLE);
     }
     else // Player Led (DV-LL and HDR)
     {
-      dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() | FLAG_FORCE_DV_LL);
+      dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() | FLAG_FORCE_DOVI_LL);
       dolby_vision_ll_policy.Set(DOLBY_VISION_LL_YUV422);
     }
   }
@@ -339,8 +339,7 @@ void aml_dv_off(bool disable)
             (std::chrono::system_clock::now() - now) < std::chrono::seconds(3))
         usleep(10000); // wait 10ms
     }
-    usleep(400000); // TODO: is there a better way? - currently wait 400ms to make sure it has switched over before switching off 
-                    // This is sill an issue even after waiting for target mode. How about check the hdmi no longer outputting VSIF - from debugfs maybe?
+    aml_dv_toggle_frame();
     aml_dv_disable();
   }
 }
@@ -379,6 +378,13 @@ void aml_dv_display_trigger()
     CSysfsPath display_mode{"/sys/class/display/mode"};
     if (display_mode.Exists()) display_mode.Set(display_mode.Get<std::string>().value());
   }
+}
+
+void aml_dv_toggle_frame()
+{
+  CSysfsPath dolby_vision_flags{"/sys/module/amdolby_vision/parameters/dolby_vision_flags"};
+  if (dolby_vision_flags.Exists())
+    dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() | FLAG_TOGGLE_FRAME);
 }
 
 void aml_dv_start()
