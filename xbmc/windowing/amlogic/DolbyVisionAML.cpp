@@ -152,13 +152,11 @@ void CDolbyVisionAML::OnSettingChanged(const std::shared_ptr<const CSetting>& se
   if (settingId == CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE) 
   {
     // Not working for some cases - needs video playback for mode switch to work correctly everytime.
-    /*
-    enum DV_MODE dv_mode(static_cast<DV_MODE>(std::dynamic_pointer_cast<const CSettingInt>(setting)->GetValue()));
-    if (dv_mode == DV_MODE_ON) 
-      aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT, true);
-    else
-      aml_dv_off(true);
-    */
+    // enum DV_MODE dv_mode(static_cast<DV_MODE>(std::dynamic_pointer_cast<const CSettingInt>(setting)->GetValue()));
+    // if (dv_mode == DV_MODE_ON) 
+    //   aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT, true);
+    // else
+    //   aml_dv_off();
   } 
   else if (settingId == CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE) 
   {
@@ -168,12 +166,7 @@ void CDolbyVisionAML::OnSettingChanged(const std::shared_ptr<const CSetting>& se
   else if (settingId == CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE)
   {
     // Not working for some cases - needs video playback for mode switch to work correctly everytime.
-    /*
-    if (aml_dv_mode() == DV_MODE_ON) {
-      aml_dv_off(true);
-      aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT, true);
-    }
-    */
+    // aml_dv_start();
   }
 }
 

@@ -322,26 +322,24 @@ void aml_dv_on(unsigned int mode, bool enable)
   if (enable) aml_dv_enable();
 }
 
-void aml_dv_off(bool disable)
+void aml_dv_off()
 {
   // Reset DV Paremters - will do mode change.
   CSysfsPath("/sys/class/amdolby_vision/debug", "enable_fel 0");
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_mode", DOLBY_VISION_OUTPUT_MODE_BYPASS);
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_policy", DOLBY_VISION_FOLLOW_SOURCE);
   
-  // If disable wait for mode change and then disable.
-  if (disable) {
-    CSysfsPath dolby_vision_target_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_target_mode"};
-    if (dolby_vision_target_mode.Exists())
-    {
-      std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
-      while(dolby_vision_target_mode.Get<unsigned int>().value() != DOLBY_VISION_OUTPUT_MODE_BYPASS && 
-            (std::chrono::system_clock::now() - now) < std::chrono::seconds(3))
-        usleep(10000); // wait 10ms
-    }
-    aml_dv_toggle_frame();
-    aml_dv_disable();
+  // Wait for mode change, set toogle frame and then disable.
+  CSysfsPath dolby_vision_target_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_target_mode"};
+  if (dolby_vision_target_mode.Exists())
+  {
+    std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
+    while(dolby_vision_target_mode.Get<unsigned int>().value() != DOLBY_VISION_OUTPUT_MODE_BYPASS && 
+          (std::chrono::system_clock::now() - now) < std::chrono::seconds(3))
+      usleep(10000); // wait 10ms
   }
+  aml_dv_toggle_frame();
+  aml_dv_disable();
 }
 
 void aml_dv_set_osd_max(int max)
@@ -391,7 +389,6 @@ void aml_dv_start()
 {
   if (aml_dv_mode() == DV_MODE_ON) {
     aml_dv_reset_osd_max();
-    aml_dv_off(true);
     aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT, true);
   }
 }
