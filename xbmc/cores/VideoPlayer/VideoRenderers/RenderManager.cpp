@@ -904,7 +904,7 @@ void CRenderManager::UpdateResolution()
     if (CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenVideo() && CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot())
     {
       auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - m_videostarted);
-      if (aml_video_started() || elapsed > 1000ms)
+      if ((m_hdrType != StreamHdrType::HDR_TYPE_HDR10) || aml_video_started() || elapsed > 1000ms)
       {
         RENDER_STEREO_MODE user_stereo_mode =
           CServiceBroker::GetGUI()->GetStereoscopicsManager().GetStereoModeByUser();

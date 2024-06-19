@@ -133,9 +133,6 @@ bool CDolbyVisionAML::Setup()
   auto announcer = CServiceBroker::GetAnnouncementManager();
   announcer->AddAnnouncer(this);
 
-  // Always update (reset) the reg and lut on mode changes.
-  aml_dv_always_update_reg();
-
   // Turn on dv - if dv mode is on, limit the menu lumincance as menu now can be in DV/HDR. 
   aml_dv_start();
 
@@ -153,10 +150,7 @@ void CDolbyVisionAML::OnSettingChanged(const std::shared_ptr<const CSetting>& se
   {
     // Not working for some cases - needs video playback for mode switch to work correctly everytime.
     // enum DV_MODE dv_mode(static_cast<DV_MODE>(std::dynamic_pointer_cast<const CSettingInt>(setting)->GetValue()));
-    // if (dv_mode == DV_MODE_ON) 
-    //   aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT, true);
-    // else
-    //   aml_dv_off();
+    // if (dv_mode == DV_MODE_ON) ? aml_dv_on(DOLBY_VISION_OUTPUT_MODE_IPT) : aml_dv_off();
   } 
   else if (settingId == CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE) 
   {

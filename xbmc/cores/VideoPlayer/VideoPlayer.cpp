@@ -3779,6 +3779,11 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
   if (hint.flags & AV_DISPOSITION_ATTACHED_PIC)
     return false;
 
+  // Switch on / off DV according to the content.
+  // Switch done here so all codecs can take advantage - cannot do for HDR10+ as not kwown at this point!
+  // Note: If HDR10+ identification is added upstream then can also remove the wait for playing logic in RenderManger UpdateResolution.
+  aml_dv_open(hint.hdrType, hint.bitdepth);
+
   // set desired refresh rate
   if (m_CurrentVideo.id < 0 && m_playerOptions.fullscreen &&
       CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot() && hint.fpsrate != 0 &&
@@ -3975,6 +3980,8 @@ bool CVideoPlayer::CloseStream(CCurrentStream& current, bool bWaitForBuffers)
       bWaitForBuffers = false;
     player->CloseStream(bWaitForBuffers);
   }
+
+  if (current.type == STREAM_VIDEO) aml_dv_close();
 
   current.Clear();
   return true;
