@@ -349,7 +349,7 @@ void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
   CLog::Log(LOGDEBUG, "AMLUtils::{} - Checking DV for DV mode: [{}], DV type: [{}]", __FUNCTION__, dv_mode, aml_dv_type());
   if (dv_mode == DV_MODE_ON || dv_mode == DV_MODE_ON_DEMAND) {
 
-    unsigned int vs10_mode = aml_vs10_by_hdrtype(hdrType, bitdepth);    
+    unsigned int vs10_mode = aml_vs10_by_hdrtype(hdrType, bitDepth);    
 
     if (vs10_mode != DOLBY_VISION_OUTPUT_MODE_BYPASS) 
       aml_dv_on(vs10_mode);
@@ -358,6 +358,7 @@ void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
 
     bool content_is_dv(hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
     CLog::Log(LOGDEBUG, "AMLUtils::{} - DV is [{}], requested with vs10 mode: [{}], set for: [{}]",  __FUNCTION__, aml_is_dv_enable(), vs10_mode, content_is_dv ? "content" : "mapping");
+  }
 }
 
 void aml_dv_close()
@@ -369,7 +370,7 @@ void aml_dv_close()
     if (dv_video_on.Exists())
     {
       std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
-      while(dv_video_on.Get<int>().value() == 1 && (std::chrono::system_clock::now() - now) < std::chrono::seconds(m_decoder_timeout))
+      while((dv_video_on.Get<int>().value() == 1) && ((std::chrono::system_clock::now() - now) < std::chrono::seconds(3)))
         usleep(10000); // wait 10ms
     }
     if (aml_dv_mode() == DV_MODE_ON_DEMAND) aml_dv_off();
@@ -484,6 +485,37 @@ unsigned int aml_vs10_by_hdrtype(StreamHdrType hdrType, unsigned int bitDepth)
       break;
   }
   return vs10_mode;
+}
+
+void aml_set_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth) {
+
+  // Configure GUI/OSD for HDR PQ when display is in HDR PQ mode
+  bool hdr_display(CServiceBroker::GetWinSystem()->IsHDRDisplay() || aml_display_support_dv());
+  bool dv_on(aml_dv_mode() != DV_MODE_OFF);
+  bool hdr(false);
+
+  if (hdr_display) { // Only relevant with an hdr_display 
+
+    // FIXME: hdrType will not be correct for hdr10+ until upstream can identify correctly.
+    // TODO: any need to test display supports each hdr content (inc fallback) specifically?
+    hdr = (hdrType != StreamHdrType::HDR_TYPE_NONE);
+
+    // Check for vs10 up or down mapping.
+    if (dv_on) {
+      unsigned int vs10_mode = aml_vs10_by_hdrtype(hdrType, bitDepth);
+      hdr = (((vs10_mode == DOLBY_VISION_OUTPUT_MODE_BYPASS) && hdr) ||
+              (vs10_mode <= DOLBY_VISION_OUTPUT_MODE_HDR10));
+    }
+  }
+
+  CLog::Log(LOGDEBUG, "AMLUtils::{} - {}DV support, {}, HDR type is {}, transfer PQ is {}",
+          __FUNCTION__,
+          aml_support_dolby_vision() ? "" : "no ",
+          dv_on ? "enabled" : "disabled",
+          CStreamDetails::HdrTypeToString(hdrType),
+          hdr ? "set" : "not set");
+
+  CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(hdr);
 }
 
 bool aml_has_frac_rate_policy()

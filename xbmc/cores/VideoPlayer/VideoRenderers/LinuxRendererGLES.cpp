@@ -24,6 +24,7 @@
 #include "settings/MediaSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
+#include "utils/AMLUtils.h"
 #include "utils/GLUtils.h"
 #include "utils/MathUtils.h"
 #include "utils/log.h"
@@ -138,6 +139,9 @@ bool CLinuxRendererGLES::Configure(const VideoPicture &picture, float fps, unsig
     CLog::Log(LOGDEBUG, "LinuxRendererGLES::Configure: HDR passthrough: {}",
               m_passthroughHDR ? "on" : "off");
   }
+
+  // Configure GUI/OSD for HDR PQ when display is in HDR PQ mode
+  aml_set_transfer_pq(picture.hdrType, picture.colorBits);
 
   return true;
 }
