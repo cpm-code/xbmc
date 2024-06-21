@@ -35,6 +35,82 @@ static std::shared_ptr<CSettings> settings()
   return CServiceBroker::GetSettingsComponent()->GetSettings();
 }
 
+static bool aml_display_support_dv()
+{
+  int support_dv = 0;
+  CRegExp regexp;
+  regexp.RegComp("The Rx don't support DolbyVision");
+  std::string valstr;
+  CSysfsPath dv_cap{"/sys/devices/virtual/amhdmitx/amhdmitx0/dv_cap"};
+  if (dv_cap.Exists())
+  {
+    valstr = dv_cap.Get<std::string>().value();
+    support_dv = (regexp.RegFind(valstr) >= 0) ? 0 : 1;
+  }
+  return support_dv;
+}
+
+static unsigned int aml_vs10_mode()
+{
+  CSysfsPath dolby_vision_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_mode"};
+  return dolby_vision_mode.Exists() ? dolby_vision_mode.Get<unsigned int>().value() : DOLBY_VISION_OUTPUT_MODE_BYPASS;
+}
+
+static void aml_dv_reset_osd_max()
+{
+  int max(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE));
+  aml_dv_set_osd_max(max);
+}
+
+static void aml_dv_enable()
+{
+  CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", "Y");
+}
+
+static void aml_dv_disable()
+{
+  CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", "N");
+}
+
+static void aml_dv_toggle_frame()
+{
+  CSysfsPath dolby_vision_flags{"/sys/module/amdolby_vision/parameters/dolby_vision_flags"};
+  if (dolby_vision_flags.Exists()) 
+  {
+    dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() | FLAG_TOGGLE_FRAME);
+    std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
+    while(((dolby_vision_flags.Get<unsigned int>().value() & FLAG_TOGGLE_FRAME) == FLAG_TOGGLE_FRAME) && 
+          ((std::chrono::system_clock::now() - now) < std::chrono::seconds(3)))
+      usleep(10000); // wait 10ms
+  }
+}
+
+static unsigned int aml_vs10_by_hdrtype(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  unsigned int vs10_mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
+  switch (hdrType) {
+    case StreamHdrType::HDR_TYPE_NONE:
+      if (bitDepth == 10)
+        vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR10);
+      else
+        vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8);
+      break;
+    case StreamHdrType::HDR_TYPE_HDR10:
+      vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10);
+      break;
+    case StreamHdrType::HDR_TYPE_HDR10PLUS:
+      vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS);
+      break;
+    case StreamHdrType::HDR_TYPE_HLG:
+      vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG);
+      break;
+    case StreamHdrType::HDR_TYPE_DOLBYVISION:
+      vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_DV);
+      break;
+  }
+  return vs10_mode;
+}
+
 int aml_get_cpufamily_id()
 {
   static int aml_cpufamily_id = -1;
@@ -86,22 +162,7 @@ bool aml_display_support_hdr_hlg()
   return support;
 }
 
-bool aml_display_support_dv()
-{
-  int support_dv = 0;
-  CRegExp regexp;
-  regexp.RegComp("The Rx don't support DolbyVision");
-  std::string valstr;
-  CSysfsPath dv_cap{"/sys/devices/virtual/amhdmitx/amhdmitx0/dv_cap"};
-  if (dv_cap.Exists())
-  {
-    valstr = dv_cap.Get<std::string>().value();
-    support_dv = (regexp.RegFind(valstr) >= 0) ? 0 : 1;
-  }
-  return support_dv;
-}
-
-bool aml_dv_support_ll()
+bool aml_display_support_dv_ll()
 {
   int support_ll = 0;
   CRegExp regexp;
@@ -117,7 +178,7 @@ bool aml_dv_support_ll()
   return support_ll;
 }
 
-bool aml_dv_support_std()
+bool aml_display_support_dv_std()
 {
   int support_std = 0;
   CRegExp regexp;
@@ -383,32 +444,10 @@ void aml_dv_close()
   }
 }
 
-unsigned int aml_vs10_mode()
-{
-  CSysfsPath dolby_vision_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_mode"};
-  return dolby_vision_mode.Exists() ? dolby_vision_mode.Get<unsigned int>().value() : DOLBY_VISION_OUTPUT_MODE_BYPASS;
-}
-
 void aml_dv_set_osd_max(int max)
 {
   // Set the OSD DV graphic max.
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_graphic_max", max);
-}
-
-void aml_dv_reset_osd_max()
-{
-  int max(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE));
-  aml_dv_set_osd_max(max);
-}
-
-void aml_dv_enable()
-{
-  CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", "Y");
-}
-
-void aml_dv_disable()
-{
-  CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", "N");
 }
 
 bool aml_is_dv_enable()
@@ -422,19 +461,6 @@ void aml_dv_display_trigger()
   if (aml_is_dv_enable()) {
     CSysfsPath display_mode{"/sys/class/display/mode"};
     if (display_mode.Exists()) display_mode.Set(display_mode.Get<std::string>().value());
-  }
-}
-
-void aml_dv_toggle_frame()
-{
-  CSysfsPath dolby_vision_flags{"/sys/module/amdolby_vision/parameters/dolby_vision_flags"};
-  if (dolby_vision_flags.Exists()) 
-  {
-    dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() | FLAG_TOGGLE_FRAME);
-    std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
-    while(((dolby_vision_flags.Get<unsigned int>().value() & FLAG_TOGGLE_FRAME) == FLAG_TOGGLE_FRAME) && 
-          ((std::chrono::system_clock::now() - now) < std::chrono::seconds(3)))
-      usleep(10000); // wait 10ms
   }
 }
 
@@ -459,32 +485,6 @@ enum DV_TYPE aml_dv_type()
 unsigned int aml_vs10_by_setting(const std::string setting)
 {
   return static_cast<unsigned int>(settings()->GetInt(setting));
-}
-
-unsigned int aml_vs10_by_hdrtype(StreamHdrType hdrType, unsigned int bitDepth)
-{
-  unsigned int vs10_mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
-  switch (hdrType) {
-    case StreamHdrType::HDR_TYPE_NONE:
-      if (bitDepth == 10)
-        vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR10);
-      else
-        vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8);
-      break;
-    case StreamHdrType::HDR_TYPE_HDR10:
-      vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10);
-      break;
-    case StreamHdrType::HDR_TYPE_HDR10PLUS:
-      vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS);
-      break;
-    case StreamHdrType::HDR_TYPE_HLG:
-      vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDRHLG);
-      break;
-    case StreamHdrType::HDR_TYPE_DOLBYVISION:
-      vs10_mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_DV);
-      break;
-  }
-  return vs10_mode;
 }
 
 void aml_set_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth) {

@@ -24,8 +24,8 @@ void dv_type_filler(const SettingConstPtr& setting, std::vector<IntegerSettingOp
   
   // Only do first time - becasue if injecting a Dolby VSVDB then more options will show which are not valid
   // Means user will need to restart kodi if they change the Display / EDID to see more options.
-  const bool dv_std = aml_dv_support_std();
-  const bool dv_ll = aml_dv_support_ll();
+  const bool dv_std = aml_display_support_dv_std();
+  const bool dv_ll = aml_display_support_dv_ll();
   const bool dv_hdr_pq = aml_display_support_hdr_pq();
 
   list.clear();
@@ -36,7 +36,7 @@ void dv_type_filler(const SettingConstPtr& setting, std::vector<IntegerSettingOp
 }
 
 bool display_support_dv() {
-  return (aml_dv_support_std() || aml_dv_support_ll() || aml_display_support_hdr_pq());
+  return (aml_display_support_dv_std() || aml_display_support_dv_ll() || aml_display_support_hdr_pq());
 }
 
 void add_vs10_bypass(std::vector<IntegerSettingOption>& list) {list.emplace_back(g_localizeStrings.Get(50063), DOLBY_VISION_OUTPUT_MODE_BYPASS);}
