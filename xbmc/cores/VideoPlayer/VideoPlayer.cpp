@@ -50,6 +50,7 @@
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "threads/SingleLock.h"
+#include "utils/AMLUtils.h"
 #include "utils/FontUtils.h"
 #include "utils/JobManager.h"
 #include "utils/LangCodeExpander.h"
@@ -3780,9 +3781,9 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
     return false;
 
   // Switch on / off DV according to the content.
-  // Switch done here so all codecs can take advantage - cannot do for HDR10+ as not kwown at this point!
+  // Switch done here so all codecs can take advantage - cannot do for HDR10 as HDR10+ is not kwown at this point!
   // Note: If HDR10+ identification is added upstream then can also remove the wait for playing logic in RenderManger UpdateResolution.
-  aml_dv_open(hint.hdrType, hint.bitdepth);
+  if (hint.hdrType != StreamHdrType::HDR_TYPE_HDR10) aml_dv_open(hint.hdrType, hint.bitdepth);
 
   // set desired refresh rate
   if (m_CurrentVideo.id < 0 && m_playerOptions.fullscreen &&

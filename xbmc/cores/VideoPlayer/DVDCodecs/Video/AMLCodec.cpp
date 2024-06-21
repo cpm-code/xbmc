@@ -2012,10 +2012,11 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
 
   if (dv_mode == DV_MODE_ON || dv_mode == DV_MODE_ON_DEMAND) {
 
-    if (hints.hdrType == StreamHdrType::HDR_TYPE_HDR10PLUS) { // Now we know about HDR10+, so double check we are in the correct vs10 mode, and switch if necessary.
+    if ((hints.hdrType == StreamHdrType::HDR_TYPE_HDR10) ||
+        (hints.hdrType == StreamHdrType::HDR_TYPE_HDR10PLUS)) { // Now we know about HDR10+, so double check we are in the correct vs10 mode, and switch if necessary.
       aml_dv_open(hints.hdrType, hints.bitdepth);    
     } 
-    else if ((hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) && anl_is_dv_enable()) // Setup Codec for DV
+    else if ((hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) && aml_is_dv_enable()) // Setup Codec for DV
     {    
       am_private->gcodec.dv_enable = 1;
       if ((hints.dovi.dv_profile == 4 || hints.dovi.dv_profile == 7) && CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
