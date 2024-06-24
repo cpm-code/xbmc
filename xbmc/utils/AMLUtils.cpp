@@ -39,27 +39,6 @@ static std::shared_ptr<CSettings> settings()
   return CServiceBroker::GetSettingsComponent()->GetSettings();
 }
 
-static bool aml_display_support_dv()
-{
-  int support_dv = 0;
-  CRegExp regexp;
-  regexp.RegComp("The Rx don't support DolbyVision");
-  std::string valstr;
-  CSysfsPath dv_cap{"/sys/devices/virtual/amhdmitx/amhdmitx0/dv_cap"};
-  if (dv_cap.Exists())
-  {
-    valstr = dv_cap.Get<std::string>().value();
-    support_dv = (regexp.RegFind(valstr) >= 0) ? 0 : 1;
-  }
-  return support_dv;
-}
-
-static unsigned int aml_vs10_mode()
-{
-  CSysfsPath dolby_vision_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_mode"};
-  return dolby_vision_mode.Exists() ? dolby_vision_mode.Get<unsigned int>().value() : DOLBY_VISION_OUTPUT_MODE_BYPASS;
-}
-
 static void aml_dv_reset_osd_max()
 {
   int max(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE));
@@ -199,6 +178,21 @@ bool aml_display_support_dv_std()
     support_std = (regexp.RegFind(valstr) >= 0) ? 1 : 0;
   }
   return support_std;
+}
+
+bool aml_display_support_dv()
+{
+  int support_dv = 0;
+  CRegExp regexp;
+  regexp.RegComp("The Rx don't support DolbyVision");
+  std::string valstr;
+  CSysfsPath dv_cap{"/sys/devices/virtual/amhdmitx/amhdmitx0/dv_cap"};
+  if (dv_cap.Exists())
+  {
+    valstr = dv_cap.Get<std::string>().value();
+    support_dv = (regexp.RegFind(valstr) >= 0) ? 0 : 1;
+  }
+  return support_dv;
 }
 
 bool aml_display_support_3d()
@@ -548,12 +542,6 @@ bool aml_has_frac_rate_policy()
   }
 
   return (has_frac_rate_policy == 1);
-}
-
-bool aml_video_started()
-{
-  CSysfsPath videostarted{"/sys/class/tsync/videostarted"};
-  return (StringUtils::EqualsNoCase(videostarted.Get<std::string>().value(), "0x1"));
 }
 
 void aml_video_mute(bool mute)
