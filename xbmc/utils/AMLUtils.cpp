@@ -45,26 +45,65 @@ static void aml_dv_reset_osd_max()
   aml_dv_set_osd_max(max);
 }
 
-static void aml_dv_set_toggle_frame()
-{
-  CSysfsPath dolby_vision_flags{"/sys/module/amdolby_vision/parameters/dolby_vision_flags"};
-  if (dolby_vision_flags.Exists()) dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() | FLAG_TOGGLE_FRAME);
-}
-
-static void aml_dv_check_toggle_frame()
+static void aml_dv_toggle_frame(unsigned int mode)
 {
   CSysfsPath dolby_vision_flags{"/sys/module/amdolby_vision/parameters/dolby_vision_flags"};
   if (dolby_vision_flags.Exists()) 
   {
-    CLog::Log(LOGINFO, "AMLUtils::{} - Toggle Frame start",  __FUNCTION__);
+    dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() | FLAG_TOGGLE_FRAME);
+    CLog::Log(LOGINFO, "AMLUtils::{} - Toggle Frame - start - for mode [{}]", __FUNCTION__, mode);
     std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
     while(true) { 
-      if (!((dolby_vision_flags.Get<unsigned int>().value() & FLAG_TOGGLE_FRAME) == FLAG_TOGGLE_FRAME)) {
-        CLog::Log(LOGINFO, "AMLUtils::{} - Toggle Frame done", __FUNCTION__);
+      if ((dolby_vision_flags.Get<unsigned int>().value() & FLAG_TOGGLE_FRAME) == 0) {
+        CLog::Log(LOGINFO, "AMLUtils::{} - Toggle Frame - done - for mode [{}]", __FUNCTION__, mode);
         break;
       }
-      if (!((std::chrono::system_clock::now() - now) < std::chrono::milliseconds(200))) {
-        CLog::Log(LOGINFO, "AMLUtils::{} - Toggle Frame wait time elapsed",  __FUNCTION__);
+      if ((std::chrono::system_clock::now() - now) >= std::chrono::milliseconds(3000)) {
+        CLog::Log(LOGINFO, "AMLUtils::{} - Toggle Frame - wait time elapsed - for mode [{}]", __FUNCTION__, mode);
+        break;
+      } 
+      usleep(10000); // wait 10ms
+    }
+  }
+}
+
+static void aml_dv_wait_target_mode(unsigned int target_mode)
+{
+  // Wait for mode change, set toogle frame and then disable.
+  CSysfsPath dolby_vision_target_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_target_mode"};
+  if (dolby_vision_target_mode.Exists())
+  {
+    CLog::Log(LOGINFO, "AMLUtils::{} - Target Mode Change - start - for mode [{}]", __FUNCTION__, target_mode);
+    std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
+    while(true) { 
+      if (dolby_vision_target_mode.Get<unsigned int>().value() == target_mode) {
+        CLog::Log(LOGINFO, "AMLUtils::{} - Target Mode Change - done - for mode [{}]", __FUNCTION__, target_mode);
+        break;
+      }
+      if ((std::chrono::system_clock::now() - now) >= std::chrono::milliseconds(3000)) {
+        CLog::Log(LOGINFO, "AMLUtils::{} - Target Mode Change - wait time elapsed - for mode [{}]", __FUNCTION__, target_mode);
+        break;
+      } 
+      usleep(10000); // wait 10ms
+    }
+  }
+}
+
+static void aml_dv_wait_video_off()
+{
+  // Wait for dv_video_on to unset.
+  CSysfsPath dv_video_on{"/sys/class/amdolby_vision/dv_video_on"};
+  if (dv_video_on.Exists())
+  {      
+    CLog::Log(LOGINFO, "AMLUtils::{} - DV Video Off - start", __FUNCTION__);
+    std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
+    while(true) { 
+      if (dv_video_on.Get<int>().value() == 0) {
+        CLog::Log(LOGINFO, "AMLUtils::{} - DV Video Off - done", __FUNCTION__);
+        break;
+      }
+      if ((std::chrono::system_clock::now() - now) >= std::chrono::milliseconds(3000)) {
+        CLog::Log(LOGINFO, "AMLUtils::{} - DV Video Off - wait time elapsed", __FUNCTION__);
         break;
       } 
       usleep(10000); // wait 10ms
@@ -96,6 +135,13 @@ static unsigned int aml_vs10_by_hdrtype(StreamHdrType hdrType, unsigned int bitD
       break;
   }
   return vs10_mode;
+}
+
+static void aml_dv_trigger_update_resolution()
+{
+  auto& components = CServiceBroker::GetAppComponents();
+  const auto appPlayer = components.GetComponent<CApplicationPlayer>();
+  appPlayer->TriggerUpdateResolution();
 }
 
 int aml_get_cpufamily_id()
@@ -340,24 +386,24 @@ bool aml_dolby_vision_enabled()
 
 void aml_dv_on(unsigned int mode)
 {
-  enum DV_TYPE dv_type(aml_dv_type());
-
-  // Set the Dolby VSVDB parameter to latest value from user.
+  // set the Dolby VSVDB parameter to latest value from user.
   bool dv_dolby_vsvdb_inject(settings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_INJECT));
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_dolby_vsvdb_inject", dv_dolby_vsvdb_inject ? 1 : 0);
 
   std::string dv_dolby_vsvdb_payload(settings()->GetString(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB));
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_dolby_vsvdb_payload", dv_dolby_vsvdb_payload);
 
-  // Set the Colorimetery to latest value from user.
+  // set the Colorimetery to latest value from user.
   int colorimetry(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_COLORIMETRY_FOR_STD));
   CSysfsPath("/sys/module/hdmitx20/parameters/dovi_tv_led_bt2020", (colorimetry == DV_COLORIMETRY_BT2020NC) ? 'Y' : 'N');
   CSysfsPath("/sys/module/hdmitx20/parameters/dovi_tv_led_no_colorimetry", (colorimetry == DV_COLORIMETRY_REMOVE) ? 'Y' : 'N');
 
-  // Set the HDR for LLDV if DV_TYPE_PLAYER_LED_HDR.
+  enum DV_TYPE dv_type(aml_dv_type());
+  
+  // set the HDR for LLDV if DV_TYPE_PLAYER_LED_HDR.
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_hdr_for_lldv", (dv_type == DV_TYPE_PLAYER_LED_HDR) ? 'Y' : 'N'); 
 
-  // force player led mode when enabled
+  // setup display led or player led
   CSysfsPath dolby_vision_flags{"/sys/module/amdolby_vision/parameters/dolby_vision_flags"};
   CSysfsPath dolby_vision_ll_policy{"/sys/module/amdolby_vision/parameters/dolby_vision_ll_policy"};
 
@@ -368,38 +414,50 @@ void aml_dv_on(unsigned int mode)
       dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() & ~(FLAG_FORCE_DOVI_LL));
       dolby_vision_ll_policy.Set(DOLBY_VISION_LL_DISABLE);
     }
-    else // Player Led (DV-LL and HDR)
+    else // Player Led (DV-LL and HDR) or VS10 Only.
     {
       dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() | FLAG_FORCE_DOVI_LL);
       dolby_vision_ll_policy.Set(DOLBY_VISION_LL_YUV422);
     }
   }
 
-  // change mode to tunnel if DV_TYPE_DISPLAY_LED.
+  // switch mode to IPT Tunnel if IPT and type is DV_TYPE_DISPLAY_LED.
   if ((mode == DOLBY_VISION_OUTPUT_MODE_IPT) && (dv_type == DV_TYPE_DISPLAY_LED)) 
     mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL;
 
-  aml_dv_set_toggle_frame();
-  CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_mode", mode);
+  // change mode and enable.
+  CSysfsPath dolby_vision_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_mode"};
+  bool modeChange(dolby_vision_mode.Get<unsigned int>().value() != mode);
+  CLog::Log(LOGINFO, "AMLUtils::{} - mode change [{}]", __FUNCTION__, modeChange);
+  if (modeChange) CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_mode", mode);
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_policy", DOLBY_VISION_FORCE_OUTPUT_MODE);  
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", "Y");
-  aml_dv_check_toggle_frame();
+  if (modeChange) aml_dv_toggle_frame(mode);
+
+  // Re-trigger update resolution, so Dolby VSIF gets picked up in hdmi mode switch logic in kernel and sets the colour bit depth correctly in DV-Std.
+  if (mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) aml_dv_trigger_update_resolution();
 }
 
 void aml_dv_off()
 {
+  // reset to baseline.
   CSysfsPath("/sys/class/amdolby_vision/debug", "enable_fel 0");
-  aml_dv_set_toggle_frame();
-  CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_mode", DOLBY_VISION_OUTPUT_MODE_BYPASS);
+
+  // change mode and disable.
+  CSysfsPath dolby_vision_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_mode"};
+  bool modeChange(dolby_vision_mode.Get<unsigned int>().value() != DOLBY_VISION_OUTPUT_MODE_BYPASS);
+  CLog::Log(LOGINFO, "AMLUtils::{} - mode change [{}]", __FUNCTION__, modeChange);
+  if (modeChange) CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_mode", DOLBY_VISION_OUTPUT_MODE_BYPASS);
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_policy", DOLBY_VISION_FOLLOW_SOURCE);  
+  if (modeChange) aml_dv_wait_target_mode(DOLBY_VISION_OUTPUT_MODE_BYPASS);  
+  if (modeChange) aml_dv_toggle_frame(DOLBY_VISION_OUTPUT_MODE_BYPASS);
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", "N");
-  aml_dv_check_toggle_frame();
 }
 
 void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
 {
   enum DV_MODE dv_mode(aml_dv_mode());
-  CLog::Log(LOGDEBUG, "AMLUtils::{} - Checking DV for DV mode: [{}], DV type: [{}]", __FUNCTION__, dv_mode, aml_dv_type());
+  CLog::Log(LOGINFO, "AMLUtils::{} - Checking DV for DV mode: [{}], DV type: [{}]", __FUNCTION__, dv_mode, aml_dv_type());
   if (dv_mode == DV_MODE_ON || dv_mode == DV_MODE_ON_DEMAND) {
 
     unsigned int vs10_mode = aml_vs10_by_hdrtype(hdrType, bitDepth);    
@@ -410,47 +468,15 @@ void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
       aml_dv_off(); 
 
     bool content_is_dv(hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
-    CLog::Log(LOGDEBUG, "AMLUtils::{} - DV is [{}], requested with vs10 mode: [{}], set for: [{}]",  __FUNCTION__, aml_is_dv_enable(), vs10_mode, content_is_dv ? "content" : "mapping");
+    CLog::Log(LOGINFO, "AMLUtils::{} - DV is [{}], requested with vs10 mode: [{}], set for: [{}]",  __FUNCTION__, aml_is_dv_enable(), vs10_mode, content_is_dv ? "content" : "mapping");
   }
-
-  // Re-trigger update resolution, so Dolby VSIF gets picked up in logic in kernel.
-  auto& components = CServiceBroker::GetAppComponents();
-  const auto appPlayer = components.GetComponent<CApplicationPlayer>();
-  appPlayer->TriggerUpdateResolution();
-
-    // if DV_MODE_ON (i.e. on in Kodi Menu), then set graphics max to 0 (OSD luminance will be handled by amlogic).
-  if (dv_mode == DV_MODE_ON) aml_dv_set_osd_max(0);
 }
 
 void aml_dv_close()
 {
-  // disable Dolby Vision driver
   if (aml_is_dv_enable())
   {
-    CSysfsPath dv_video_on{"/sys/class/amdolby_vision/dv_video_on"};
-    if (dv_video_on.Exists())
-    {
-      /*
-      std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
-      while((dv_video_on.Get<int>().value()) && 
-            ((std::chrono::system_clock::now() - now) < std::chrono::milliseconds(200)))
-        usleep(10000); // wait 10ms
-      */
-      
-      CLog::Log(LOGINFO, "AMLUtils::{} - DV Video Off start",  __FUNCTION__);
-      std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
-      while(true) { 
-        if (!(dv_video_on.Get<int>().value())) {
-          CLog::Log(LOGINFO, "AMLUtils::{} - DV Video Off done", __FUNCTION__);
-          break;
-        }
-        if (!((std::chrono::system_clock::now() - now) < std::chrono::milliseconds(200))) {
-          CLog::Log(LOGINFO, "AMLUtils::{} - DV Video Off wait time elapsed",  __FUNCTION__);
-          break;
-        } 
-        usleep(10000); // wait 10ms
-      }
-    }
+    aml_dv_wait_video_off();    
     if (aml_dv_mode() == DV_MODE_ON_DEMAND) aml_dv_off();
   }
 
@@ -521,7 +547,7 @@ void aml_set_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth) {
     }
   }
 
-  CLog::Log(LOGDEBUG, "AMLUtils::{} - {}DV support, {}, HDR type is {}, transfer PQ is {}",
+  CLog::Log(LOGINFO, "AMLUtils::{} - {}DV support, {}, HDR type is {}, transfer PQ is {}",
           __FUNCTION__,
           aml_support_dolby_vision() ? "" : "no ",
           dv_on ? "enabled" : "disabled",

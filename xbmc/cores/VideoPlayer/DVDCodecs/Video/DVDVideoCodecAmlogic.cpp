@@ -415,6 +415,7 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
   enum ELType dovi_el_type = ELType::TYPE_NONE;
   int data_added = false;
   bool dual_layer_converted = false;
+  bool set_osd_max = false;
 
   if (pData)
   {
@@ -505,6 +506,7 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
       m_videoBufferPool = std::shared_ptr<CAMLVideoBufferPool>(new CAMLVideoBufferPool());
 
       m_opened = true;
+      set_osd_max = true;
     }
   }
 
@@ -517,6 +519,13 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
     uint8_t *pDataBackup = std::get<0>(dual_layer_packet);
     KODI::MEMORY::AlignedFree(pDataBackup);
     m_packages.pop_front();
+  }
+
+  // Make change in luminance as late a possible to try and avoid starting change in luminance in menu.
+  if (set_osd_max)
+  {
+    // if DV_MODE_ON (i.e. on in Kodi Menu), then set graphics max to 0 (OSD luminance will be handled by amlogic).
+    if (aml_dv_mode() == DV_MODE_ON) aml_dv_set_osd_max(0);
   }
 
   return data_added;

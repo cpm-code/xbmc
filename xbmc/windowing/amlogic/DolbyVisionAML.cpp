@@ -21,17 +21,10 @@
 using namespace KODI;
 
 void dv_type_filler(const SettingConstPtr& setting, std::vector<IntegerSettingOption>& list, int& current, void* data) {
-  
-  // Only do first time - becasue if injecting a Dolby VSVDB then more options will show which are not valid
-  // Means user will need to restart kodi if they change the Display / EDID to see more options.
-  const bool dv_std = aml_display_support_dv_std();
-  const bool dv_ll = aml_display_support_dv_ll();
-  const bool dv_hdr_pq = aml_display_support_hdr_pq();
-
   list.clear();
-  if (dv_std) list.emplace_back(g_localizeStrings.Get(50023), DV_TYPE_DISPLAY_LED); 
-  if (dv_ll) list.emplace_back(g_localizeStrings.Get(50024), DV_TYPE_PLAYER_LED_LLDV);
-  if (dv_hdr_pq) list.emplace_back(g_localizeStrings.Get(50025), DV_TYPE_PLAYER_LED_HDR); 
+  if (aml_display_support_dv_std()) list.emplace_back(g_localizeStrings.Get(50023), DV_TYPE_DISPLAY_LED); 
+  if (aml_display_support_dv_ll()) list.emplace_back(g_localizeStrings.Get(50024), DV_TYPE_PLAYER_LED_LLDV);
+  if (aml_display_support_hdr_pq()) list.emplace_back(g_localizeStrings.Get(50025), DV_TYPE_PLAYER_LED_HDR); 
   list.emplace_back(g_localizeStrings.Get(50026), DV_TYPE_VS10_ONLY); 
 }
 
