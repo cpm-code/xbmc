@@ -50,6 +50,7 @@ public:
   void SetStereoMode(const RenderStereoMode mode);
 
   static const char* ConvertGuiStereoModeToString(const RenderStereoMode mode);
+  RenderStereoMode GetStereoModeByUser() { return m_stereoModeSetByUser; };
   /**
    * @brief Converts a stereoscopics related action/command from Builtins and JsonRPC into the according cAction ID.
    * @param command The command/action
@@ -80,6 +81,7 @@ private:
 
   void SetStereoModeByUser(const RenderStereoMode mode);
 
+  void Notify();
   void ApplyStereoMode(const RenderStereoMode mode, bool notify = true);
   void OnPlaybackStopped(void);
 
