@@ -390,7 +390,7 @@ void aml_dv_on(unsigned int mode)
   bool dv_dolby_vsvdb_inject(settings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_INJECT));
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_dolby_vsvdb_inject", dv_dolby_vsvdb_inject ? 1 : 0);
 
-  std::string dv_dolby_vsvdb_payload(settings()->GetString(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB));
+  std::string dv_dolby_vsvdb_payload(settings()->GetString(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_PAYLOAD));
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_dolby_vsvdb_payload", dv_dolby_vsvdb_payload);
 
   // set the Colorimetery to latest value from user.

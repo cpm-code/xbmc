@@ -24600,7 +24600,7 @@ msgstr ""
 #. "Dolby Vision"
 #: system/settings/settings.xml
 msgctxt "#50017"
-msgid "Set the maximum luminance for the GUI menus in cd/m2 (nits)"
+msgid "Set the maximum luminance for the GUI menus in cd/m^2"
 msgstr ""
 
 #. "Dolby Vision Type"
@@ -24787,4 +24787,58 @@ msgstr ""
 #: system/settings/settings.xml
 msgctxt "#50066"
 msgid "Dolby Vision"
+msgstr ""
+
+#. "Dolby Vision VS10" 
+#: system/settings/settings.xml
+msgctxt "#50071"
+msgid "Colour space"
+msgstr ""
+
+#. "Dolby Vision VS10" 
+#: system/settings/settings.xml
+msgctxt "#50072"
+msgid "Dolby VSVDB Payload colour space"
+msgstr ""
+
+#. "Dolby Vision VS10" 
+#: system/settings/settings.xml
+msgctxt "#50073"
+msgid "Minimum luminance"
+msgstr ""
+
+#. "Dolby Vision VS10" 
+#: system/settings/settings.xml
+msgctxt "#50074"
+msgid "Dolby VSVDB Payload minimum luminance in PQ (cd/m^2)"
+msgstr ""
+
+#. "Dolby Vision VS10" 
+#: system/settings/settings.xml
+msgctxt "#50075"
+msgid "Maximum luminance"
+msgstr ""
+
+#. "Dolby Vision VS10" 
+#: system/settings/settings.xml
+msgctxt "#50076"
+msgid "Dolby VSVDB Payload maximum luminance in PQ (cd/m^2)"
+msgstr ""
+
+#. "Dolby Vision VS10" 
+#: system/settings/settings.xml
+msgctxt "#50081"
+msgid "DCI-P3"
+msgstr ""
+
+#. "Dolby Vision VS10" 
+#: system/settings/settings.xml
+msgctxt "#50082"
+msgid "BT.2020"
+msgstr ""
+
+#. "Dolby Vision VS10" 
+#: system/settings/settings.xml
+msgctxt "#50083"
+msgid "BT.709"
 msgstr ""
