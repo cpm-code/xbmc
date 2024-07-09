@@ -4008,6 +4008,32 @@
           </constraints>
           <control type="edit" format="string" />
         </setting>
+        <setting id="coreelec.amlogic.dolbyvision.hdr.inject" type="boolean" label="50091" help="50092" parent="coreelec.amlogic.dolbyvision.type">
+          <requirement>HAVE_AMCODEC</requirement>
+          <visible>false</visible>
+          <level>2</level>
+          <default>false</default>
+          <dependencies>
+            <dependency type="visible" setting="coreelec.amlogic.dolbyvision.mode" operator="!is">2</dependency>
+            <dependency type="visible" setting="coreelec.amlogic.dolbyvision.type" operator="is">2</dependency>
+          </dependencies>
+          <control type="toggle" />
+        </setting>
+        <setting id="coreelec.amlogic.dolbyvision.hdr.payload" type="string" label="50093" help="50094" parent="coreelec.amlogic.dolbyvision.hdr.inject">
+          <requirement>HAVE_AMCODEC</requirement>
+          <visible>false</visible>
+          <level>2</level>
+          <default></default>
+          <dependencies>
+            <dependency type="visible" setting="coreelec.amlogic.dolbyvision.mode" operator="!is">2</dependency>
+            <dependency type="visible" setting="coreelec.amlogic.dolbyvision.type" operator="is">2</dependency>
+            <dependency type="visible" setting="coreelec.amlogic.dolbyvision.hdr.inject" operator="is">true</dependency>
+          </dependencies>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="edit" format="string" />
+        </setting>
         <setting id="coreelec.amlogic.dolbyvision.colorimtry.for.std" type="integer" label="50041" help="50042" parent="coreelec.amlogic.dolbyvision.type">
           <requirement>HAVE_AMCODEC</requirement>
           <visible>false</visible>

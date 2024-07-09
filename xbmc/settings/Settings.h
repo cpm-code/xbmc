@@ -467,6 +467,8 @@ public:
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VSVDB_CS = "coreelec.amlogic.dolbyvision.vsvdb.colour.space";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VSVDB_MIN_LUM = "coreelec.amlogic.dolbyvision.vsvdb.min.luminance";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VSVDB_MAX_LUM = "coreelec.amlogic.dolbyvision.vsvdb.max.luminance";
+  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_HDR_INJECT = "coreelec.amlogic.dolbyvision.hdr.inject";
+  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_HDR_PAYLOAD = "coreelec.amlogic.dolbyvision.hdr.payload";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8 = "coreelec.amlogic.dolbyvision.vs10.sdr8";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VS10_SDR10 = "coreelec.amlogic.dolbyvision.vs10.sdr10";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10 = "coreelec.amlogic.dolbyvision.vs10.hdr10";

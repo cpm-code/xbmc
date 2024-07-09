@@ -390,8 +390,19 @@ void aml_dv_on(unsigned int mode)
   bool dv_dolby_vsvdb_inject(settings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_INJECT));
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_dolby_vsvdb_inject", dv_dolby_vsvdb_inject ? 1 : 0);
 
-  std::string dv_dolby_vsvdb_payload(settings()->GetString(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_PAYLOAD));
-  CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_dolby_vsvdb_payload", dv_dolby_vsvdb_payload);
+  if (dv_dolby_vsvdb_inject) {
+    std::string dv_dolby_vsvdb_payload(settings()->GetString(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_PAYLOAD));
+    CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_dolby_vsvdb_payload", dv_dolby_vsvdb_payload);
+  }
+
+  // set the HDR Infoframe parameter to latest value from user.
+  bool dv_hdr_inject(settings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR_INJECT));
+  CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_hdr_inject", dv_hdr_inject ? 1 : 0);
+
+  if (dv_hdr_inject) {
+    std::string dv_hdr_payload(settings()->GetString(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR_PAYLOAD));
+    CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_hdr_payload", dv_hdr_payload);
+  }
 
   // set the Colorimetery to latest value from user.
   int colorimetry(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_COLORIMETRY_FOR_STD));

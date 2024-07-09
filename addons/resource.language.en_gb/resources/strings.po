@@ -24639,25 +24639,25 @@ msgctxt "#50026"
 msgid "VS10 Only"
 msgstr ""
 
-#. "Dolby Vision VSDB"
+#. "Dolby Vision VSVDB"
 #: system/settings/settings.xml
 msgctxt "#50031"
 msgid "Dolby VSVDB"
 msgstr ""
 
-#. "Dolby Vision VSDB"
+#. "Dolby Vision VSVDB"
 #: system/settings/settings.xml
 msgctxt "#50032"
 msgid "Dolby VSVDB inject or replace existing Dolby VSVDB from EDID with VSVDB specified in the Dolby VSVDB Payload."
 msgstr ""
 
-#. "Dolby Vision VSDB"
+#. "Dolby Vision VSVDB"
 #: system/settings/settings.xml
 msgctxt "#50033"
 msgid "Payload"
 msgstr ""
 
-#. "Dolby Vision VSDB"
+#. "Dolby Vision VSVDB"
 #: system/settings/settings.xml
 msgctxt "#50034"
 msgid "Dolby VSVDB Payload. A v1 or v2, 14 character basic hex string for example: 2A3801515999AA"
@@ -24841,4 +24841,28 @@ msgstr ""
 #: system/settings/settings.xml
 msgctxt "#50083"
 msgid "BT.709"
+msgstr ""
+
+#. "Dolby Vision HDR InfoFrame"
+#: system/settings/settings.xml
+msgctxt "#50091"
+msgid "HDR InfoFrame"
+msgstr ""
+
+#. "Dolby Vision HDR InfoFrame"
+#: system/settings/settings.xml
+msgctxt "#50092"
+msgid "HDR InfoFrame Inject, change the HDR InfoFrame according to the Payload when using Player Led (HDR)."
+msgstr ""
+
+#. "Dolby Vision HDR InfoFrame"
+#: system/settings/settings.xml
+msgctxt "#50093"
+msgid "Payload"
+msgstr ""
+
+#. "Dolby Vision HDR InfoFrame"
+#: system/settings/settings.xml
+msgctxt "#50094"
+msgid "HDR InfoFrame Payload. A 48 character basic hex string to specify colour primaries, white point, luminance and content light level."
 msgstr ""
