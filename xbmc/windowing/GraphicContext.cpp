@@ -618,39 +618,36 @@ const RESOLUTION_INFO CGraphicContext::GetResInfo(RESOLUTION res) const
 
   if (m_stereoMode == RenderStereoMode::SPLIT_HORIZONTAL)
   {
-    if((info.dwFlags & D3DPRESENTFLAG_MODE3DTB) == 0)
+    if((info.dwFlags & D3DPRESENTFLAG_MODE3DTB) == D3DPRESENTFLAG_MODE3DTB)
     {
       info.fPixelRatio     /= 2;
       info.iBlanking        = 0;
-      info.dwFlags         |= D3DPRESENTFLAG_MODE3DTB;
+      info.iHeight          = (info.iHeight         - info.iBlanking) / 2;
+      info.Overscan.top    /= 2;
+      info.Overscan.bottom  = (info.Overscan.bottom - info.iBlanking) / 2;
+      info.iSubtitles       = (info.iSubtitles      - info.iBlanking) / 2;
     }
-    info.iHeight          = (info.iHeight         - info.iBlanking) / 2;
-    info.Overscan.top    /= 2;
-    info.Overscan.bottom  = (info.Overscan.bottom - info.iBlanking) / 2;
-    info.iSubtitles       = (info.iSubtitles      - info.iBlanking) / 2;
   }
 
   if (m_stereoMode == RenderStereoMode::HARDWAREBASED)
   {
-    if((info.dwFlags & D3DPRESENTFLAG_MODE3DFP) == 0)
+    if((info.dwFlags & D3DPRESENTFLAG_MODE3DFP) == D3DPRESENTFLAG_MODE3DFP)
     {
-      info.iBlanking      = info.iScreenHeight == 1080 ? 45 : 30;
-      info.dwFlags       |= D3DPRESENTFLAG_MODE3DFP;
+      info.iBlanking        = info.iScreenHeight == 1080 ? 45 : 30;
+      info.Overscan.bottom  = info.iScreenHeight;
     }
-    info.Overscan.bottom  = info.iScreenHeight;
   }
 
   if(m_stereoMode == RenderStereoMode::SPLIT_VERTICAL)
   {
-    if((info.dwFlags & D3DPRESENTFLAG_MODE3DSBS) == 0)
+    if((info.dwFlags & D3DPRESENTFLAG_MODE3DSBS) == D3DPRESENTFLAG_MODE3DSBS)
     {
       info.fPixelRatio     *= 2;
       info.iBlanking        = 0;
-      info.dwFlags         |= D3DPRESENTFLAG_MODE3DSBS;
+      info.iWidth           = (info.iWidth         - info.iBlanking) / 2;
+      info.Overscan.left   /= 2;
+      info.Overscan.right   = (info.Overscan.right - info.iBlanking) / 2;
     }
-    info.iWidth           = (info.iWidth         - info.iBlanking) / 2;
-    info.Overscan.left   /= 2;
-    info.Overscan.right   = (info.Overscan.right - info.iBlanking) / 2;
   }
 
   if (res == m_Resolution && m_fFPSOverride != 0)
