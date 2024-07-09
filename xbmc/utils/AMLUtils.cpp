@@ -697,39 +697,6 @@ void aml_set_framebuffer_resolution(unsigned int width, unsigned int height, std
   }
 }
 
-bool aml_read_reg(const std::string &reg, uint32_t &reg_val)
-{
-  CSysfsPath paddr{"/sys/kernel/debug/aml_reg/paddr"};
-  if (paddr.Exists())
-  {
-    paddr.Set(reg);
-    std::string val = paddr.Get<std::string>().value();
-
-    CRegExp regexp;
-    regexp.RegComp("\\[0x(?<reg>.+)\\][\\s]+=[\\s]+(?<val>.+)");
-    if (regexp.RegFind(val) == 0)
-    {
-      std::string match;
-      if (regexp.GetNamedSubPattern("reg", match))
-      {
-        if (match == reg)
-        {
-          if (regexp.GetNamedSubPattern("val", match))
-          {
-            try
-            {
-              reg_val = std::stoul(match, 0, 16);
-              return true;
-            }
-            catch (...) {}
-          }
-        }
-      }
-    }
-  }
-  return false;
-}
-
 bool aml_has_capability_ignore_alpha()
 {
   // 4.9 seg faults on access to /sys/kernel/debug/aml_reg/paddr and since we are CE it's always AML
