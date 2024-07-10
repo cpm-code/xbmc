@@ -28,6 +28,7 @@
 
 #include "linux/fb.h"
 #include <sys/ioctl.h>
+#include <amcodec/codec.h>
 
 int aml_get_cpufamily_id()
 {
@@ -96,6 +97,24 @@ int aml_display_get_dv_cap()
   }
 
   return dv_cap;
+}
+
+bool aml_display_support_3d()
+{
+  static int support_3d = -1;
+
+  if (support_3d == -1)
+  {
+    CSysfsPath amhdmitx0_support_3d{"/sys/class/amhdmitx/amhdmitx0/support_3d"};
+    if (amhdmitx0_support_3d.Exists())
+      support_3d = amhdmitx0_support_3d.Get<int>().value();
+    else
+      support_3d = 0;
+
+    CLog::Log(LOGDEBUG, "AMLUtils: display support 3D: {}", bool(!!support_3d));
+  }
+
+  return (support_3d == 1);
 }
 
 static bool aml_support_vcodec_profile(const char *regex)
@@ -245,6 +264,20 @@ bool aml_video_started()
 void aml_set_audio_passthrough(bool passthrough)
 {
   CSysfsPath("/sys/class/audiodsp/digital_raw", (passthrough ? 2 : 0));
+}
+
+void aml_set_3d_video_mode(unsigned int mode, bool framepacking_support, int view_mode)
+{
+  int fd;
+  if ((fd = open("/dev/amvideo", O_RDWR)) >= 0)
+  {
+    if (ioctl(fd, AMSTREAM_IOC_SET_3D_TYPE, mode) != 0)
+      CLog::Log(LOGERROR, "AMLUtils::{} - unable to set 3D video mode 0x%x", __FUNCTION__, mode);
+    close(fd);
+
+    CSysfsPath("/sys/module/amvideo/parameters/framepacking_support", framepacking_support ? 1 : 0);
+    CSysfsPath("/sys/module/amvdec_h264mvc/parameters/view_mode", view_mode);
+  }
 }
 
 void aml_probe_hdmi_audio()
