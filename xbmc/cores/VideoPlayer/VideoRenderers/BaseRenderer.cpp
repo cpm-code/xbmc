@@ -315,6 +315,8 @@ void CBaseRenderer::ManageRenderArea()
 
   unsigned int stereo_mode  = CONF_FLAGS_STEREO_MODE_MASK(m_iFlags);
   auto stereo_view = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoView();
+  float inputFrameRatio  = GetAspectRatio();
+  float ratio  = m_sourceRect.x2 / m_sourceRect.y2;
 
   if(CONF_FLAGS_STEREO_CADENCE(m_iFlags) == CONF_FLAGS_STEREO_CADANCE_RIGHT_LEFT)
   {
@@ -331,6 +333,9 @@ void CBaseRenderer::ManageRenderArea()
         m_sourceRect.y2 *= 0.5f;
       else if (stereo_view == RenderStereoView::RIGHT)
         m_sourceRect.y1 += m_sourceRect.y2*0.5f;
+
+      if (inputFrameRatio == ratio)
+        inputFrameRatio *= (m_sourceRect.y2 / 1080.0f);
       break;
 
     case CONF_FLAGS_STEREO_MODE_SBS:
@@ -338,6 +343,9 @@ void CBaseRenderer::ManageRenderArea()
         m_sourceRect.x2 *= 0.5f;
       else if (stereo_view == RenderStereoView::RIGHT)
         m_sourceRect.x1 += m_sourceRect.x2*0.5f;
+
+      if (inputFrameRatio == ratio)
+        inputFrameRatio /= (m_sourceRect.x2 / 1920.0f);
       break;
 
     default:
@@ -345,7 +353,7 @@ void CBaseRenderer::ManageRenderArea()
   }
 
   CalcNormalRenderRect(m_viewRect.x1, m_viewRect.y1, m_viewRect.Width(), m_viewRect.Height(),
-                       GetAspectRatio() * CDisplaySettings::GetInstance().GetPixelRatio(),
+                       inputFrameRatio * CDisplaySettings::GetInstance().GetPixelRatio(),
                        CDisplaySettings::GetInstance().GetZoomAmount(),
                        CDisplaySettings::GetInstance().GetVerticalShift());
 }
