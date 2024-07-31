@@ -89,7 +89,7 @@ static void aml_dv_wait_target_mode(unsigned int target_mode)
   }
 }
 
-static void aml_dv_wait_video_off()
+void aml_dv_wait_video_off(int timeout)
 {
   // Wait for dv_video_on to unset.
   CSysfsPath dv_video_on{"/sys/class/amdolby_vision/dv_video_on"};
@@ -102,7 +102,7 @@ static void aml_dv_wait_video_off()
         CLog::Log(LOGINFO, "AMLUtils::{} - DV Video Off - done", __FUNCTION__);
         break;
       }
-      if ((std::chrono::system_clock::now() - now) >= std::chrono::milliseconds(3000)) {
+      if ((std::chrono::system_clock::now() - now) >= std::chrono::seconds(timeout)) {
         CLog::Log(LOGINFO, "AMLUtils::{} - DV Video Off - wait time elapsed", __FUNCTION__);
         break;
       } 
@@ -474,12 +474,7 @@ void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
 
 void aml_dv_close()
 {
-  if (aml_is_dv_enable())
-  {
-    aml_dv_wait_video_off();    
-    if (aml_dv_mode() == DV_MODE_ON_DEMAND) aml_dv_off();
-  }
-
+  if (aml_is_dv_enable() && (aml_dv_mode() == DV_MODE_ON_DEMAND)) aml_dv_off();
   aml_dv_start(); // If DV Mode ON in Kodi Menu.
 }
 

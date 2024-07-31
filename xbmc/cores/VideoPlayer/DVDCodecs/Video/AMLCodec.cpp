@@ -2288,6 +2288,8 @@ void CAMLCodec::CloseDecoder()
   // return tsync to default so external apps work
   CSysfsPath("/sys/class/tsync/enable", 1);
 
+  aml_dv_wait_video_off(m_decoder_timeout);
+
   ShowMainVideo(false);
 
   CloseAmlVideo();
