@@ -89,6 +89,29 @@ static void aml_dv_wait_target_mode(unsigned int target_mode)
   }
 }
 
+static void aml_dv_wait_dv_std_vsif_packet()
+{
+  // Wait for DV Std vsif packet being sent on HDMI.
+  CSysfsPath hdmi_pkt{"/sys/kernel/debug/amhdmitx/hdmi_pkt"};
+  if (hdmi_pkt.Exists())
+  {
+    CLog::Log(LOGINFO, "AMLUtils::{} - DV VSIF Packet - start", __FUNCTION__);
+    std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
+    while(true) { 
+      std::string valstr = hdmi_pkt.Get<std::string>().value();
+      if (valstr.find("DV STD hdmitx_parsing_vsifpkt") != std::string::npos) {
+        CLog::Log(LOGINFO, "AMLUtils::{} - DV VSIF Packet - done", __FUNCTION__);
+        break;
+      }
+      if ((std::chrono::system_clock::now() - now) >= std::chrono::milliseconds(3000)) {
+        CLog::Log(LOGINFO, "AMLUtils::{} - DV VSIF Packet - wait time elapsed", __FUNCTION__);
+        break;
+      } 
+      usleep(10000); // wait 10ms
+    }
+  }
+}
+
 void aml_dv_wait_video_off(int timeout)
 {
   // Wait for dv_video_on to unset.
@@ -445,8 +468,15 @@ void aml_dv_on(unsigned int mode)
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", "Y");
   if (modeChange) aml_dv_toggle_frame(mode);
 
-  // Re-trigger update resolution, so Dolby VSIF gets picked up in hdmi mode switch logic in kernel and sets the colour bit depth correctly in DV-Std.
-  if (mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) aml_dv_trigger_update_resolution();
+  // Re-trigger update resolution when mode IPT Tunnel and in Display Led (DV-Std).
+  // Work around CD 12 bit issue for DV-Std shoule be CD 8 bit.
+  // Wait for Dolby VSIF being output before trigging the update resolution so logic has correct input to work from.
+  // The update resolution will cause the hdmi mode switch logic in the kernel to set the colour bit depth correctly in DV-Std.
+  if ((mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) && (dv_type == DV_TYPE_DISPLAY_LED))
+  {
+    aml_dv_wait_dv_std_vsif_packet();
+    aml_dv_trigger_update_resolution();
+  }
 }
 
 void aml_dv_off()
