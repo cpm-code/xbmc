@@ -2728,6 +2728,8 @@ void CActiveAE::LoadSettings(AEAudioFormat *format)
 
   switch (aml_get_cpufamily_id())
   {
+    case AML_S5:
+      [[fallthrough]];
     case AML_T7:
       {
         // find on NEWSTREAM the matching passthrough device by device type
