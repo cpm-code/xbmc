@@ -576,7 +576,7 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
     "Audio spdif_b format",        // set SPDIF-B codec format
     "",
     "",
-    "Audio I2S to HDMITX Format"  // set TDM-C codec format
+    "Audio I2S to HDMITX Format"  // set TDM codec format
   };
 
   int cardNr = 0;
@@ -639,6 +639,17 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
             case AE_DEVTYPE_HDMI:
             case AE_DEVTYPE_PCM:
               switch (soc_id) {
+                case AML_S5:
+                  switch (codec) {
+                    case TRUEHD:
+                    case _DTS_HD_MA:
+                      spdif_id = HDMITX_SRC_TDM_B;
+                      break;
+                    default:
+                      spdif_id = HDMITX_SRC_SPDIF_B;
+                      break;
+                  }
+                  break;
                 case AML_T7:
                   switch (codec) {
                     case TRUEHD:
@@ -1607,8 +1618,9 @@ void CAESinkALSA::EnumerateDevicesEx(AEDeviceInfoList &list, bool force)
 
 AEDeviceType CAESinkALSA::AEDeviceTypeFromName(const std::string &name)
 {
+  bool mark_surround71_as_hdmi = (aml_get_cpufamily_id() == AML_S5 || aml_get_cpufamily_id() == AML_T7);
   if (name.substr(0, name.find(':')) == "hdmi" ||
-     (aml_get_cpufamily_id() == AML_T7 && name.substr(0, name.find(':')) == "surround71"))
+     (mark_surround71_as_hdmi && name.substr(0, name.find(':')) == "surround71"))
     return AE_DEVTYPE_HDMI;
   else if (name.substr(0, name.find(':')) == "iec958" || name.substr(0, name.find(':')) == "spdif")
     return AE_DEVTYPE_IEC958;
@@ -1867,6 +1879,7 @@ void CAESinkALSA::EnumerateDevice(AEDeviceInfoList &list, const std::string &dev
 
   if (GetAMLDeviceType(info.m_displayName) != AML_NONE)
   {
+    bool use_surround71_as_lpcm = (aml_get_cpufamily_id() == AML_S5 || aml_get_cpufamily_id() == AML_T7);
     if (info.m_deviceType == AE_DEVTYPE_IEC958)
       info.m_displayNameExtra = "S/PDIF";
     else if (info.m_deviceType != AE_DEVTYPE_HDMI)
@@ -1876,7 +1889,7 @@ void CAESinkALSA::EnumerateDevice(AEDeviceInfoList &list, const std::string &dev
       else
         info.m_displayNameExtra = "PCM";
     }
-    else if (aml_get_cpufamily_id() == AML_T7 && info.m_deviceType == AE_DEVTYPE_HDMI)
+    else if (use_surround71_as_lpcm && info.m_deviceType == AE_DEVTYPE_HDMI)
     {
       if (device.substr(0, device.find(':')) == "surround71")
         info.m_displayNameExtra = "HDMI Multi Ch PCM";
@@ -1888,6 +1901,8 @@ void CAESinkALSA::EnumerateDevice(AEDeviceInfoList &list, const std::string &dev
   {
     switch (aml_get_cpufamily_id())
     {
+      case AML_S5:
+        [[fallthrough]];
       case AML_T7:
         {
           if (device.substr(0, device.find(':')) == "surround71")
