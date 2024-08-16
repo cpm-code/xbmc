@@ -24866,3 +24866,51 @@ msgstr ""
 msgctxt "#50094"
 msgid "HDR InfoFrame Payload. A 48 character basic hex string to specify colour primaries, white point, luminance and content light level."
 msgstr ""
+
+#. "Dolby Vision HDR10+"
+#: system/settings/settings.xml
+msgctxt "#50101"
+msgid "Dynamic HDR10+ to Dolby Vision Profile 8.1 conversion"
+msgstr ""
+
+#. "Dolby Vision HDR10+"
+#: system/settings/settings.xml
+msgctxt "#50102"
+msgid "Dynamically convert HDR10+ to Dolby Vision Profile 8.1 on playback. (port from dovi_tool Aug. 2024)"
+msgstr ""
+
+#. "Dolby Vision HDR10+"
+#: system/settings/settings.xml
+msgctxt "#50103"
+msgid "Peak Brightness Source"
+msgstr ""
+
+#. "Dolby Vision HDR10+"
+#: system/settings/settings.xml
+msgctxt "#50104"
+msgid "Source for Peak Brightness when converting from HDR10+ to Dolby Vision Profile 8.1. (port from dovi_tool Aug. 2024)"
+msgstr ""
+
+#. "Dolby Vision HDR10+"
+#: system/settings/settings.xml
+msgctxt "#50105"
+msgid "histogram"
+msgstr ""
+
+#. "Dolby Vision HDR10+"
+#: system/settings/settings.xml
+msgctxt "#50106"
+msgid "histogram99"
+msgstr ""
+
+#. "Dolby Vision HDR10+"
+#: system/settings/settings.xml
+msgctxt "#50107"
+msgid "max-scl"
+msgstr ""
+
+#. "Dolby Vision HDR10+"
+#: system/settings/settings.xml
+msgctxt "#50108"
+msgid "max-scl-luminance"
+msgstr ""

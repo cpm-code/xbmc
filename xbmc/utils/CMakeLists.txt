@@ -4,6 +4,7 @@ set(SOURCES ActorProtocol.cpp
             Archive.cpp
             Base64.cpp
             BitstreamConverter.cpp
+            BitstreamIoWriter.cpp
             BitstreamReader.cpp
             BitstreamStats.cpp
             BitstreamWriter.cpp
@@ -29,6 +30,9 @@ set(SOURCES ActorProtocol.cpp
             FontUtils.cpp
             GpuInfo.cpp
             GroupUtils.cpp
+            HDR10Plus.cpp
+            HDR10PlusConvert.cpp
+            HDR10PlusWriter.cpp
             HevcSei.cpp
             HTMLUtil.cpp
             HttpHeader.cpp
@@ -86,6 +90,7 @@ set(HEADERS ActorProtocol.h
             Archive.h
             Base64.h
             BitstreamConverter.h
+            BitstreamIoWriter.h
             BitstreamReader.h
             BitstreamStats.h
             BitstreamWriter.h
@@ -115,6 +120,9 @@ set(HEADERS ActorProtocol.h
             GlobalsHandling.h
             GpuInfo.h
             GroupUtils.h
+            HDR10Plus.h
+            HDR10PlusConvert.h
+            HDR10PlusWriter.h
             HDRCapabilities.h
             HevcSei.h
             HTMLUtil.h

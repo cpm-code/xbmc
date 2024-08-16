@@ -13,6 +13,12 @@
 #include <optional>
 #include <stdint.h>
 
+#include "cores/VideoPlayer/DVDStreamInfo.h"
+
+#include "HevcSei.h"
+#include "HDR10Plus.h"
+#include "HDR10PlusConvert.h"
+
 extern "C" {
 #include <libavutil/avutil.h>
 #include <libavformat/avformat.h>
@@ -101,52 +107,60 @@ public:
 class CBitstreamConverter
 {
 public:
-  CBitstreamConverter();
+  CBitstreamConverter(CDVDStreamInfo& hints);
   ~CBitstreamConverter();
 
-  bool              Open(enum AVCodecID codec, uint8_t *in_extradata, int in_extrasize, bool to_annexb);
+  bool              Open(bool to_annexb);
   void              Close(void);
-  bool NeedConvert(void) const { return m_convert_bitstream; }
+  bool              NeedConvert(void) const { return m_convert_bitstream; }
   bool              Convert(uint8_t *pData, int iSize);
   bool              Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pData_el, int iSize_el);
   uint8_t*          GetConvertBuffer(void) const;
   int               GetConvertSize() const;
-  uint8_t* GetExtraData();
-  const uint8_t* GetExtraData() const;
+  uint8_t*          GetExtraData();
+  const uint8_t*    GetExtraData() const;
   int               GetExtraSize() const;
   void              ResetStartDecode(void);
   bool              CanStartDecode() const;
-  void SetConvertDovi(bool value) { m_convert_dovi = value; }
-  void SetRemoveDovi(bool value) { m_removeDovi = value; }
-  void SetRemoveHdr10Plus(bool value) { m_removeHdr10Plus = value; }
-  enum ELType GetDoviElType() const { return m_dovi_el_type; }
-  bool IsHdr10Plus() const { return m_is_hdr10plus; }
+  void              SetConvertDovi(int value) { m_convert_dovi = value; }
+  void              SetConvertHdr10Plus(bool value) { m_convert_Hdr10Plus = value; }
+  void              SetConvertHdr10PlusPeakBrightnessSource(enum PeakBrightnessSource value) { m_convert_Hdr10Plus_peak_brightness_source = value; };
+  void              SetRemoveDovi(bool value) { m_removeDovi = value; }
+  void              SetRemoveHdr10Plus(bool value) { m_removeHdr10Plus = value; }
+  enum ELType       GetDoviElType() const { return m_dovi_el_type; }
 
   static bool       mpeg2_sequence_header(const uint8_t *data, const uint32_t size, mpeg2_sequence *sequence);
   static bool       h264_sequence_header(const uint8_t *data, const uint32_t size, h264_sequence *sequence);
 
 protected:
-  static int  avc_parse_nal_units(AVIOContext *pb, const uint8_t *buf_in, int size);
-  static int  avc_parse_nal_units_buf(const uint8_t *buf_in, uint8_t **buf, int *size);
-  int         isom_write_avcc(AVIOContext *pb, const uint8_t *data, int len);
+  static int        avc_parse_nal_units(AVIOContext *pb, const uint8_t *buf_in, int size);
+  static int        avc_parse_nal_units_buf(const uint8_t *buf_in, uint8_t **buf, int *size);
+  int               isom_write_avcc(AVIOContext *pb, const uint8_t *data, int len);
   // bitstream to bytestream (Annex B) conversion support.
   bool              IsIDR(uint8_t unit_type);
   bool              IsSlice(uint8_t unit_type);
   bool              BitstreamConvertInitAVC(void *in_extradata, int in_extrasize);
   bool              BitstreamConvertInitHEVC(void *in_extradata, int in_extrasize);
   bool              BitstreamConvert(uint8_t* pData, int iSize, uint8_t **poutbuf, int *poutbuf_size);
-  static void BitstreamAllocAndCopy(uint8_t** poutbuf,
-                                    int* poutbuf_size,
-                                    const uint8_t* sps_pps,
-                                    uint32_t sps_pps_size,
-                                    const uint8_t* in,
-                                    uint32_t in_size,
-                                    uint8_t nal_type);
-  static void BitstreamAllocAndCopy(uint8_t** poutbuf,
-                                    uint32_t* poutbuf_size,
-                                    const uint8_t* in,
-                                    uint32_t in_size,
-                                    uint8_t nal_type);
+  static void       BitstreamAllocAndCopy(uint8_t** poutbuf,
+                                         int* poutbuf_size,
+                                         const uint8_t* sps_pps,
+                                         uint32_t sps_pps_size,
+                                         const uint8_t* in,
+                                         uint32_t in_size,
+                                         uint8_t nal_type);
+  static void       BitstreamAllocAndCopy(uint8_t** poutbuf,
+                                         uint32_t* poutbuf_size,
+                                         const uint8_t* in,
+                                         uint32_t in_size,
+                                         uint8_t nal_type);
+
+  void ApplyMasteringDisplayColourVolume(const MasteringDisplayColourVolume& metadata);
+  void ApplyContentLightLevel(const ContentLightLevel& metadata);
+  void AddDoViRpuNalu(const Hdr10PlusMetadata& meta, uint8_t **poutbuf, int *poutbuf_size);
+
+  void ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8_t **poutbuf, int *poutbuf_size, Hdr10PlusMetadata& meta, bool& convert_hdr10plus_meta);
+  void ProcessDoViRpu(uint8_t *buf, int32_t nal_size, uint8_t **poutbuf, int *poutbuf_size);
 
   typedef struct omx_bitstream_ctx {
       uint8_t  length_size;
@@ -167,15 +181,23 @@ protected:
   bool              m_to_annexb;
   bool              m_combine;
 
-  FFmpegExtraData m_extraData;
+  FFmpegExtraData   m_extraData;
   bool              m_convert_3byteTo4byteNALSize;
   bool              m_convert_bytestream;
   AVCodecID         m_codec;
+  CDVDStreamInfo&   m_hints;
+  StreamHdrType     m_intial_hdrType;
   bool              m_start_decode;
   bool              m_convert_dovi;
   bool              m_removeDovi;
   bool              m_removeHdr10Plus;
+  bool              m_convert_Hdr10Plus;
+  enum PeakBrightnessSource m_convert_Hdr10Plus_peak_brightness_source;
   enum ELType       m_dovi_el_type;
-  bool              m_is_hdr10plus;
   bool              m_first_convert;
+
+  uint16_t          m_max_display_mastering_luminance;
+  uint16_t          m_min_display_mastering_luminance;
+  uint16_t          m_max_content_light_level;
+  uint16_t          m_max_frame_average_light_level;
 };

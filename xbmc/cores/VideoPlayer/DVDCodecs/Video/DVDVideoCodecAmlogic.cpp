@@ -72,7 +72,6 @@ CDVDVideoCodecAmlogic::CDVDVideoCodecAmlogic(CProcessInfo &processInfo)
   , m_h264_sequence(NULL)
   , m_has_keyframe(false)
   , m_bitparser(NULL)
-  , m_bitstream(NULL)
 {
 }
 
@@ -181,8 +180,8 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       // under streamers can have issues when seeking.
       if (m_hints.extradata && m_hints.extradata.GetData()[0] == 1)
       {
-        m_bitstream = new CBitstreamConverter;
-        m_bitstream->Open(m_hints.codec, m_hints.extradata.GetData(), m_hints.extradata.GetSize(), true);
+        m_bitstream = std::make_unique<CBitstreamConverter>(m_hints);
+        m_bitstream->Open(true);
         m_bitstream->ResetStartDecode();
         // make sure we do not leak the existing m_hints.extradata
         m_hints.extradata = {};
@@ -296,8 +295,8 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
         goto FAIL;
       }
       m_pFormatName = "am-h265";
-      m_bitstream = new CBitstreamConverter();
-      m_bitstream->Open(m_hints.codec, m_hints.extradata.GetData(), m_hints.extradata.GetSize(), true);
+      m_bitstream = std::make_unique<CBitstreamConverter>(m_hints);
+      m_bitstream->Open(true);
 
       // check for hevc-hvcC and convert to h265-annex-b
       if (m_hints.extradata && !m_hints.cryptoSession)
@@ -305,20 +304,32 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
         if (m_bitstream && (aml_dv_mode() != DV_MODE_OFF))
         {
           auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-          int convertDovi = settings->GetInt(CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI);
-          if (convertDovi)
-          {
-            CLog::Log(LOGDEBUG, "{}::{} - HEVC bitstream profile 7 will be converted by chosen mode {:d}",
-              __MODULE_NAME__, __FUNCTION__, convertDovi);
-            m_bitstream->SetConvertDovi(convertDovi);
-          }
-          unsigned int mode(aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS));
-          if (mode < DOLBY_VISION_OUTPUT_MODE_BYPASS)
-          {
-            // for VS10 conversion need to remove the HDR10plus metadata.
-            CLog::Log(LOGDEBUG, "{}::{} - HEVC bitstream hdr10plus metadata will be removed to allow VS10",
-              __MODULE_NAME__, __FUNCTION__);
-            m_bitstream->SetRemoveHdr10Plus(true);
+          if (m_hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) {
+            int convertDovi = settings->GetInt(CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI);
+            if (convertDovi)
+            {
+              CLog::Log(LOGINFO, "{}::{} - HEVC bitstream profile 7 will be converted by chosen mode {:d}",
+                __MODULE_NAME__, __FUNCTION__, convertDovi);
+              m_bitstream->SetConvertDovi(convertDovi);
+            }
+          } else if (m_hints.hdrType == StreamHdrType::HDR_TYPE_HDR10) {
+            // Potentiall HDR10+ (Cannot tell at this point)
+            if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_CONVERT))
+            {
+              PeakBrightnessSource peakBrightnessSource = static_cast<PeakBrightnessSource>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_PEAK_BRIGHTNESS_SOURCE));
+              CLog::Log(LOGINFO, "{}::{} - HEVC bitstream if hdr10plus will be converted to Dolby Vision P8.1 with brightness source {:d}",
+                __MODULE_NAME__, __FUNCTION__, peakBrightnessSource);
+              m_bitstream->SetConvertHdr10Plus(true);
+              m_bitstream->SetConvertHdr10PlusPeakBrightnessSource(peakBrightnessSource);
+            }
+            unsigned int mode(aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS));
+            if (mode < DOLBY_VISION_OUTPUT_MODE_BYPASS)
+            {
+              // for VS10 conversion need to remove the HDR10plus metadata.
+              CLog::Log(LOGDEBUG, "{}::{} - HEVC bitstream if hdr10plus metadata will be removed to allow VS10",
+                __MODULE_NAME__, __FUNCTION__);
+              m_bitstream->SetRemoveHdr10Plus(true);
+            }
           }
         }
       }
@@ -395,9 +406,6 @@ void CDVDVideoCodecAmlogic::Close(void)
     delete m_mpeg2_sequence, m_mpeg2_sequence = NULL;
   if (m_h264_sequence)
     delete m_h264_sequence, m_h264_sequence = NULL;
-
-  if (m_bitstream)
-    delete m_bitstream, m_bitstream = NULL;
 
   if (m_bitparser)
     delete m_bitparser, m_bitparser = NULL;
@@ -476,11 +484,7 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
       }
       pData = m_bitstream->GetConvertBuffer();
       iSize = m_bitstream->GetConvertSize();
-      if (!m_opened) {
-        dovi_el_type = m_bitstream->GetDoviElType();
-        if (m_bitstream->IsHdr10Plus() && (m_hints.hdrType == StreamHdrType::HDR_TYPE_HDR10))
-          m_hints.hdrType = StreamHdrType::HDR_TYPE_HDR10PLUS;
-      }
+      if (!m_opened) dovi_el_type = m_bitstream->GetDoviElType();
     }
     else if (!m_has_keyframe && m_bitparser)
     {

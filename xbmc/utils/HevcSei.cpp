@@ -7,6 +7,7 @@
  */
 
 #include "HevcSei.h"
+#include "HDR10Plus.h"
 
 void HevcAddStartCodeEmulationPrevention3Byte(std::vector<uint8_t>& buf)
 {
@@ -121,7 +122,7 @@ std::vector<CHevcSei> CHevcSei::ParseSeiRbspUnclearedEmulation(const uint8_t* in
   return ParseSeiRbsp(buf.data(), buf.size());
 }
 
-std::optional<const CHevcSei*> CHevcSei::FindHdr10PlusSeiMessage(
+std::optional<const CHevcSei*> CHevcSei:: FindHdr10PlusSeiMessage(
     const std::vector<uint8_t>& buf, const std::vector<CHevcSei>& messages)
 {
   for (const CHevcSei& sei : messages)
@@ -150,10 +151,100 @@ std::optional<const CHevcSei*> CHevcSei::FindHdr10PlusSeiMessage(
   return {};
 }
 
-std::pair<bool, const std::vector<uint8_t>> CHevcSei::RemoveHdr10PlusFromSeiNalu(
-    const uint8_t* inData, const size_t inDataLen)
+const std::optional<const Hdr10PlusMetadata> CHevcSei::ExtractHdr10Plus(
+  const std::vector<CHevcSei>& messages,
+  const std::vector<uint8_t>& buf)
 {
-  bool containsHdr10Plus{false};
+  for (const CHevcSei& sei : messages)
+  {
+    // User Data Registered ITU-T T.35
+    if (sei.m_payloadType == 4 && sei.m_payloadSize >= 7)
+    {
+      const unsigned char* data = buf.data() + sei.m_payloadOffset;
+      size_t size = sei.m_payloadSize;
+
+      CBitstreamReader br(data, size);
+      const auto itu_t_t35_country_code = br.ReadBits(8);
+      const auto itu_t_t35_terminal_provider_code = br.ReadBits(16);
+      const auto itu_t_t35_terminal_provider_oriented_code = br.ReadBits(16);
+
+      // United States, Samsung Electronics America, ST 2094-40
+      if (itu_t_t35_country_code == 0xB5 && itu_t_t35_terminal_provider_code == 0x003C &&
+          itu_t_t35_terminal_provider_oriented_code == 0x0001)
+      {
+        const auto application_identifier = br.ReadBits(8);
+        const auto application_version = br.ReadBits(8);
+
+        if (application_identifier == 4 && application_version <= 1) {
+          CBitstreamReader br2(data, size);
+          return hdr10plus_sei_to_metadata(br2);
+        }
+      }
+    }
+  }
+
+  return std::nullopt;
+}
+
+const std::optional<MasteringDisplayColourVolume> CHevcSei::ExtractMasteringDisplayColourVolume(
+  const std::vector<CHevcSei>& messages, 
+  const std::vector<uint8_t>& buf) {
+
+  for (const auto& sei : messages) {
+
+    // Check for Mastering Display Metadata SEI (payload type 137)
+    if (sei.m_payloadType == 137 && sei.m_payloadSize >= 24) {
+
+      CBitstreamReader br(buf.data() + sei.m_payloadOffset, sei.m_payloadSize);
+      
+      MasteringDisplayColourVolume metadata;
+      
+      // Read display primaries
+      for (int i = 0; i < 3; ++i) {
+          metadata.displayPrimaries[i].x = br.ReadBits(16);
+          metadata.displayPrimaries[i].y = br.ReadBits(16);
+      }
+      
+      // Read white point
+      metadata.whitePoint.x = br.ReadBits(16);
+      metadata.whitePoint.y = br.ReadBits(16);
+      
+      // Read max and min luminance
+      uint32_t maxLuminanceRaw = br.ReadBits(32);
+      uint32_t minLuminanceRaw = br.ReadBits(32);
+
+      // Convert to nits (cd/m²)
+      metadata.maxLuminance = static_cast<uint32_t>(maxLuminanceRaw) / 10000.0f;
+      metadata.minLuminance = static_cast<uint32_t>(minLuminanceRaw) / 10000.0f;
+      
+      return metadata;
+    }
+  }
+  return std::nullopt;
+}
+
+const std::optional<ContentLightLevel> CHevcSei::ExtractContentLightLevel(
+  const std::vector<CHevcSei>& messages, 
+  const std::vector<uint8_t>& buf) {
+
+  for (const auto& sei : messages) {
+
+    // Check for Content Light Level Information SEI (payload type 144)
+    if (sei.m_payloadType == 144 && sei.m_payloadSize >= 4) {
+
+        CBitstreamReader br(buf.data() + sei.m_payloadOffset, sei.m_payloadSize);
+        
+        uint16_t maxCLL = br.ReadBits(16);
+        uint16_t maxFALL = br.ReadBits(16);
+        
+        return ContentLightLevel{maxCLL, maxFALL};
+    }
+  }
+  return std::nullopt;
+}
+
+const std::vector<uint8_t> CHevcSei::RemoveHdr10PlusFromSeiNalu(const uint8_t* inData, const size_t inDataLen)
+{
 
   std::vector<uint8_t> buf;
   std::vector<CHevcSei> messages = CHevcSei::ParseSeiRbspUnclearedEmulation(inData, inDataLen, buf);
@@ -161,8 +252,6 @@ std::pair<bool, const std::vector<uint8_t>> CHevcSei::RemoveHdr10PlusFromSeiNalu
   if (auto res = CHevcSei::FindHdr10PlusSeiMessage(buf, messages))
   {
     auto msg = *res;
-
-    containsHdr10Plus = true;
     if (messages.size() > 1)
     {
       // Multiple SEI messages in NALU, remove only the HDR10+ one
@@ -182,5 +271,5 @@ std::pair<bool, const std::vector<uint8_t>> CHevcSei::RemoveHdr10PlusFromSeiNalu
     buf.clear();
   }
 
-  return std::make_pair(containsHdr10Plus, buf);
+  return buf;
 }

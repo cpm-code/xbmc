@@ -101,7 +101,7 @@ protected:
   bool            m_has_keyframe;
 
   CBitstreamParser *m_bitparser;
-  CBitstreamConverter *m_bitstream;
+  std::unique_ptr<CBitstreamConverter> m_bitstream;
 private:
   std::shared_ptr<CAMLVideoBufferPool> m_videoBufferPool;
   static std::atomic<bool> m_InstanceGuard;

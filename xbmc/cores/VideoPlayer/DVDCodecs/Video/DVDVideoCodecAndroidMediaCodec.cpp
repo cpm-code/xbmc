@@ -471,9 +471,8 @@ bool CDVDVideoCodecAndroidMediaCodec::Open(CDVDStreamInfo &hints, CDVDCodecOptio
       // check for h264-avcC and convert to h264-annex-b
       if (m_hints.extradata && !m_hints.cryptoSession)
       {
-        m_bitstream = std::make_unique<CBitstreamConverter>();
-        if (!m_bitstream->Open(m_hints.codec, m_hints.extradata.GetData(),
-                               m_hints.extradata.GetSize(), true))
+        m_bitstream = std::make_unique<CBitstreamConverter>(m_hints);
+        if (!m_bitstream->Open(true))
         {
           m_bitstream.reset();
         }
@@ -598,9 +597,8 @@ bool CDVDVideoCodecAndroidMediaCodec::Open(CDVDStreamInfo &hints, CDVDCodecOptio
       // check for hevc-hvcC and convert to h265-annex-b
       if (m_hints.extradata && !m_hints.cryptoSession)
       {
-        m_bitstream = std::make_unique<CBitstreamConverter>();
-        if (!m_bitstream->Open(m_hints.codec, m_hints.extradata.GetData(),
-                               m_hints.extradata.GetSize(), true))
+        m_bitstream = std::make_unique<CBitstreamConverter>(m_hints);
+        if (!m_bitstream->Open(true))
         {
           m_bitstream.reset();
         }
