@@ -341,6 +341,7 @@ public:
   void SetRenderViewMode(int mode, float zoom, float par, float shift, bool stretch) override;
   float GetRenderAspectRatio() const override;
   void TriggerUpdateResolution() override;
+  void TriggerUpdateResolutionHdr(StreamHdrType hdrType) override;
   bool IsRenderingVideo() const override;
   bool Supports(EINTERLACEMETHOD method) const override;
   EINTERLACEMETHOD GetDeinterlacingMethodDefault() const override;

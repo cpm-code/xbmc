@@ -56,6 +56,7 @@ public:
   void SetRenderViewMode(int mode, float zoom, float par, float shift, bool stretch);
   float GetRenderAspectRatio() const;
   void TriggerUpdateResolution();
+  void TriggerUpdateResolutionHdr(StreamHdrType hdrType);
   bool IsRenderingVideo() const;
   bool IsRenderingGuiLayer() const;
   bool IsRenderingVideoLayer() const;

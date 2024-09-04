@@ -909,21 +909,31 @@ void CRenderManager::UpdateResolution()
           playbackMode == STEREOSCOPIC_PLAYBACK_MODE_ASK &&
           user_stereo_mode == RENDER_STEREO_MODE_UNDEFINED)
         m_bTriggerUpdateResolution = false;
-
       if (m_bTriggerUpdateResolution &&
           CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_ADJUSTREFRESHRATE) != ADJUST_REFRESHRATE_OFF && m_fps > 0.0f)
       {
         RESOLUTION res = CResolutionUtils::ChooseBestResolution(m_fps, m_width, m_height, !m_stereomode.empty());
-        CServiceBroker::GetWinSystem()->GetGfxContext().SetHDRType(m_hdrType);
+        StreamHdrType actual_hdrType = (m_hdrType_override != StreamHdrType::HDR_TYPE_NONE) ? m_hdrType_override : m_hdrType;
+        CServiceBroker::GetWinSystem()->GetGfxContext().SetHDRType(actual_hdrType);
         CServiceBroker::GetWinSystem()->GetGfxContext().SetVideoResolution(res, false);
         UpdateLatencyTweak();
-        if (m_pRenderer)
+
+        CLog::Log(LOGINFO, "CRenderManager::UpdateResolution - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]", m_fps, m_width, m_height, m_stereomode.empty(), CStreamDetails::DynamicRangeToString(actual_hdrType));
+        
+        if (m_pRenderer) 
           m_pRenderer->Update();
       }
       m_bTriggerUpdateResolution = false;
+      m_hdrType_override = StreamHdrType::HDR_TYPE_NONE;
       m_playerPort->VideoParamsChange();
     }
   }
+}
+
+void CRenderManager::TriggerUpdateResolutionHdr(StreamHdrType hdrType)
+{
+  m_hdrType_override = hdrType;
+  m_bTriggerUpdateResolution = true;
 }
 
 void CRenderManager::TriggerUpdateResolution(float fps, int width, int height, std::string &stereomode)

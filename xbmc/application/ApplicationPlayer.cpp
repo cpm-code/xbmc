@@ -872,6 +872,13 @@ void CApplicationPlayer::TriggerUpdateResolution()
     player->TriggerUpdateResolution();
 }
 
+void CApplicationPlayer::TriggerUpdateResolutionHdr(StreamHdrType hdrType)
+{
+  std::shared_ptr<IPlayer> player = GetInternal();
+  if (player)
+    player->TriggerUpdateResolutionHdr(hdrType);
+}
+
 bool CApplicationPlayer::IsRenderingVideo() const
 {
   const std::shared_ptr<const IPlayer> player = GetInternal();

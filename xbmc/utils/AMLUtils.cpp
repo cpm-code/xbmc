@@ -160,11 +160,11 @@ static unsigned int aml_vs10_by_hdrtype(StreamHdrType hdrType, unsigned int bitD
   return vs10_mode;
 }
 
-static void aml_dv_trigger_update_resolution()
+static void aml_dv_trigger_update_resolution(StreamHdrType hdrType)
 {
   auto& components = CServiceBroker::GetAppComponents();
   const auto appPlayer = components.GetComponent<CApplicationPlayer>();
-  appPlayer->TriggerUpdateResolution();
+  appPlayer->TriggerUpdateResolutionHdr(hdrType);
 }
 
 int aml_get_cpufamily_id()
@@ -407,6 +407,29 @@ bool aml_dolby_vision_enabled()
   return ((dv_enabled && !!dv_user_enabled) == 1);
 }
 
+std::string aml_dv_mode_to_string(unsigned int mode)
+{
+  std::string mode_string = "Unkown";
+  switch (mode) {
+    case DOLBY_VISION_OUTPUT_MODE_IPT:
+      mode_string = "0-IPT";
+      break;
+    case DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL:
+      mode_string = "1-IPT Tunnel";
+      break;
+    case DOLBY_VISION_OUTPUT_MODE_HDR10:
+      mode_string = "2-HDR10";
+      break;
+    case DOLBY_VISION_OUTPUT_MODE_SDR10:
+      mode_string = "3-SDR10";
+      break;
+    case DOLBY_VISION_OUTPUT_MODE_BYPASS:
+      mode_string = "5-Bypass";
+      break;
+  }
+  return mode_string;
+}
+
 void aml_dv_on(unsigned int mode)
 {
   // set the Dolby VSVDB parameter to latest value from user.
@@ -475,7 +498,7 @@ void aml_dv_on(unsigned int mode)
   if ((mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) && (dv_type == DV_TYPE_DISPLAY_LED))
   {
     aml_dv_wait_dv_std_vsif_packet();
-    aml_dv_trigger_update_resolution();
+    aml_dv_trigger_update_resolution(StreamHdrType::HDR_TYPE_DOLBYVISION);
   }
 }
 

@@ -68,6 +68,7 @@ public:
   RESOLUTION GetResolution();
   void UpdateResolution();
   void TriggerUpdateResolution(float fps, int width, int height, std::string &stereomode);
+  void TriggerUpdateResolutionHdr(StreamHdrType m_hdrType);
   void SetViewMode(int iViewMode);
   void PreInit();
   void UnInit();
@@ -211,6 +212,7 @@ protected:
   float m_fps = 0.0;
   unsigned int m_orientation = 0;
   StreamHdrType m_hdrType = StreamHdrType::HDR_TYPE_NONE;
+  StreamHdrType m_hdrType_override = StreamHdrType::HDR_TYPE_NONE;
   int m_NumberBuffers = 0;
   std::string m_stereomode;
 

@@ -230,6 +230,7 @@ public:
   virtual void SetRenderViewMode(int mode, float zoom, float par, float shift, bool stretch) {}
   virtual float GetRenderAspectRatio() const { return 1.0; }
   virtual void TriggerUpdateResolution() {}
+  virtual void TriggerUpdateResolutionHdr(StreamHdrType hdrType) {}
   virtual bool IsRenderingVideo() const { return false; }
 
   virtual bool Supports(EINTERLACEMETHOD method) const { return false; }
