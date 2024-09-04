@@ -19,6 +19,7 @@
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
+#include "utils/AMLUtils.h"
 #include "utils/CPUInfo.h"
 #include "utils/StringUtils.h"
 #include "utils/XTimeUtils.h"
@@ -463,6 +464,9 @@ bool CDVDVideoCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
 
   m_dropCtrl.Reset(true);
   m_eof = false;
+
+  aml_dv_off();
+
   return true;
 }
 
@@ -480,6 +484,8 @@ void CDVDVideoCodecFFmpeg::Dispose()
   }
 
   FilterClose();
+
+  aml_dv_start();
 }
 
 void CDVDVideoCodecFFmpeg::SetFilters()

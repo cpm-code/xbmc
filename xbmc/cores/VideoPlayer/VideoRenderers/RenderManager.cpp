@@ -24,7 +24,6 @@
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "threads/SingleLock.h"
-#include "utils/AMLUtils.h"
 #include "utils/StringUtils.h"
 #include "utils/XTimeUtils.h"
 #include "utils/log.h"
@@ -224,7 +223,6 @@ bool CRenderManager::Configure()
       m_free.push_back(i);
 
     m_bRenderGUI = true;
-    m_videostarted = std::chrono::system_clock::now();
     m_bTriggerUpdateResolution = true;
     m_presentstep = PRESENT_IDLE;
     m_presentpts = DVD_NOPTS_VALUE;
@@ -903,31 +901,27 @@ void CRenderManager::UpdateResolution()
   {
     if (CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenVideo() && CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot())
     {
-      auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - m_videostarted);
-      if ((m_hdrType != StreamHdrType::HDR_TYPE_HDR10) || aml_video_started() || elapsed > 1000ms)
-      {
-        RENDER_STEREO_MODE user_stereo_mode =
-          CServiceBroker::GetGUI()->GetStereoscopicsManager().GetStereoModeByUser();
-        STEREOSCOPIC_PLAYBACK_MODE playbackMode =
-          static_cast<STEREOSCOPIC_PLAYBACK_MODE>(CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_STEREOSCOPICPLAYBACKMODE));
-        if (!m_stereomode.empty() &&
-            playbackMode == STEREOSCOPIC_PLAYBACK_MODE_ASK &&
-            user_stereo_mode == RENDER_STEREO_MODE_UNDEFINED)
-          m_bTriggerUpdateResolution = false;
-
-        if (m_bTriggerUpdateResolution &&
-          CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_ADJUSTREFRESHRATE) != ADJUST_REFRESHRATE_OFF && m_fps > 0.0f)
-        {
-          RESOLUTION res = CResolutionUtils::ChooseBestResolution(m_fps, m_width, m_height, !m_stereomode.empty());
-          CServiceBroker::GetWinSystem()->GetGfxContext().SetHDRType(m_hdrType);
-          CServiceBroker::GetWinSystem()->GetGfxContext().SetVideoResolution(res, false);
-          UpdateLatencyTweak();
-          if (m_pRenderer)
-            m_pRenderer->Update();
-        }
+      RENDER_STEREO_MODE user_stereo_mode =
+        CServiceBroker::GetGUI()->GetStereoscopicsManager().GetStereoModeByUser();
+      STEREOSCOPIC_PLAYBACK_MODE playbackMode =
+        static_cast<STEREOSCOPIC_PLAYBACK_MODE>(CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_STEREOSCOPICPLAYBACKMODE));
+      if (!m_stereomode.empty() &&
+          playbackMode == STEREOSCOPIC_PLAYBACK_MODE_ASK &&
+          user_stereo_mode == RENDER_STEREO_MODE_UNDEFINED)
         m_bTriggerUpdateResolution = false;
-        m_playerPort->VideoParamsChange();
+
+      if (m_bTriggerUpdateResolution &&
+          CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_ADJUSTREFRESHRATE) != ADJUST_REFRESHRATE_OFF && m_fps > 0.0f)
+      {
+        RESOLUTION res = CResolutionUtils::ChooseBestResolution(m_fps, m_width, m_height, !m_stereomode.empty());
+        CServiceBroker::GetWinSystem()->GetGfxContext().SetHDRType(m_hdrType);
+        CServiceBroker::GetWinSystem()->GetGfxContext().SetVideoResolution(res, false);
+        UpdateLatencyTweak();
+        if (m_pRenderer)
+          m_pRenderer->Update();
       }
+      m_bTriggerUpdateResolution = false;
+      m_playerPort->VideoParamsChange();
     }
   }
 }
@@ -941,7 +935,6 @@ void CRenderManager::TriggerUpdateResolution(float fps, int width, int height, s
     m_height = height;
     m_stereomode = stereomode;
   }
-  m_videostarted = std::chrono::system_clock::now();
   m_bTriggerUpdateResolution = true;
 }
 

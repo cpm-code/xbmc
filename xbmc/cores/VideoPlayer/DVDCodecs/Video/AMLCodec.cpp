@@ -2007,28 +2007,21 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   am_private->gcodec.dec_mode    = STREAM_TYPE_FRAME;
   am_private->gcodec.video_path  = FRAME_BASE_PATH_AMLVIDEO_AMVIDEO;
 
-  enum DV_MODE dv_mode(aml_dv_mode());
-  CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DV Handling for DV mode: [{}], DV type: [{}]", dv_mode, aml_dv_type());
+  aml_dv_open(m_hints.hdrType, m_hints.bitdepth); 
 
-  if (dv_mode == DV_MODE_ON || dv_mode == DV_MODE_ON_DEMAND) {
-
-    if ((hints.hdrType == StreamHdrType::HDR_TYPE_HDR10) ||
-        (hints.hdrType == StreamHdrType::HDR_TYPE_HDR10PLUS)) { // Now we know about HDR10+, so double check we are in the correct vs10 mode, and switch if necessary.
-      aml_dv_open(hints.hdrType, hints.bitdepth);    
-    } 
-    else if ((hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) && aml_is_dv_enable()) // Setup Codec for DV
-    {    
-      am_private->gcodec.dv_enable = 1;
-      if ((hints.dovi.dv_profile == 4 || hints.dovi.dv_profile == 7) && CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
-          CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI) == 0)
+  // Setup Codec for DV Content
+  if ((hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) && aml_is_dv_enable()) 
+  {
+    am_private->gcodec.dv_enable = 1;
+    if ((hints.dovi.dv_profile == 4 || hints.dovi.dv_profile == 7) && CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
+        CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI) == 0)
+    {
+      if (dovi_el_type != ELType::TYPE_MEL) // use stream path if not MEL
       {
-        if (dovi_el_type != ELType::TYPE_MEL) // use stream path if not MEL
-        {
-          CSysfsPath amdolby_vision_debug{"/sys/class/amdolby_vision/debug"};
-          if (amdolby_vision_debug.Exists())
-            amdolby_vision_debug.Set("enable_fel 1");
-          am_private->gcodec.dec_mode  = STREAM_TYPE_STREAM;
-        }
+        CSysfsPath amdolby_vision_debug{"/sys/class/amdolby_vision/debug"};
+        if (amdolby_vision_debug.Exists())
+          amdolby_vision_debug.Set("enable_fel 1");
+        am_private->gcodec.dec_mode  = STREAM_TYPE_STREAM;
       }
     }
   }
@@ -2183,9 +2176,6 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   SetSpeed(m_speed);
   SetPollDevice(am_private->vcodec.cntl_handle);
 
-  // if DV_MODE_ON (i.e. on in Kodi Menu), then set graphics max to 0 (OSD luminance will be handled by amlogic).
-  if (dv_mode == DV_MODE_ON) aml_dv_set_osd_max(0);
-
   return true;
 }
 
@@ -2301,6 +2291,8 @@ void CAMLCodec::CloseDecoder()
   ShowMainVideo(false);
 
   CloseAmlVideo();
+
+  aml_dv_close();
 }
 
 void CAMLCodec::CloseAmlVideo()
