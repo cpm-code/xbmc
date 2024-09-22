@@ -137,6 +137,11 @@ ifeq ($(OS),linux)
     DEPENDS += hwdata libdisplay-info
   endif
 endif
+
+ifeq ($(ENABLE_LIBDOVI),yes)
+  DEPENDS += libdovi
+endif
+
 DEPENDS := $(filter-out $(EXCLUDED_DEPENDS),$(DEPENDS))
 
 .PHONY: $(DEPENDS) download $(DOWNLOAD_TARGETS)
