@@ -283,34 +283,6 @@ static bool has_sei_recovery_point(const uint8_t *p, const uint8_t *end)
 }
 
 #ifdef HAVE_LIBDOVI
-
-// The returned data must be freed with `dovi_data_free`
-// May be NULL if no conversion was done
-
-/*
-static const DoviData* convert_dovi_rpu_nal(uint8_t* buf, uint32_t nal_size)
-{
-  DoviRpuOpaque* rpu = dovi_parse_unspec62_nalu(buf, nal_size);
-  const DoviRpuDataHeader* header = dovi_rpu_get_header(rpu);
-  const DoviData* rpu_data = NULL;
-
-  if (header && header->guessed_profile == 7)
-  {
-    int ret = dovi_convert_rpu_with_mode(rpu, 2);
-    if (ret < 0)
-      goto done;
-
-    rpu_data = dovi_write_unspec62_nalu(rpu);
-  }
-
-done:
-  dovi_rpu_free_header(header);
-  dovi_rpu_free(rpu);
-
-  return rpu_data;
-}
-*/
-
 static enum ELType get_dovi_el_type(uint8_t* buf, uint32_t nal_size)
 {
   DoviRpuOpaque* rpu = dovi_parse_unspec62_nalu(buf, nal_size);
@@ -775,31 +747,8 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
       if (nal_type == HEVC_NAL_UNSPEC62)
       {
         const uint8_t *nalu_62_data = buf;
-#ifdef HAVE_LIBDOVI
-        const DoviData* rpu_data = NULL;
-#endif
-
-/*
-        if (m_convert_dovi)
-        {
-#ifdef HAVE_LIBDOVI
-          // Convert the RPU itself
-          rpu_data = convert_dovi_rpu_nal(buf, size);
-          if (rpu_data)
-          {
-            nalu_62_data = rpu_data->data;
-            size = rpu_data->len;
-          }
-#endif
-        }
-*/
-
         BitstreamAllocAndCopy(&m_convertBuffer, &offset, nalu_62_data, size, nal_type);
-
 #ifdef HAVE_LIBDOVI
-        if (rpu_data)
-          dovi_data_free(rpu_data);
-
         m_dovi_el_type = get_dovi_el_type((uint8_t *)nalu_62_data, size);
 #endif
       }
@@ -1186,25 +1135,6 @@ void CBitstreamConverter::ProcessDoViRpu(uint8_t *buf, int32_t nal_size, uint8_t
   if (m_dovi_el_type == ELType::TYPE_NONE) m_dovi_el_type = get_dovi_el_type(buf, nal_size);
 #endif
 
-  /*
-  if (m_convert_dovi)
-  {
-#ifdef HAVE_LIBDOVI
-    // Convert the RPU itself
-    const DoviData* rpu_data = convert_dovi_rpu_nal(buf, nal_size, m_convert_dovi);
-  
-    if (rpu_data) {
-      BitstreamAllocAndCopy(poutbuf, poutbuf_size, NULL, 0, rpu_data->data, rpu_data->len, HEVC_NAL_UNSPEC62);
-      dovi_data_free(rpu_data);
-      rpu_data = NULL;
-    }
-#endif
-  }
-  else 
-  {
-    BitstreamAllocAndCopy(poutbuf, poutbuf_size, NULL, 0, buf, nal_size, HEVC_NAL_UNSPEC62);
-  }
-  */
   BitstreamAllocAndCopy(poutbuf, poutbuf_size, NULL, 0, buf, nal_size, HEVC_NAL_UNSPEC62);
 }
 
