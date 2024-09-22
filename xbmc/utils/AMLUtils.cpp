@@ -490,19 +490,19 @@ void aml_dv_on(unsigned int mode)
   if (modeChange) CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_mode", mode);
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_policy", DOLBY_VISION_FORCE_OUTPUT_MODE);  
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", "Y");
-  if (modeChange) aml_dv_toggle_frame(mode);
 
-  // Re-trigger update resolution when mode IPT Tunnel and in Display Led (DV-Std).
-  // Work around CD 12 bit issue for DV-Std shoule be CD 8 bit.
-  // Wait for Dolby VSIF being output before trigging the update resolution so logic has correct input to work from.
-  // The update resolution will cause the hdmi mode switch logic in the kernel to set the colour bit depth correctly in DV-Std.
-  if ((mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) && (dv_type == DV_TYPE_DISPLAY_LED))
-  {
-    aml_dv_wait_dv_std_vsif_packet();
-  }
-  if ((mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) || (mode = DOLBY_VISION_OUTPUT_MODE_IPT)) 
-  {
-    aml_dv_trigger_update_resolution(StreamHdrType::HDR_TYPE_DOLBYVISION);
+  if (modeChange) {
+    aml_dv_toggle_frame(mode);
+
+    // Re-trigger update resolution when mode IPT Tunnel and in Display Led (DV-Std).
+    // Work around CD 12 bit issue for DV-Std shoule be CD 8 bit.
+    // Wait for Dolby VSIF being output before trigging the update resolution so logic has correct input to work from.
+    // The update resolution will cause the hdmi mode switch logic in the kernel to set the colour bit depth correctly in DV-Std.
+    if ((mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) && (dv_type == DV_TYPE_DISPLAY_LED))
+      aml_dv_wait_dv_std_vsif_packet();
+
+    if ((mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) || (mode = DOLBY_VISION_OUTPUT_MODE_IPT)) 
+      aml_dv_trigger_update_resolution(StreamHdrType::HDR_TYPE_DOLBYVISION);
   }
 }
 
