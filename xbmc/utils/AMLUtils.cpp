@@ -522,6 +522,12 @@ void aml_dv_off()
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", "N");
 }
 
+unsigned int aml_dv_dolby_vision_mode()
+{
+  CSysfsPath dolby_vision_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_mode"};
+  return dolby_vision_mode.Get<unsigned int>().value();
+}
+
 void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
 {
   enum DV_MODE dv_mode(aml_dv_mode());
