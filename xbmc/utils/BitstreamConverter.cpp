@@ -1123,8 +1123,8 @@ void CBitstreamConverter::AddDoViRpuNalu(const Hdr10PlusMetadata& meta, uint8_t 
       m_hints.dovi.rpu_present_flag = 1;
       m_hints.dovi.el_present_flag = 0;
       m_hints.dovi.bl_present_flag = 1;
-      m_hints.dovi.dv_bl_signal_compatibility_id = 6;
-      m_dovi_el_type = ELType::TYPE_MEL;
+      m_hints.dovi.dv_bl_signal_compatibility_id = 1;
+      m_dovi_el_type = ELType::TYPE_NONE;
     }
     BitstreamAllocAndCopy(poutbuf, poutbuf_size, NULL, 0, nalu.data(), nalu.size(), HEVC_NAL_UNSPEC62);
     nalu.clear();
