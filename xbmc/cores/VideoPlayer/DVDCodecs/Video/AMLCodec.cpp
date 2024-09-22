@@ -1855,6 +1855,49 @@ int CAMLCodec::GetAmlDuration() const
   return am_private ? (am_private->video_rate * PTS_FREQ) / UNIT_FREQ : 0;
 };
 
+std::string GetDoViCodecFourCC(unsigned int codec_tag)
+{
+  if (codec_tag == MKTAG('d', 'v', 'h', 'e')) return "dvhe";
+  if (codec_tag == MKTAG('d', 'v', 'h', '1')) return "dvh1";
+  if (codec_tag == MKTAG('d', 'v', 'a', 'v')) return "dvav";
+  if (codec_tag == MKTAG('d', 'a', 'v', '1')) return "dav1";
+
+  // some files don't have dvhe or dvh1 tag set up but have Dolby Vision side data
+  // page 10, table 2 from https://professional.dolby.com/siteassets/content-creation/dolby-vision-for-content-creators/dolby-vision-streams-within-the-http-live-streaming-format-v2.0-13-november-2018.pdf
+  
+  if (codec_tag == MKTAG('h', 'v', 'c', '1')) return "dvh1";
+  if (codec_tag == MKTAG('h', 'e', 'v', '1')) return "dvhe";
+
+  // FIXME: What about Add AVC and AV1 ?
+
+  return StringUtils::FormatNumber(codec_tag);
+}
+
+void SetProcessInfoVideoDetails(CProcessInfo &processInfo, CDVDStreamInfo &hints, enum ELType dovi_el_type) 
+{
+  processInfo.SetVideoHdrType(hints.hdrType);
+  processInfo.SetVideoColorSpace(hints.colorSpace);
+  processInfo.SetVideoColorRange(hints.colorRange);
+  processInfo.SetVideoColorPrimaries(hints.colorPrimaries);
+  processInfo.SetVideoColorTransferCharacteristic(hints.colorTransferCharacteristic);
+
+  if (hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) {
+
+    processInfo.SetVideoDoViDecoderConfigurationRecord(hints.dovi);
+    processInfo.SetVideoDoViELType(dovi_el_type);
+    processInfo.SetVideoDoViCodecFourCC(GetDoViCodecFourCC(hints.codec_tag));
+
+    if (dovi_el_type == ELType::TYPE_FEL)
+      processInfo.SetVideoBitDepth(12); // 12 bit for FEL (once DV processed)
+    else
+      processInfo.SetVideoBitDepth(hints.bitdepth);
+  }
+  else
+  {
+    processInfo.SetVideoBitDepth(hints.bitdepth);
+  }
+}
+
 bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
 {
   m_speed = DVD_PLAYSPEED_NORMAL;
@@ -2007,7 +2050,9 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   am_private->gcodec.dec_mode    = STREAM_TYPE_FRAME;
   am_private->gcodec.video_path  = FRAME_BASE_PATH_AMLVIDEO_AMVIDEO;
 
-  aml_dv_open(m_hints.hdrType, m_hints.bitdepth); 
+  aml_dv_open(m_hints.hdrType, m_hints.bitdepth);
+
+  SetProcessInfoVideoDetails(m_processInfo, m_hints, dovi_el_type);
 
   // Setup Codec for DV Content
   if ((hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) && aml_is_dv_enable()) 

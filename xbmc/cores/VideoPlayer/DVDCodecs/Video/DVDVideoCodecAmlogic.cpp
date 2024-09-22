@@ -484,7 +484,10 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
       }
       pData = m_bitstream->GetConvertBuffer();
       iSize = m_bitstream->GetConvertSize();
-      if (!m_opened) dovi_el_type = m_bitstream->GetDoviElType();
+      if (!m_opened) {
+        dovi_el_type = m_bitstream->GetDoviElType();
+        m_processInfo.SetVideoSourceHdrType(m_bitstream->GetSourceHdrType());
+      }
     }
     else if (!m_has_keyframe && m_bitparser)
     {

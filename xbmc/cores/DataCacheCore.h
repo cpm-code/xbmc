@@ -8,8 +8,10 @@
 
 #pragma once
 
+#include "DVDStreamInfo.h"
 #include "EdlEdit.h"
 #include "threads/CriticalSection.h"
+#include "utils/BitstreamConverter.h"
 
 #include <atomic>
 #include <chrono>
@@ -45,6 +47,28 @@ public:
   float GetVideoFps();
   void SetVideoDAR(float dar);
   float GetVideoDAR();
+  void SetVideoBitDepth(int bitDepth);
+  int GetVideoBitDepth();
+  void SetVideoHdrType(StreamHdrType hdrType);
+  StreamHdrType GetVideoHdrType();
+  void SetVideoSourceHdrType(StreamHdrType hdrType);
+  StreamHdrType GetVideoSourceHdrType();
+  void SetVideoColorSpace(AVColorSpace colorSpace);
+  AVColorSpace GetVideoColorSpace();
+  void SetVideoColorRange(AVColorRange colorRange);
+  AVColorRange GetVideoColorRange();
+  void SetVideoColorPrimaries(AVColorPrimaries colorPrimaries);
+  AVColorPrimaries GetVideoColorPrimaries();
+  void SetVideoColorTransferCharacteristic(AVColorTransferCharacteristic colorTransferCharacteristic);
+  AVColorTransferCharacteristic GetVideoColorTransferCharacteristic();
+  void SetVideoDoViDecoderConfigurationRecord(AVDOVIDecoderConfigurationRecord doViDecoderConfigurationRecord);
+  AVDOVIDecoderConfigurationRecord GetVideoDoViDecoderConfigurationRecord();
+  void SetVideoDoViELType(enum ELType elType);
+  enum ELType GetVideoDoViELType();
+  void SetVideoDoViCodecFourCC(std::string);
+  std::string GetVideoDoViCodecFourCC();
+  void SetVideoVS10Mode(unsigned int vs10Mode);
+  unsigned int GetVideoVS10Mode();
 
   /*!
    * @brief Set if the video is interlaced in cache.
@@ -211,6 +235,17 @@ protected:
     float fps;
     float dar;
     bool m_isInterlaced;
+    int bitDepth;
+    StreamHdrType hdrType;
+    StreamHdrType sourceHdrType;
+    AVColorSpace colorSpace;
+    AVColorRange colorRange;
+    AVColorPrimaries colorPrimaries;
+    AVColorTransferCharacteristic colorTransferCharacteristic;
+    AVDOVIDecoderConfigurationRecord doviDecoderConfigurationRecord;
+    enum ELType doviELType;
+    std::string doviCodecFourCC;
+    unsigned int vs10Mode;
   } m_playerVideoInfo;
 
   CCriticalSection m_audioPlayerSection;

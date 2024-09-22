@@ -233,15 +233,45 @@
 					<shadowcolor>black</shadowcolor>
 					<visible>Player.HasVideo</visible>
 				</control>
+
 				<control type="label">
 					<width>1600</width>
 					<height>50</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[Player.Process(videowidth),[COLOR button_focus]$LOCALIZE[38031]:[/COLOR] ,x]$INFO[Player.Process(videoheight)]$INFO[Player.Process(videoscantype)]$INFO[Player.Process(videodar),$COMMA , AR]$INFO[Player.Process(videofps),$COMMA , FPS]$INFO[VideoPlayer.VideoBitrate,$COMMA , kb/s]</label>
+					<label>[COLOR button_focus]$LOCALIZE[38031]:[/COLOR] $INFO[Player.Process(videowidth)]x$INFO[Player.Process(videoheight)]$INFO[Player.Process(videoscantype)] [COLOR button_focus]AR:[/COLOR] $INFO[Player.Process(videodar)] [COLOR button_focus]FPS:[/COLOR] $INFO[Player.Process(videofps)] [COLOR button_focus]Bit depth:[/COLOR] $INFO[Player.Process(video.bit.depth)]</label>
 					<font>font14</font>
 					<shadowcolor>black</shadowcolor>
 					<visible>Player.HasVideo</visible>
 				</control>
+				<control type="label">
+					<width>1600</width>
+					<height>50</height>
+					<aligny>bottom</aligny>
+					<label>[COLOR button_focus]Video colour space:[/COLOR] $INFO[Player.Process(video.color.space)] [COLOR button_focus]primaries:[/COLOR] $INFO[Player.Process(video.color.primaries)] [COLOR button_focus]transfer:[/COLOR] $INFO[Player.Process(video.color.transfer.characteristic)] [COLOR button_focus]range:[/COLOR] $INFO[Player.Process(video.color.range)]</label>
+					<font>font14</font>
+					<shadowcolor>black</shadowcolor>
+					<visible>Player.HasVideo</visible>
+				</control>
+				<control type="label">
+					<width>1600</width>
+					<height>50</height>
+					<aligny>bottom</aligny>
+					<label>[COLOR button_focus]Video dynamic range source:[/COLOR] $INFO[Player.Process(video.source.hdr.type)] [COLOR button_focus]process:[/COLOR] $INFO[Player.Process(video.hdr.type)] [COLOR button_focus]vs10:[/COLOR] $INFO[Player.Process(amlogic.vs10.mode)]</label>
+					<font>font14</font>
+					<shadowcolor>black</shadowcolor>
+					<visible>Player.HasVideo</visible>
+				</control>
+				<control type="label">
+					<width>1600</width>
+					<height>50</height>
+					<aligny>bottom</aligny>
+					<label>[COLOR button_focus]Video Dolby Vision codec:[/COLOR] $INFO[Player.Process(video.dovi.codec.string)] [COLOR button_focus]enhancement layer:[/COLOR] $INFO[Player.Process(video.dovi.el.type)] [COLOR button_focus]BL Compatibility:[/COLOR] $INFO[Player.Process(video.dovi.bl.signal.compatibility)] [COLOR button_focus]version:[/COLOR] $INFO[Player.Process(video.dovi.version.major)].$INFO[Player.Process(video.dovi.version.minor)]</label>
+					<font>font14</font>
+					<shadowcolor>black</shadowcolor>
+					<visible>Player.HasVideo</visible>
+					<visible>String.Contains(Player.Process(video.hdr.type),"dolby vision")</visible>
+				</control>
+
 				<control type="label">
 					<width>1600</width>
 					<height>50</height>

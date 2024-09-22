@@ -8,8 +8,10 @@
 
 #include "DataCacheCore.h"
 
+#include "DVDStreamInfo.h"
 #include "ServiceBroker.h"
 #include "cores/EdlEdit.h"
+#include "utils/BitstreamConverter.h"
 
 #include <mutex>
 #include <utility>
@@ -164,6 +166,160 @@ int CDataCacheCore::GetVideoHeight()
   std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
 
   return m_playerVideoInfo.height;
+}
+
+void CDataCacheCore::SetVideoBitDepth(int bitDepth)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.bitDepth = bitDepth;
+}
+
+int CDataCacheCore::GetVideoBitDepth()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.bitDepth;
+}
+
+void CDataCacheCore::SetVideoHdrType(StreamHdrType hdrType)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.hdrType = hdrType;
+}
+
+StreamHdrType CDataCacheCore::GetVideoHdrType()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.hdrType;
+}
+
+void CDataCacheCore::SetVideoSourceHdrType(StreamHdrType hdrType)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.sourceHdrType = hdrType;
+}
+
+StreamHdrType CDataCacheCore::GetVideoSourceHdrType()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.sourceHdrType;
+}
+
+void CDataCacheCore::SetVideoColorSpace(AVColorSpace colorSpace)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.colorSpace = colorSpace;
+}
+
+AVColorSpace CDataCacheCore::GetVideoColorSpace()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.colorSpace;
+}
+
+void CDataCacheCore::SetVideoColorRange(AVColorRange colorRange)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.colorRange = colorRange;
+}
+
+AVColorRange CDataCacheCore::GetVideoColorRange()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.colorRange;
+}
+
+void CDataCacheCore::SetVideoColorPrimaries(AVColorPrimaries colorPrimaries)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.colorPrimaries = colorPrimaries;
+}
+
+AVColorPrimaries CDataCacheCore::GetVideoColorPrimaries()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.colorPrimaries;
+}
+
+void CDataCacheCore::SetVideoColorTransferCharacteristic(AVColorTransferCharacteristic colorTransferCharacteristic)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.colorTransferCharacteristic = colorTransferCharacteristic;
+}
+
+AVColorTransferCharacteristic CDataCacheCore::GetVideoColorTransferCharacteristic()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.colorTransferCharacteristic;
+}
+
+void CDataCacheCore::SetVideoDoViDecoderConfigurationRecord(AVDOVIDecoderConfigurationRecord doViDecoderConfigurationRecord)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.doviDecoderConfigurationRecord = doViDecoderConfigurationRecord;
+}
+
+AVDOVIDecoderConfigurationRecord CDataCacheCore::GetVideoDoViDecoderConfigurationRecord()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.doviDecoderConfigurationRecord;
+}
+
+void CDataCacheCore::SetVideoDoViELType(enum ELType elType)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.doviELType = elType;
+}
+
+enum ELType CDataCacheCore::GetVideoDoViELType()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.doviELType;
+}
+
+void CDataCacheCore::SetVideoDoViCodecFourCC(std::string codecFourCC)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.doviCodecFourCC= codecFourCC;
+}
+
+std::string CDataCacheCore::GetVideoDoViCodecFourCC()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.doviCodecFourCC;
+}
+
+void CDataCacheCore::SetVideoVS10Mode(unsigned int vs10Mode)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.vs10Mode = vs10Mode;
+}
+
+unsigned int CDataCacheCore::GetVideoVS10Mode()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.vs10Mode;
 }
 
 void CDataCacheCore::SetVideoFps(float fps)

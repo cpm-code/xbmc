@@ -401,6 +401,7 @@ CBitstreamConverter::CBitstreamConverter(CDVDStreamInfo& hints) : m_hints(hints)
   m_removeDovi = false;
   m_removeHdr10Plus = false;
   m_dovi_el_type = ELType::TYPE_NONE;
+  m_source_hdr_type = m_hints.hdrType;
   m_combine = false;
   m_first_convert = true;
 
@@ -1145,8 +1146,10 @@ void CBitstreamConverter::ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8
 
   if (auto res = CHevcSei::ExtractHdr10Plus(messages, clearBuf)) {
 
-    if (m_first_convert && (m_intial_hdrType == StreamHdrType::HDR_TYPE_HDR10)) 
+    if (m_first_convert && (m_intial_hdrType == StreamHdrType::HDR_TYPE_HDR10)) {
       m_hints.hdrType = StreamHdrType::HDR_TYPE_HDR10PLUS;
+      m_source_hdr_type = StreamHdrType::HDR_TYPE_HDR10PLUS;
+    }
 
     if (m_convert_Hdr10Plus && (m_intial_hdrType != StreamHdrType::HDR_TYPE_DOLBYVISION)) {
       meta = res.value();

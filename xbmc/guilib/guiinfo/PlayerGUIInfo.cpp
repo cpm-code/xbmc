@@ -30,6 +30,8 @@
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
 #include "utils/log.h"
+#include "utils/AMLUtils.h"
+#include "utils/BitstreamConverter.h"
 
 #include "platform/linux/SysfsPath.h"
 
@@ -37,6 +39,15 @@
 #include <cmath>
 #include <fmt/format.h>
 #include <memory>
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <string>
+
+extern "C"
+{
+#include <libavutil/pixdesc.h>
+}
 
 using namespace KODI::GUILIB::GUIINFO;
 
@@ -210,6 +221,52 @@ bool CPlayerGUIInfo::InitCurrentItem(CFileItem *item)
     m_currentItem.reset();
   }
   return false;
+}
+
+std::string HdrTypeToString(StreamHdrType hdrType) {
+  switch (hdrType) {
+    case StreamHdrType::HDR_TYPE_NONE: return "sdr";
+    case StreamHdrType::HDR_TYPE_HDR10: return "hdr10";
+    case StreamHdrType::HDR_TYPE_HDR10PLUS: return "hdr10+";
+    case StreamHdrType::HDR_TYPE_DOLBYVISION: return "dolby vision";
+    case StreamHdrType::HDR_TYPE_HLG: return "hlg hdr";
+  }
+  return "";
+}
+
+std::string ELTypeToString(enum ELType elType) {
+  switch (elType) {
+    case ELType::TYPE_NONE: return "none";
+    case ELType::TYPE_FEL: return "full";
+    case ELType::TYPE_MEL: return "minimum";
+  }
+  return "";
+}
+
+std::string VS10ModeToString(unsigned int vs10Mode) {
+  switch (vs10Mode) {
+    case DOLBY_VISION_OUTPUT_MODE_IPT: return "dolby vision";
+    case DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL: return "dolby vision";
+    case DOLBY_VISION_OUTPUT_MODE_HDR10: return "hdr10";
+    case DOLBY_VISION_OUTPUT_MODE_SDR10: return "sdr";
+    case DOLBY_VISION_OUTPUT_MODE_BYPASS: return "bypass";
+  }
+  return "";
+}
+
+std::string uint8_to_padded_string(uint8_t value) {
+  std::stringstream ss;
+  ss << std::setw(2) << std::setfill('0') << static_cast<int>(value);
+  return ss.str();
+}
+
+std::string VideoDoViCodecString() {
+
+  std::string fourCC = CServiceBroker::GetDataCacheCore().GetVideoDoViCodecFourCC();
+  uint8_t profile = CServiceBroker::GetDataCacheCore().GetVideoDoViDecoderConfigurationRecord().dv_profile;
+  uint8_t level = CServiceBroker::GetDataCacheCore().GetVideoDoViDecoderConfigurationRecord().dv_level;
+
+  return fmt::format("{}.{}.{}", fourCC, uint8_to_padded_string(profile), uint8_to_padded_string(level));
 }
 
 bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int contextWindow, const CGUIInfo &info, std::string *fallback) const
@@ -403,6 +460,63 @@ bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int con
       return true;
     case PLAYER_PROCESS_AML_EOFT_GAMUT:
       value = GetAMLConfigInfo("EOTF") + " " + GetAMLConfigInfo("Colourimetry");
+      return true;
+    case PLAYER_PROCESS_VIDEO_BIT_DEPTH:
+      value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetVideoBitDepth());
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_TYPE:
+      value = HdrTypeToString(CServiceBroker::GetDataCacheCore().GetVideoHdrType());
+      return true;
+    case PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE:
+      value = HdrTypeToString(CServiceBroker::GetDataCacheCore().GetVideoSourceHdrType());
+      return true;
+    case PLAYER_PROCESS_VIDEO_COLOR_SPACE:
+      value = av_color_space_name(CServiceBroker::GetDataCacheCore().GetVideoColorSpace());;
+      return true;
+    case PLAYER_PROCESS_VIDEO_COLOR_RANGE:
+      value = av_color_range_name(CServiceBroker::GetDataCacheCore().GetVideoColorRange());
+      return true;
+    case PLAYER_PROCESS_VIDEO_COLOR_PRIMARIES:
+      value = av_color_primaries_name(CServiceBroker::GetDataCacheCore().GetVideoColorPrimaries());
+      return true;
+    case PLAYER_PROCESS_VIDEO_COLOR_TRANSFER_CHARACTERISTIC:
+      value = av_color_transfer_name(CServiceBroker::GetDataCacheCore().GetVideoColorTransferCharacteristic());
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_VERSION_MAJOR:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViDecoderConfigurationRecord().dv_version_major);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_VERSION_MINOR:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViDecoderConfigurationRecord().dv_version_minor);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_PROFILE:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViDecoderConfigurationRecord().dv_profile);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_LEVEL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViDecoderConfigurationRecord().dv_level);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_RPU_PRESENT:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViDecoderConfigurationRecord().rpu_present_flag);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_EL_PRESENT:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViDecoderConfigurationRecord().el_present_flag);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_BL_PRESENT:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViDecoderConfigurationRecord().bl_present_flag);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_BL_SIGNAL_COMPATIBILITY:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViDecoderConfigurationRecord().dv_bl_signal_compatibility_id);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_EL_TYPE:
+      value = ELTypeToString(CServiceBroker::GetDataCacheCore().GetVideoDoViELType());
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC:
+      value = CServiceBroker::GetDataCacheCore().GetVideoDoViCodecFourCC();
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_CODEC_STRING:
+      value = VideoDoViCodecString();
+      return true;
+    case PLAYER_PROCESS_AML_VS10_MODE:
+      value = VS10ModeToString(aml_dv_dolby_vision_mode());
       return true;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////

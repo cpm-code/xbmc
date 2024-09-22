@@ -12,6 +12,7 @@
 #include "cores/VideoPlayer/VideoRenderers/RenderInfo.h"
 #include "cores/VideoSettings.h"
 #include "threads/CriticalSection.h"
+#include "utils/BitstreamConverter.h"
 
 #include <atomic>
 #include <list>
@@ -48,6 +49,28 @@ public:
   float GetVideoFps();
   void SetVideoDAR(float dar);
   float GetVideoDAR();
+  void SetVideoBitDepth(int bitDepth);
+  int GetVideoBitDepth();
+  void SetVideoHdrType(StreamHdrType hdrType);
+  StreamHdrType GetVideoHdrType();
+  void SetVideoSourceHdrType(StreamHdrType hdrType);
+  StreamHdrType GetVideoSourceHdrType();
+  void SetVideoColorSpace(AVColorSpace colorSpace);
+  AVColorSpace GetVideoColorSpace();
+  void SetVideoColorRange(AVColorRange colorRange);
+  AVColorRange GetVideoColorRange();
+  void SetVideoColorPrimaries(AVColorPrimaries colorPrimaries);
+  AVColorPrimaries GetVideoColorPrimaries();
+  void SetVideoColorTransferCharacteristic(AVColorTransferCharacteristic colorTransferCharacteristic);
+  AVColorTransferCharacteristic GetVideoColorTransferCharacteristic();
+  void SetVideoDoViDecoderConfigurationRecord(AVDOVIDecoderConfigurationRecord doViDecoderConfigurationRecord);
+  AVDOVIDecoderConfigurationRecord GetVideoDoViDecoderConfigurationRecord();
+  void SetVideoDoViELType(enum ELType elType);
+  enum ELType GetVideoDoViELType();
+  void SetVideoDoViCodecFourCC(std::string codecFourCC);
+  std::string GetVideoDoViCodecFourCC();
+  void SetVideoVS10Mode(unsigned int vs10Mode);
+  unsigned int GetVideoVS10Mode();
   void SetVideoInterlaced(bool interlaced);
   bool GetVideoInterlaced();
   virtual EINTERLACEMETHOD GetFallbackDeintMethod();
@@ -134,6 +157,17 @@ protected:
   int m_videoHeight;
   float m_videoFPS;
   float m_videoDAR;
+  int m_videoBitDepth;
+  StreamHdrType m_videoHdrType;
+  StreamHdrType m_videoSourceHdrType;
+  AVColorSpace m_videoColorSpace;
+  AVColorRange m_videoColorRange;
+  AVColorPrimaries m_videoColorPrimaries;
+  AVColorTransferCharacteristic m_videoColorTransferCharacteristic;
+  AVDOVIDecoderConfigurationRecord m_videoDoViDecoderConfigurationRecord;
+  enum ELType m_videoDoViELType;
+  std::string m_videoDoViCodecFourCC;
+  unsigned int m_videoVS10Mode;
   bool m_videoIsInterlaced;
   std::list<EINTERLACEMETHOD> m_deintMethods;
   EINTERLACEMETHOD m_deintMethodDefault;

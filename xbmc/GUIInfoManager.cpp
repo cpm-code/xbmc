@@ -1179,6 +1179,22 @@ const infomap player_times[] =   {{ "seektime",         PLAYER_SEEKTIME },
 ///     @skinning_v17 **[New Infolabel]** \link Player_Process_aml_eoft_gamut `Player.Process(amlogic.eoft_gamut)`\endlink
 ///     <p>
 ///   }
+///   \table_row3{   <b>`Player.Process(videobitdepth)`</b>,
+///                  \anchor Player_Process_videobitdepth
+///                  _string_,
+///     @return Bit depth of the currently playing video.
+///     <p><hr>
+///     @skinning_v17 **[New Infolabel]** \link Player_Process_videobitdepth `Player.Process(videobitdepth)`\endlink
+///     <p>
+///   }
+///   \table_row3{   <b>`Player.Process(videohdrtype)`</b>,
+///                  \anchor Player_Process_videohdrtype
+///                  _string_,
+///     @return HDR type of the currently playing video.
+///     <p><hr>
+///     @skinning_v17 **[New Infolabel]** \link Player_Process_videohdrtype `Player.Process(videohdrtype)`\endlink
+///     <p>
+///   }
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
@@ -1198,7 +1214,28 @@ const infomap player_process[] = {{"videodecoder", PLAYER_PROCESS_VIDEODECODER},
                                   {"videoscantype", PLAYER_PROCESS_VIDEOSCANTYPE},
                                   {"amlogic.pixformat", PLAYER_PROCESS_AML_PIXELFORMAT },
                                   {"amlogic.displaymode", PLAYER_PROCESS_AML_DISPLAYMODE },
-                                  {"amlogic.eoft_gamut", PLAYER_PROCESS_AML_EOFT_GAMUT }};
+                                  {"amlogic.eoft_gamut", PLAYER_PROCESS_AML_EOFT_GAMUT },
+
+                                  {"video.bit.depth", PLAYER_PROCESS_VIDEO_BIT_DEPTH },
+                                  {"video.hdr.type", PLAYER_PROCESS_VIDEO_HDR_TYPE },
+                                  {"video.source.hdr.type", PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE },
+
+                                  {"video.color.space", PLAYER_PROCESS_VIDEO_COLOR_SPACE },
+                                  {"video.color.range", PLAYER_PROCESS_VIDEO_COLOR_RANGE },
+                                  {"video.color.primaries", PLAYER_PROCESS_VIDEO_COLOR_PRIMARIES },
+                                  {"video.color.transfer.characteristic", PLAYER_PROCESS_VIDEO_COLOR_TRANSFER_CHARACTERISTIC },
+                                  {"video.dovi.version.major", PLAYER_PROCESS_VIDEO_DOVI_VERSION_MAJOR },
+                                  {"video.dovi.version.minor", PLAYER_PROCESS_VIDEO_DOVI_VERSION_MINOR },
+                                  {"video.dovi.profile", PLAYER_PROCESS_VIDEO_DOVI_PROFILE },
+                                  {"video.dovi.level", PLAYER_PROCESS_VIDEO_DOVI_LEVEL },
+                                  {"video.dovi.rpu.present", PLAYER_PROCESS_VIDEO_DOVI_RPU_PRESENT },
+                                  {"video.dovi.el.present", PLAYER_PROCESS_VIDEO_DOVI_EL_PRESENT },
+                                  {"video.dovi.el.type", PLAYER_PROCESS_VIDEO_DOVI_EL_TYPE },
+                                  {"video.dovi.bl.present", PLAYER_PROCESS_VIDEO_DOVI_BL_PRESENT },
+                                  {"video.dovi.bl.signal.compatibility", PLAYER_PROCESS_VIDEO_DOVI_BL_SIGNAL_COMPATIBILITY },
+                                  {"video.dovi.codec.fourcc", PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC },
+                                  {"video.dovi.codec.string", PLAYER_PROCESS_VIDEO_DOVI_CODEC_STRING },
+                                  {"amlogic.vs10.mode", PLAYER_PROCESS_AML_VS10_MODE }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Weather Weather

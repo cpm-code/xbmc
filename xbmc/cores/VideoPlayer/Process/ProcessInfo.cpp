@@ -12,6 +12,10 @@
 #include "cores/DataCacheCore.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/SettingsComponent.h"
+#include "utils/AMLUtils.h"
+#include "utils/BitstreamConverter.h"
+
+#include <libavutil/avutil.h>
 
 #include <memory>
 #include <mutex>
@@ -74,6 +78,17 @@ void CProcessInfo::ResetVideoCodecInfo()
   m_videoHeight = 0;
   m_videoFPS = 0.0;
   m_videoDAR = 0.0;
+  m_videoBitDepth = 0;
+  m_videoHdrType = StreamHdrType::HDR_TYPE_NONE;
+  m_videoSourceHdrType = StreamHdrType::HDR_TYPE_NONE;
+  m_videoColorSpace = AVCOL_SPC_UNSPECIFIED;
+  m_videoColorRange = AVCOL_RANGE_UNSPECIFIED;
+  m_videoColorPrimaries = AVCOL_PRI_UNSPECIFIED;
+  m_videoColorTransferCharacteristic = AVCOL_TRC_UNSPECIFIED;
+  m_videoDoViDecoderConfigurationRecord = {};
+  m_videoDoViELType = ELType::TYPE_NONE;
+  m_videoDoViCodecFourCC = "";
+  m_videoVS10Mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
   m_videoIsInterlaced = false;
   m_deintMethods.clear();
   m_deintMethods.push_back(EINTERLACEMETHOD::VS_INTERLACEMETHOD_NONE);
@@ -90,6 +105,17 @@ void CProcessInfo::ResetVideoCodecInfo()
     m_dataCache->SetVideoDAR(m_videoDAR);
     m_dataCache->SetStateSeeking(m_stateSeeking);
     m_dataCache->SetVideoStereoMode(m_videoStereoMode);
+    m_dataCache->SetVideoBitDepth(m_videoBitDepth);
+    m_dataCache->SetVideoHdrType(m_videoHdrType);
+    m_dataCache->SetVideoSourceHdrType(m_videoSourceHdrType);
+    m_dataCache->SetVideoColorSpace(m_videoColorSpace);
+    m_dataCache->SetVideoColorRange(m_videoColorRange);
+    m_dataCache->SetVideoColorPrimaries(m_videoColorPrimaries);
+    m_dataCache->SetVideoColorTransferCharacteristic(m_videoColorTransferCharacteristic);
+    m_dataCache->SetVideoDoViDecoderConfigurationRecord(m_videoDoViDecoderConfigurationRecord);
+    m_dataCache->SetVideoDoViELType(m_videoDoViELType);
+    m_dataCache->SetVideoDoViCodecFourCC(m_videoDoViCodecFourCC);
+    m_dataCache->SetVideoVS10Mode(m_videoVS10Mode);
   }
 }
 
@@ -186,6 +212,193 @@ void CProcessInfo::GetVideoDimensions(int &width, int &height)
 
   width = m_videoWidth;
   height = m_videoHeight;
+}
+
+void CProcessInfo::SetVideoBitDepth(int bitDepth)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoBitDepth = bitDepth;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoBitDepth(m_videoBitDepth);
+}
+
+int CProcessInfo::GetVideoBitDepth()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoBitDepth;
+}
+
+void CProcessInfo::SetVideoHdrType(StreamHdrType hdrType)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoHdrType = hdrType;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoHdrType(m_videoHdrType);
+}
+
+StreamHdrType CProcessInfo::GetVideoHdrType()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoHdrType;
+}
+
+void CProcessInfo::SetVideoSourceHdrType(StreamHdrType hdrType)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoSourceHdrType = hdrType;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoSourceHdrType(m_videoSourceHdrType);
+}
+
+StreamHdrType CProcessInfo::GetVideoSourceHdrType()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoSourceHdrType;
+}
+
+void CProcessInfo::SetVideoColorSpace(AVColorSpace colorSpace)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoColorSpace = colorSpace;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoColorSpace(m_videoColorSpace);
+}
+
+AVColorSpace CProcessInfo::GetVideoColorSpace()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoColorSpace;
+}
+
+void CProcessInfo::SetVideoColorRange(AVColorRange colorRange)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoColorRange = colorRange;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoColorRange(m_videoColorRange);
+}
+
+AVColorRange CProcessInfo::GetVideoColorRange()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoColorRange;
+}
+
+void CProcessInfo::SetVideoColorPrimaries(AVColorPrimaries colorPrimaries)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoColorPrimaries = colorPrimaries;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoColorPrimaries(m_videoColorPrimaries);
+}
+
+AVColorPrimaries CProcessInfo::GetVideoColorPrimaries()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoColorPrimaries;
+}
+
+void CProcessInfo::SetVideoColorTransferCharacteristic(AVColorTransferCharacteristic colorTransferCharacteristic)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoColorTransferCharacteristic = colorTransferCharacteristic;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoColorTransferCharacteristic(m_videoColorTransferCharacteristic);
+}
+
+AVColorTransferCharacteristic CProcessInfo::GetVideoColorTransferCharacteristic()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoColorTransferCharacteristic;
+}
+
+void CProcessInfo::SetVideoDoViDecoderConfigurationRecord(AVDOVIDecoderConfigurationRecord doViDecoderConfigurationRecord)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoDoViDecoderConfigurationRecord = doViDecoderConfigurationRecord;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoDoViDecoderConfigurationRecord(m_videoDoViDecoderConfigurationRecord);
+}
+
+AVDOVIDecoderConfigurationRecord CProcessInfo::GetVideoDoViDecoderConfigurationRecord()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoDoViDecoderConfigurationRecord;
+}
+
+void CProcessInfo::SetVideoDoViELType(enum ELType elType)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoDoViELType = elType;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoDoViELType(m_videoDoViELType);
+}
+
+enum ELType CProcessInfo::GetVideoDoViELType()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoDoViELType;
+}
+
+void CProcessInfo::SetVideoDoViCodecFourCC(std::string codecFourCC)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoDoViCodecFourCC = codecFourCC;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoDoViCodecFourCC(m_videoDoViCodecFourCC);
+}
+
+std::string CProcessInfo::GetVideoDoViCodecFourCC()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoDoViCodecFourCC;
+}
+
+void CProcessInfo::SetVideoVS10Mode(unsigned int vs10Mode)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoVS10Mode= vs10Mode;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoVS10Mode(m_videoVS10Mode);
+}
+
+unsigned int CProcessInfo::GetVideoVS10Mode()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoVS10Mode;
 }
 
 void CProcessInfo::SetVideoFps(float fps)
