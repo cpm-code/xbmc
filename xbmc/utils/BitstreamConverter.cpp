@@ -283,8 +283,11 @@ static bool has_sei_recovery_point(const uint8_t *p, const uint8_t *end)
 }
 
 #ifdef HAVE_LIBDOVI
+
 // The returned data must be freed with `dovi_data_free`
 // May be NULL if no conversion was done
+
+/*
 static const DoviData* convert_dovi_rpu_nal(uint8_t* buf, uint32_t nal_size)
 {
   DoviRpuOpaque* rpu = dovi_parse_unspec62_nalu(buf, nal_size);
@@ -306,6 +309,7 @@ done:
 
   return rpu_data;
 }
+*/
 
 static enum ELType get_dovi_el_type(uint8_t* buf, uint32_t nal_size)
 {
@@ -775,6 +779,7 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
         const DoviData* rpu_data = NULL;
 #endif
 
+/*
         if (m_convert_dovi)
         {
 #ifdef HAVE_LIBDOVI
@@ -787,6 +792,7 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
           }
 #endif
         }
+*/
 
         BitstreamAllocAndCopy(&m_convertBuffer, &offset, nalu_62_data, size, nal_type);
 
@@ -1180,6 +1186,7 @@ void CBitstreamConverter::ProcessDoViRpu(uint8_t *buf, int32_t nal_size, uint8_t
   if (m_dovi_el_type == ELType::TYPE_NONE) m_dovi_el_type = get_dovi_el_type(buf, nal_size);
 #endif
 
+  /*
   if (m_convert_dovi)
   {
 #ifdef HAVE_LIBDOVI
@@ -1197,6 +1204,8 @@ void CBitstreamConverter::ProcessDoViRpu(uint8_t *buf, int32_t nal_size, uint8_t
   {
     BitstreamAllocAndCopy(poutbuf, poutbuf_size, NULL, 0, buf, nal_size, HEVC_NAL_UNSPEC62);
   }
+  */
+  BitstreamAllocAndCopy(poutbuf, poutbuf_size, NULL, 0, buf, nal_size, HEVC_NAL_UNSPEC62);
 }
 
 bool CBitstreamConverter::BitstreamConvert(uint8_t* pData, int iSize, uint8_t **poutbuf, int *poutbuf_size)
