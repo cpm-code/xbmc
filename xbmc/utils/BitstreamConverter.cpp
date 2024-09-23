@@ -1046,15 +1046,25 @@ bool CBitstreamConverter::IsSlice(uint8_t unit_type)
 }
 
 void CBitstreamConverter::ApplyMasteringDisplayColourVolume(const MasteringDisplayColourVolume& metadata) {
-  m_max_display_mastering_luminance = metadata.maxLuminance;
-  m_min_display_mastering_luminance = metadata.minLuminance;
-  CLog::Log(LOGINFO, "CBitstreamConverter::ApplyMasteringDisplayColourVolume [{}] [{}]", m_max_display_mastering_luminance, m_min_display_mastering_luminance);
+
+  if ((m_max_display_mastering_luminance != metadata.maxLuminance) ||
+      (m_min_display_mastering_luminance != metadata.minLuminance))
+  {
+    m_max_display_mastering_luminance = metadata.maxLuminance;
+    m_min_display_mastering_luminance = metadata.minLuminance;
+    CLog::Log(LOGINFO, "CBitstreamConverter::ApplyMasteringDisplayColourVolume [{}] [{}]", m_max_display_mastering_luminance, m_min_display_mastering_luminance);
+  }
 }
 
 void CBitstreamConverter::ApplyContentLightLevel(const ContentLightLevel& metadata) {
-  m_max_content_light_level = metadata.maxContentLightLevel;
-  m_max_frame_average_light_level = metadata.maxFrameAverageLightLevel;
-  CLog::Log(LOGINFO, "CBitstreamConverter::ApplyContentLightLevel [{}] [{}]", m_max_content_light_level, m_max_frame_average_light_level);
+
+  if ((m_max_content_light_level != metadata.maxContentLightLevel) ||
+      (m_max_frame_average_light_level != metadata.maxFrameAverageLightLevel))
+  {
+    m_max_content_light_level = metadata.maxContentLightLevel;
+    m_max_frame_average_light_level = metadata.maxFrameAverageLightLevel;
+    CLog::Log(LOGINFO, "CBitstreamConverter::ApplyContentLightLevel [{}] [{}]", m_max_content_light_level, m_max_frame_average_light_level);
+  }
 }
 
 void CBitstreamConverter::AddDoViRpuNalu(const Hdr10PlusMetadata& meta, uint8_t **poutbuf, int *poutbuf_size) {
