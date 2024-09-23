@@ -430,6 +430,43 @@ std::string aml_dv_output_mode_to_string(unsigned int mode)
   return mode_string;
 }
 
+std::string aml_dv_mode_to_string(enum DV_MODE mode)
+{
+  std::string mode_string = "Unkown";
+  switch (mode) {
+    case DV_MODE::DV_MODE_ON:
+      mode_string = "0-On";
+      break;
+    case DV_MODE::DV_MODE_ON_DEMAND:
+      mode_string = "1-On Demand";
+      break;
+    case DV_MODE::DV_MODE_OFF:
+      mode_string = "2-Off";
+      break;
+  }
+  return mode_string;
+}
+
+std::string aml_dv_type_to_string(enum DV_TYPE type)
+{
+  std::string type_string = "Unkown";
+  switch (type) {
+    case DV_TYPE::DV_TYPE_DISPLAY_LED:
+      type_string = "0-Display Led (DV-Std)";
+      break;
+    case DV_TYPE::DV_TYPE_PLAYER_LED_LLDV:
+      type_string = "1-Player Led (DV-LL)";
+      break;
+    case DV_TYPE::DV_TYPE_PLAYER_LED_HDR:
+      type_string = "2-Player Led (HDR)";
+      break;
+    case DV_TYPE::DV_TYPE_VS10_ONLY:
+      type_string = "3-VS10 Only";
+      break;
+  }
+  return type_string;
+}
+
 unsigned int aml_dv_on(unsigned int mode)
 {
   // set the Dolby VSVDB parameter to latest value from user.
@@ -533,7 +570,7 @@ unsigned int aml_dv_dolby_vision_mode()
 void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
 {
   enum DV_MODE dv_mode(aml_dv_mode());
-  CLog::Log(LOGINFO, "AMLUtils::{} - Checking DV for DV mode: [{}], DV type: [{}]", __FUNCTION__, dv_mode, aml_dv_type());
+  CLog::Log(LOGINFO, "AMLUtils::{} - Checking DV for DV mode: [{}], DV type: [{}]", __FUNCTION__, aml_dv_mode_to_string(dv_mode), aml_dv_type_to_string(aml_dv_type()));
   if (dv_mode == DV_MODE_ON || dv_mode == DV_MODE_ON_DEMAND) {
 
     unsigned int vs10_mode = aml_vs10_by_hdrtype(hdrType, bitDepth);    
