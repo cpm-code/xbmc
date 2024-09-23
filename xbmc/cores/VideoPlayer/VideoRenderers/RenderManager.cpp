@@ -932,6 +932,7 @@ void CRenderManager::UpdateResolution()
 
 void CRenderManager::TriggerUpdateResolutionHdr(StreamHdrType hdrType)
 {
+  CLog::Log(LOGINFO, "CRenderManager::TriggerUpdateResolutionHdr - hdr type [{}]", CStreamDetails::DynamicRangeToString(hdrType));
   m_hdrType_override = hdrType;
   m_bTriggerUpdateResolution = true;
 }
