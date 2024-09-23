@@ -104,7 +104,7 @@ bool aml_support_dolby_vision();
 bool aml_dolby_vision_enabled();
 std::string aml_dv_mode_to_string(unsigned int mode);
 void aml_dv_wait_video_off(int timeout);
-void aml_dv_on(unsigned int mode);
+unsigned int aml_dv_on(unsigned int mode);
 void aml_dv_off();
 unsigned int aml_dv_dolby_vision_mode();
 void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth);

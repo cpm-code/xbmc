@@ -430,7 +430,7 @@ std::string aml_dv_mode_to_string(unsigned int mode)
   return mode_string;
 }
 
-void aml_dv_on(unsigned int mode)
+unsigned int aml_dv_on(unsigned int mode)
 {
   // set the Dolby VSVDB parameter to latest value from user.
   bool dv_dolby_vsvdb_inject(settings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_INJECT));
@@ -504,6 +504,8 @@ void aml_dv_on(unsigned int mode)
     if ((mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) || (mode = DOLBY_VISION_OUTPUT_MODE_IPT)) 
       aml_dv_trigger_update_resolution(StreamHdrType::HDR_TYPE_DOLBYVISION);
   }
+
+  return mode;
 }
 
 void aml_dv_off()
@@ -537,7 +539,7 @@ void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
     unsigned int vs10_mode = aml_vs10_by_hdrtype(hdrType, bitDepth);    
 
     if (vs10_mode != DOLBY_VISION_OUTPUT_MODE_BYPASS) 
-      aml_dv_on(vs10_mode);
+      vs10_mode = aml_dv_on(vs10_mode);
     else if (aml_is_dv_enable()) // DV BYPASS, and it is on - then switch it off.
       aml_dv_off(); 
 
