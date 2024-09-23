@@ -51,15 +51,15 @@ static void aml_dv_toggle_frame(unsigned int mode)
   if (dolby_vision_flags.Exists()) 
   {
     dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() | FLAG_TOGGLE_FRAME);
-    CLog::Log(LOGINFO, "AMLUtils::{} - Toggle Frame - start - for mode [{}]", __FUNCTION__, aml_dv_mode_to_string(mode));
+    CLog::Log(LOGINFO, "AMLUtils::{} - Toggle Frame - start - for mode [{}]", __FUNCTION__, aml_dv_output_mode_to_string(mode));
     std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
     while(true) { 
       if ((dolby_vision_flags.Get<unsigned int>().value() & FLAG_TOGGLE_FRAME) == 0) {
-        CLog::Log(LOGINFO, "AMLUtils::{} - Toggle Frame - done - for mode [{}]", __FUNCTION__, aml_dv_mode_to_string(mode));
+        CLog::Log(LOGINFO, "AMLUtils::{} - Toggle Frame - done - for mode [{}]", __FUNCTION__, aml_dv_output_mode_to_string(mode));
         break;
       }
       if ((std::chrono::system_clock::now() - now) >= std::chrono::milliseconds(3000)) {
-        CLog::Log(LOGINFO, "AMLUtils::{} - Toggle Frame - wait time elapsed - for mode [{}]", __FUNCTION__, aml_dv_mode_to_string(mode));
+        CLog::Log(LOGINFO, "AMLUtils::{} - Toggle Frame - wait time elapsed - for mode [{}]", __FUNCTION__, aml_dv_output_mode_to_string(mode));
         break;
       } 
       usleep(10000); // wait 10ms
@@ -73,15 +73,15 @@ static void aml_dv_wait_target_mode(unsigned int target_mode)
   CSysfsPath dolby_vision_target_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_target_mode"};
   if (dolby_vision_target_mode.Exists())
   {
-    CLog::Log(LOGINFO, "AMLUtils::{} - Target Mode Change - start - for mode [{}]", __FUNCTION__, aml_dv_mode_to_string(target_mode));
+    CLog::Log(LOGINFO, "AMLUtils::{} - Target Mode Change - start - for mode [{}]", __FUNCTION__, aml_dv_output_mode_to_string(target_mode));
     std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
     while(true) { 
       if (dolby_vision_target_mode.Get<unsigned int>().value() == target_mode) {
-        CLog::Log(LOGINFO, "AMLUtils::{} - Target Mode Change - done - for mode [{}]", __FUNCTION__, aml_dv_mode_to_string(target_mode));
+        CLog::Log(LOGINFO, "AMLUtils::{} - Target Mode Change - done - for mode [{}]", __FUNCTION__, aml_dv_output_mode_to_string(target_mode));
         break;
       }
       if ((std::chrono::system_clock::now() - now) >= std::chrono::milliseconds(3000)) {
-        CLog::Log(LOGINFO, "AMLUtils::{} - Target Mode Change - wait time elapsed - for mode [{}]", __FUNCTION__, aml_dv_mode_to_string(target_mode));
+        CLog::Log(LOGINFO, "AMLUtils::{} - Target Mode Change - wait time elapsed - for mode [{}]", __FUNCTION__, aml_dv_output_mode_to_string(target_mode));
         break;
       } 
       usleep(10000); // wait 10ms
@@ -407,7 +407,7 @@ bool aml_dolby_vision_enabled()
   return ((dv_enabled && !!dv_user_enabled) == 1);
 }
 
-std::string aml_dv_mode_to_string(unsigned int mode)
+std::string aml_dv_output_mode_to_string(unsigned int mode)
 {
   std::string mode_string = "Unkown";
   switch (mode) {
@@ -486,7 +486,7 @@ unsigned int aml_dv_on(unsigned int mode)
   CSysfsPath dolby_vision_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_mode"};
   unsigned int existing_mode = dolby_vision_mode.Get<unsigned int>().value();
   bool modeChange(existing_mode != mode);
-  CLog::Log(LOGINFO, "AMLUtils::{} - mode change [{}], existing mode [{}], this mode [{}]", __FUNCTION__, modeChange, aml_dv_mode_to_string(existing_mode), aml_dv_mode_to_string(mode));
+  CLog::Log(LOGINFO, "AMLUtils::{} - mode change [{}], existing mode [{}], this mode [{}]", __FUNCTION__, modeChange, aml_dv_output_mode_to_string(existing_mode), aml_dv_output_mode_to_string(mode));
   if (modeChange) CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_mode", mode);
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_policy", DOLBY_VISION_FORCE_OUTPUT_MODE);  
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", "Y");
@@ -544,7 +544,7 @@ void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
       aml_dv_off(); 
 
     bool content_is_dv(hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
-    CLog::Log(LOGINFO, "AMLUtils::{} - DV is [{}], requested with vs10 mode: [{}], set for: [{}]",  __FUNCTION__, aml_is_dv_enable(), aml_dv_mode_to_string(vs10_mode), content_is_dv ? "content" : "mapping");
+    CLog::Log(LOGINFO, "AMLUtils::{} - DV is [{}], requested with vs10 mode: [{}], set for: [{}]",  __FUNCTION__, aml_is_dv_enable(), aml_dv_output_mode_to_string(vs10_mode), content_is_dv ? "content" : "mapping");
   }
 }
 

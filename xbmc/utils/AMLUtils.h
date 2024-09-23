@@ -102,7 +102,7 @@ bool aml_support_vp9();
 bool aml_support_av1();
 bool aml_support_dolby_vision();
 bool aml_dolby_vision_enabled();
-std::string aml_dv_mode_to_string(unsigned int mode);
+std::string aml_dv_output_mode_to_string(unsigned int mode);
 void aml_dv_wait_video_off(int timeout);
 unsigned int aml_dv_on(unsigned int mode);
 void aml_dv_off();
