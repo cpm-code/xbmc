@@ -912,13 +912,19 @@ void CRenderManager::UpdateResolution()
       if (m_bTriggerUpdateResolution &&
           CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_ADJUSTREFRESHRATE) != ADJUST_REFRESHRATE_OFF && m_fps > 0.0f)
       {
-        RESOLUTION res = CResolutionUtils::ChooseBestResolution(m_fps, m_width, m_height, !m_stereomode.empty());
+
         StreamHdrType actual_hdrType = (m_hdrType_override != StreamHdrType::HDR_TYPE_NONE) ? m_hdrType_override : m_hdrType;
+
+        CLog::Log(LOGINFO, "CRenderManager::{} Before - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
+          __FUNCTION__, m_fps, m_width, m_height, m_stereomode.empty(), CStreamDetails::DynamicRangeToString(actual_hdrType));
+  
+        RESOLUTION res = CResolutionUtils::ChooseBestResolution(m_fps, m_width, m_height, !m_stereomode.empty());
         CServiceBroker::GetWinSystem()->GetGfxContext().SetHDRType(actual_hdrType);
         CServiceBroker::GetWinSystem()->GetGfxContext().SetVideoResolution(res, false);
         UpdateLatencyTweak();
 
-        CLog::Log(LOGINFO, "CRenderManager::UpdateResolution - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]", m_fps, m_width, m_height, m_stereomode.empty(), CStreamDetails::DynamicRangeToString(actual_hdrType));
+        CLog::Log(LOGINFO, "CRenderManager::{} After - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
+          __FUNCTION__, m_fps, m_width, m_height, m_stereomode.empty(), CStreamDetails::DynamicRangeToString(actual_hdrType));
         
         if (m_pRenderer) 
           m_pRenderer->Update();
@@ -932,13 +938,18 @@ void CRenderManager::UpdateResolution()
 
 void CRenderManager::TriggerUpdateResolutionHdr(StreamHdrType hdrType)
 {
-  CLog::Log(LOGINFO, "CRenderManager::TriggerUpdateResolutionHdr - hdr type [{}]", CStreamDetails::DynamicRangeToString(hdrType));
+  CLog::Log(LOGINFO, "CRenderManager::{} - hdr type [{}] current trigger [{}]",
+    __FUNCTION__, CStreamDetails::DynamicRangeToString(hdrType), m_bTriggerUpdateResolution);
+
   m_hdrType_override = hdrType;
   m_bTriggerUpdateResolution = true;
 }
 
 void CRenderManager::TriggerUpdateResolution(float fps, int width, int height, std::string &stereomode)
 {
+  CLog::Log(LOGINFO, "CRenderManager::{} - fps [{}] width [{}] height [{}] stereomode empty [{}] current trigger [{}]", 
+    __FUNCTION__, fps, width, height, m_stereomode.empty(), m_bTriggerUpdateResolution);
+
   if (width)
   {
     m_fps = fps;
