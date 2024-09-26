@@ -2138,6 +2138,16 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
       if (m_hints.ptsinvalid)
         am_private->gcodec.param = (void*)(EXTERNAL_PTS | SYNC_OUTSIDE);
       break;
+    case VFORMAT_AV1:
+      // disable fb decoder if lower than 1080p
+      if (aml_get_cpufamily_id() >= AML_S5)
+      {
+        if (hints.width < 1920 || hints.height < 1080)
+          CSysfsPath("/sys/module/amvdec_av1_fb/parameters/front_back_mode", 0);
+        else
+          CSysfsPath("/sys/module/amvdec_av1_fb/parameters/front_back_mode", 1);
+      }
+      break;
   }
   am_private->gcodec.param = (void *)((std::uintptr_t)am_private->gcodec.param | (am_private->video_rotation_degree << 16));
 
