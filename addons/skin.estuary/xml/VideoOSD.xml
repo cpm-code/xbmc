@@ -150,6 +150,13 @@
 						<onclick>PlayerControl(ShowVideoMenu)</onclick>
 						<visible>VideoPlayer.HasMenu</visible>
 					</control>
+					<control type="radiobutton" id="70011">
+					<include content="OSDButton">
+					       <param name="texture" value="osd/fullscreen/buttons/processinfo.png"/>
+					</include>
+					       <onclick>Action(Close)</onclick>
+					       <onclick>ActivateWindow(playerprocessinfo)</onclick>
+				        </control>
 					<control type="radiobutton" id="70040">
 						<include content="OSDButton">
 							<param name="texture" value="osd/fullscreen/buttons/channels.png"/>
