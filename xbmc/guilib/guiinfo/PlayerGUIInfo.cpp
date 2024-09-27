@@ -518,6 +518,9 @@ bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int con
     case PLAYER_PROCESS_AML_VS10_MODE:
       value = VS10ModeToString(aml_dv_dolby_vision_mode());
       return true;
+    case PLAYER_PROCESS_AML_VIDEO_FPS_INFO:
+      value = aml_video_fps_info();
+      return true;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // PLAYLIST_*
