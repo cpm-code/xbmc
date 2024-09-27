@@ -1235,7 +1235,9 @@ const infomap player_process[] = {{"videodecoder", PLAYER_PROCESS_VIDEODECODER},
                                   {"video.dovi.bl.signal.compatibility", PLAYER_PROCESS_VIDEO_DOVI_BL_SIGNAL_COMPATIBILITY },
                                   {"video.dovi.codec.fourcc", PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC },
                                   {"video.dovi.codec.string", PLAYER_PROCESS_VIDEO_DOVI_CODEC_STRING },
-                                  {"amlogic.vs10.mode", PLAYER_PROCESS_AML_VS10_MODE }};
+                                  {"amlogic.vs10.mode", PLAYER_PROCESS_AML_VS10_MODE },
+                                  
+                                  {"amlogic.video.fps.info", PLAYER_PROCESS_AML_VIDEO_FPS_INFO },};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Weather Weather

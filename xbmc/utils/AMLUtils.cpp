@@ -13,6 +13,11 @@
 #include <fcntl.h>
 #include <string>
 #include <regex>
+#include <chrono>
+#include <vector>
+#include <numeric>
+#include <cmath>
+#include <algorithm>
 
 #include "AMLUtils.h"
 
@@ -1260,4 +1265,119 @@ bool aml_unset_reg_ignore_alpha()
     }
   }
   return false;
+}
+
+struct FpsData {
+  unsigned int input_fps;
+  unsigned int output_fps;
+  unsigned int drop_fps;
+  std::chrono::steady_clock::time_point timestamp;
+};
+
+std::string aml_video_fps_info()
+{
+  static std::vector<FpsData> fps_history;
+  static const std::chrono::seconds HISTORY_DURATION(1);
+  static int rotation_index = 0;
+  static std::chrono::steady_clock::time_point last_update = std::chrono::steady_clock::now();
+  static std::chrono::steady_clock::time_point last_fps_drop = std::chrono::steady_clock::now();
+  static int last_output_fps = 0;
+  static std::string fps_change_info;
+  static bool was_fps_dropping = false;
+  const char rotation_chars[] = {'|', '/', '-', '\\'};
+  const std::chrono::milliseconds UPDATE_INTERVAL(100);
+  const std::chrono::seconds FPS_DROP_INDICATOR_DURATION(5);
+
+  CSysfsPath fps_info{"/sys/class/video/fps_info"};
+  if (fps_info.Exists()) {
+    std::string input = fps_info.Get<std::string>().value();
+    unsigned int input_fps, output_fps, drop_fps;
+
+    std::istringstream iss(input);
+    std::string dummy;
+
+    if (iss.ignore(std::numeric_limits<std::streamsize>::max(), ':') &&
+        iss >> std::hex >> input_fps &&
+        iss.ignore(std::numeric_limits<std::streamsize>::max(), ':') &&
+        iss >> std::hex >> output_fps &&
+        iss.ignore(std::numeric_limits<std::streamsize>::max(), ':') &&
+        iss >> std::hex >> drop_fps) {
+
+      auto now = std::chrono::steady_clock::now();
+      fps_history.push_back({input_fps, output_fps, drop_fps, now});
+
+      // Remove old entries
+      fps_history.erase(
+        std::remove_if(fps_history.begin(), fps_history.end(),
+          [&now](const FpsData& data) {
+            return now - data.timestamp > HISTORY_DURATION;
+          }),
+        fps_history.end()
+      );
+
+      // Calculate averages, ignoring entries where output_fps is 0
+      double avg_input = 0, avg_output = 0, avg_drop = 0;
+      int valid_count = 0;
+
+      for (const auto& data : fps_history) {
+        if (data.output_fps > 0) {
+          avg_input += data.input_fps;
+          avg_output += data.output_fps;
+          avg_drop += data.drop_fps;
+          valid_count++;
+        }
+      }
+
+      if (valid_count > 0) {
+        avg_input /= valid_count;
+        avg_output /= valid_count;
+        avg_drop /= valid_count;
+
+        // Format the averages
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(0) << std::setfill('0')
+            << std::setw(3) << std::round(avg_input) << " - "
+            << std::setw(3) << std::round(avg_output) << " - "
+            << std::setw(3) << std::round(avg_drop);
+
+        // Update spinner every 100ms
+        if (now - last_update >= UPDATE_INTERVAL) {
+          rotation_index = (rotation_index + 1) % 4;
+          last_update = now;
+        }
+
+        // Add current spinner state followed by a tab
+        oss << " " << rotation_chars[rotation_index] << '\t';
+
+        // Check if output FPS has changed
+        int rounded_input_fps = std::round(avg_input);
+        int rounded_output_fps = std::round(avg_output);
+        bool is_fps_dropping = rounded_output_fps < rounded_input_fps;
+
+        if (rounded_output_fps != last_output_fps) {
+          if (is_fps_dropping) {
+            fps_change_info = "-> " + std::to_string(rounded_output_fps);
+            last_fps_drop = now;
+            was_fps_dropping = true;
+          } else if (was_fps_dropping) {
+            // FPS has returned to input, but keep showing the last drop
+            last_fps_drop = now;
+          }
+          last_output_fps = rounded_output_fps;
+        }
+
+        // Add FPS change info if it's dropping or within 5 seconds of last drop
+        if (is_fps_dropping || now - last_fps_drop < FPS_DROP_INDICATOR_DURATION) {
+          oss << fps_change_info;
+        }
+
+        // Update was_fps_dropping for the next iteration
+        was_fps_dropping = is_fps_dropping;
+
+        return oss.str();
+      }
+    }
+  }
+  
+  return "";
 }

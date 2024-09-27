@@ -139,3 +139,4 @@ bool aml_read_reg(const std::string &reg, uint32_t &reg_val);
 bool aml_has_capability_ignore_alpha();
 bool aml_set_reg_ignore_alpha();
 bool aml_unset_reg_ignore_alpha();
+std::string aml_video_fps_info();
