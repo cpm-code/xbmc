@@ -24914,3 +24914,9 @@ msgstr ""
 msgctxt "#50108"
 msgid "max-scl-luminance"
 msgstr ""
+
+#. "Dolby Vision HDR10+"
+#: system/settings/settings.xml
+msgctxt "#50109"
+msgid "histogram-plus"
+msgstr ""

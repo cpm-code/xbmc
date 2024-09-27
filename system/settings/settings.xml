@@ -4077,6 +4077,7 @@
               <option label="50106">1</option> <!-- histogram99 -->
               <option label="50107">2</option> <!-- max-scl -->
               <option label="50108">3</option> <!-- max-scl-Luminance -->
+              <option label="50109">4</option> <!-- histogram-plus -->
             </options>
           </constraints>
           <control type="spinner" format="string" />

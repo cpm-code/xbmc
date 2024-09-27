@@ -14,7 +14,8 @@ enum class PeakBrightnessSource {
   Histogram = 0,
   Histogram99,
   MaxScl,
-  MaxSclLuminance
+  MaxSclLuminance,
+  HistogramPlus
 };
 
 struct VdrDmData {
