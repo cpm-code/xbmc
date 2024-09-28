@@ -138,15 +138,8 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
            (info.iScreenHeight >= curr.iScreenHeight && info.iScreenWidth >= curr.iScreenWidth)) &&
            (info.dwFlags & dwFlags) == dwFlags)
       {
-        // do not add half refreshrates (25, 29.97 by default) as kodi cannot cope with
-        // them on playback start. Especially interlaced content is not properly detected
-        // and this causes ugly double switching.
-        // This won't allow 25p / 30p playback on native refreshrate by default
-        if ((info.fRefreshRate > 30) || (MathUtils::FloatEquals(info.fRefreshRate, 24.0f, 0.1f)))
-        {
-          resString = CDisplaySettings::GetInstance().GetStringFromRes(c);
-          indexList.emplace_back(resString);
-        }
+        resString = CDisplaySettings::GetInstance().GetStringFromRes(c);
+        indexList.emplace_back(resString);
       }
     }
   }
@@ -179,6 +172,9 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
         penalty = pen;
       }
     }
+    if (found && !CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
+          SETTING_VIDEOSCREEN_WHITELIST_DOUBLEREFRESHRATE))
+      return;
   }
 
   if (!found)

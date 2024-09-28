@@ -3175,9 +3175,6 @@
         <setting id="videoscreen.whitelistdoublerefreshrate" type="boolean" parent="videoscreen.whitelist" label="14128" help="36445">
           <level>3</level>
           <default>false</default>
-          <dependencies>
-            <dependency type="enable" setting="videoscreen.whitelist" operator="!is"></dependency>
-          </dependencies>
           <control type="toggle" />
         </setting>
       </group>
