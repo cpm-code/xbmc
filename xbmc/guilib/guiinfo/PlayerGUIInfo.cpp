@@ -225,11 +225,11 @@ bool CPlayerGUIInfo::InitCurrentItem(CFileItem *item)
 
 std::string HdrTypeToString(StreamHdrType hdrType) {
   switch (hdrType) {
-    case StreamHdrType::HDR_TYPE_NONE: return "sdr";
-    case StreamHdrType::HDR_TYPE_HDR10: return "hdr10";
-    case StreamHdrType::HDR_TYPE_HDR10PLUS: return "hdr10+";
-    case StreamHdrType::HDR_TYPE_DOLBYVISION: return "dolby vision";
-    case StreamHdrType::HDR_TYPE_HLG: return "hlg hdr";
+    case StreamHdrType::HDR_TYPE_NONE: return "SDR";
+    case StreamHdrType::HDR_TYPE_HDR10: return "HDR10";
+    case StreamHdrType::HDR_TYPE_HDR10PLUS: return "HDR10+";
+    case StreamHdrType::HDR_TYPE_DOLBYVISION: return "Dolby Vision";
+    case StreamHdrType::HDR_TYPE_HLG: return "HLG HDR";
   }
   return "";
 }
@@ -518,9 +518,13 @@ bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int con
     case PLAYER_PROCESS_AML_VS10_MODE:
       value = VS10ModeToString(aml_dv_dolby_vision_mode());
       return true;
+    case PLAYER_PROCESS_AML_VS10_MODE_RAW:
+      value = std::to_string(aml_dv_dolby_vision_mode());
+      return true;
     case PLAYER_PROCESS_AML_VIDEO_FPS_INFO:
       value = aml_video_fps_info();
       return true;
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // PLAYLIST_*

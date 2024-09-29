@@ -800,4 +800,21 @@
 		<value condition="ListItem.IsStereoscopic">$INFO[ListItem.Duration,$LOCALIZE[180]: ][CR]$VAR[VideoCodecVar,, ]$INFO[ListItem.VideoResolution,| , ]$VAR[VideoResolutionTypeVar,, ]$VAR[VideoHDRVar,| , ]| 3D $INFO[ListItem.VideoAspect,| ,:1 ]$VAR[AudioCodecVar,| , ]$VAR[AudioChannelsVar]</value>
 		<value>$INFO[ListItem.Duration,$LOCALIZE[180]: ][CR]$VAR[VideoCodecVar,, ]$INFO[ListItem.VideoResolution,| , ]$VAR[VideoResolutionTypeVar,, ]$VAR[VideoHDRVar,| , ]$INFO[ListItem.VideoAspect,| ,:1 ]$VAR[AudioCodecVar,| , ]$VAR[AudioChannelsVar]</value>
 	</variable>
+	<variable name="DVELVar">
+		<value condition="String.Contains(Player.Process(video.dovi.el.type),minimum)">MEL</value>
+		<value condition="String.Contains(Player.Process(video.dovi.el.type),full)">FEL</value>
+		<value condition="String.Contains(Player.Process(video.dovi.el.type),none)"></value>
+	</variable>
+	<variable name="DVProfileExtVar">
+		<value>$INFO[Player.Process(video.dovi.profile)].$INFO[Player.Process(video.dovi.bl.signal.compatibility)]</value>
+	</variable>
+	<variable name="DVTunnelVar">
+		<value condition="String.Contains(Player.Process(amlogic.vs10.mode.raw),1)">DV Tunnel</value>
+	</variable>
+	<variable name="DVVS10Var">
+		<value condition="String.Contains(Player.Process(amlogic.vs10.mode),dolby vision)">Dolby Vision</value>
+		<value condition="String.Contains(Player.Process(amlogic.vs10.mode),hdr10)">HDR10</value>
+		<value condition="String.Contains(Player.Process(amlogic.vs10.mode),sdr)">SDR</value>
+		<value condition="String.Contains(Player.Process(amlogic.vs10.mode),bypass)">bypass</value>
+	</variable>
 </includes>
