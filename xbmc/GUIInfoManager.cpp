@@ -1236,6 +1236,7 @@ const infomap player_process[] = {{"videodecoder", PLAYER_PROCESS_VIDEODECODER},
                                   {"video.dovi.codec.fourcc", PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC },
                                   {"video.dovi.codec.string", PLAYER_PROCESS_VIDEO_DOVI_CODEC_STRING },
                                   {"amlogic.vs10.mode", PLAYER_PROCESS_AML_VS10_MODE },
+                                  {"amlogic.vs10.mode.raw", PLAYER_PROCESS_AML_VS10_MODE_RAW },
                                   
                                   {"amlogic.video.fps.info", PLAYER_PROCESS_AML_VIDEO_FPS_INFO },};
 
