@@ -1855,22 +1855,35 @@ int CAMLCodec::GetAmlDuration() const
   return am_private ? (am_private->video_rate * PTS_FREQ) / UNIT_FREQ : 0;
 };
 
+std::string intToFourCCString(unsigned int value) 
+{
+  char bytes[4];
+  bytes[0] = value & 0xFF;
+  bytes[1] = (value >> 8) & 0xFF;
+  bytes[2] = (value >> 16) & 0xFF;
+  bytes[3] = (value >> 24) & 0xFF;
+
+  std::string fourCCString(bytes, 4);
+
+  for (auto& c : fourCCString) {
+      c = std::tolower(c, std::locale());
+  }
+
+  return fourCCString;
+}
+
 std::string GetDoViCodecFourCC(unsigned int codec_tag)
 {
-  if (codec_tag == MKTAG('d', 'v', 'h', 'e')) return "dvhe";
-  if (codec_tag == MKTAG('d', 'v', 'h', '1')) return "dvh1";
-  if (codec_tag == MKTAG('d', 'v', 'a', 'v')) return "dvav";
-  if (codec_tag == MKTAG('d', 'a', 'v', '1')) return "dav1";
+  if (codec_tag == 0) return "----";
+
+  std::string fourCC = intToFourCCString(codec_tag);
 
   // some files don't have dvhe or dvh1 tag set up but have Dolby Vision side data
   // page 10, table 2 from https://professional.dolby.com/siteassets/content-creation/dolby-vision-for-content-creators/dolby-vision-streams-within-the-http-live-streaming-format-v2.0-13-november-2018.pdf
-  
-  if (codec_tag == MKTAG('h', 'v', 'c', '1')) return "dvh1";
-  if (codec_tag == MKTAG('h', 'e', 'v', '1')) return "dvhe";
+  if (fourCC == "hvc1") return "dvh1";
+  if (fourCC == "hev1") return "dvhe";
 
-  // FIXME: What about Add AVC and AV1 ?
-
-  return StringUtils::FormatNumber(codec_tag);
+  return fourCC;
 }
 
 void SetProcessInfoVideoDetails(CProcessInfo &processInfo, CDVDStreamInfo &hints, enum ELType dovi_el_type) 
