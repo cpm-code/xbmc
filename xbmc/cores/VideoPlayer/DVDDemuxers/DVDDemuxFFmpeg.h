@@ -182,4 +182,5 @@ protected:
   double m_startTime = 0;
   std::vector<ChapterFFmpeg> m_chapters;
   bool m_dv_dual_stream = false;
+  bool m_dv_dual_stream_started = false;
 };
