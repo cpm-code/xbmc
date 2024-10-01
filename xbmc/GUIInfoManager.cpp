@@ -1212,14 +1212,11 @@ const infomap player_process[] = {{"videodecoder", PLAYER_PROCESS_VIDEODECODER},
                                   {"audiosamplerate", PLAYER_PROCESS_AUDIOSAMPLERATE},
                                   {"audiobitspersample", PLAYER_PROCESS_AUDIOBITSPERSAMPLE},
                                   {"videoscantype", PLAYER_PROCESS_VIDEOSCANTYPE},
-                                  {"amlogic.pixformat", PLAYER_PROCESS_AML_PIXELFORMAT },
-                                  {"amlogic.displaymode", PLAYER_PROCESS_AML_DISPLAYMODE },
-                                  {"amlogic.eoft_gamut", PLAYER_PROCESS_AML_EOFT_GAMUT },
-
                                   {"video.bit.depth", PLAYER_PROCESS_VIDEO_BIT_DEPTH },
                                   {"video.hdr.type", PLAYER_PROCESS_VIDEO_HDR_TYPE },
                                   {"video.source.hdr.type", PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE },
-
+                                  {"video.width.raw", PLAYER_PROCESS_VIDEO_WIDTH_RAW},
+                                  {"video.height.raw", PLAYER_PROCESS_VIDEO_HEIGHT_RAW},
                                   {"video.color.space", PLAYER_PROCESS_VIDEO_COLOR_SPACE },
                                   {"video.color.range", PLAYER_PROCESS_VIDEO_COLOR_RANGE },
                                   {"video.color.primaries", PLAYER_PROCESS_VIDEO_COLOR_PRIMARIES },
@@ -1235,10 +1232,13 @@ const infomap player_process[] = {{"videodecoder", PLAYER_PROCESS_VIDEODECODER},
                                   {"video.dovi.bl.signal.compatibility", PLAYER_PROCESS_VIDEO_DOVI_BL_SIGNAL_COMPATIBILITY },
                                   {"video.dovi.codec.fourcc", PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC },
                                   {"video.dovi.codec.string", PLAYER_PROCESS_VIDEO_DOVI_CODEC_STRING },
+                                  {"amlogic.pixformat", PLAYER_PROCESS_AML_PIXELFORMAT },
+                                  {"amlogic.displaymode", PLAYER_PROCESS_AML_DISPLAYMODE },
+                                  {"amlogic.eoft_gamut", PLAYER_PROCESS_AML_EOFT_GAMUT },
                                   {"amlogic.vs10.mode", PLAYER_PROCESS_AML_VS10_MODE },
                                   {"amlogic.vs10.mode.raw", PLAYER_PROCESS_AML_VS10_MODE_RAW },
-                                  
-                                  {"amlogic.video.fps.info", PLAYER_PROCESS_AML_VIDEO_FPS_INFO },};
+                                  {"amlogic.video.fps.info", PLAYER_PROCESS_AML_VIDEO_FPS_INFO },
+                                  {"amlogic.video.fps.drop", PLAYER_PROCESS_AML_VIDEO_FPS_DROP },};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Weather Weather
