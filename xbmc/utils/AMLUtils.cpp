@@ -1274,19 +1274,20 @@ struct FpsData {
   std::chrono::steady_clock::time_point timestamp;
 };
 
-std::string aml_video_fps_info()
-{
+struct FpsInfo {
+  double avg_input;
+  double avg_output;
+  double avg_drop;
+  bool is_dropping;
+  int dropped_fps;
+};
+
+FpsInfo gather_fps_data() {
+  
   static std::vector<FpsData> fps_history;
   static const std::chrono::seconds HISTORY_DURATION(1);
-  static int rotation_index = 0;
-  static std::chrono::steady_clock::time_point last_update = std::chrono::steady_clock::now();
-  static std::chrono::steady_clock::time_point last_fps_drop = std::chrono::steady_clock::now();
   static int last_output_fps = 0;
-  static std::string fps_change_info;
-  static bool was_fps_dropping = false;
-  const char rotation_chars[] = {'|', '/', '-', '\\'};
-  const std::chrono::milliseconds UPDATE_INTERVAL(100);
-  const std::chrono::seconds FPS_DROP_INDICATOR_DURATION(5);
+  static std::chrono::steady_clock::time_point last_fps_drop = std::chrono::steady_clock::now();
 
   CSysfsPath fps_info{"/sys/class/video/fps_info"};
   if (fps_info.Exists()) {
@@ -1294,7 +1295,6 @@ std::string aml_video_fps_info()
     unsigned int input_fps, output_fps, drop_fps;
 
     std::istringstream iss(input);
-    std::string dummy;
 
     if (iss.ignore(std::numeric_limits<std::streamsize>::max(), ':') &&
         iss >> std::hex >> input_fps &&
@@ -1333,51 +1333,76 @@ std::string aml_video_fps_info()
         avg_output /= valid_count;
         avg_drop /= valid_count;
 
-        // Format the averages
-        std::ostringstream oss;
-        oss << std::fixed << std::setprecision(0) << std::setfill('0')
-            << std::setw(3) << std::round(avg_input) << " - "
-            << std::setw(3) << std::round(avg_output) << " - "
-            << std::setw(3) << std::round(avg_drop);
-
-        // Update spinner every 100ms
-        if (now - last_update >= UPDATE_INTERVAL) {
-          rotation_index = (rotation_index + 1) % 4;
-          last_update = now;
-        }
-
-        // Add current spinner state followed by a tab
-        oss << " " << rotation_chars[rotation_index] << '\t';
-
-        // Check if output FPS has changed
         int rounded_input_fps = std::round(avg_input);
         int rounded_output_fps = std::round(avg_output);
-        bool is_fps_dropping = rounded_output_fps < rounded_input_fps;
+        bool is_dropping = rounded_output_fps < rounded_input_fps;
 
-        if (rounded_output_fps != last_output_fps) {
-          if (is_fps_dropping) {
-            fps_change_info = "-> " + std::to_string(rounded_output_fps);
-            last_fps_drop = now;
-            was_fps_dropping = true;
-          } else if (was_fps_dropping) {
-            // FPS has returned to input, but keep showing the last drop
-            last_fps_drop = now;
-          }
-          last_output_fps = rounded_output_fps;
+        int dropped_fps = 0;
+        if (rounded_output_fps != last_output_fps && is_dropping) {
+          dropped_fps = rounded_output_fps;
+          last_fps_drop = now;
         }
+        last_output_fps = rounded_output_fps;
 
-        // Add FPS change info if it's dropping or within 5 seconds of last drop
-        if (is_fps_dropping || now - last_fps_drop < FPS_DROP_INDICATOR_DURATION) {
-          oss << fps_change_info;
-        }
-
-        // Update was_fps_dropping for the next iteration
-        was_fps_dropping = is_fps_dropping;
-
-        return oss.str();
+        return {avg_input, avg_output, avg_drop, is_dropping, dropped_fps};
       }
     }
   }
   
-  return "";
+  return {0, 0, 0, false, 0};
+}
+
+struct FormattedFpsInfo {
+  std::string basic_info;
+  std::string drop_info;
+};
+
+FormattedFpsInfo format_fps_info() {
+
+  FpsInfo info = gather_fps_data();
+
+  // Format basic info
+  static int rotation_index = 0;
+  static std::chrono::steady_clock::time_point last_update = std::chrono::steady_clock::now();
+  const char rotation_chars[] = {'|', '/', '-', '\\'};
+  const std::chrono::milliseconds UPDATE_INTERVAL(100);
+
+  std::ostringstream basic_info;
+  basic_info << std::fixed << std::setprecision(0) << std::setfill('0')
+              << std::setw(3) << std::round(info.avg_input) << " - "
+              << std::setw(3) << std::round(info.avg_output) << " - "
+              << std::setw(3) << std::round(info.avg_drop);
+
+  auto now = std::chrono::steady_clock::now();
+  if (now - last_update >= UPDATE_INTERVAL) {
+    rotation_index = (rotation_index + 1) % 4;
+    last_update = now;
+  }
+
+  basic_info << " " << rotation_chars[rotation_index];
+
+  // Format drop info
+  static std::chrono::steady_clock::time_point last_fps_drop = std::chrono::steady_clock::now();
+  static int last_non_zero_dropped_fps = 0;
+  const std::chrono::seconds FPS_DROP_INDICATOR_DURATION(3);
+
+  std::string drop_info;
+
+  if (info.is_dropping || now - last_fps_drop < FPS_DROP_INDICATOR_DURATION) {
+    if (info.dropped_fps != 0) {
+      last_non_zero_dropped_fps = info.dropped_fps;
+      last_fps_drop = now;
+    }
+    drop_info = std::to_string(last_non_zero_dropped_fps);
+  }
+
+  return {basic_info.str(), drop_info};
+}
+
+std::string aml_video_fps_info() {
+  return format_fps_info().basic_info;
+}
+
+std::string aml_video_fps_drop() {
+  return format_fps_info().drop_info;
 }

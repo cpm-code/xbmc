@@ -182,7 +182,7 @@
 					<width>1200</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[Player.CacheLevel,[COLOR button_focus]Videostream cache:[/COLOR] , %]</label>
+					<label>$INFO[Player.CacheLevel,[COLOR button_focus]Video stream cache:[/COLOR] , %]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
 					<visible>Player.HasVideo</visible>
@@ -191,7 +191,7 @@
 					<width>1600</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[Player.Process(videowidth),[COLOR button_focus]$LOCALIZE[38031]:[/COLOR] ,x]$INFO[Player.Process(videoheight)]$INFO[Player.Process(videoscantype)]$INFO[Player.Process(videofps),$COMMA , fps]$INFO[VideoPlayer.VideoBitrate,$COMMA , kb/s]$INFO[Player.Process(video.bit.depth),$COMMA ,-bit]</label>
+					<label>$INFO[Player.Process(video.width.raw),[COLOR button_focus]$LOCALIZE[38031]:[/COLOR] ,x]$INFO[Player.Process(video.height.raw)]$INFO[Player.Process(videoscantype)]$INFO[Player.Process(videofps), [COLOR grey]|[/COLOR] , fps]$INFO[Player.Process(video.bit.depth), [COLOR grey]|[/COLOR] ,-bit]$INFO[VideoPlayer.VideoBitrate, [COLOR grey]|[/COLOR] , kb/s]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
 					<visible>Player.HasVideo</visible>
@@ -216,7 +216,7 @@
 			</control>
 			<!-- Player Middle -->
 			<control type="grouplist">
-				<left>990</left>
+				<left>800</left>
 				<top>-204</top>
 				<visible>String.IsEqual(Window(Home).Property(PlayerInfoDialogFocus),5553)</visible>
 				<control type="label">
@@ -241,7 +241,7 @@
 					<width>830</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[VideoPlayer.VideoResolution,[COLOR button_focus]Video resolution:[/COLOR] ]</label>
+					<label>$INFO[VideoPlayer.VideoResolution,[COLOR button_focus]Video resolution:[/COLOR] ] [COLOR grey]|[/COLOR] $INFO[VideoPlayer.VideoAspect]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
 					<visible>!String.IsEmpty(VideoPlayer.VideoResolution)</visible>
@@ -250,10 +250,10 @@
 					<width>830</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[VideoPlayer.VideoAspect,[COLOR button_focus]$LOCALIZE[31602]:[/COLOR] ]</label>
+					<label>$VAR[ColourVar,[COLOR button_focus]Video colour:[/COLOR] ]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
-					<visible>!String.IsEmpty(VideoPlayer.VideoAspect)</visible>
+					<!-- <visible>!String.Contains(Player.Process(video.hdr.type),dolby vision)</visible> -->
 				</control>
 				<control type="label">
 					<width>830</width>
@@ -280,7 +280,7 @@
 					<label>$INFO[VideoPlayer.AudioLanguage,[COLOR button_focus]Audio language:[/COLOR] ]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
-					<visible>!String.IsEmpty(VideoPlayer.AudioLanguage)</visible>>
+					<visible>!String.IsEmpty(VideoPlayer.AudioLanguage)</visible>
 				</control>
 			</control>
 			<!-- Player Right -->
@@ -339,7 +339,7 @@
 					<width>600</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[Player.Process(amlogic.video.fps.info),[COLOR button_focus]AML fps:[/COLOR] ]</label>
+					<label>$INFO[Player.Process(amlogic.video.fps.info),[COLOR button_focus]AML fps:[/COLOR] ][COLOR orange]$INFO[Player.Process(amlogic.video.fps.drop),	-&gt; ][/COLOR]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
 					<visible>Player.HasVideo</visible>

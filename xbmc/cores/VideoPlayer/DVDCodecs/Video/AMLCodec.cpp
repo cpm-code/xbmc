@@ -1880,8 +1880,12 @@ std::string GetDoViCodecFourCC(unsigned int codec_tag)
 
   // some files don't have dvhe or dvh1 tag set up but have Dolby Vision side data
   // page 10, table 2 from https://professional.dolby.com/siteassets/content-creation/dolby-vision-for-content-creators/dolby-vision-streams-within-the-http-live-streaming-format-v2.0-13-november-2018.pdf
-  if (fourCC == "hvc1") return "dvh1";
   if (fourCC == "hev1") return "dvhe";
+  if (fourCC == "hvc1") return "dvh1";
+  if (fourCC == "avc3") return "dvav";
+  if (fourCC == "avc1") return "dva1";
+  if (fourCC == "vvc1") return "dvc1";
+  if (fourCC == "vvi1") return "dvi1";
 
   return fourCC;
 }

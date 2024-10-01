@@ -817,4 +817,23 @@
 		<value condition="String.Contains(Player.Process(amlogic.vs10.mode),sdr)">SDR</value>
 		<value condition="String.Contains(Player.Process(amlogic.vs10.mode),bypass)">bypass</value>
 	</variable>
+	<variable name="ColourRangeVar">
+		<value condition="String.Contains(Player.Process(video.color.range),unknown)">-</value>
+		<value>$INFO[Player.Process(video.color.range)]</value>
+	</variable>
+	<variable name="ColourSpaceVar">
+		<value condition="String.Contains(Player.Process(video.color.space),unknown)">-</value>
+		<value>$INFO[Player.Process(video.color.space)]</value>
+	</variable>
+	<variable name="ColourPrimariesVar">
+		<value condition="String.Contains(Player.Process(video.color.primaries),unknown)">-</value>
+		<value>$INFO[Player.Process(video.color.primaries)]</value>
+	</variable>
+	<variable name="ColourTransferCharacteristicVar">
+		<value condition="String.Contains(Player.Process(video.color.transfer.characteristic),unknown)">-</value>
+		<value>$INFO[Player.Process(video.color.transfer.characteristic)]</value>
+	</variable>
+	<variable name="ColourVar">
+		<value>$VAR[ColourRangeVar] [COLOR grey]|[/COLOR] $VAR[ColourSpaceVar] [COLOR grey]|[/COLOR] $VAR[ColourPrimariesVar] [COLOR grey]|[/COLOR] $VAR[ColourTransferCharacteristicVar]</value>
+	</variable>
 </includes>
