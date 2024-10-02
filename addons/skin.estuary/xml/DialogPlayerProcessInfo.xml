@@ -349,15 +349,7 @@
 					<width>600</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[System.CpuFrequency,[COLOR button_focus]$LOCALIZE[31631]:[/COLOR] ]</label>
-					<font>font12</font>
-					<shadowcolor>black</shadowcolor>
-				</control>
-				<control type="label">
-					<width>600</width>
-					<height>40</height>
-					<aligny>bottom</aligny>
-					<label>$INFO[System.CPUTemperature,[COLOR button_focus]$LOCALIZE[31632]:[/COLOR] ]</label>
+					<label>$INFO[System.CpuFrequency,[COLOR button_focus]$LOCALIZE[31631]:[/COLOR] ] [COLOR grey]|[/COLOR] $INFO[System.CPUTemperature]°C</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
 				</control>
