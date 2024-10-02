@@ -148,7 +148,7 @@
 					<width>1200</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[System.FPS,[COLOR button_focus]$LOCALIZE[31608]:[/COLOR] , fps]</label>
+					<label>$INFO[System.FPS,[COLOR button_focus]$LOCALIZE[31630]:[/COLOR] , fps]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
 				</control>
@@ -182,7 +182,7 @@
 					<width>1200</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[Player.CacheLevel,[COLOR button_focus]Video stream cache:[/COLOR] , %]</label>
+					<label>$INFO[Player.CacheLevel,[COLOR button_focus]$LOCALIZE[31633]:[/COLOR] , %]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
 					<visible>Player.HasVideo</visible>
@@ -223,7 +223,7 @@
 					<width>600</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>[COLOR button_focus]Video source type:[/COLOR] $INFO[Player.Process(video.source.hdr.type)]</label>
+					<label>[COLOR button_focus]$LOCALIZE[31635]:[/COLOR] $INFO[Player.Process(video.source.hdr.type)]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
 					<visible>Player.HasVideo</visible>
@@ -349,7 +349,7 @@
 					<width>600</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[System.CpuFrequency,[COLOR button_focus]CPU frequency:[/COLOR] ]</label>
+					<label>$INFO[System.CpuFrequency,[COLOR button_focus]$LOCALIZE[31631]:[/COLOR] ]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
 				</control>
@@ -357,7 +357,7 @@
 					<width>600</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[System.CPUTemperature,[COLOR button_focus]SoC temp:[/COLOR] ]</label>
+					<label>$INFO[System.CPUTemperature,[COLOR button_focus]$LOCALIZE[31632]:[/COLOR] ]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
 				</control>
@@ -385,7 +385,7 @@
 					<width>auto</width>
 					<height>100</height>
 					<textoffsetx>40</textoffsetx>
-					<label>Player Info</label>
+					<label>$LOCALIZE[31634]</label>
 					<onfocus>SetProperty(PlayerInfoDialogFocus,5553,Home)</onfocus>
 				</control>
 			</control>
