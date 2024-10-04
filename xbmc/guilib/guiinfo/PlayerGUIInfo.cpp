@@ -245,11 +245,11 @@ std::string ELTypeToString(enum ELType elType) {
 
 std::string VS10ModeToString(unsigned int vs10Mode) {
   switch (vs10Mode) {
-    case DOLBY_VISION_OUTPUT_MODE_IPT: return "dolby vision";
-    case DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL: return "dolby vision";
-    case DOLBY_VISION_OUTPUT_MODE_HDR10: return "hdr10";
-    case DOLBY_VISION_OUTPUT_MODE_SDR10: return "sdr";
-    case DOLBY_VISION_OUTPUT_MODE_BYPASS: return "bypass";
+    case DOLBY_VISION_OUTPUT_MODE_IPT: return "Dolby Vision";
+    case DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL: return "Dolby Vision";
+    case DOLBY_VISION_OUTPUT_MODE_HDR10: return "HDR10";
+    case DOLBY_VISION_OUTPUT_MODE_SDR10: return "SDR";
+    case DOLBY_VISION_OUTPUT_MODE_BYPASS: return "Bypass";
   }
   return "";
 }
