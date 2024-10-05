@@ -269,6 +269,25 @@ std::string VideoDoViCodecString() {
   return fmt::format("{}.{}.{}", fourCC, uint8_to_padded_string(profile), uint8_to_padded_string(level));
 }
 
+std::string FormatSampleRate(int rate) {
+
+  // Convert to kHz
+  double kHzRate = static_cast<double>(rate) / 1000.0;
+  std::ostringstream oss;
+  
+  if (std::floor(kHzRate) == kHzRate) {
+    // If it's a whole number, display without decimal places
+    oss << static_cast<int>(kHzRate);
+  } else if (kHzRate * 10 == std::floor(kHzRate * 10)) {
+    // If it has one decimal place, display with one decimal place
+    oss << std::fixed << std::setprecision(1) << kHzRate;
+  } else {
+    // Otherwise, display with two decimal places
+    oss << std::fixed << std::setprecision(2) << kHzRate;
+  }
+  return oss.str();
+}
+
 bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int contextWindow, const CGUIInfo &info, std::string *fallback) const
 {
   switch (info.m_info)
@@ -448,6 +467,9 @@ bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int con
       return true;
     case PLAYER_PROCESS_AUDIOSAMPLERATE:
       value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetAudioSampleRate());
+      return true;
+    case PLAYER_PROCESS_AUDIO_SAMPLE_RATE:
+      value = FormatSampleRate(CServiceBroker::GetDataCacheCore().GetAudioSampleRate());
       return true;
     case PLAYER_PROCESS_AUDIOBITSPERSAMPLE:
       value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetAudioBitsPerSample());
