@@ -12,6 +12,8 @@
 
 #include <algorithm>
 #include <string.h>
+#include <iomanip>
+#include <sstream>
 
 // DTS_SYNCWORD_SUBSTREAM_CORE 0x02b09261
 
@@ -626,16 +628,15 @@ unsigned int CAEStreamParser::SyncDTS(uint8_t* data, unsigned int size)
     // Check for a Stream Extention after the core frame.
     unsigned int substream_sync = (data[m_fsize] << 24) | (data[m_fsize + 1] << 16) | (data[m_fsize + 2] << 8) | data[m_fsize + 3];
     unsigned int hd_sync = 0;
-    
+
     // Have a Stream Extention.
     if (substream_sync == DTS_PREAMBLE_HD)
     {
 
-      // 0|1|2|3 Substream Sync
-      // 4 > User Defined
-      // 5 > ([0|1] bits for Ext SS Index) [2] Header Size
-      // 
-            
+      // Reference fro DTS-HD and DTS-UHD (aka DTS:X)
+      // https://www.etsi.org/deliver/etsi_ts/102100_102199/102114/01.06.01_60/ts_102114v010601p.pdf
+      // https://www.etsi.org/deliver/etsi_ts/103400_103499/103491/01.02.01_60/ts_103491v010201p.pdf
+
       int hd_size;
       bool blownup = (data[m_fsize + 5] & 0x20) != 0;
       if (blownup)
@@ -668,30 +669,45 @@ unsigned int CAEStreamParser::SyncDTS(uint8_t* data, unsigned int size)
 
       m_coreSize = m_fsize;
       m_fsize += hd_size;
+
+      // If XLL aka DTS-HD Master Audio - Work out the bit depth
+      if (hd_sync == DTS_PREAMBLE_XLL)
+      {
+
+        int bitPosition = 0;
+        const uint8_t* hdBuffer = &data[m_coreSize + header_size];
+
+        auto ExtractBits = [&](int numBits) -> int {
+            int result = 0;
+            for (int i = 0; i < numBits; ++i)
+            {
+                int byteIndex = bitPosition / 8;
+                int bitIndex = 7 - (bitPosition % 8);
+                result = (result << 1) | ((hdBuffer[byteIndex] >> bitIndex) & 1);
+                bitPosition++;
+            }
+            return result;
+        };
+
+        bitPosition = 32;  // Fast forward through bits to start after sync word
+
+        // Common Header
+        int nVersion = ExtractBits(4) + 1;     // Version is 4 bits, add 1 to get actual version
+        int nHeaderSize = ExtractBits(8) + 1;  // Header size is 8 bits, add 1 to get actual size (size is in bytes)
+
+        // Now go back and find the offset to the first channel set sub header given the header size (in bytes).
+        bitPosition = (nHeaderSize * 8);
+
+        // Parse first Channel Set Sub-Header
+        int nSubHeaderSize = ExtractBits(10) + 1;   // Unpack the header size
+        int m_nChSetLLChannel = ExtractBits(4) + 1; // Extract the number of channels
+        bitPosition += m_nChSetLLChannel;           // Skip Channels as bits!
+        int m_nBitResolution = ExtractBits(5) + 1;  // Extract the input sample bit resolution (bit depth)
+
+        m_info.m_bitDepth = m_nBitResolution;
+      }
     }
-
-    // HD MA - Work out the bit depth.
-    if (hd_sync == DTS_PREAMBLE_XLL)
-    {
-
-      // https://www.etsi.org/deliver/etsi_ts/102100_102199/102114/01.06.01_60/ts_102114v010601p.pdf
-      / /https://www.etsi.org/deliver/etsi_ts/103400_103499/103491/01.02.01_60/ts_103491v010201p.pdf
-      
-      // Common Header
-
-      // nNumChSetsInFrame = ExtractBits(4) + 1;       // 4 bits
-      
-      // Channel Set Sub-Header
-      
-      // m_nBitResolution = ExtractBits(5) + 1;       // 5 bits
-      // Extract the original input sample bit-width
-      // m_nBitWidth = ExtractBits(5) + 1;            // 5 bits
-      // Extract the sampling frequency index
-      // sFreqIndex = ExtractBits(4);
-      // Find the actual sampling frequency
-      // m_nFs = m_pnFsTbl[sFreqIndex];               // 4 bits
-    }
-
+    
     unsigned int sampleRate = DTSSampleRates[sfreq];
     if (!m_hasSync || skip || dataType != m_info.m_type || sampleRate != m_info.m_sampleRate ||
         dtsBlocks != m_dtsBlocks)
@@ -758,7 +774,7 @@ unsigned int CAEStreamParser::SyncDTS(uint8_t* data, unsigned int size)
       CLog::Log(LOGINFO,
                 "CAEStreamParser::SyncDTS - {} stream detected ({} channels, {}Hz, {}bit {}, "
                 "period: {}, syncword: 0x{:x}, target rate: 0x{:x}, framesize {}))",
-                type, m_info.m_channels, m_info.m_sampleRate, bits, m_info.m_dataIsLE ? "LE" : "BE",
+                type, m_info.m_channels, m_info.m_sampleRate, m_info.m_bitDepth, m_info.m_dataIsLE ? "LE" : "BE",
                 m_info.m_dtsPeriod, hd_sync, target_rate, m_fsize);
     }
 
@@ -822,6 +838,11 @@ unsigned int CAEStreamParser::SyncTrueHD(uint8_t* data, unsigned int size)
       if (((data[4 + major_sync_size - 1] << 8) | data[4 + major_sync_size - 2]) != crc)
         continue;
 
+      // extract bit depth
+      int bitDepth = 16 + (data[3] >> 3);
+      if (bitDepth > 24) bitDepth = 24;
+      m_info.m_bitDepth = bitDepth;  
+      
       // get the sample rate and substreams, we have a valid master audio unit
       m_info.m_sampleRate = (rate & 0x8 ? 44100 : 48000) << (rate & 0x7);
       m_substreams = (data[20] & 0xF0) >> 4;
@@ -832,14 +853,13 @@ unsigned int CAEStreamParser::SyncTrueHD(uint8_t* data, unsigned int size)
         channel_map = (data[9] << 1) | (data[10] >> 7);
       m_info.m_channels = CAEStreamParser::GetTrueHDChannels(channel_map);
 
-      // Check for Atmos conditions
-      bool isDolbyAtmos = ((m_substreams == 4) && ((data[20] & 0x0F) != 0));
-      m_info.m_isDolbyAtmos = isDolbyAtmos;
+      // check for Atmos
+      m_info.m_isDolbyAtmos = ((m_substreams == 4) && ((data[20] & 0x0F) != 0));
 
       if (!m_hasSync)
         CLog::Log(LOGINFO,
-                  "CAEStreamParser::SyncTrueHD - TrueHD stream detected ({} channels{}, {}Hz)",
-                  m_info.m_channels, isDolbyAtmos ? " + Atmos" : "", m_info.m_sampleRate);
+                  "CAEStreamParser::SyncTrueHD - TrueHD stream detected ({} channels{}, {}Hz, {}-bit)",
+                  m_info.m_channels, m_info.m_isDolbyAtmos ? " + Atmos" : "", m_info.m_sampleRate, m_info.m_bitDepth);
 
       m_hasSync = true;
       m_fsize = length;

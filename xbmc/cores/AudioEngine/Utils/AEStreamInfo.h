@@ -40,8 +40,9 @@ public:
     STREAM_TYPE_DTSHD_MA
   };
   DataType m_type = STREAM_TYPE_NULL;
-  unsigned int m_sampleRate;
-  unsigned int m_channels;
+  unsigned int m_sampleRate = 0;
+  unsigned int m_bitDepth = 0;
+  unsigned int m_channels = 0;
   bool m_isDolbyAtmos = false;
   bool m_dataIsLE = true;
   unsigned int m_dtsPeriod = 0;
