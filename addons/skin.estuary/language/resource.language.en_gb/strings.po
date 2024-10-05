@@ -931,7 +931,7 @@ msgstr ""
 
 #: /xml/DialogPlayerProcessInfo.xml
 msgctxt "#31631"
-msgid "CPU speed & SoC temp"
+msgid "CPU frequency"
 msgstr ""
 
 #: /xml/DialogPlayerProcessInfo.xml
