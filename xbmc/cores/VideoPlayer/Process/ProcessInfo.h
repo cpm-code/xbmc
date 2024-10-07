@@ -95,6 +95,8 @@ public:
   int GetAudioBitsPerSample();
   void SetAudioIsDolbyAtmos(bool isDolbyAtmos);
   bool GetAudioIsDolbyAtmos();
+  void SetAudioLiveBitRate(double bitRate);
+  double GetAudioLiveBitRate();
   virtual bool AllowDTSHDDecode();
   virtual bool WantsRawPassthrough() { return false; }
 
@@ -183,6 +185,7 @@ protected:
   int m_audioSampleRate;
   int m_audioBitsPerSample;
   bool m_audioIsDolbyAtmos;
+  double m_audioLiveBitRate;
   CCriticalSection m_audioCodecSection;
 
   // render info

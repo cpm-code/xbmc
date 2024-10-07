@@ -544,6 +544,7 @@ void CProcessInfo::ResetAudioCodecInfo()
   m_audioSampleRate = 0;;
   m_audioBitsPerSample = 0;
   m_audioIsDolbyAtmos = false;
+  m_audioLiveBitRate = 0;
 
   if (m_dataCache)
   {
@@ -552,6 +553,7 @@ void CProcessInfo::ResetAudioCodecInfo()
     m_dataCache->SetAudioSampleRate(m_audioSampleRate);
     m_dataCache->SetAudioBitsPerSample(m_audioBitsPerSample);
     m_dataCache->SetAudioIsDolbyAtmos(m_audioIsDolbyAtmos);
+    m_dataCache->SetAudioLiveBitRate(m_audioLiveBitRate);
   }
 }
 
@@ -638,6 +640,23 @@ bool CProcessInfo::GetAudioIsDolbyAtmos()
   std::unique_lock<CCriticalSection> lock(m_audioCodecSection);
 
   return m_audioIsDolbyAtmos;
+}
+
+void CProcessInfo::SetAudioLiveBitRate(double bitRate)
+{
+  std::unique_lock<CCriticalSection> lock(m_audioCodecSection);
+
+  m_audioLiveBitRate = bitRate;
+
+  if (m_dataCache)
+    m_dataCache->SetAudioLiveBitRate(m_audioLiveBitRate);
+}
+
+double CProcessInfo::GetAudioLiveBitRate()
+{
+  std::unique_lock<CCriticalSection> lock(m_audioCodecSection);
+
+  return m_audioLiveBitRate;
 }
 
 bool CProcessInfo::AllowDTSHDDecode()

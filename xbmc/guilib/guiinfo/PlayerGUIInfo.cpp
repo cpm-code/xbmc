@@ -477,6 +477,9 @@ bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int con
     case PLAYER_PROCESS_AUDIO_IS_DOLBY_ATMOS:
       value = CServiceBroker::GetDataCacheCore().GetAudioIsDolbyAtmos() ? "Atmos" : "";
       return true;
+    case PLAYER_PROCESS_AUDIO_LIVE_BIT_RATE:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetAudioLiveBitRate() / 1024);
+      return true;
     case PLAYER_PROCESS_VIDEO_BIT_DEPTH:
       value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetVideoBitDepth());
       return true;

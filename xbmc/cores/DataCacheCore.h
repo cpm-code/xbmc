@@ -93,6 +93,8 @@ public:
   int GetAudioBitsPerSample();
   void SetAudioIsDolbyAtmos(bool isDolbyAtmos);
   bool GetAudioIsDolbyAtmos();
+  void SetAudioLiveBitRate(double bitRate);
+  double GetAudioLiveBitRate();
 
   // content info
 
@@ -258,6 +260,7 @@ protected:
     int sampleRate;
     int bitsPerSample;
     bool isDolbyAtmos;
+    double liveBitRate;
   } m_playerAudioInfo;
 
   mutable CCriticalSection m_contentSection;

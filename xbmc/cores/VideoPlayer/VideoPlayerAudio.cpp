@@ -227,6 +227,8 @@ void CVideoPlayerAudio::UpdatePlayerInfo()
     std::unique_lock<CCriticalSection> lock(m_info_section);
     m_info = info;
   }
+
+  m_processInfo.SetAudioLiveBitRate(m_audioStats.GetBitrate());  
 }
 
 void CVideoPlayerAudio::Process()
