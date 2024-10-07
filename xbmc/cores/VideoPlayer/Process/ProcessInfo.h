@@ -11,6 +11,7 @@
 #include "cores/VideoPlayer/Buffers/VideoBuffer.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderInfo.h"
 #include "cores/VideoSettings.h"
+#include "cores/AudioEngine/Utils/AEStreamInfo.h"
 #include "threads/CriticalSection.h"
 #include "utils/BitstreamConverter.h"
 
@@ -97,6 +98,8 @@ public:
   int GetAudioBitsPerSample();
   void SetAudioIsDolbyAtmos(bool isDolbyAtmos);
   bool GetAudioIsDolbyAtmos();
+  void SetAudioDtsXType(DtsXType dtsXType);
+  DtsXType GetAudioDtsXType();
   void SetAudioLiveBitRate(double bitRate);
   double GetAudioLiveBitRate();
   virtual bool AllowDTSHDDecode();
@@ -188,6 +191,7 @@ protected:
   int m_audioSampleRate;
   int m_audioBitsPerSample;
   bool m_audioIsDolbyAtmos;
+  DtsXType m_audioDtsXType;
   double m_audioLiveBitRate;
   CCriticalSection m_audioCodecSection;
 

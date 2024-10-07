@@ -10,6 +10,7 @@
 
 #include "DVDStreamInfo.h"
 #include "EdlEdit.h"
+#include "cores/AudioEngine/Utils/AEStreamInfo.h"
 #include "threads/CriticalSection.h"
 #include "utils/BitstreamConverter.h"
 
@@ -95,6 +96,8 @@ public:
   int GetAudioBitsPerSample();
   void SetAudioIsDolbyAtmos(bool isDolbyAtmos);
   bool GetAudioIsDolbyAtmos();
+  void SetAudioDtsXType(DtsXType dtsXType);
+  DtsXType GetAudioDtsXType();
   void SetAudioLiveBitRate(double bitRate);
   double GetAudioLiveBitRate();
 
@@ -263,6 +266,7 @@ protected:
     int sampleRate;
     int bitsPerSample;
     bool isDolbyAtmos;
+    DtsXType dtsXType;
     double liveBitRate;
   } m_playerAudioInfo;
 

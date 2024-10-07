@@ -584,6 +584,7 @@ bool CVideoPlayerAudio::ProcessDecoderOutput(DVDAudioFrame &audioframe)
       else
         m_processInfo.SetAudioBitsPerSample(audioframe.bits_per_sample);
       m_processInfo.SetAudioIsDolbyAtmos(audioframe.format.m_streamInfo.m_isDolbyAtmos);
+      m_processInfo.SetAudioDtsXType(audioframe.format.m_streamInfo.m_dtsXType);
       m_processInfo.SetAudioDecoderName(m_pAudioCodec->GetName());
       m_messageParent.Put(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_AVCHANGE));
     }

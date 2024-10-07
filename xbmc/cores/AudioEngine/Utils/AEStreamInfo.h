@@ -19,6 +19,12 @@ extern "C" {
 #include <libavutil/crc.h>
 }
 
+enum DtsXType
+{
+  DTS_X_NONE,
+  DTS_X,
+  DTS_X_IMAX_ENHANCED
+};
 class CAEStreamInfo
 {
 public:
@@ -44,6 +50,7 @@ public:
   unsigned int m_bitDepth = 0;
   unsigned int m_channels = 0;
   bool m_isDolbyAtmos = false;
+  DtsXType m_dtsXType = DtsXType::DTS_X_NONE;
   bool m_dataIsLE = true;
   unsigned int m_dtsPeriod = 0;
   unsigned int m_repeat = 0;
@@ -101,4 +108,3 @@ private:
 
   static unsigned int GetTrueHDChannels(const uint16_t chanmap);
 };
-

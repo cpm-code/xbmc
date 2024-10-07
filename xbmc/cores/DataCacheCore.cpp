@@ -11,6 +11,7 @@
 #include "DVDStreamInfo.h"
 #include "ServiceBroker.h"
 #include "cores/EdlEdit.h"
+#include "cores/AudioEngine/Utils/AEStreamInfo.h"
 #include "utils/BitstreamConverter.h"
 
 #include <mutex>
@@ -445,6 +446,20 @@ bool CDataCacheCore::GetAudioIsDolbyAtmos()
   std::unique_lock<CCriticalSection> lock(m_audioPlayerSection);
 
   return m_playerAudioInfo.isDolbyAtmos;
+}
+
+void CDataCacheCore::SetAudioDtsXType(DtsXType dtsXType)
+{
+  std::unique_lock<CCriticalSection> lock(m_audioPlayerSection);
+
+  m_playerAudioInfo.dtsXType = dtsXType;
+}
+
+DtsXType CDataCacheCore::GetAudioDtsXType()
+{
+  std::unique_lock<CCriticalSection> lock(m_audioPlayerSection);
+
+  return m_playerAudioInfo.dtsXType;
 }
 
 void CDataCacheCore::SetAudioLiveBitRate(double bitRate)

@@ -15,24 +15,28 @@
 #include <iomanip>
 #include <sstream>
 
-// DTS_SYNCWORD_SUBSTREAM_CORE 0x02b09261
+// Reference for DTS and DTS-UHD (aka DTS:X)
+// https://www.etsi.org/deliver/etsi_ts/102100_102199/102114/01.06.01_60/ts_102114v010601p.pdf
+// https://www.etsi.org/deliver/etsi_ts/103400_103499/103491/01.02.01_60/ts_103491v010201p.pdf
 
-// DTS_SYNCWORD_SUBSTREAM_CORE, which is located in the extension substream, has a sync word that is
-// remapped from 0x7ffe8001 to 0x02b09261. This makes the core substream synchronization simpler and more robust.
-// When this backward compatible core component is to be delivered to a legacy DTS decoders, (e.g. via SPDIF), its sync
-// word needs to be restored from 0x02b09261 to 0x7ffe8001 prior to the transmission to the legacy decoders. 
+#define DTS_SYNC_CORE_14BE  0x1FFFE800  
+#define DTS_SYNC_CORE_14LE  0xFF1F00E8  // DTS CD - upto 5.1 on CD!
+#define DTS_SYNC_CORE_16BE  0x7FFE8001  // DTS on DVD / BluRay 
+#define DTS_SYNC_CORE_16LE  0xFE7F0180  
 
-#define DTS_PREAMBLE_14BE 0x1FFFE800
-#define DTS_PREAMBLE_14LE 0xFF1F00E8
-#define DTS_PREAMBLE_16BE 0x7FFE8001  // DTS_SYNCWORD_CORE (Core Substream)
-#define DTS_PREAMBLE_16LE 0xFE7F0180
-#define DTS_PREAMBLE_HD 0x64582025    // DTS_SYNCWORD_SUBSTREAM (Extention Subsystem)
-#define DTS_PREAMBLE_XCH 0x5a5a5a5a   // DTS_SYNCWORD_XCH
-#define DTS_PREAMBLE_XXCH 0x47004a03  // DTS_SYNCWORD_XXCH
-#define DTS_PREAMBLE_X96K 0x1d95f262  // DTS_SYNCWORD_X96
-#define DTS_PREAMBLE_XBR 0x655e315e   // DTS_SYNCWORD_XBR
-#define DTS_PREAMBLE_LBR 0x0a801921   // DTS_SYNCWORD_LBR
-#define DTS_PREAMBLE_XLL 0x41a29547   // DTS_SYNCWORD_XLL
+#define DTS_SYNC_EXTENTION  0x64582025  // DTS Extention Subsystem for below extentions.
+
+#define DTS_SYNC_EXT_XCH    0x5a5a5a5a  // DTS Extension to 6.1 Channels (XCh) - in case of multiple extension streams the XCh stream is always the last.
+#define DTS_SYNC_EXT_XXCH   0x47004a03  // DTS Extension to More Than 5.1 Channels (XXCh) 
+#define DTS_SYNC_EXT_X96K   0x1d95f262  // DTS Extension to 96 kHz Frequency (X96k) - if a channel extension is present the X96k extension data is placed before the XCh extension data in the encoded bit stream.
+#define DTS_SYNC_EXT_XBR    0x655e315e  // DTS Extension Extended Bit Rate, allow greater than 1.5 Mbps
+#define DTS_SYNC_EXT_LBR    0x0a801921  // DTS Extention Low Bit Rate
+#define DTS_SYNC_EXT_XLL    0x41a29547  // DTS Extention Lossless conding entention as used for DTS-HD Master Audio
+
+#define DTS_SYNC_X_1        0x02000850  // DTS:X Sync Word as found in Extention (1 of 2 possible)
+#define DTS_SYNC_X_2        0xF14000D1  // DTS:X Sync Word as found in Extention (2 of 2 possible)
+#define DTS_SYNC_IMAX       0xF14000D0  // IMAX Enhanced Sync Word as found in Extention (Built on DTS:X tech - but new branding)
+
 #define DTS_SFREQ_COUNT 16
 #define MAX_EAC3_BLOCKS 6
 #define UNKNOWN_DTS_EXTENSION 255
@@ -260,16 +264,19 @@ unsigned int CAEStreamParser::DetectType(uint8_t* data, unsigned int size)
 
   while (size > 8)
   {
-    // if it could be DTS
+    // DTS Sync Header check
     unsigned int header = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
-    if (header == DTS_PREAMBLE_14LE || header == DTS_PREAMBLE_14BE || header == DTS_PREAMBLE_16LE ||
-        header == DTS_PREAMBLE_16BE)
+
+    // if it could be DTS
+    if (header == DTS_SYNC_CORE_14BE || header == DTS_SYNC_CORE_14LE || 
+        header == DTS_SYNC_CORE_16BE || header == DTS_SYNC_CORE_16LE)
     {
       unsigned int skip = SyncDTS(data, size);
       if (m_hasSync || m_needBytes)
         return skipped + skip;
-      else
+      else {
         possible = skipped;
+      }
     }
 
     // if it could be AC3
@@ -498,6 +505,28 @@ unsigned int CAEStreamParser::SyncAC3(uint8_t* data, unsigned int size)
   return skip;
 }
 
+DtsXType checkDtsXType(const uint8_t* data, unsigned int size, unsigned int position)
+{
+  if (size < position + 4) return DtsXType::DTS_X_NONE;
+
+  for (unsigned int j = position; j <= size - 4; j++)
+  {
+    uint32_t dtsSyncWord = (data[j]   << 24)
+                         | (data[j+1] << 16)
+                         | (data[j+2] << 8)
+                         |  data[j+3];
+
+    switch (dtsSyncWord)
+    {
+      case DTS_SYNC_X_1:  return DtsXType::DTS_X;
+      case DTS_SYNC_X_2:  return DtsXType::DTS_X;
+      case DTS_SYNC_IMAX: return DtsXType::DTS_X_IMAX_ENHANCED;
+    }
+  }
+
+  return DtsXType::DTS_X_NONE;
+}
+
 unsigned int CAEStreamParser::SyncDTS(uint8_t* data, unsigned int size)
 {
   if (size < 13)
@@ -518,12 +547,12 @@ unsigned int CAEStreamParser::SyncDTS(uint8_t* data, unsigned int size)
     unsigned int extension = 0;
     unsigned int ext_type = UNKNOWN_DTS_EXTENSION;
     unsigned int lfe;
-    int bits;
+    uint32_t bits = 0;
 
     switch (header)
     {
       // 14bit BE
-      case DTS_PREAMBLE_14BE:
+      case DTS_SYNC_CORE_14BE:
         if (data[4] != 0x07 || (data[5] & 0xf0) != 0xf0)
           continue;
         dtsBlocks = (((data[5] & 0x7) << 4) | ((data[6] & 0x3C) >> 2)) + 1;
@@ -539,7 +568,7 @@ unsigned int CAEStreamParser::SyncDTS(uint8_t* data, unsigned int size)
         break;
 
       // 14bit LE
-      case DTS_PREAMBLE_14LE:
+      case DTS_SYNC_CORE_14LE:
         if (data[5] != 0x07 || (data[4] & 0xf0) != 0xf0)
           continue;
         dtsBlocks = (((data[4] & 0x7) << 4) | ((data[7] & 0x3C) >> 2)) + 1;
@@ -555,7 +584,7 @@ unsigned int CAEStreamParser::SyncDTS(uint8_t* data, unsigned int size)
         break;
 
       // 16bit BE
-      case DTS_PREAMBLE_16BE:
+      case DTS_SYNC_CORE_16BE:
         dtsBlocks = (((data[4] & 0x1) << 7) | ((data[5] & 0xFC) >> 2)) + 1;
         m_fsize = (((((data[5] & 0x3) << 8) | data[6]) << 4) | ((data[7] & 0xF0) >> 4)) + 1;
         amode = ((data[7] & 0x0F) << 2) | ((data[8] & 0xC0) >> 6);
@@ -569,7 +598,7 @@ unsigned int CAEStreamParser::SyncDTS(uint8_t* data, unsigned int size)
         break;
 
       // 16bit LE
-      case DTS_PREAMBLE_16LE:
+      case DTS_SYNC_CORE_16LE:
         dtsBlocks = (((data[5] & 0x1) << 7) | ((data[4] & 0xFC) >> 2)) + 1;
         m_fsize = (((((data[4] & 0x3) << 8) | data[7]) << 4) | ((data[6] & 0xF0) >> 4)) + 1;
         amode = ((data[6] & 0x0F) << 2) | ((data[9] & 0xC0) >> 6);
@@ -626,91 +655,50 @@ unsigned int CAEStreamParser::SyncDTS(uint8_t* data, unsigned int size)
     }
 
     // Check for a Stream Extention after the core frame.
-    unsigned int substream_sync = (data[m_fsize] << 24) | (data[m_fsize + 1] << 16) | (data[m_fsize + 2] << 8) | data[m_fsize + 3];
-    unsigned int hd_sync = 0;
+    uint32_t ext_sync = (data[m_fsize] << 24) | (data[m_fsize + 1] << 16) | (data[m_fsize + 2] << 8) | data[m_fsize + 3];
+    uint32_t ext_sub_sync = 0;
+    uint32_t ext_header_size = 0;
 
     // Have a Stream Extention.
-    if (substream_sync == DTS_PREAMBLE_HD)
+    if (ext_sync == DTS_SYNC_EXTENTION)
     {
-
-      // Reference fro DTS-HD and DTS-UHD (aka DTS:X)
-      // https://www.etsi.org/deliver/etsi_ts/102100_102199/102114/01.06.01_60/ts_102114v010601p.pdf
-      // https://www.etsi.org/deliver/etsi_ts/103400_103499/103491/01.02.01_60/ts_103491v010201p.pdf
-
-      int hd_size;
+      uint32_t ext_size;
       bool blownup = (data[m_fsize + 5] & 0x20) != 0;
       if (blownup)
-        hd_size = (((data[m_fsize + 6] & 0x01) << 19) | (data[m_fsize + 7] << 11) |
+        ext_size = (((data[m_fsize + 6] & 0x01) << 19) | (data[m_fsize + 7] << 11) |
                    (data[m_fsize + 8] << 3) | ((data[m_fsize + 9] & 0xe0) >> 5)) +
                   1;
       else
-        hd_size = (((data[m_fsize + 6] & 0x1f) << 11) | (data[m_fsize + 7] << 3) |
+        ext_size = (((data[m_fsize + 6] & 0x1f) << 11) | (data[m_fsize + 7] << 3) |
                    ((data[m_fsize + 8] & 0xe0) >> 5)) +
                   1;
 
-      int header_size;
       if (blownup)
-        header_size = (((data[m_fsize + 5] & 0x1f) << 7) | ((data[m_fsize + 6] & 0xfe) >> 1)) + 1;
+        ext_header_size = (((data[m_fsize + 5] & 0x1f) << 7) | ((data[m_fsize + 6] & 0xfe) >> 1)) + 1;
       else
-        header_size = (((data[m_fsize + 5] & 0x1f) << 3) | ((data[m_fsize + 6] & 0xe0) >> 5)) + 1;
+        ext_header_size = (((data[m_fsize + 5] & 0x1f) << 3) | ((data[m_fsize + 6] & 0xe0) >> 5)) + 1;
 
-      hd_sync = data[m_fsize + header_size] << 24 | data[m_fsize + header_size + 1] << 16 |
-                data[m_fsize + header_size + 2] << 8 | data[m_fsize + header_size + 3];
+      ext_sub_sync = data[m_fsize + ext_header_size] << 24 | data[m_fsize + ext_header_size + 1] << 16 |
+                     data[m_fsize + ext_header_size + 2] << 8 | data[m_fsize + ext_header_size + 3];
 
       // set the type according to core or not
       if (m_coreOnly)
         dataType = CAEStreamInfo::STREAM_TYPE_DTSHD_CORE;
-      else if (hd_sync == DTS_PREAMBLE_XLL)
+      else if (ext_sub_sync == DTS_SYNC_EXT_XLL)
         dataType = CAEStreamInfo::STREAM_TYPE_DTSHD_MA;
-      else if (hd_sync == DTS_PREAMBLE_XCH || hd_sync == DTS_PREAMBLE_XXCH ||
-               hd_sync == DTS_PREAMBLE_X96K || hd_sync == DTS_PREAMBLE_XBR ||
-               hd_sync == DTS_PREAMBLE_LBR)
+      else if (ext_sub_sync == DTS_SYNC_EXT_XCH ||  ext_sub_sync == DTS_SYNC_EXT_XXCH ||
+               ext_sub_sync == DTS_SYNC_EXT_X96K || ext_sub_sync == DTS_SYNC_EXT_XBR ||
+               ext_sub_sync == DTS_SYNC_EXT_LBR)
         dataType = CAEStreamInfo::STREAM_TYPE_DTSHD;
       else
         dataType = m_info.m_type;
 
       m_coreSize = m_fsize;
-      m_fsize += hd_size;
-
-      // If XLL aka DTS-HD Master Audio - Work out the bit depth
-      if (hd_sync == DTS_PREAMBLE_XLL)
-      {
-
-        int bitPosition = 0;
-        const uint8_t* hdBuffer = &data[m_coreSize + header_size];
-
-        auto ExtractBits = [&](int numBits) -> int {
-            int result = 0;
-            for (int i = 0; i < numBits; ++i)
-            {
-                int byteIndex = bitPosition / 8;
-                int bitIndex = 7 - (bitPosition % 8);
-                result = (result << 1) | ((hdBuffer[byteIndex] >> bitIndex) & 1);
-                bitPosition++;
-            }
-            return result;
-        };
-
-        bitPosition = 32;  // Fast forward through bits to start after sync word
-
-        // Common Header
-        int nVersion = ExtractBits(4) + 1;     // Version is 4 bits, add 1 to get actual version
-        int nHeaderSize = ExtractBits(8) + 1;  // Header size is 8 bits, add 1 to get actual size (size is in bytes)
-
-        // Now go back and find the offset to the first channel set sub header given the header size (in bytes).
-        bitPosition = (nHeaderSize * 8);
-
-        // Parse first Channel Set Sub-Header
-        int nSubHeaderSize = ExtractBits(10) + 1;   // Unpack the header size
-        int m_nChSetLLChannel = ExtractBits(4) + 1; // Extract the number of channels
-        bitPosition += m_nChSetLLChannel;           // Skip Channels as bits!
-        int m_nBitResolution = ExtractBits(5) + 1;  // Extract the input sample bit resolution (bit depth)
-
-        m_info.m_bitDepth = m_nBitResolution;
-      }
+      m_fsize += ext_size;
     }
     
     unsigned int sampleRate = DTSSampleRates[sfreq];
+
     if (!m_hasSync || skip || dataType != m_info.m_type || sampleRate != m_info.m_sampleRate ||
         dtsBlocks != m_dtsBlocks)
     {
@@ -720,7 +708,48 @@ unsigned int CAEStreamParser::SyncDTS(uint8_t* data, unsigned int size)
       m_dtsBlocks = dtsBlocks;
       m_info.m_channels = DTSChannels[amode] + (lfe ? 1 : 0);
       m_syncFunc = &CAEStreamParser::SyncDTS;
-      m_info.m_repeat = 1;
+      m_info.m_repeat = 1;      
+      
+      uint32_t hd_bits = 0;
+      uint32_t nHeaderSize = 0;
+
+      // If XLL aka DTS-HD Master Audio - Work out the bit depth
+      if (ext_sub_sync == DTS_SYNC_EXT_XLL)
+      {
+
+        uint32_t bitPosition = 0;
+        const uint8_t* hdBuffer = &data[m_coreSize + ext_header_size];
+
+        auto ExtractBits = [&](uint32_t numBits) -> uint32_t {
+            uint32_t result = 0;
+            for (uint32_t i = 0; i < numBits; ++i)
+            {
+                uint32_t byteIndex = bitPosition / 8;
+                uint32_t bitIndex = 7 - (bitPosition % 8);
+                result = (result << 1) | ((hdBuffer[byteIndex] >> bitIndex) & 1);
+                bitPosition++;
+            }
+            return result;
+        };
+
+        bitPosition = 32;  // Fast forward through bits to start after sub sync word
+
+        // XLL Common Header
+        uint32_t nVersion = ExtractBits(4) + 1;           // Version is 4 bits, add 1 to get actual version
+        nHeaderSize = ExtractBits(8) + 1;                 // Header size is 8 bits, add 1 to get actual size (size is in bytes)
+
+        // Now find the offset to the first channel set sub header given the header size (in bytes).
+        bitPosition = (nHeaderSize * 8);
+
+        // Parse first Channel Set Sub-Header - to get the original audio data bit resolution
+        uint32_t nSubHeaderSize = ExtractBits(10) + 1;    // Unpack the channel set sub header size 
+        uint32_t nChSetLLChannel = ExtractBits(4) + 1;    // Extract the number of channels
+        bitPosition += nChSetLLChannel;                   // Skip Channels as bits!
+        hd_bits = ExtractBits(5) + 1;                     // Extract the input sample bit resolution (bit depth)
+      }
+
+      m_info.m_bitDepth = (hd_bits > 0) ? hd_bits : bits;
+      m_info.m_dtsXType = checkDtsXType(data, size, m_coreSize + nHeaderSize);
 
       if (dataType == CAEStreamInfo::STREAM_TYPE_DTSHD_MA)
       {
@@ -775,9 +804,9 @@ unsigned int CAEStreamParser::SyncDTS(uint8_t* data, unsigned int size)
 
       CLog::Log(LOGINFO,
                 "CAEStreamParser::SyncDTS - {} stream detected ({} channels, {}Hz, {}bit {}, "
-                "period: {}, syncword: 0x{:x}, target rate: 0x{:x}, framesize {}))",
+                "period: {}, core syncword: 0x{:x}, ext syncword: 0x{:x}, ext sub syncword: 0x{:x}, target rate: 0x{:x}, framesize {} dts:x {}))",
                 type, m_info.m_channels, m_info.m_sampleRate, m_info.m_bitDepth, m_info.m_dataIsLE ? "LE" : "BE",
-                m_info.m_dtsPeriod, hd_sync, target_rate, m_fsize);
+                m_info.m_dtsPeriod, header, ext_sync, ext_sub_sync, target_rate, m_fsize, m_info.m_dtsXType);
     }
 
     return skip;
