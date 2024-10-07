@@ -89,6 +89,7 @@ void CProcessInfo::ResetVideoCodecInfo()
   m_videoDoViELType = ELType::TYPE_NONE;
   m_videoDoViCodecFourCC = "";
   m_videoVS10Mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
+  m_videoLiveBitRate = 0;
   m_videoIsInterlaced = false;
   m_deintMethods.clear();
   m_deintMethods.push_back(EINTERLACEMETHOD::VS_INTERLACEMETHOD_NONE);
@@ -116,6 +117,7 @@ void CProcessInfo::ResetVideoCodecInfo()
     m_dataCache->SetVideoDoViELType(m_videoDoViELType);
     m_dataCache->SetVideoDoViCodecFourCC(m_videoDoViCodecFourCC);
     m_dataCache->SetVideoVS10Mode(m_videoVS10Mode);
+    m_dataCache->SetVideoLiveBitRate(m_videoLiveBitRate);
   }
 }
 
@@ -399,6 +401,23 @@ unsigned int CProcessInfo::GetVideoVS10Mode()
   std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
 
   return m_videoVS10Mode;
+}
+
+void CProcessInfo::SetVideoLiveBitRate(double bitRate)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoLiveBitRate= bitRate;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoLiveBitRate(m_videoLiveBitRate);
+}
+
+double CProcessInfo::GetVideoLiveBitRate()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoLiveBitRate;
 }
 
 void CProcessInfo::SetVideoFps(float fps)

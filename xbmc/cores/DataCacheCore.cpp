@@ -322,6 +322,20 @@ unsigned int CDataCacheCore::GetVideoVS10Mode()
   return m_playerVideoInfo.vs10Mode;
 }
 
+void CDataCacheCore::SetVideoLiveBitRate(double bitRate)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.liveBitRate = bitRate;
+}
+
+double CDataCacheCore::GetVideoLiveBitRate()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.liveBitRate;
+}
+
 void CDataCacheCore::SetVideoFps(float fps)
 {
   std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);

@@ -71,6 +71,8 @@ public:
   std::string GetVideoDoViCodecFourCC();
   void SetVideoVS10Mode(unsigned int vs10Mode);
   unsigned int GetVideoVS10Mode();
+  void SetVideoLiveBitRate(double bitRate);
+  double GetVideoLiveBitRate();
   void SetVideoInterlaced(bool interlaced);
   bool GetVideoInterlaced();
   virtual EINTERLACEMETHOD GetFallbackDeintMethod();
@@ -172,6 +174,7 @@ protected:
   enum ELType m_videoDoViELType;
   std::string m_videoDoViCodecFourCC;
   unsigned int m_videoVS10Mode;
+  double m_videoLiveBitRate;
   bool m_videoIsInterlaced;
   std::list<EINTERLACEMETHOD> m_deintMethods;
   EINTERLACEMETHOD m_deintMethodDefault;

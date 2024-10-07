@@ -69,6 +69,8 @@ public:
   std::string GetVideoDoViCodecFourCC();
   void SetVideoVS10Mode(unsigned int vs10Mode);
   unsigned int GetVideoVS10Mode();
+  void SetVideoLiveBitRate(double bitRate);
+  double GetVideoLiveBitRate();
 
   /*!
    * @brief Set if the video is interlaced in cache.
@@ -250,6 +252,7 @@ protected:
     enum ELType doviELType;
     std::string doviCodecFourCC;
     unsigned int vs10Mode;
+    double liveBitRate;
   } m_playerVideoInfo;
 
   CCriticalSection m_audioPlayerSection;
