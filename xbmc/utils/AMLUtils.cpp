@@ -544,7 +544,7 @@ unsigned int aml_dv_on(unsigned int mode)
       aml_dv_wait_dv_std_vsif_packet();
 
     if ((mode = DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) || (mode = DOLBY_VISION_OUTPUT_MODE_IPT)) {
-      //aml_dv_trigger_update_resolution(StreamHdrType::HDR_TYPE_DOLBYVISION); // TODO - If display auto now works maybe integrate in logic under this?
+      aml_dv_trigger_update_resolution(StreamHdrType::HDR_TYPE_DOLBYVISION); // Required for 60Hz VS10 > DV.
       aml_dv_display_auto_now();
     }
   }
