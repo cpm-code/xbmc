@@ -476,6 +476,34 @@ double CDataCacheCore::GetAudioLiveBitRate()
   return m_playerAudioInfo.liveBitRate;
 }
 
+void CDataCacheCore::SetAudioQueueLevel(int level)
+{
+  std::unique_lock<CCriticalSection> lock(m_audioPlayerSection);
+
+  m_playerAudioInfo.queueLevel = level;
+}
+
+int CDataCacheCore::GetAudioQueueLevel()
+{
+  std::unique_lock<CCriticalSection> lock(m_audioPlayerSection);
+
+  return m_playerAudioInfo.queueLevel;
+}
+
+void CDataCacheCore::SetAudioQueueDataLevel(int level)
+{
+  std::unique_lock<CCriticalSection> lock(m_audioPlayerSection);
+
+  m_playerAudioInfo.queueDataLevel = level;
+}
+
+int CDataCacheCore::GetAudioQueueDataLevel()
+{
+  std::unique_lock<CCriticalSection> lock(m_audioPlayerSection);
+
+  return m_playerAudioInfo.queueDataLevel;
+}
+
 void CDataCacheCore::SetEditList(const std::vector<EDL::Edit>& editList)
 {
   std::unique_lock<CCriticalSection> lock(m_contentSection);

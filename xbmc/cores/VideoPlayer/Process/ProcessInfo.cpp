@@ -566,6 +566,8 @@ void CProcessInfo::ResetAudioCodecInfo()
   m_audioIsDolbyAtmos = false;
   m_audioDtsXType = DtsXType::DTS_X_NONE;
   m_audioLiveBitRate = 0;
+  m_audioQueueLevel = 0;
+  m_audioQueueDataLevel = 0;
 
   if (m_dataCache)
   {
@@ -576,6 +578,8 @@ void CProcessInfo::ResetAudioCodecInfo()
     m_dataCache->SetAudioIsDolbyAtmos(m_audioIsDolbyAtmos);
     m_dataCache->SetAudioDtsXType(m_audioDtsXType);
     m_dataCache->SetAudioLiveBitRate(m_audioLiveBitRate);
+    m_dataCache->SetAudioQueueLevel(m_audioQueueLevel);
+    m_dataCache->SetAudioQueueDataLevel(m_audioQueueLevel);
   }
 }
 
@@ -696,6 +700,40 @@ double CProcessInfo::GetAudioLiveBitRate()
   std::unique_lock<CCriticalSection> lock(m_audioCodecSection);
 
   return m_audioLiveBitRate;
+}
+
+void CProcessInfo::SetAudioQueueLevel(int level)
+{
+  std::unique_lock<CCriticalSection> lock(m_audioCodecSection);
+
+  m_audioQueueLevel = level;
+
+  if (m_dataCache)
+    m_dataCache->SetAudioQueueLevel(m_audioQueueLevel);
+}
+
+int CProcessInfo::GetAudioQueueLevel()
+{
+  std::unique_lock<CCriticalSection> lock(m_audioCodecSection);
+
+  return m_audioQueueLevel;
+}
+
+void CProcessInfo::SetAudioQueueDataLevel(int level)
+{
+  std::unique_lock<CCriticalSection> lock(m_audioCodecSection);
+
+  m_audioQueueDataLevel = level;
+
+  if (m_dataCache)
+    m_dataCache->SetAudioQueueDataLevel(m_audioQueueDataLevel);
+}
+
+int CProcessInfo::GetAudioQueueDataLevel()
+{
+  std::unique_lock<CCriticalSection> lock(m_audioCodecSection);
+
+  return m_audioQueueDataLevel;
 }
 
 bool CProcessInfo::AllowDTSHDDecode()

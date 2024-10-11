@@ -102,6 +102,10 @@ public:
   DtsXType GetAudioDtsXType();
   void SetAudioLiveBitRate(double bitRate);
   double GetAudioLiveBitRate();
+  void SetAudioQueueLevel(int level);
+  int GetAudioQueueLevel();
+  void SetAudioQueueDataLevel(int level);
+  int GetAudioQueueDataLevel();
   virtual bool AllowDTSHDDecode();
   virtual bool WantsRawPassthrough() { return false; }
 
@@ -193,6 +197,8 @@ protected:
   bool m_audioIsDolbyAtmos;
   DtsXType m_audioDtsXType;
   double m_audioLiveBitRate;
+  int m_audioQueueLevel;
+  int m_audioQueueDataLevel;
   CCriticalSection m_audioCodecSection;
 
   // render info
