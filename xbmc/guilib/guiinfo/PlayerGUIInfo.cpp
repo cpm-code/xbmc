@@ -513,6 +513,12 @@ bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int con
     case PLAYER_PROCESS_VIDEO_LIVE_MIBIT_RATE:
       value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetVideoLiveBitRate() / 1048576);
       return true;
+    case PLAYER_PROCESS_VIDEO_QUEUE_LEVEL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoQueueLevel());
+      return true;
+    case PLAYER_PROCESS_VIDEO_QUEUE_DATA_LEVEL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoQueueDataLevel());
+      return true;
     case PLAYER_PROCESS_VIDEO_BIT_DEPTH:
       value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetVideoBitDepth());
       return true;
