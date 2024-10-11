@@ -649,6 +649,18 @@ bool CPlayerGUIInfo::GetInt(int& value, const CGUIListItem *gitem, int contextWi
     case PLAYER_AUDIO_DELAY:
       value = m_appPlayer->GetAudioDelay();
       return true;
+    case PLAYER_PROCESS_AUDIO_QUEUE_LEVEL:
+      value = CServiceBroker::GetDataCacheCore().GetAudioQueueLevel();
+      return true;
+    case PLAYER_PROCESS_AUDIO_QUEUE_DATA_LEVEL:
+      value = CServiceBroker::GetDataCacheCore().GetAudioQueueDataLevel();
+      return true;
+    case PLAYER_PROCESS_VIDEO_QUEUE_LEVEL:
+      value = CServiceBroker::GetDataCacheCore().GetVideoQueueLevel();
+      return true;
+    case PLAYER_PROCESS_VIDEO_QUEUE_DATA_LEVEL:
+      value = CServiceBroker::GetDataCacheCore().GetVideoQueueDataLevel();
+      return true;
   }
 
   return false;
