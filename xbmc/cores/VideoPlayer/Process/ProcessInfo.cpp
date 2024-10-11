@@ -91,6 +91,8 @@ void CProcessInfo::ResetVideoCodecInfo()
   m_videoDoViCodecFourCC = "";
   m_videoVS10Mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
   m_videoLiveBitRate = 0;
+  m_videoQueueLevel = 0;
+  m_videoQueueDataLevel = 0;
   m_videoIsInterlaced = false;
   m_deintMethods.clear();
   m_deintMethods.push_back(EINTERLACEMETHOD::VS_INTERLACEMETHOD_NONE);
@@ -119,6 +121,8 @@ void CProcessInfo::ResetVideoCodecInfo()
     m_dataCache->SetVideoDoViCodecFourCC(m_videoDoViCodecFourCC);
     m_dataCache->SetVideoVS10Mode(m_videoVS10Mode);
     m_dataCache->SetVideoLiveBitRate(m_videoLiveBitRate);
+    m_dataCache->SetVideoQueueLevel(m_videoQueueLevel);
+    m_dataCache->SetVideoQueueDataLevel(m_videoQueueDataLevel);
   }
 }
 
@@ -419,6 +423,40 @@ double CProcessInfo::GetVideoLiveBitRate()
   std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
 
   return m_videoLiveBitRate;
+}
+
+void CProcessInfo::SetVideoQueueLevel(int level)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoQueueLevel = level;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoQueueLevel(m_videoQueueLevel);
+}
+
+int CProcessInfo::GetVideoQueueLevel()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoQueueLevel;
+}
+
+void CProcessInfo::SetVideoQueueDataLevel(int level)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoQueueDataLevel = level;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoQueueDataLevel(m_videoQueueDataLevel);
+}
+
+int CProcessInfo::GetVideoQueueDataLevel()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoQueueDataLevel;
 }
 
 void CProcessInfo::SetVideoFps(float fps)

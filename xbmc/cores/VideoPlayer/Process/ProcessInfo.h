@@ -74,6 +74,10 @@ public:
   unsigned int GetVideoVS10Mode();
   void SetVideoLiveBitRate(double bitRate);
   double GetVideoLiveBitRate();
+  void SetVideoQueueLevel(int level);
+  int GetVideoQueueLevel();
+  void SetVideoQueueDataLevel(int level);
+  int GetVideoQueueDataLevel();
   void SetVideoInterlaced(bool interlaced);
   bool GetVideoInterlaced();
   virtual EINTERLACEMETHOD GetFallbackDeintMethod();
@@ -182,6 +186,8 @@ protected:
   std::string m_videoDoViCodecFourCC;
   unsigned int m_videoVS10Mode;
   double m_videoLiveBitRate;
+  int m_videoQueueLevel;
+  int m_videoQueueDataLevel;
   bool m_videoIsInterlaced;
   std::list<EINTERLACEMETHOD> m_deintMethods;
   EINTERLACEMETHOD m_deintMethodDefault;

@@ -72,6 +72,10 @@ public:
   unsigned int GetVideoVS10Mode();
   void SetVideoLiveBitRate(double bitRate);
   double GetVideoLiveBitRate();
+  void SetVideoQueueLevel(int level);
+  int GetVideoQueueLevel();
+  void SetVideoQueueDataLevel(int level);
+  int GetVideoQueueDataLevel();
 
   /*!
    * @brief Set if the video is interlaced in cache.
@@ -260,6 +264,8 @@ protected:
     std::string doviCodecFourCC;
     unsigned int vs10Mode;
     double liveBitRate;
+    int queueLevel;
+    int queueDataLevel;
   } m_playerVideoInfo;
 
   CCriticalSection m_audioPlayerSection;
