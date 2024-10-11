@@ -490,10 +490,22 @@ bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int con
       value = DtsXTypeToString(CServiceBroker::GetDataCacheCore().GetAudioDtsXType());
       return true;
     case PLAYER_PROCESS_AUDIO_LIVE_BIT_RATE:
-      value = std::to_string(CServiceBroker::GetDataCacheCore().GetAudioLiveBitRate() / 1024);
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetAudioLiveBitRate());
+      return true;
+    case PLAYER_PROCESS_AUDIO_LIVE_KIBIT_RATE:
+      value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetAudioLiveBitRate() / 1024);
+      return true;
+    case PLAYER_PROCESS_AUDIO_LIVE_MIBIT_RATE:
+      value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetAudioLiveBitRate() / 1048576);
       return true;
     case PLAYER_PROCESS_VIDEO_LIVE_BIT_RATE:
-      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoLiveBitRate() / 1024 / 1024);
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoLiveBitRate());
+      return true;
+    case PLAYER_PROCESS_VIDEO_LIVE_KIBIT_RATE:
+      value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetVideoLiveBitRate() / 1024);
+      return true;
+    case PLAYER_PROCESS_VIDEO_LIVE_MIBIT_RATE:
+      value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetVideoLiveBitRate() / 1048576);
       return true;
     case PLAYER_PROCESS_VIDEO_BIT_DEPTH:
       value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetVideoBitDepth());
