@@ -71,10 +71,11 @@ std::string CCompileInfo::GetBuildDate()
   const std::string bdate = "@APP_BUILD_DATE@";
   if (!bdate.empty())
   {
-    std::string datestamp = bdate.substr(0, 4) + "-" + bdate.substr(4, 2) + "-" + bdate.substr(6, 2);
+    std::string datestamp = bdate.substr(0, 4) + "-" + bdate.substr(4, 2) + "-" + bdate.substr(6, 2) +
+      " " + bdate.substr(8, 2) + ":" + bdate.substr(10, 2) + ":" + bdate.substr(12, 2);
     return datestamp;
   }
-  return "1970-01-01";
+  return "1970-01-01 00:00:00";
 }
 
 const char*  CCompileInfo::GetVersionCode()
