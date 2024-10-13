@@ -871,38 +871,41 @@ unsigned int CAEStreamParser::SyncTrueHD(uint8_t* data, unsigned int size)
       if (((data[4 + major_sync_size - 1] << 8) | data[4 + major_sync_size - 2]) != crc)
         continue;
 
-      // Looks like cannot understand the original bit depth - can only asuume it is (up-to) 24 bit!
-      // DTS-MA has the original bit depth from the PCM for example.
-      // Seen some attempts at calculation e.g. from BDInfo but not sure that can be correct as 
-      // with lossless compressed audio the bit rate will varry, but the original bit depth should be constant.
-      // Would need to extract the samples and see if they were all padded to tell, but then seen
-      // comments that some titles will use 16 padded to 24 in some scences and then use full 24 in others!
-      // so overall just go with 24!
-      m_info.m_bitDepth = 24;
-
-      // get the sample rate and substreams, we have a valid master audio unit
-      m_info.m_sampleRate = (rate & 0x8 ? 44100 : 48000) << (rate & 0x7);
       m_substreams = (data[20] & 0xF0) >> 4;
-
-      // get the number of encoded channels
-      uint16_t channel_map = ((data[10] & 0x1F) << 8) | data[11];
-      if (!channel_map)
-        channel_map = (data[9] << 1) | (data[10] >> 7);
-      m_info.m_channels = CAEStreamParser::GetTrueHDChannels(channel_map);
-
-      // check for Atmos
-      m_info.m_isDolbyAtmos = ((m_substreams == 4) && ((data[20] & 0x0F) != 0));
-
-      if (!m_hasSync)
-        CLog::Log(LOGINFO,
-                  "CAEStreamParser::SyncTrueHD - TrueHD stream detected ({} channels{}, {}Hz, {}-bit)",
-                m_info.m_channels, m_info.m_isDolbyAtmos ? " + Atmos" : "", m_info.m_sampleRate, m_info.m_bitDepth);
-
-      m_hasSync = true;
       m_fsize = length;
-      m_info.m_type = CAEStreamInfo::STREAM_TYPE_TRUEHD;
-      m_syncFunc = &CAEStreamParser::SyncTrueHD;
-      m_info.m_repeat = 1;
+
+      if (!m_hasSync) 
+      {
+        // Looks like cannot understand the original bit depth - can only asuume it is (up-to) 24 bit!
+        // DTS-MA has the original bit depth from the PCM for example.
+        // Seen some attempts at calculation e.g. from BDInfo but not sure that can be correct as 
+        // with lossless compressed audio the bit rate will varry, but the original bit depth should be constant.
+        // Would need to extract the samples and see if they were all padded to tell, but then seen
+        // comments that some titles will use 16 padded to 24 in some scences and then use full 24 in others!
+        // so overall just go with 24!
+        m_info.m_bitDepth = 24;
+
+        // get the sample rate and substreams, we have a valid master audio unit
+        m_info.m_sampleRate = (rate & 0x8 ? 44100 : 48000) << (rate & 0x7);
+     
+        // get the number of encoded channels
+        uint16_t channel_map = ((data[10] & 0x1F) << 8) | data[11];
+        if (!channel_map)
+          channel_map = (data[9] << 1) | (data[10] >> 7);
+        m_info.m_channels = CAEStreamParser::GetTrueHDChannels(channel_map);
+
+        // check for Atmos
+        m_info.m_isDolbyAtmos = ((m_substreams == 4) && ((data[20] & 0x0F) != 0));
+
+        CLog::Log(LOGINFO, "CAEStreamParser::SyncTrueHD - TrueHD stream detected ({} channels{}, {}Hz, {}-bit)",
+                  m_info.m_channels, m_info.m_isDolbyAtmos ? " + Atmos" : "", m_info.m_sampleRate, m_info.m_bitDepth);
+
+        m_hasSync = true;
+        m_info.m_type = CAEStreamInfo::STREAM_TYPE_TRUEHD;
+        m_syncFunc = &CAEStreamParser::SyncTrueHD;
+        m_info.m_repeat = 1;
+      }
+
       return skip;
     }
     else
