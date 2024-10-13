@@ -319,6 +319,16 @@ CDVDVideoCodecFFmpeg::~CDVDVideoCodecFFmpeg()
   Dispose();
 }
 
+void SetProcessInfoVideoDetails(CProcessInfo &processInfo, CDVDStreamInfo &hints) 
+{
+  processInfo.SetVideoHdrType(hints.hdrType);
+  processInfo.SetVideoColorSpace(hints.colorSpace);
+  processInfo.SetVideoColorRange(hints.colorRange);
+  processInfo.SetVideoColorPrimaries(hints.colorPrimaries);
+  processInfo.SetVideoColorTransferCharacteristic(hints.colorTransferCharacteristic);
+  processInfo.SetVideoBitDepth(hints.bitdepth);
+}
+
 bool CDVDVideoCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
 {
   if (hints.cryptoSession)
@@ -339,6 +349,8 @@ bool CDVDVideoCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
   m_formats.push_back(AV_PIX_FMT_NONE); /* always add none to get a terminated list in ffmpeg world */
   m_processInfo.SetSwDeinterlacingMethods();
   m_processInfo.SetVideoInterlaced(false);
+
+  SetProcessInfoVideoDetails(m_processInfo, hints);
 
   // libdav1d av1 sw decoding is implemented as a separate decoder
   // in ffmpeg which is always found first when calling `avcodec_find_decoder`.
