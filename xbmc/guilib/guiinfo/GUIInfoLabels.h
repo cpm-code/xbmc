@@ -494,6 +494,8 @@
 
 #define SYSTEM_PATH_EXIST           810
 
+#define SYSTEM_CPU_ALT_USAGE        820
+
 #define SLIDESHOW_LABELS_START          900
 #define SLIDESHOW_FILE_NAME             (SLIDESHOW_LABELS_START)
 #define SLIDESHOW_FILE_PATH             (SLIDESHOW_LABELS_START + 1)
