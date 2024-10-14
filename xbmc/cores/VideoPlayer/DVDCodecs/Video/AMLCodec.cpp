@@ -2401,6 +2401,7 @@ void CAMLCodec::Reset()
   m_cur_pts = DVD_NOPTS_VALUE;
   m_last_pts = DVD_NOPTS_VALUE;
   m_state = 0;
+  m_buffer_level_ready = false;
 
   SetSpeed(m_speed);
 
@@ -2415,9 +2416,10 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
   bool streambuffer(am_private->gcodec.dec_mode == STREAM_TYPE_STREAM);
 
   if (!m_buffer_level_ready)
+  {
     m_buffer_level_ready = (streambuffer ? (new_buffer_level > 90.0f) : (new_buffer_level > 5.0f));
-
-  m_minimum_buffer_level = (streambuffer ? 10.0f : 5.0f);
+    m_minimum_buffer_level = (streambuffer ? 10.0f : 5.0f);
+  }
 
   if (!m_opened || !pData || free_len == 0 || new_buffer_level >= 100.0f)
   {
