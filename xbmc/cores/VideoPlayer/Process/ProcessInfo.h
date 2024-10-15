@@ -68,6 +68,8 @@ public:
   AVDOVIDecoderConfigurationRecord GetVideoDoViDecoderConfigurationRecord();
   void SetVideoDoViELType(enum ELType elType);
   enum ELType GetVideoDoViELType();
+  void SetVideoDoViMetaVersion(std::string metaVersion);
+  std::string GetVideoDoViMetaVersion();
   void SetVideoDoViCodecFourCC(std::string codecFourCC);
   std::string GetVideoDoViCodecFourCC();
   void SetVideoVS10Mode(unsigned int vs10Mode);
@@ -183,6 +185,7 @@ protected:
   AVColorTransferCharacteristic m_videoColorTransferCharacteristic;
   AVDOVIDecoderConfigurationRecord m_videoDoViDecoderConfigurationRecord;
   enum ELType m_videoDoViELType;
+  std::string m_videoDoViMetaVersion;
   std::string m_videoDoViCodecFourCC;
   unsigned int m_videoVS10Mode;
   double m_videoLiveBitRate;

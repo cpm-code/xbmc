@@ -88,6 +88,7 @@ void CProcessInfo::ResetVideoCodecInfo()
   m_videoColorTransferCharacteristic = AVCOL_TRC_UNSPECIFIED;
   m_videoDoViDecoderConfigurationRecord = {};
   m_videoDoViELType = ELType::TYPE_NONE;
+  m_videoDoViMetaVersion = "";
   m_videoDoViCodecFourCC = "";
   m_videoVS10Mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
   m_videoLiveBitRate = 0;
@@ -118,6 +119,7 @@ void CProcessInfo::ResetVideoCodecInfo()
     m_dataCache->SetVideoColorTransferCharacteristic(m_videoColorTransferCharacteristic);
     m_dataCache->SetVideoDoViDecoderConfigurationRecord(m_videoDoViDecoderConfigurationRecord);
     m_dataCache->SetVideoDoViELType(m_videoDoViELType);
+    m_dataCache->SetVideoDoViMetaVersion(m_videoDoViMetaVersion);
     m_dataCache->SetVideoDoViCodecFourCC(m_videoDoViCodecFourCC);
     m_dataCache->SetVideoVS10Mode(m_videoVS10Mode);
     m_dataCache->SetVideoLiveBitRate(m_videoLiveBitRate);
@@ -372,6 +374,23 @@ enum ELType CProcessInfo::GetVideoDoViELType()
   std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
 
   return m_videoDoViELType;
+}
+
+void CProcessInfo::SetVideoDoViMetaVersion(std::string metaVersion)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  m_videoDoViMetaVersion = metaVersion;
+
+  if (m_dataCache)
+    m_dataCache->SetVideoDoViMetaVersion(m_videoDoViMetaVersion);
+}
+
+std::string CProcessInfo::GetVideoDoViMetaVersion()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
+
+  return m_videoDoViMetaVersion;
 }
 
 void CProcessInfo::SetVideoDoViCodecFourCC(std::string codecFourCC)

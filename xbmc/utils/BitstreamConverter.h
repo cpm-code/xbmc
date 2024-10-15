@@ -128,6 +128,7 @@ public:
   void              SetRemoveDovi(bool value) { m_removeDovi = value; }
   void              SetRemoveHdr10Plus(bool value) { m_removeHdr10Plus = value; }
   enum ELType       GetDoviElType() const { return m_dovi_el_type; }
+  std::string       GetDoviMetaVersion() const { return m_dovi_meta_version; }
   StreamHdrType     GetSourceHdrType() const { return m_source_hdr_type; }
 
   static bool       mpeg2_sequence_header(const uint8_t *data, const uint32_t size, mpeg2_sequence *sequence);
@@ -195,6 +196,7 @@ protected:
   bool              m_convert_Hdr10Plus;
   enum PeakBrightnessSource m_convert_Hdr10Plus_peak_brightness_source;
   enum ELType       m_dovi_el_type;
+  std::string       m_dovi_meta_version;
   StreamHdrType     m_source_hdr_type;
   bool              m_first_convert;
 

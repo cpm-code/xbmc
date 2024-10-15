@@ -295,6 +295,20 @@ enum ELType CDataCacheCore::GetVideoDoViELType()
   return m_playerVideoInfo.doviELType;
 }
 
+void CDataCacheCore::SetVideoDoViMetaVersion(std::string metaVersion)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.doviMetaVersion = metaVersion;
+}
+
+std::string CDataCacheCore::GetVideoDoViMetaVersion()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.doviMetaVersion;
+}
+
 void CDataCacheCore::SetVideoDoViCodecFourCC(std::string codecFourCC)
 {
   std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);

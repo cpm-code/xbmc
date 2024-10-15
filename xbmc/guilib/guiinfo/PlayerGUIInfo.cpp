@@ -573,6 +573,9 @@ bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int con
     case PLAYER_PROCESS_VIDEO_DOVI_EL_TYPE:
       value = ELTypeToString(CServiceBroker::GetDataCacheCore().GetVideoDoViELType());
       return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_META_VERSION:
+      value = CServiceBroker::GetDataCacheCore().GetVideoDoViMetaVersion();
+      return true;
     case PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC:
       value = CServiceBroker::GetDataCacheCore().GetVideoDoViCodecFourCC();
       return true;
