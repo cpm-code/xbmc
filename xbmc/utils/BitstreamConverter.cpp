@@ -286,6 +286,8 @@ static bool has_sei_recovery_point(const uint8_t *p, const uint8_t *end)
 #ifdef HAVE_LIBDOVI
 static void get_dovi_info(uint8_t* buf, uint32_t nal_size, enum ELType& el_type, std::string& meta_version)
 {
+  // https://professionalsupport.dolby.com/s/article/Dolby-Vision-Metadata-Levels?language=en_US
+  
   DoviRpuOpaque* rpuOpaque = dovi_parse_unspec62_nalu(buf, nal_size);
   
   const DoviVdrDmData* vdr_dm_data = dovi_rpu_get_vdr_dm_data(rpuOpaque);  
