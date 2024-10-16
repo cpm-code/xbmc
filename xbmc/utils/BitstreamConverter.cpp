@@ -284,7 +284,7 @@ static bool has_sei_recovery_point(const uint8_t *p, const uint8_t *end)
 }
 
 #ifdef HAVE_LIBDOVI
-static void get_dovi_el_type(uint8_t* buf, uint32_t nal_size, enum ELType& el_type, std::string& meta_version)
+static void get_dovi_info(uint8_t* buf, uint32_t nal_size, enum ELType& el_type, std::string& meta_version)
 {
   DoviRpuOpaque* rpuOpaque = dovi_parse_unspec62_nalu(buf, nal_size);
   
@@ -760,7 +760,7 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
         const uint8_t *nalu_62_data = buf;
         BitstreamAllocAndCopy(&m_convertBuffer, &offset, nalu_62_data, size, nal_type);
 #ifdef HAVE_LIBDOVI
-        if (m_first_convert) get_dovi_el_type((uint8_t *)nalu_62_data, size, m_dovi_el_type, m_dovi_meta_version);
+        if (m_first_convert) get_dovi_info((uint8_t *)nalu_62_data, size, m_dovi_el_type, m_dovi_meta_version);
 #endif
       }
       else
@@ -1100,8 +1100,10 @@ void CBitstreamConverter::AddDoViRpuNalu(const Hdr10PlusMetadata& meta, uint8_t 
       m_hints.dovi.el_present_flag = 0;
       m_hints.dovi.bl_present_flag = 1;
       m_hints.dovi.dv_bl_signal_compatibility_id = 1;
-      m_dovi_el_type = ELType::TYPE_NONE;
-      m_dovi_meta_version = "";
+
+      #ifdef HAVE_LIBDOVI
+        if (m_first_convert) get_dovi_info(nalu.data(), nalu.size(), m_dovi_el_type, m_dovi_meta_version);
+      #endif
     }
     BitstreamAllocAndCopy(poutbuf, poutbuf_size, NULL, 0, nalu.data(), nalu.size(), HEVC_NAL_UNSPEC62);
     nalu.clear();
@@ -1154,7 +1156,7 @@ void CBitstreamConverter::ProcessDoViRpu(uint8_t *buf, int32_t nal_size, uint8_t
   if (m_removeDovi) return;
 
 #ifdef HAVE_LIBDOVI
-  if (m_first_convert) get_dovi_el_type(buf, nal_size, m_dovi_el_type, m_dovi_meta_version);
+  if (m_first_convert) get_dovi_info(buf, nal_size, m_dovi_el_type, m_dovi_meta_version);
 #endif
 
   BitstreamAllocAndCopy(poutbuf, poutbuf_size, NULL, 0, buf, nal_size, HEVC_NAL_UNSPEC62);
