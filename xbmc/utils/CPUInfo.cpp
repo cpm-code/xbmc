@@ -83,6 +83,8 @@ std::string CCPUInfo::GetCoresUsageAltString()
 
         if (cpu_percent == 0) 
           strCores += "[COLOR FF404040]00[/COLOR]";
+        else if (cpu_percent < 10) 
+          strCores += StringUtils::Format("[COLOR FF808080]{:02d}[/COLOR]", cpu_percent);
         else if (cpu_percent < 100) 
           strCores += StringUtils::Format("{:02d}", cpu_percent);
         else 
