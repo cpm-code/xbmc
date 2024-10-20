@@ -231,6 +231,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       CLog::Log(LOGDEBUG, "{}::{} - amcodec does not support RMVB", __MODULE_NAME__, __FUNCTION__);
       goto FAIL;
     case AV_CODEC_ID_VC1:
+    case AV_CODEC_ID_WMV3:
       if (m_hints.width <= CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
         CSettings::SETTING_VIDEOPLAYER_USEAMCODECVC1))
       {
@@ -250,10 +251,18 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
           goto FAIL;
         }
       }
-      m_pFormatName = "am-vc1";
-      break;
-    case AV_CODEC_ID_WMV3:
-      m_pFormatName = "am-wmv3";
+
+      switch(m_hints.codec)
+      {
+        case AV_CODEC_ID_VC1:
+          m_pFormatName = "am-vc1";
+          break;
+        case AV_CODEC_ID_WMV3:
+          m_pFormatName = "am-wmv3";
+          break;
+        default:
+          goto FAIL;
+      }
       break;
     case AV_CODEC_ID_AVS:
     case AV_CODEC_ID_CAVS:
