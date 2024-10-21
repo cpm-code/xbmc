@@ -112,6 +112,7 @@ void CAEStreamParser::Reset()
   m_skipBytes = 0;
   m_bufferSize = 0;
   m_needBytes = 0;
+  m_eac3DolbyAtmosCheckCount = 0;
   m_hasSync = false;
 }
 
