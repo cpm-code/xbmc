@@ -14,7 +14,6 @@
 #include "settings/AdvancedSettings.h"
 #include "settings/SettingsComponent.h"
 #include "utils/AMLUtils.h"
-#include "utils/BitstreamConverter.h"
 
 #include <libavutil/avutil.h>
 
@@ -87,7 +86,7 @@ void CProcessInfo::ResetVideoCodecInfo()
   m_videoColorPrimaries = AVCOL_PRI_UNSPECIFIED;
   m_videoColorTransferCharacteristic = AVCOL_TRC_UNSPECIFIED;
   m_videoDoViDecoderConfigurationRecord = {};
-  m_videoDoViELType = ELType::TYPE_NONE;
+  m_videoDoViELType = DOVIELType::TYPE_NONE;
   m_videoDoViMetaVersion = "";
   m_videoDoViCodecFourCC = "";
   m_videoVS10Mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
@@ -359,17 +358,17 @@ AVDOVIDecoderConfigurationRecord CProcessInfo::GetVideoDoViDecoderConfigurationR
   return m_videoDoViDecoderConfigurationRecord;
 }
 
-void CProcessInfo::SetVideoDoViELType(enum ELType elType)
+void CProcessInfo::SetVideoDoViELType(enum DOVIELType doviElType)
 {
   std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
 
-  m_videoDoViELType = elType;
+  m_videoDoViELType = doviElType;
 
   if (m_dataCache)
     m_dataCache->SetVideoDoViELType(m_videoDoViELType);
 }
 
-enum ELType CProcessInfo::GetVideoDoViELType()
+enum DOVIELType CProcessInfo::GetVideoDoViELType()
 {
   std::unique_lock<CCriticalSection> lock(m_videoCodecSection);
 

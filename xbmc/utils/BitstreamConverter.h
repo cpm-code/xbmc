@@ -14,6 +14,7 @@
 #include <stdint.h>
 
 #include "cores/VideoPlayer/DVDStreamInfo.h"
+#include "cores/VideoPlayer/Process/ProcessInfo.h"
 
 #include "HevcSei.h"
 #include "HDR10Plus.h"
@@ -86,12 +87,6 @@ typedef struct
   int frame_crop_bottom_offset;
 } sps_info_struct;
 
-enum ELType : int
-{
-  TYPE_NONE = 0,
-  TYPE_FEL,
-  TYPE_MEL
-};
 
 class CBitstreamParser
 {
@@ -107,7 +102,7 @@ public:
 class CBitstreamConverter
 {
 public:
-  CBitstreamConverter(CDVDStreamInfo& hints);
+  CBitstreamConverter(CDVDStreamInfo& hints, CProcessInfo &processInfo);
   ~CBitstreamConverter();
 
   bool              Open(bool to_annexb);
@@ -128,9 +123,6 @@ public:
   void              SetConvertHdr10PlusPeakBrightnessSource(enum PeakBrightnessSource value) { m_convert_Hdr10Plus_peak_brightness_source = value; };
   void              SetRemoveDovi(bool value) { m_removeDovi = value; }
   void              SetRemoveHdr10Plus(bool value) { m_removeHdr10Plus = value; }
-  enum ELType       GetDoviElType() const { return m_dovi_el_type; }
-  std::string       GetDoviMetaVersion() const { return m_dovi_meta_version; }
-  StreamHdrType     GetSourceHdrType() const { return m_source_hdr_type; }
 
   static bool       mpeg2_sequence_header(const uint8_t *data, const uint32_t size, mpeg2_sequence *sequence);
   static bool       h264_sequence_header(const uint8_t *data, const uint32_t size, h264_sequence *sequence);
@@ -189,6 +181,7 @@ protected:
   bool              m_convert_bytestream;
   AVCodecID         m_codec;
   CDVDStreamInfo&   m_hints;
+  CProcessInfo&     m_processInfo;
   StreamHdrType     m_intial_hdrType;
   bool              m_start_decode;
   bool              m_convert_dovi;
@@ -197,9 +190,6 @@ protected:
   bool              m_convert_Hdr10Plus;
   bool              m_prefer_Hdr10Plus_conversion;
   enum PeakBrightnessSource m_convert_Hdr10Plus_peak_brightness_source;
-  enum ELType       m_dovi_el_type;
-  std::string       m_dovi_meta_version;
-  StreamHdrType     m_source_hdr_type;
   bool              m_first_frame;
 
   uint16_t          m_max_display_mastering_luminance;

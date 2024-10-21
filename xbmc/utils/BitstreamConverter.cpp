@@ -22,6 +22,7 @@
 #include "HDR10PlusConvert.h"
 
 #include "utils/StringUtils.h"
+#include "cores/VideoPlayer/Process/ProcessInfo.h"
 
 #include <algorithm>
 #include <fmt/format.h>
@@ -283,7 +284,7 @@ static bool has_sei_recovery_point(const uint8_t *p, const uint8_t *end)
   return false;
 }
 
-static void get_dovi_info(uint8_t* buf, uint32_t nal_size, enum ELType& el_type, std::string& meta_version)
+static void get_dovi_info(uint8_t* buf, uint32_t nal_size, enum DOVIELType& dovi_el_type, CProcessInfo& processInfo)
 {
 #ifdef HAVE_LIBDOVI
   // https://professionalsupport.dolby.com/s/article/Dolby-Vision-Metadata-Levels?language=en_US
@@ -291,6 +292,15 @@ static void get_dovi_info(uint8_t* buf, uint32_t nal_size, enum ELType& el_type,
   DoviRpuOpaque* rpuOpaque = dovi_parse_unspec62_nalu(buf, nal_size);
 
   const DoviVdrDmData* vdr_dm_data = dovi_rpu_get_vdr_dm_data(rpuOpaque);
+
+  if (vdr_dm_data->dm_data.level1)
+  {
+    processInfo.SetVideoDoViFrameLuminanceMin(vdr_dm_data->dm_data.level1->min_pq);
+    processInfo.SetVideoDoViFrameLuminanceMax(vdr_dm_data->dm_data.level1->max_pq);
+    processInfo.SetVideoDoViFrameLuminanceAvg(vdr_dm_data->dm_data.level1->avg_pq);
+  }
+
+  std::string meta_version = "";
 
   if (vdr_dm_data->dm_data.level254)
   {
@@ -313,17 +323,19 @@ static void get_dovi_info(uint8_t* buf, uint32_t nal_size, enum ELType& el_type,
     else 
       meta_version = "CMv2.9";
   }
+  processInfo.SetVideoDoViMetaVersion(meta_version);
 
   const DoviRpuDataHeader* header = dovi_rpu_get_header(rpuOpaque);
-  el_type = ELType::TYPE_NONE;
+  dovi_el_type = DOVIELType::TYPE_NONE;
 
-  if (header && (header->guessed_profile == 7) && header->el_type)
+  if (header && ((header->guessed_profile == 4) || (header->guessed_profile == 7)) && header->el_type)
   {
     if (StringUtils::EqualsNoCase(header->el_type, "FEL"))
-      el_type = ELType::TYPE_FEL;
+      dovi_el_type = DOVIELType::TYPE_FEL;
     else if (StringUtils::EqualsNoCase(header->el_type, "MEL"))
-      el_type = ELType::TYPE_MEL;
+      dovi_el_type = DOVIELType::TYPE_MEL;
   }
+  processInfo.SetVideoDoViELType(dovi_el_type);
 
   dovi_rpu_free_vdr_dm_data(vdr_dm_data);
   dovi_rpu_free_header(header);
@@ -384,7 +396,7 @@ bool CBitstreamParser::CanStartDecode(const uint8_t *buf, int buf_size)
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
-CBitstreamConverter::CBitstreamConverter(CDVDStreamInfo& hints) : m_hints(hints)
+CBitstreamConverter::CBitstreamConverter(CDVDStreamInfo& hints, CProcessInfo &processInfo) : m_hints(hints), m_processInfo(processInfo)
 {
   m_convert_bitstream = false;
   m_convertBuffer     = NULL;
@@ -401,9 +413,6 @@ CBitstreamConverter::CBitstreamConverter(CDVDStreamInfo& hints) : m_hints(hints)
   m_prefer_Hdr10Plus_conversion = false;
   m_removeDovi = false;
   m_removeHdr10Plus = false;
-  m_dovi_el_type = ELType::TYPE_NONE;
-  m_dovi_meta_version = "";
-  m_source_hdr_type = m_hints.hdrType;
   m_combine = false;
   m_first_frame = true;
 
@@ -411,6 +420,7 @@ CBitstreamConverter::CBitstreamConverter(CDVDStreamInfo& hints) : m_hints(hints)
   m_min_display_mastering_luminance = 0;
   m_max_content_light_level = 0;
   m_max_frame_average_light_level = 0;
+  m_processInfo.SetVideoSourceHdrType(m_hints.hdrType);
 }
 
 CBitstreamConverter::~CBitstreamConverter()
@@ -731,9 +741,6 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
     else
       buf = pData_bl;
 
-    m_dovi_el_type = ELType::TYPE_NONE;
-    m_dovi_meta_version = "";
-
     // process bl frame data
     start = buf;
     end = buf + bl_frame_nal_buf_size;
@@ -775,7 +782,7 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
       {
         const uint8_t *nalu_62_data = buf;
         BitstreamAllocAndCopy(&m_convertBuffer, &offset, nalu_62_data, size, nal_type);
-        if (m_first_frame) get_dovi_info((uint8_t *)nalu_62_data, size, m_dovi_el_type, m_dovi_meta_version);        
+        get_dovi_info((uint8_t *)nalu_62_data, size, m_hints.dovi_el_type, m_processInfo);     
       }
       else
       {
@@ -1077,6 +1084,10 @@ void CBitstreamConverter::ApplyMasteringDisplayColourVolume(const MasteringDispl
   {
     m_max_display_mastering_luminance = metadata.maxLuminance;
     m_min_display_mastering_luminance = metadata.minLuminance;
+
+    m_processInfo.SetVideoHdrMdcvLuminanceMax(metadata.maxLuminance);
+    m_processInfo.SetVideoHdrMdcvLuminanceMin(metadata.minLuminance);
+
     CLog::Log(LOGINFO, "CBitstreamConverter::ApplyMasteringDisplayColourVolume [{}] [{}]", m_max_display_mastering_luminance, m_min_display_mastering_luminance);
   }
 }
@@ -1088,6 +1099,10 @@ void CBitstreamConverter::ApplyContentLightLevel(const ContentLightLevel& metada
   {
     m_max_content_light_level = metadata.maxContentLightLevel;
     m_max_frame_average_light_level = metadata.maxFrameAverageLightLevel;
+
+    m_processInfo.SetVideoHdrCllCllMax(metadata.maxContentLightLevel);
+    m_processInfo.SetVideoHdrCllFallMax(metadata.maxFrameAverageLightLevel);
+
     CLog::Log(LOGINFO, "CBitstreamConverter::ApplyContentLightLevel [{}] [{}]", m_max_content_light_level, m_max_frame_average_light_level);
   }
 }
@@ -1114,7 +1129,7 @@ void CBitstreamConverter::AddDoViRpuNalu(const Hdr10PlusMetadata& meta, uint8_t 
       m_hints.dovi.el_present_flag = 0;
       m_hints.dovi.bl_present_flag = 1;
       m_hints.dovi.dv_bl_signal_compatibility_id = 1;
-      get_dovi_info(nalu.data(), nalu.size(), m_dovi_el_type, m_dovi_meta_version);
+      get_dovi_info(nalu.data(), nalu.size(), m_hints.dovi_el_type, m_processInfo);
     }
     BitstreamAllocAndCopy(poutbuf, poutbuf_size, NULL, 0, nalu.data(), nalu.size(), HEVC_NAL_UNSPEC62);
     nalu.clear();
@@ -1137,12 +1152,14 @@ void CBitstreamConverter::ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8
   if (auto res = CHevcSei::ExtractHdr10Plus(messages, clearBuf)) {
 
     bool considerAsHdr10Plus = ((m_intial_hdrType == StreamHdrType::HDR_TYPE_HDR10) || m_prefer_Hdr10Plus_conversion);
+
     if (considerAsHdr10Plus && m_first_frame) {
       m_hints.hdrType = StreamHdrType::HDR_TYPE_HDR10PLUS;
-      m_source_hdr_type = StreamHdrType::HDR_TYPE_HDR10PLUS;
+      m_processInfo.SetVideoSourceHdrType(StreamHdrType::HDR_TYPE_HDR10PLUS);
     }
 
     bool convert = (considerAsHdr10Plus && m_convert_Hdr10Plus);
+
     if (convert) {      
       meta = res.value();
       convert_hdr10plus_meta = true;
@@ -1167,7 +1184,7 @@ void CBitstreamConverter::ProcessDoViRpu(uint8_t *buf, int32_t nal_size, uint8_t
   
   if (m_removeDovi) return;
   
-  if (m_first_frame) get_dovi_info(buf, nal_size, m_dovi_el_type, m_dovi_meta_version);
+  get_dovi_info(buf, nal_size, m_hints.dovi_el_type, m_processInfo);
   
   BitstreamAllocAndCopy(poutbuf, poutbuf_size, NULL, 0, buf, nal_size, HEVC_NAL_UNSPEC62);
 }

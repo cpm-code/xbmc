@@ -234,11 +234,11 @@ std::string HdrTypeToString(StreamHdrType hdrType) {
   return "";
 }
 
-std::string ELTypeToString(enum ELType elType) {
-  switch (elType) {
-    case ELType::TYPE_NONE: return "none";
-    case ELType::TYPE_FEL: return "full";
-    case ELType::TYPE_MEL: return "minimum";
+std::string DoViELTypeToString(enum DOVIELType doviElType) {
+  switch (doviElType) {
+    case DOVIELType::TYPE_NONE: return "none";
+    case DOVIELType::TYPE_FEL: return "full";
+    case DOVIELType::TYPE_MEL: return "minimum";
   }
   return "";
 }
@@ -571,7 +571,7 @@ bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int con
       value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViDecoderConfigurationRecord().dv_bl_signal_compatibility_id);
       return true;
     case PLAYER_PROCESS_VIDEO_DOVI_EL_TYPE:
-      value = ELTypeToString(CServiceBroker::GetDataCacheCore().GetVideoDoViELType());
+      value = DoViELTypeToString(CServiceBroker::GetDataCacheCore().GetVideoDoViELType());
       return true;
     case PLAYER_PROCESS_VIDEO_DOVI_META_VERSION:
       value = CServiceBroker::GetDataCacheCore().GetVideoDoViMetaVersion();

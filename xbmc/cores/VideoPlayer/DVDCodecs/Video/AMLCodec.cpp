@@ -1904,7 +1904,7 @@ void SetProcessInfoVideoDetails(CProcessInfo &processInfo, CDVDStreamInfo &hints
     processInfo.SetVideoDoViELType(dovi_el_type);
     processInfo.SetVideoDoViCodecFourCC(GetDoViCodecFourCC(hints.codec_tag));
 
-    if (dovi_el_type == ELType::TYPE_FEL)
+    if (hints.dovi_el_type == DOVIELType::TYPE_FEL)
       processInfo.SetVideoBitDepth(12); // 12 bit for FEL (once DV processed)
     else
       processInfo.SetVideoBitDepth(hints.bitdepth);
@@ -1915,7 +1915,7 @@ void SetProcessInfoVideoDetails(CProcessInfo &processInfo, CDVDStreamInfo &hints
   }
 }
 
-bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
+bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
 {
   m_speed = DVD_PLAYSPEED_NORMAL;
   m_drain = false;
@@ -2046,7 +2046,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
     CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hdr type: {}", hdrType);
   if (hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
     CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DOVI: version {:d}.{:d}, profile {:d}, el type {:d}",
-      hints.dovi.dv_version_major, hints.dovi.dv_version_minor, hints.dovi.dv_profile, dovi_el_type);
+      hints.dovi.dv_version_major, hints.dovi.dv_version_minor, hints.dovi.dv_profile, hints.dovi_el_type);
 
   m_processInfo.SetVideoDAR(hints.aspect);
   CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder decoder timeout: {:d}s",
@@ -2069,7 +2069,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
 
   aml_dv_open(m_hints.hdrType, m_hints.bitdepth);
 
-  SetProcessInfoVideoDetails(m_processInfo, m_hints, dovi_el_type);
+  SetProcessInfoVideoDetailsA(m_processInfo, m_hints);
 
   // Setup Codec for DV Content
   if ((hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) && aml_is_dv_enable()) 
@@ -2078,7 +2078,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
     if ((hints.dovi.dv_profile == 4 || hints.dovi.dv_profile == 7) && CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
         CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI) == 0)
     {
-      if (dovi_el_type == ELType::TYPE_FEL) // use stream path if FEL
+      if (hints.dovi_el_type == DOVIELType::TYPE_FEL) // use stream path if FEL
       {
         CSysfsPath amdolby_vision_debug{"/sys/class/amdolby_vision/debug"};
         if (amdolby_vision_debug.Exists())

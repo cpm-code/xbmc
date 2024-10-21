@@ -281,14 +281,14 @@ AVDOVIDecoderConfigurationRecord CDataCacheCore::GetVideoDoViDecoderConfiguratio
   return m_playerVideoInfo.doviDecoderConfigurationRecord;
 }
 
-void CDataCacheCore::SetVideoDoViELType(enum ELType elType)
+void CDataCacheCore::SetVideoDoViELType(enum DOVIELType doviElType)
 {
   std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
 
-  m_playerVideoInfo.doviELType = elType;
+  m_playerVideoInfo.doviELType = doviElType;
 }
 
-enum ELType CDataCacheCore::GetVideoDoViELType()
+enum DOVIELType CDataCacheCore::GetVideoDoViELType()
 {
   std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
 

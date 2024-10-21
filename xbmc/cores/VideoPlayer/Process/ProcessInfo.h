@@ -10,10 +10,10 @@
 
 #include "cores/VideoPlayer/Buffers/VideoBuffer.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderInfo.h"
+#include "cores/VideoPlayer/DVDStreamInfo.h"
 #include "cores/VideoSettings.h"
 #include "cores/AudioEngine/Utils/AEStreamInfo.h"
 #include "threads/CriticalSection.h"
-#include "utils/BitstreamConverter.h"
 
 #include <atomic>
 #include <list>
@@ -66,8 +66,8 @@ public:
   AVColorTransferCharacteristic GetVideoColorTransferCharacteristic();
   void SetVideoDoViDecoderConfigurationRecord(AVDOVIDecoderConfigurationRecord doViDecoderConfigurationRecord);
   AVDOVIDecoderConfigurationRecord GetVideoDoViDecoderConfigurationRecord();
-  void SetVideoDoViELType(enum ELType elType);
-  enum ELType GetVideoDoViELType();
+  void SetVideoDoViELType(enum DOVIELType doviElType);
+  enum DOVIELType GetVideoDoViELType();
   void SetVideoDoViMetaVersion(std::string metaVersion);
   std::string GetVideoDoViMetaVersion();
   void SetVideoDoViCodecFourCC(std::string codecFourCC);
@@ -202,7 +202,7 @@ protected:
   AVColorPrimaries m_videoColorPrimaries;
   AVColorTransferCharacteristic m_videoColorTransferCharacteristic;
   AVDOVIDecoderConfigurationRecord m_videoDoViDecoderConfigurationRecord;
-  enum ELType m_videoDoViELType;
+  enum DOVIELType m_videoDoViELType;
   std::string m_videoDoViMetaVersion;
   std::string m_videoDoViCodecFourCC;
 

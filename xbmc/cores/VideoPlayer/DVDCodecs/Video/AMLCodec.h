@@ -63,7 +63,7 @@ public:
   CAMLCodec(CProcessInfo &processInfo);
   virtual ~CAMLCodec();
 
-  bool          OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type);
+  bool          OpenDecoder(CDVDStreamInfo &hints);
   bool          Enable_vadj1();
   void          CloseDecoder();
   void          Reset();

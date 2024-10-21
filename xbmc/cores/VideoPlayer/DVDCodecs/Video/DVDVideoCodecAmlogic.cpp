@@ -180,7 +180,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       // under streamers can have issues when seeking.
       if (m_hints.extradata && m_hints.extradata.GetData()[0] == 1)
       {
-        m_bitstream = std::make_unique<CBitstreamConverter>(m_hints);
+        m_bitstream = std::make_unique<CBitstreamConverter>(m_hints, m_processInfo);
         m_bitstream->Open(true);
         m_bitstream->ResetStartDecode();
         // make sure we do not leak the existing m_hints.extradata
@@ -295,7 +295,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
         goto FAIL;
       }
       m_pFormatName = "am-h265";
-      m_bitstream = std::make_unique<CBitstreamConverter>(m_hints);
+      m_bitstream = std::make_unique<CBitstreamConverter>(m_hints, m_processInfo);
       m_bitstream->Open(true);
 
       // check for hevc-hvcC and convert to h265-annex-b
@@ -434,7 +434,6 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
 
   uint8_t *pData(packet.pData);
   uint32_t iSize(packet.iSize);
-  enum ELType dovi_el_type = ELType::TYPE_NONE;
   int data_added = false;
   bool dual_layer_converted = false;
   bool set_osd_max = false;
@@ -498,11 +497,6 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
       }
       pData = m_bitstream->GetConvertBuffer();
       iSize = m_bitstream->GetConvertSize();
-      if (!m_opened) {
-        dovi_el_type = m_bitstream->GetDoviElType();
-        m_processInfo.SetVideoDoViMetaVersion(m_bitstream->GetDoviMetaVersion());
-        m_processInfo.SetVideoSourceHdrType(m_bitstream->GetSourceHdrType());
-      }
     }
     else if (!m_has_keyframe && m_bitparser)
     {
@@ -522,7 +516,7 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
         m_hints.ptsinvalid = true;
 
       CLog::Log(LOGINFO, "CDVDVideoCodecAmlogic::{}: Open decoder: fps:{:d}/{:d}", __FUNCTION__, m_hints.fpsrate, m_hints.fpsscale);
-      if (m_Codec && !m_Codec->OpenDecoder(m_hints, dovi_el_type))
+      if (m_Codec && !m_Codec->OpenDecoder(m_hints))
         CLog::Log(LOGERROR, "CDVDVideoCodecAmlogic::{}: Failed to open Amlogic Codec", __FUNCTION__);
 
       m_videoBufferPool = std::shared_ptr<CAMLVideoBufferPool>(new CAMLVideoBufferPool());

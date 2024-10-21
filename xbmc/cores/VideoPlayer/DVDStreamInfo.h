@@ -25,6 +25,13 @@ extern "C"
 class CDemuxStream;
 struct DemuxCryptoSession;
 
+enum DOVIELType : int
+{
+  TYPE_NONE = 0,
+  TYPE_FEL,
+  TYPE_MEL
+};
+
 class CDVDStreamInfo
 {
 public:
@@ -83,6 +90,7 @@ public:
   std::shared_ptr<AVContentLightMetadata> contentLightMetadata;
   std::string stereo_mode; // stereoscopic 3d mode
   AVDOVIDecoderConfigurationRecord dovi{};
+  enum DOVIELType dovi_el_type = DOVIELType::TYPE_NONE;
   CDVDClock *pClock;
 
   // AUDIO

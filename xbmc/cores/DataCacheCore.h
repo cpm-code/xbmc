@@ -64,8 +64,8 @@ public:
   AVColorTransferCharacteristic GetVideoColorTransferCharacteristic();
   void SetVideoDoViDecoderConfigurationRecord(AVDOVIDecoderConfigurationRecord doViDecoderConfigurationRecord);
   AVDOVIDecoderConfigurationRecord GetVideoDoViDecoderConfigurationRecord();
-  void SetVideoDoViELType(enum ELType elType);
-  enum ELType GetVideoDoViELType();
+  void SetVideoDoViELType(enum DOVIELType doviElType);
+  enum DOVIELType GetVideoDoViELType();
   void SetVideoDoViMetaVersion(std::string metaVersion);
   std::string GetVideoDoViMetaVersion();
   void SetVideoDoViCodecFourCC(std::string);
@@ -278,7 +278,7 @@ protected:
     AVColorPrimaries colorPrimaries;
     AVColorTransferCharacteristic colorTransferCharacteristic;
     AVDOVIDecoderConfigurationRecord doviDecoderConfigurationRecord;
-    enum ELType doviELType;
+    enum DOVIELType doviELType;
     std::string doviMetaVersion;
     std::string doviCodecFourCC;
 
