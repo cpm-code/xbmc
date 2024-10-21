@@ -405,7 +405,7 @@ CBitstreamConverter::CBitstreamConverter(CDVDStreamInfo& hints) : m_hints(hints)
   m_dovi_meta_version = "";
   m_source_hdr_type = m_hints.hdrType;
   m_combine = false;
-  m_first_convert = true;
+  m_first_frame = true;
 
   m_max_display_mastering_luminance = 0;
   m_min_display_mastering_luminance = 0;
@@ -775,7 +775,7 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
       {
         const uint8_t *nalu_62_data = buf;
         BitstreamAllocAndCopy(&m_convertBuffer, &offset, nalu_62_data, size, nal_type);
-        if (m_first_convert) get_dovi_info((uint8_t *)nalu_62_data, size, m_dovi_el_type, m_dovi_meta_version);        
+        if (m_first_frame) get_dovi_info((uint8_t *)nalu_62_data, size, m_dovi_el_type, m_dovi_meta_version);        
       }
       else
       {
@@ -1104,7 +1104,7 @@ void CBitstreamConverter::AddDoViRpuNalu(const Hdr10PlusMetadata& meta, uint8_t 
 
   if (!nalu.empty())
   {
-    if (m_first_convert) {
+    if (m_first_frame) {
       m_hints.hdrType = StreamHdrType::HDR_TYPE_DOLBYVISION;
       m_hints.dovi.dv_version_major = 1;
       m_hints.dovi.dv_version_minor = 0;
@@ -1136,16 +1136,16 @@ void CBitstreamConverter::ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8
 
   if (auto res = CHevcSei::ExtractHdr10Plus(messages, clearBuf)) {
 
-    bool convert = m_convert_Hdr10Plus && ((m_intial_hdrType == StreamHdrType::HDR_TYPE_HDR10) || m_prefer_Hdr10Plus_conversion);
+    bool considerAsHdr10Plus = ((m_intial_hdrType == StreamHdrType::HDR_TYPE_HDR10) || m_prefer_Hdr10Plus_conversion);
+    if (considerAsHdr10Plus && m_first_frame) {
+      m_hints.hdrType = StreamHdrType::HDR_TYPE_HDR10PLUS;
+      m_source_hdr_type = StreamHdrType::HDR_TYPE_HDR10PLUS;
+    }
 
-    if (convert) {
-      if (m_first_convert) {
-        m_hints.hdrType = StreamHdrType::HDR_TYPE_HDR10PLUS;
-        m_source_hdr_type = StreamHdrType::HDR_TYPE_HDR10PLUS;
-      }
+    bool convert = (considerAsHdr10Plus && m_convert_Hdr10Plus);
+    if (convert) {      
       meta = res.value();
       convert_hdr10plus_meta = true;
-      copy = false;
     }
 
     if (convert || m_removeHdr10Plus) {
@@ -1167,7 +1167,7 @@ void CBitstreamConverter::ProcessDoViRpu(uint8_t *buf, int32_t nal_size, uint8_t
   
   if (m_removeDovi) return;
   
-  if (m_first_convert) get_dovi_info(buf, nal_size, m_dovi_el_type, m_dovi_meta_version);
+  if (m_first_frame) get_dovi_info(buf, nal_size, m_dovi_el_type, m_dovi_meta_version);
   
   BitstreamAllocAndCopy(poutbuf, poutbuf_size, NULL, 0, buf, nal_size, HEVC_NAL_UNSPEC62);
 }
@@ -1282,7 +1282,7 @@ bool CBitstreamConverter::BitstreamConvert(uint8_t* pData, int iSize, uint8_t **
     AddDoViRpuNalu(hdr10plus_meta, poutbuf, poutbuf_size);
   }
 
-  m_first_convert = false;
+  m_first_frame = false;
 
   return true;
 
