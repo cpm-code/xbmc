@@ -281,6 +281,17 @@ protected:
     enum ELType doviELType;
     std::string doviMetaVersion;
     std::string doviCodecFourCC;
+
+    unsigned int doviFrameLuminanceMin;
+    unsigned int doviFrameLuminanceMax;
+    unsigned int doviFrameLuminanceAvg;
+
+    unsigned int hdrCllCllMax;
+    unsigned int hdrCllFallMax;
+
+    unsigned int hdrMdcvLuminanceMin;
+    unsigned int hdrMdcvLuminanceMax;
+
     unsigned int vs10Mode;
     double liveBitRate;
     int queueLevel;
