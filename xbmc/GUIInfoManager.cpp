@@ -1246,6 +1246,16 @@ const infomap player_process[] = {{"videodecoder", PLAYER_PROCESS_VIDEODECODER},
                                   {"video.dovi.bl.signal.compatibility", PLAYER_PROCESS_VIDEO_DOVI_BL_SIGNAL_COMPATIBILITY },
                                   {"video.dovi.codec.fourcc", PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC },
                                   {"video.dovi.codec.string", PLAYER_PROCESS_VIDEO_DOVI_CODEC_STRING },
+
+                                  {"video.dovi.frame.luminance.min", PLAYER_PROCESS_VIDEO_DOVI_FRAME_LUMINANCE_MIN },
+                                  {"video.dovi.frame.luminance.max", PLAYER_PROCESS_VIDEO_DOVI_FRAME_LUMINANCE_MAX },
+                                  {"video.dovi.frame.luminance.avg", PLAYER_PROCESS_VIDEO_DOVI_FRAME_LUMINANCE_AVG },
+
+                                  {"video.hdr.cll.cll.max", PLAYER_PROCESS_VIDEO_HDR_CLL_CLL_MAX },
+                                  {"video.hdr.cll.fall.max", PLAYER_PROCESS_VIDEO_HDR_CLL_FALL_MAX },
+                                  {"video.hdr.mdcv.luminance.min", PLAYER_PROCESS_VIDEO_HDR_MDCV_LUMINANCE_MIN },
+                                  {"video.hdr.mdcv.luminance.max", PLAYER_PROCESS_VIDEO_HDR_MDCV_LUMINANCE_MAX },
+
                                   {"amlogic.pixformat", PLAYER_PROCESS_AML_PIXELFORMAT },
                                   {"amlogic.displaymode", PLAYER_PROCESS_AML_DISPLAYMODE },
                                   {"amlogic.eoft_gamut", PLAYER_PROCESS_AML_EOFT_GAMUT },

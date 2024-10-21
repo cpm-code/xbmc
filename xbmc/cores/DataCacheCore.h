@@ -70,6 +70,22 @@ public:
   std::string GetVideoDoViMetaVersion();
   void SetVideoDoViCodecFourCC(std::string);
   std::string GetVideoDoViCodecFourCC();
+
+  void SetVideoDoViFrameLuminanceMin(unsigned int value);
+  unsigned int GetVideoDoViFrameLuminanceMin();
+  void SetVideoDoViFrameLuminanceMax(unsigned int value);
+  unsigned int GetVideoDoViFrameLuminanceMax();
+  void SetVideoDoViFrameLuminanceAvg(unsigned int value);
+  unsigned int GetVideoDoViFrameLuminanceAvg();
+  void SetVideoHdrCllCllMax(unsigned int value);
+  unsigned int GetVideoHdrCllCllMax();
+  void SetVideoHdrCllFallMax(unsigned int value);
+  unsigned int GetVideoHdrCllFallMax();
+  void SetVideoHdrMdcvLuminanceMin(unsigned int value);
+  unsigned int GetVideoHdrMdcvLuminanceMin();
+  void SetVideoHdrMdcvLuminanceMax(unsigned int value);
+  unsigned int GetVideoHdrMdcvLuminanceMax();
+
   void SetVideoVS10Mode(unsigned int vs10Mode);
   unsigned int GetVideoVS10Mode();
   void SetVideoLiveBitRate(double bitRate);

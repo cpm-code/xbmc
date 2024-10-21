@@ -72,6 +72,24 @@ public:
   std::string GetVideoDoViMetaVersion();
   void SetVideoDoViCodecFourCC(std::string codecFourCC);
   std::string GetVideoDoViCodecFourCC();
+
+  void SetVideoDoViFrameLuminanceMin(unsigned int value);
+  unsigned int GetVideoDoViFrameLuminanceMin();
+  void SetVideoDoViFrameLuminanceMax(unsigned int value);
+  unsigned int GetVideoDoViFrameLuminanceMax();
+  void SetVideoDoViFrameLuminanceAvg(unsigned int value);
+  unsigned int GetVideoDoViFrameLuminanceAvg();
+
+  void SetVideoHdrCllCllMax(unsigned int value);
+  unsigned int GetVideoHdrCllClllMax();
+  void SetVideoHdrCllFallMax(unsigned int value);
+  unsigned int GetVideoHdrCllFallMax();
+
+  void SetVideoHdrMdcvLuminanceMin(unsigned int value);
+  unsigned int GetVideoHdrMdcvLuminanceMin();
+  void SetVideoHdrMdcvLuminanceMax(unsigned int value);
+  unsigned int GetVideoHdrMdcvLuminanceMax();
+
   void SetVideoVS10Mode(unsigned int vs10Mode);
   unsigned int GetVideoVS10Mode();
   void SetVideoLiveBitRate(double bitRate);
@@ -187,6 +205,17 @@ protected:
   enum ELType m_videoDoViELType;
   std::string m_videoDoViMetaVersion;
   std::string m_videoDoViCodecFourCC;
+
+  unsigned int m_videoDoViFrameLuminanceMin;
+  unsigned int m_videoDoViFrameLuminanceMax;
+  unsigned int m_videoDoViFrameLuminanceAvg;
+
+  unsigned int m_videoHdrCllCllMax;
+  unsigned int m_videoHdrCllFallMax;
+
+  unsigned int m_videoHdrMdcvLuminanceMin;
+  unsigned int m_videoHdrMdcvLuminanceMax;
+
   unsigned int m_videoVS10Mode;
   double m_videoLiveBitRate;
   int m_videoQueueLevel;

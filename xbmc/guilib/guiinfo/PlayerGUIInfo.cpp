@@ -582,6 +582,29 @@ bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int con
     case PLAYER_PROCESS_VIDEO_DOVI_CODEC_STRING:
       value = VideoDoViCodecString();
       return true;
+
+    case PLAYER_PROCESS_VIDEO_DOVI_FRAME_LUMINANCE_MIN:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameLuminanceMin());
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_FRAME_LUMINANCE_MAX:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameLuminanceMax());
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_FRAME_LUMINANCE_AVG:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameLuminanceAvg());
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_CLL_CLL_MAX:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoHdrCllCllMax());
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_CLL_FALL_MAX:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoHdrCllFallMax());
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_MDCV_LUMINANCE_MIN:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoHdrMdcvLuminanceMin());
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_MDCV_LUMINANCE_MAX:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoHdrMdcvLuminanceMin());
+      return true;
+
     case PLAYER_PROCESS_AML_PIXELFORMAT:
       value = GetAMLConfigInfo("Colour depth") + ", " + GetAMLConfigInfo("Colourspace");
       return true;

@@ -323,6 +323,108 @@ std::string CDataCacheCore::GetVideoDoViCodecFourCC()
   return m_playerVideoInfo.doviCodecFourCC;
 }
 
+
+void CDataCacheCore::SetVideoDoViFrameLuminanceMin(unsigned int value)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.doviFrameLuminanceMin = value;
+}
+
+unsigned int CDataCacheCore::GetVideoDoViFrameLuminanceMin()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.doviFrameLuminanceMin;
+}
+
+void CDataCacheCore::SetVideoDoViFrameLuminanceMax(unsigned int value)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.doviFrameLuminanceMax = value;
+}
+
+unsigned int CDataCacheCore::GetVideoDoViFrameLuminanceMax()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.doviFrameLuminanceMax;
+}
+
+void CDataCacheCore::SetVideoDoViFrameLuminanceAvg(unsigned int value)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.doviFrameLuminanceAvg = value;
+}
+
+unsigned int CDataCacheCore::GetVideoDoViFrameLuminanceAvg()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.doviFrameLuminanceAvg;
+}
+
+
+void CDataCacheCore::SetVideoHdrCllCllMax(unsigned int value)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.hdrCllCllMax = value;
+}
+
+unsigned int CDataCacheCore::GetVideoHdrCllCllMax()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.hdrCllCllMax;
+}
+
+void CDataCacheCore::SetVideoHdrCllFallMax(unsigned int value)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.hdrCllFallMax = value;
+}
+
+unsigned int CDataCacheCore::GetVideoHdrCllFallMax()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.hdrCllFallMax;
+}
+
+
+void CDataCacheCore::SetVideoHdrMdcvLuminanceMin(unsigned int value)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.hdrMdcvLuminanceMin = value;
+}
+
+unsigned int CDataCacheCore::GetVideoHdrMdcvLuminanceMin()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.hdrMdcvLuminanceMin;
+}
+
+void CDataCacheCore::SetVideoHdrMdcvLuminanceMax(unsigned int value)
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.hdrMdcvLuminanceMax = value;
+}
+
+unsigned int CDataCacheCore::GetVideoHdrMdcvLuminanceMax()
+{
+  std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.hdrMdcvLuminanceMax;
+}
+
+
 void CDataCacheCore::SetVideoVS10Mode(unsigned int vs10Mode)
 {
   std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
