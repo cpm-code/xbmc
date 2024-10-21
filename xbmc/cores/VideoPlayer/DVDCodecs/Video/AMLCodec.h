@@ -101,6 +101,10 @@ private:
   unsigned int  GetDecoderVideoRate();
   std::string   GetHDRStaticMetadata();
 
+  std::string   intToFourCCString(unsigned int value);
+  std::string   GetDoViCodecFourCC(unsigned int codec_tag);
+  void          SetProcessInfoVideoDetails();
+
   DllLibAmCodec   *m_dll;
   bool             m_opened;
   bool             m_drain = false;

@@ -1855,7 +1855,7 @@ int CAMLCodec::GetAmlDuration() const
   return am_private ? (am_private->video_rate * PTS_FREQ) / UNIT_FREQ : 0;
 };
 
-std::string intToFourCCString(unsigned int value) 
+std::string CAMLCodec::intToFourCCString(unsigned int value) 
 {
   char bytes[4];
   bytes[0] = value & 0xFF;
@@ -1872,7 +1872,7 @@ std::string intToFourCCString(unsigned int value)
   return fourCCString;
 }
 
-std::string GetDoViCodecFourCC(unsigned int codec_tag)
+std::string CAMLCodec::GetDoViCodecFourCC(unsigned int codec_tag)
 {
   if (codec_tag == 0) return "----";
 
@@ -1890,27 +1890,27 @@ std::string GetDoViCodecFourCC(unsigned int codec_tag)
   return fourCC;
 }
 
-void SetProcessInfoVideoDetailsA(CProcessInfo &processInfo, CDVDStreamInfo &hints) 
+void CAMLCodec::SetProcessInfoVideoDetails() 
 {
-  processInfo.SetVideoHdrType(hints.hdrType);
-  processInfo.SetVideoColorSpace(hints.colorSpace);
-  processInfo.SetVideoColorRange(hints.colorRange);
-  processInfo.SetVideoColorPrimaries(hints.colorPrimaries);
-  processInfo.SetVideoColorTransferCharacteristic(hints.colorTransferCharacteristic);
+  m_processInfo.SetVideoHdrType(m_hints.hdrType);
+  m_processInfo.SetVideoColorSpace(m_hints.colorSpace);
+  m_processInfo.SetVideoColorRange(m_hints.colorRange);
+  m_processInfo.SetVideoColorPrimaries(m_hints.colorPrimaries);
+  m_processInfo.SetVideoColorTransferCharacteristic(m_hints.colorTransferCharacteristic);
 
-  if (hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) {
+  if (m_hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) {
 
-    processInfo.SetVideoDoViDecoderConfigurationRecord(hints.dovi);
-    processInfo.SetVideoDoViCodecFourCC(GetDoViCodecFourCC(hints.codec_tag));
+    m_processInfo.SetVideoDoViDecoderConfigurationRecord(m_hints.dovi);
+    m_processInfo.SetVideoDoViCodecFourCC(GetDoViCodecFourCC(m_hints.codec_tag));
 
-    if (hints.dovi_el_type == DOVIELType::TYPE_FEL)
-      processInfo.SetVideoBitDepth(12); // 12 bit for FEL (once DV processed)
+    if (m_hints.dovi_el_type == DOVIELType::TYPE_FEL)
+      m_processInfo.SetVideoBitDepth(12); // 12 bit for FEL (once DV processed)
     else
-      processInfo.SetVideoBitDepth(hints.bitdepth);
+      m_processInfo.SetVideoBitDepth(m_hints.bitdepth);
   }
   else
   {
-    processInfo.SetVideoBitDepth(hints.bitdepth);
+    m_processInfo.SetVideoBitDepth(m_hints.bitdepth);
   }
 }
 
@@ -2068,7 +2068,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints)
 
   aml_dv_open(m_hints.hdrType, m_hints.bitdepth);
 
-  SetProcessInfoVideoDetailsA(m_processInfo, m_hints);
+  SetProcessInfoVideoDetails();
 
   // Setup Codec for DV Content
   if ((hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) && aml_is_dv_enable()) 
