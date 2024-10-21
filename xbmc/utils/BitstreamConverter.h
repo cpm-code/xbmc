@@ -200,7 +200,7 @@ protected:
   enum ELType       m_dovi_el_type;
   std::string       m_dovi_meta_version;
   StreamHdrType     m_source_hdr_type;
-  bool              m_first_convert;
+  bool              m_first_frame;
 
   uint16_t          m_max_display_mastering_luminance;
   uint16_t          m_min_display_mastering_luminance;
