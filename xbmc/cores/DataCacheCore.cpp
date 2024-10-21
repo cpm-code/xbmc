@@ -313,7 +313,7 @@ void CDataCacheCore::SetVideoDoViCodecFourCC(std::string codecFourCC)
 {
   std::unique_lock<CCriticalSection> lock(m_videoPlayerSection);
 
-  m_playerVideoInfo.doviCodecFourCC= codecFourCC;
+  m_playerVideoInfo.doviCodecFourCC = codecFourCC;
 }
 
 std::string CDataCacheCore::GetVideoDoViCodecFourCC()
