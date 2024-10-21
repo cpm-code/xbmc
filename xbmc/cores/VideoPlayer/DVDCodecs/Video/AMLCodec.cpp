@@ -1890,7 +1890,7 @@ std::string GetDoViCodecFourCC(unsigned int codec_tag)
   return fourCC;
 }
 
-void SetProcessInfoVideoDetails(CProcessInfo &processInfo, CDVDStreamInfo &hints, enum ELType dovi_el_type) 
+void SetProcessInfoVideoDetailsA(CProcessInfo &processInfo, CDVDStreamInfo &hints) 
 {
   processInfo.SetVideoHdrType(hints.hdrType);
   processInfo.SetVideoColorSpace(hints.colorSpace);
@@ -1901,7 +1901,6 @@ void SetProcessInfoVideoDetails(CProcessInfo &processInfo, CDVDStreamInfo &hints
   if (hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) {
 
     processInfo.SetVideoDoViDecoderConfigurationRecord(hints.dovi);
-    processInfo.SetVideoDoViELType(dovi_el_type);
     processInfo.SetVideoDoViCodecFourCC(GetDoViCodecFourCC(hints.codec_tag));
 
     if (hints.dovi_el_type == DOVIELType::TYPE_FEL)
