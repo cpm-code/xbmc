@@ -323,13 +323,22 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
           }
           else
           {
-            int convertDovi = settings->GetInt(CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI);
-            if (convertDovi)
-            {
-              m_bitstream->SetConvertDovi(convertDovi);
-              CLog::Log(LOGINFO, "{}::{} - DV HEVC bitstream - if Profile 7 then will be converted by chosen mode {:d}",
-                        __MODULE_NAME__, __FUNCTION__, convertDovi);
-            }   
+            if ((m_hints.dovi.dv_profile == 4) || (m_hints.dovi.dv_profile == 7)) {
+              DOVIMode convertDovi = static_cast<DOVIMode>(settings->GetInt(CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI));
+              if (convertDovi)
+              {
+                m_bitstream->SetConvertDovi(convertDovi);
+                CLog::Log(LOGINFO, "{}::{} - DV HEVC bitstream - will be converted by chosen mode {:d}",
+                          __MODULE_NAME__, __FUNCTION__, convertDovi);
+              } else if (!m_hints.dovi.bl_present_flag)
+              {
+                CLog::Log(LOGINFO, "{}::{} - DV HEVC bitstream - will be converted to minimum enhancement layer because of no BL flag is present",
+                          __MODULE_NAME__, __FUNCTION__);
+                m_hints.dovi.el_present_flag = false;
+                m_hints.dovi.bl_present_flag = true;
+                m_bitstream->SetConvertDovi(DOVIMode::MODE_TOMEL);
+              }
+            }
           }
         }
 
