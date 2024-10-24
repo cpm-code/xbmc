@@ -628,8 +628,83 @@ bool CBitstreamConverter::Convert(uint8_t* pData, int iSize)
         }
         else
         {
-          m_inputSize = iSize;
-          m_inputBuffer = pData;
+          if (m_convert_dovi != DOVIMode::MODE_NONE)
+          {
+            uint32_t nal_buf_size = iSize;
+            AVIOContext *pb;
+            uint32_t offset = 0, size_eos;
+            uint8_t *buf=NULL, *end, *start, *buf_eos=NULL;
+
+            if (avio_open_dyn_buf(&pb) < 0)
+              return false;
+
+            nal_buf_size = avc_parse_nal_units(pb, pData, iSize);
+            avio_close_dyn_buf(pb, &buf);
+
+            // process frame data
+            start = buf;
+            end = buf + nal_buf_size;
+            while (end - buf > 4)
+            {
+              uint32_t size;
+              uint8_t  nal_type;
+              size = std::min<uint32_t>(AV_RB32(buf), end - buf - 4);
+              buf += 4;
+              nal_type = (buf[0] >> 1) & 0x3f;
+
+              if (nal_type == AVC_NAL_END_SEQUENCE)
+              {
+                buf_eos = buf;
+                size_eos = size;
+              }
+              else if (nal_type == HEVC_NAL_UNSPEC62)
+              {
+                const uint8_t *nalu_62_data = buf;
+#ifdef HAVE_LIBDOVI
+                const DoviData* rpu_data = processDoviRpu(buf, size);
+
+                if (rpu_data)
+                {
+                  nalu_62_data = rpu_data->data;
+                  size = rpu_data->len;
+                }
+#endif
+
+                BitstreamAllocAndCopy(&m_convertBuffer, &offset, nalu_62_data, size, nal_type);
+
+#ifdef HAVE_LIBDOVI
+                if (rpu_data)
+                  dovi_data_free(rpu_data);
+#endif
+              }
+              else
+              {
+                if (m_convert_dovi == DOVIMode::MODE_NONE || nal_type != HEVC_NAL_UNSPEC63)
+                  BitstreamAllocAndCopy(&m_convertBuffer, &offset, buf, size, nal_type);
+              }
+
+              if (m_convert_dovi == DOVIMode::MODE_NONE || nal_type != HEVC_NAL_UNSPEC63)
+                CLog::Log(LOGDEBUG, LOGVIDEO, "CBitstreamConverter::Convert: nal_type: {}, size: {}",
+                  nal_type, size);
+
+              buf += size;
+            }
+
+            // append end of sequence if exist
+            if (buf_eos)
+              BitstreamAllocAndCopy(&m_convertBuffer, &offset, buf_eos, size_eos, AVC_NAL_END_SEQUENCE);
+
+            av_free(start);
+
+            m_convertSize = offset;
+            m_combine = true;
+          }
+          else
+          {
+            m_inputSize = iSize;
+            m_inputBuffer = pData;
+          }
+
           return true;
         }
       }
