@@ -43,7 +43,7 @@ public:
 private:
   void Reset();
 
-  static const int m_numRenderBuffers = 8;
+  static const int m_numRenderBuffers = NUM_BUFFERS;
 
   struct BUFFER
   {
