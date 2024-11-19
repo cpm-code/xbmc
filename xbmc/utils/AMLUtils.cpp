@@ -140,7 +140,7 @@ bool aml_support_hevc()
   static int has_hevc = -1;
 
   if (has_hevc == -1)
-      has_hevc = aml_support_vcodec_profile("\\bhevc\\b:");
+      has_hevc = aml_support_vcodec_profile("(\\bhevc\\b|\\bhevc_fb\\b):");
 
   return (has_hevc == 1);
 }
@@ -150,7 +150,7 @@ bool aml_support_hevc_4k2k()
   static int has_hevc_4k2k = -1;
 
   if (has_hevc_4k2k == -1)
-    has_hevc_4k2k = aml_support_vcodec_profile("\\bhevc\\b:(?!\\;).*(4k|8k)");
+    has_hevc_4k2k = aml_support_vcodec_profile("(\\bhevc\\b|\\bhevc_fb\\b):(?!\\;).*(4k|8k)");
 
   return (has_hevc_4k2k == 1);
 }
@@ -160,7 +160,7 @@ bool aml_support_hevc_8k4k()
   static int has_hevc_8k4k = -1;
 
   if (has_hevc_8k4k == -1)
-    has_hevc_8k4k = aml_support_vcodec_profile("\\bhevc\\b:(?!\\;).*8k");
+    has_hevc_8k4k = aml_support_vcodec_profile("(\\bhevc\\b|\\bhevc_fb\\b):(?!\\;).*8k");
 
   return (has_hevc_8k4k == 1);
 }
@@ -170,7 +170,7 @@ bool aml_support_hevc_10bit()
   static int has_hevc_10bit = -1;
 
   if (has_hevc_10bit == -1)
-    has_hevc_10bit = aml_support_vcodec_profile("\\bhevc\\b:(?!\\;).*10bit");
+    has_hevc_10bit = aml_support_vcodec_profile("(\\bhevc\\b|\\bhevc_fb\\b):(?!\\;).*10bit");
 
   return (has_hevc_10bit == 1);
 }
@@ -183,7 +183,7 @@ AML_SUPPORT_H264_4K2K aml_support_h264_4k2k()
   {
     has_h264_4k2k = AML_NO_H264_4K2K;
 
-    if (aml_support_vcodec_profile("\\bh264\\b:4k"))
+    if (aml_support_vcodec_profile("(\\bh264\\b|\\bmh264\\b):4k"))
       has_h264_4k2k = AML_HAS_H264_4K2K_SAME_PROFILE;
     else if (aml_support_vcodec_profile("\\bh264_4k2k\\b:"))
       has_h264_4k2k = AML_HAS_H264_4K2K;
@@ -196,7 +196,7 @@ bool aml_support_vp9()
   static int has_vp9 = -1;
 
   if (has_vp9 == -1)
-    has_vp9 = aml_support_vcodec_profile("\\bvp9\\b:(?!\\;).*compressed");
+    has_vp9 = aml_support_vcodec_profile("(\\bvp9\\b|\\bvp9_fb\\b):(?!\\;).*compressed");
 
   return (has_vp9 == 1);
 }
@@ -206,7 +206,7 @@ bool aml_support_av1()
   static int has_av1 = -1;
 
   if (has_av1 == -1)
-    has_av1 = aml_support_vcodec_profile("\\bav1\\b:(?!\\;).*compressed");
+    has_av1 = aml_support_vcodec_profile("(\\bav1\\b|\\bav1_fb\\b):(?!\\;).*compressed");
 
   return (has_av1 == 1);
 }
