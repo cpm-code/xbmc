@@ -175,6 +175,16 @@ bool aml_support_hevc_10bit()
   return (has_hevc_10bit == 1);
 }
 
+bool aml_support_h266()
+{
+  static int has_h266 = -1;
+
+  if (has_h266 == -1)
+    has_h266 = aml_support_vcodec_profile("\\bh266\\b:");
+
+  return (has_h266 == 1);
+}
+
 AML_SUPPORT_H264_4K2K aml_support_h264_4k2k()
 {
   static AML_SUPPORT_H264_4K2K has_h264_4k2k = AML_SUPPORT_H264_4K2K_UNINIT;
@@ -209,6 +219,26 @@ bool aml_support_av1()
     has_av1 = aml_support_vcodec_profile("(\\bav1\\b|\\bav1_fb\\b):(?!\\;).*compressed");
 
   return (has_av1 == 1);
+}
+
+bool aml_support_avs2()
+{
+  static int has_avs2 = -1;
+
+  if (has_avs2 == -1)
+    has_avs2 = aml_support_vcodec_profile("(\\bavs2\\b|\\bavs2_fb\\b):(?!\\;).*compressed");
+
+  return (has_avs2 == 1);
+}
+
+bool aml_support_avs3()
+{
+  static int has_avs3 = -1;
+
+  if (has_avs3 == -1)
+    has_avs3 = aml_support_vcodec_profile("\\bavs3\\b:(?!\\;).*compressed");
+
+  return (has_avs3 == 1);
 }
 
 bool aml_support_dolby_vision()

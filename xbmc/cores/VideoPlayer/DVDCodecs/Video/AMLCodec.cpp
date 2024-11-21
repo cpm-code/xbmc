@@ -440,8 +440,17 @@ static vformat_t codecid_to_vformat(enum AVCodecID id)
     case AV_CODEC_ID_CAVS:
       format = VFORMAT_AVS;
       break;
+    case AV_CODEC_ID_AVS2:
+      format = VFORMAT_AVS2;
+      break;
+    case AV_CODEC_ID_AVS3:
+      format = VFORMAT_AVS3;
+      break;
     case AV_CODEC_ID_HEVC:
       format = VFORMAT_HEVC;
+      break;
+    case AV_CODEC_ID_VVC:
+      format = VFORMAT_H266;
       break;
 
     default:
@@ -557,9 +566,21 @@ static vdec_type_t codec_tag_to_vdec_type(unsigned int codec_tag)
       // avs
       dec_type = VIDEO_DEC_FORMAT_AVS;
       break;
+    case AV_CODEC_ID_AVS2:
+      // avs2
+      dec_type = VIDEO_DEC_FORMAT_AVS2;
+      break;
+    case AV_CODEC_ID_AVS3:
+      // avs3
+      dec_type = VIDEO_DEC_FORMAT_AVS3;
+      break;
     case AV_CODEC_ID_HEVC:
       // h265
       dec_type = VIDEO_DEC_FORMAT_HEVC;
+      break;
+    case AV_CODEC_ID_VVC:
+      // h266
+      dec_type = VIDEO_DEC_FORMAT_H266;
       break;
     default:
       dec_type = VIDEO_DEC_FORMAT_UNKNOW;
@@ -2128,6 +2149,12 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
       break;
     case VFORMAT_HEVC:
       am_private->gcodec.format = VIDEO_DEC_FORMAT_HEVC;
+      am_private->gcodec.param  = (void*)EXTERNAL_PTS;
+      if (m_hints.ptsinvalid)
+        am_private->gcodec.param = (void*)(EXTERNAL_PTS | SYNC_OUTSIDE);
+      break;
+    case VFORMAT_H266:
+      am_private->gcodec.format = VIDEO_DEC_FORMAT_H266;
       am_private->gcodec.param  = (void*)EXTERNAL_PTS;
       if (m_hints.ptsinvalid)
         am_private->gcodec.param = (void*)(EXTERNAL_PTS | SYNC_OUTSIDE);
