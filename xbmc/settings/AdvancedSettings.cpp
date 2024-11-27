@@ -170,6 +170,7 @@ void CAdvancedSettings::Initialize()
   m_videoPreferStereoStream = false;
 
   m_videoDefaultLatency = 0.0;
+  m_videoUseDynamicAVLatency = true;
 
   m_videoDecoderTimeout = 5;
 
@@ -787,6 +788,8 @@ void CAdvancedSettings::ParseSettingsFile(const std::string &file)
     }
 
     XMLUtils::GetInt(pElement, "decodertimeout", m_videoDecoderTimeout, 1, 60);
+
+    XMLUtils::GetBoolean(pElement, "usedynamicavlatency", m_videoUseDynamicAVLatency);
   }
 
   pElement = pRootElement->FirstChildElement("musiclibrary");

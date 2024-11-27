@@ -15,7 +15,10 @@
 #include "RenderFactory.h"
 #include "RenderFlags.h"
 #include "ServiceBroker.h"
+#include "application/ApplicationComponents.h"
+#include "application/ApplicationPlayer.h"
 #include "application/Application.h"
+#include "cores/DataCacheCore.h"
 #include "cores/VideoPlayer/Interface/TimingConstants.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/StereoscopicsManager.h"
@@ -47,7 +50,9 @@ unsigned int CRenderManager::m_nextCaptureId = 0;
 
 CRenderManager::CRenderManager(CDVDClock &clock, IRenderMsg *player) :
   m_dvdClock(clock),
-  m_playerPort(player)
+  m_playerPort(player),
+  m_dataCacheCore(CServiceBroker::GetDataCacheCore()),
+  m_appPlayer(CServiceBroker::GetAppComponents().GetComponent<CApplicationPlayer>())
 {
 }
 
@@ -896,6 +901,8 @@ void CRenderManager::UpdateLatencyTweak()
   m_latencyTweak = static_cast<double>(
       CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->GetLatencyTweak(
           refresh, res.iScreenHeight));
+
+  m_videoUseDynamicAVLatency = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoUseDynamicAVLatency;
 }
 
 void CRenderManager::UpdateResolution()
@@ -1179,17 +1186,68 @@ void CRenderManager::PrepareNextRender()
   if (!m_showVideo && !m_forceNext)
     return;
 
+  // Use the video content fps as the basis for the video frame time, if not defined then fall back to the refresh rate (which itself will fallback to 60 if not defined).
+  double videoFps = static_cast<double>(m_fps);
+  if (videoFps == 0) videoFps = static_cast<double>(CServiceBroker::GetWinSystem()->GetGfxContext().GetFPS());    
+  double videoFrameTime = 1.0 / videoFps * DVD_TIME_BASE;
+
+  // What frame should we be showing.
   double frameOnScreen = m_dvdClock.GetClock();
-  double frametime = 1.0 /
-                     static_cast<double>(CServiceBroker::GetWinSystem()->GetGfxContext().GetFPS()) *
-                     DVD_TIME_BASE;
 
-  m_displayLatency = DVD_MSEC_TO_TIME(
-      m_latencyTweak +
-      static_cast<double>(CServiceBroker::GetWinSystem()->GetGfxContext().GetDisplayLatency()) -
-      m_videoDelay -
-      static_cast<double>(CServiceBroker::GetWinSystem()->GetFrameLatencyAdjustment()));
+  static const int LATENCY_SAMPLES = 256;
+  static std::deque<double> latencyRing;
+  static bool reset = false;
 
+  double audioPts = m_dataCacheCore.GetAudioPts();
+  double videoPts = m_dataCacheCore.GetVideoPts();
+  bool isPassthrough = m_appPlayer->IsPassthrough();
+
+  // Use Dynamic Latency when it is enabled, the audio is pass-through and have the audio and video pts to work with.
+  if (m_videoUseDynamicAVLatency && isPassthrough && (audioPts != 0) && (videoPts != 0))
+  {
+    // Reset the latency tracking if change in the Audio or Video.
+    bool avChange = m_dataCacheCore.GetAVChange();
+    if (avChange && !reset) latencyRing.clear();
+    reset = avChange;
+
+    double latency = (audioPts - videoPts);
+    double latency_time = latency / DVD_TIME_BASE;
+
+    bool normalSpeed = (m_appPlayer->GetPlaySpeed() == 1);
+
+    // Calculate latency when playing normal spped (x1) i.e. audio is actually playing, and make sure current latency is not unreasonable.
+    // TODO: Probably should check have not lost Audio sync-lock i.e. locked onto TrueHD, DD or DTS etc.
+    // If not meeting above criteria, then just clear the latency tracking and start tracking to calculate the latency when the criteria is meet.
+    if (normalSpeed && (latency_time < 0.6) && (latency_time > -0.6))
+    {
+      // latency is reasonable but less than videoFrame, then filter out - replace with videoFrameTime.
+      // TODO: How much does this actually happen?
+      if (latency < videoFrameTime) latency = videoFrameTime; 
+
+      // push current latency into ring, if over max number of samples to take then pop the oldest from the front.
+      latencyRing.push_back(latency);
+      if (latencyRing.size() > LATENCY_SAMPLES) latencyRing.pop_front();
+
+      // calculate the average latency from all the samples taken
+      // smoothes out lummpyness and difference in Audio and Video frequencey
+      // to give a representive acutal latency between the Audio and Video timing.
+      double sum = 0;
+      for (double latencyItem : latencyRing) sum += latencyItem;
+
+      // Use calculated dynamic latency 
+      // then adjust for any user defined audio adjustment (adjust the video in relation to the audio, to accommodate the audio adjustment)
+      m_displayLatency = (sum / latencyRing.size()) - DVD_MSEC_TO_TIME(m_videoDelay);
+    } 
+    else latencyRing.clear();
+  }
+  else 
+  {
+    // Use one frame of video latency plus the latency tweak
+    // then adjust for any user defined audio adjustment (adjust the video in relation to the audio, to accommodate the audio adjustment)
+    m_displayLatency = videoFrameTime + DVD_MSEC_TO_TIME(m_latencyTweak - m_videoDelay);
+  }
+
+  // Adjust the pts according to the latency, to lookup in the queue which actual frame to display.
   double renderPts = frameOnScreen + m_displayLatency;
 
   double nextFramePts = m_Queue[m_queued.front()].pts;
@@ -1198,7 +1256,7 @@ void CRenderManager::PrepareNextRender()
 
   if (m_clockSync.m_enabled)
   {
-    double err = fmod(renderPts - nextFramePts, frametime);
+    double err = fmod(renderPts - nextFramePts, videoFrameTime);
     m_clockSync.m_error += err;
     m_clockSync.m_errCount ++;
     if (m_clockSync.m_errCount > 30)
@@ -1210,7 +1268,7 @@ void CRenderManager::PrepareNextRender()
 
       m_dvdClock.SetVsyncAdjust(-average);
     }
-    renderPts += frametime / 2 - m_clockSync.m_syncOffset;
+    renderPts += videoFrameTime / 2 - m_clockSync.m_syncOffset;  // divide by 2 for middle of frame timing?
   }
   else
   {
@@ -1231,9 +1289,6 @@ void CRenderManager::PrepareNextRender()
     combined = true;
   }
 
-  //if (renderPts >= nextFramePts && !m_forceNext)
-  //  aml_video_mute(false);
-
   if (renderPts >= nextFramePts || m_forceNext)
   {
     // see if any future queued frames are already due
@@ -1244,12 +1299,12 @@ void CRenderManager::PrepareNextRender()
 
     while (iter != m_queued.end())
     {
-      // the slot for rendering in time is [pts .. (pts +  x * frametime)]
+      // the slot for rendering in time is [pts .. (pts +  x * videoFrameTime)]
       // renderer/drivers have internal queues, being slightly late here does not mean that
       // we are really late. The likelihood that we recover decreases the greater m_lateframes
       // get. Skipping a frame is easier than having decoder dropping one (lateframes > 10)
       double x = (m_lateframes <= 6) ? 0.98 : 0;
-      if ((renderPts - frametime * queue_size) < (m_Queue[*iter].pts + x * frametime))
+      if ((renderPts - videoFrameTime * queue_size) < (m_Queue[*iter].pts + x * videoFrameTime))
         break;
       lateframes++;
       queue_size--;
@@ -1285,14 +1340,14 @@ void CRenderManager::PrepareNextRender()
 
     m_playerPort->UpdateRenderBuffers(m_queued.size(), m_discard.size(), m_free.size());
   }
-  else if (!combined && renderPts > (nextFramePts - frametime))
+  else if (!combined && renderPts > (nextFramePts - videoFrameTime))
   {
     m_lateframes = 0;
     m_presentstep = PRESENT_FLIP;
     m_presentsourcePast = m_presentsource;
     m_presentsource = m_queued.front();
     m_queued.pop_front();
-    m_presentpts = m_Queue[m_presentsource].pts - m_displayLatency - frametime / 2;
+    m_presentpts = m_Queue[m_presentsource].pts - m_displayLatency - videoFrameTime / 2; // divide by 2 for middle of frame timing?
     m_presentevent.notifyAll();
   }
 
@@ -1348,7 +1403,7 @@ void CRenderManager::CheckEnableClockSync()
     diff = std::abs(std::round(diff) - diff);
   }
 
-  if (diff && diff < 0.0005)
+  if (diff && diff > 0.0005)
   {
     m_clockSync.m_enabled = true;
   }
