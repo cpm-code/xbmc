@@ -36,6 +36,7 @@ public:
   bool IsHDRDisplay() override;
   CHDRCapabilities GetDisplayHDRCapabilities() const override;
   float GetGuiSdrPeakLuminance() const override;
+  HDR_STATUS GetOSHDRStatus() override;
 
   bool Hide() override;
   bool Show(bool show = true) override;
