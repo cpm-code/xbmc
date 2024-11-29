@@ -341,7 +341,8 @@ bool CWinSystemAmlogic::IsHDRDisplay()
       m_hdr_caps.SetDolbyVision();
   }
 
-  return (m_hdr_caps.SupportsHDR10() | m_hdr_caps.SupportsHDR10Plus() | m_hdr_caps.SupportsHLG());
+  return (m_hdr_caps.SupportsHDR10() | m_hdr_caps.SupportsHDR10Plus() |
+          m_hdr_caps.SupportsHLG() | m_hdr_caps.SupportsDolbyVision());
 }
 
 CHDRCapabilities CWinSystemAmlogic::GetDisplayHDRCapabilities() const
@@ -355,6 +356,11 @@ float CWinSystemAmlogic::GetGuiSdrPeakLuminance() const
   const int guiSdrPeak = settings->GetInt(CSettings::SETTING_VIDEOSCREEN_GUISDRPEAKLUMINANCE);
 
   return ((0.7f * guiSdrPeak + 30.0f) / 100.0f);
+}
+
+HDR_STATUS CWinSystemAmlogic::GetOSHDRStatus()
+{
+  return (IsHDRDisplay() ? HDR_STATUS::HDR_ON : HDR_STATUS::HDR_UNSUPPORTED);
 }
 
 bool CWinSystemAmlogic::Hide()
