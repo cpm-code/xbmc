@@ -886,6 +886,7 @@ void CRenderManager::PresentBlend(bool clear, DWORD flags, DWORD alpha)
 void CRenderManager::UpdateLatencyTweak()
 {
   float fps = CServiceBroker::GetWinSystem()->GetGfxContext().GetFPS();
+  const RESOLUTION_INFO res = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo();
   const bool isHDREnabled = CServiceBroker::GetWinSystem()->GetOSHDRStatus() == HDR_STATUS::HDR_ON;
   const bool isHDRUsed = isHDREnabled && (m_picture.hdrType != StreamHdrType::HDR_TYPE_NONE);
 
@@ -893,8 +894,11 @@ void CRenderManager::UpdateLatencyTweak()
   if (CServiceBroker::GetWinSystem()->GetGfxContext().GetVideoResolution() == RES_WINDOW)
     refresh = 0; // No idea about refresh rate when windowed, just get the default latency
   m_latencyTweak = static_cast<double>(
-      CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->GetLatencyTweak(refresh,
-                                                                                     isHDRUsed));
+      CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->GetLatencyTweak(
+          refresh, isHDRUsed, res.iScreenHeight));
+
+  CLog::Log(LOGDEBUG, "CRenderManager::UpdateLatencyTweak - got latency tweak of {:.1f}ms with a refresh rate of {:.3f}Hz and resolution of {:d}, HDR used: {}",
+    m_latencyTweak, refresh, res.iScreenHeight, isHDRUsed);
 }
 
 void CRenderManager::UpdateResolution()
