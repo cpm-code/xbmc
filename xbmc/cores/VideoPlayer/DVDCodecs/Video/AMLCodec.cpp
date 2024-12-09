@@ -256,11 +256,6 @@ static const uint64_t UINT64_0 = 0x8000000000000000ULL;
 #define SYNC_OUTSIDE    (2)
 #define KEYFRAME_PTS_ONLY 0x100
 
-// missing tags
-#ifndef CODEC_TAG_VC_1
-#define CODEC_TAG_VC_1  (0x312D4356)
-#endif
-
 #ifndef HAS_LIBAMCODEC_VP9
 #define VFORMAT_VP9           VFORMAT_UNSUPPORT
 #define VIDEO_DEC_FORMAT_VP9  VIDEO_DEC_FORMAT_MAX
@@ -2076,22 +2071,6 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   // DEC_CONTROL_FLAG_DISABLE_FAST_POC
   CSysfsPath("/sys/module/amvdec_h264/parameters/dec_control", 4);
 
-  CSysfsPath di_debug_flag{"/sys/module/aml_media/parameters/di_debug_flag"};
-  CSysfsPath di_debug{"/sys/class/deinterlace/di0/debug"};
-  if (di_debug_flag.Exists() && di_debug.Exists())
-  {
-    if (am_private->video_format == VFORMAT_VC1) 					/* workaround to fix slowdown VC1 progressive */
-    {
-      di_debug_flag.Set(0x10000);
-      di_debug.Set("di_debug_flag0x10000");
-    }
-    else
-    {
-      di_debug_flag.Set(0);
-      di_debug.Set("di_debug_flag0x0");
-    }
-  }
-
   switch(am_private->video_format)
   {
     default:
@@ -2146,6 +2125,10 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
       if (m_hints.ptsinvalid)
         am_private->gcodec.param = (void*)KEYFRAME_PTS_ONLY;
       am_private->gcodec.dec_mode = STREAM_TYPE_SINGLE;
+
+      // workaround to fix slowdown VC1 progressive
+      if (aml_get_cpufamily_id() <= AML_SC2)
+        CSysfsPath("/sys/class/deinterlace/di0/debug", "di_debug_flag0x10000");
       break;
     case VFORMAT_HEVC:
       am_private->gcodec.format = VIDEO_DEC_FORMAT_HEVC;
@@ -2367,6 +2350,9 @@ void CAMLCodec::CloseDecoder()
     amdolby_vision_debug.Set("enable_fel 0");
     amdolby_vision_debug.Set("enable_mel 0");
   }
+
+  // restore workaround to fix slowdown VC1 progressive
+  CSysfsPath("/sys/class/deinterlace/di0/debug", "di_debug_flag0x0");
 
   ShowMainVideo(false);
 
