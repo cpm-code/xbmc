@@ -1322,11 +1322,11 @@ bool aml_set_drmDevice_mode(unsigned int width, unsigned int height, std::string
       CLog::Log(LOGDEBUG, "AMLUtils::{} - found mode in connector mode list: [{:d}]:{}", __FUNCTION__, i, mode);
       drmModeFBPtr drm_fb = drmModeGetFB(fd, crtc->buffer_id);
 
-      if (force_mode_switch)
-        drmModeSetCrtc(fd, crtc->crtc_id, 0, 0, 0, NULL, 0, NULL);
-
       ret = drmModeSetCrtc(fd, crtc->crtc_id, drm_fb->fb_id, 0, 0,
         resources->connectors, 1, &connector->modes[i]);
+
+      if (force_mode_switch)
+        set_drmProp(fd, connector->connector_id, "UPDATE", DRM_MODE_OBJECT_CONNECTOR, 1, NULL);
 
       drmModeFreeFB(drm_fb);
       break;
