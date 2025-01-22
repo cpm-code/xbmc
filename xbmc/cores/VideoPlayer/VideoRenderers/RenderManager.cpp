@@ -215,9 +215,9 @@ bool CRenderManager::Configure()
     m_queued.clear();
     m_discard.clear();
     m_free.clear();
-    m_presentsource = 0;
+    m_presentsource = -1;
     m_presentsourcePast = -1;
-    for (int i=1; i < m_QueueSize; i++)
+    for (int i = 0; i < m_QueueSize; i++)
       m_free.push_back(i);
 
     m_bRenderGUI = true;
@@ -442,10 +442,10 @@ bool CRenderManager::Flush(bool wait, bool saveBuffers)
         m_queued.clear();
         m_discard.clear();
         m_free.clear();
-        m_presentsource = 0;
+        m_presentsource = -1;
         m_presentsourcePast = -1;
         m_presentstep = PRESENT_IDLE;
-        for (int i = 1; i < m_QueueSize; i++)
+        for (int i = 0; i < m_QueueSize; i++)
           m_free.push_back(i);
       }
 
@@ -655,7 +655,8 @@ void CRenderManager::ManageCaptures()
 
 void CRenderManager::RenderCapture(CRenderCapture* capture)
 {
-  if (!m_pRenderer || !m_pRenderer->RenderCapture(m_presentsource, capture))
+  int index = (m_presentsource != -1) ? m_presentsource : 0;
+  if (!m_pRenderer || !m_pRenderer->RenderCapture(index, capture))
     capture->SetState(CAPTURESTATE_FAILED);
 }
 
@@ -709,7 +710,7 @@ void CRenderManager::Render(bool clear, DWORD flags, DWORD alpha, bool gui)
 
   {
     std::unique_lock lock(m_statelock);
-    if (m_renderState != STATE_CONFIGURED)
+    if (m_presentsource == -1 || (m_renderState != STATE_CONFIGURED))
       return;
   }
 
@@ -808,8 +809,9 @@ bool CRenderManager::IsGuiLayer()
     if (!m_pRenderer)
       return false;
 
+    int index = (m_presentsource != -1) ? m_presentsource : 0;
     if ((m_pRenderer->IsGuiLayer() && IsPresenting()) ||
-        m_renderedOverlay || m_overlays.HasOverlay(m_presentsource))
+        m_renderedOverlay || m_overlays.HasOverlay(index))
       return true;
 
     if (m_renderDebug && m_debugTimer.IsTimePast())
@@ -1259,10 +1261,11 @@ void CRenderManager::PrepareNextRender()
       m_lateframes = 0;
 
     m_presentstep = PRESENT_FLIP;
-    m_discard.push_back(m_presentsource);
+    if (m_presentsource != -1)
+      m_discard.push_back(m_presentsource);
     m_presentsource = idx;
     m_queued.pop_front();
-    m_presentpts = m_Queue[idx].pts - m_displayLatency;
+    m_presentpts = m_Queue[m_presentsource].pts - m_displayLatency;
     m_presentevent.notifyAll();
 
     m_playerPort->UpdateRenderBuffers(m_queued.size(), m_discard.size(), m_free.size());
