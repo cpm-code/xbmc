@@ -377,8 +377,8 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     int  m_guiAlgorithmDirtyRegions;
     bool m_guiSmartRedraw;
     int32_t m_guiAnisotropicFiltering{0};
-    bool m_guiFrontToBackRendering{false};
-    bool m_guiGeometryClear{true};
+    bool m_guiFrontToBackRendering{true};
+    bool m_guiGeometryClear{false};
     bool m_guiAsyncTextureUpload{false};
     bool m_guiVideoLayoutTransparent{false};
 
