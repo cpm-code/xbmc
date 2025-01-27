@@ -970,3 +970,62 @@ msgstr ""
 msgctxt "#31612"
 msgid "channels"
 msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31630"
+msgid "System FPS"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31631"
+msgid "CPU frequency"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31632"
+msgid "SoC temp"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31633"
+msgid "Video stream cache"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31634"
+msgid "Player process info"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31635"
+msgid "Video source type"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31636"
+msgid "Display mode"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31637"
+msgid "EOTF & Gamut"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+#. Label to show the video pixel format
+msgctxt "#31638"
+msgid "Pixel format"
+msgstr ""
+
+
+#: /xml/DialogPlayerProcessInfo.xml
+#. Label to show the video resolution
+msgctxt "#31639"
+msgid "Video resolution"
+msgstr "Videó felbontás"
+
+#: /xml/DialogPlayerProcessInfo.xml
+#. Label to show the Audio Object Base
+msgctxt "#31640"
+msgid "Audio object base"
+msgstr "HD hang object"
