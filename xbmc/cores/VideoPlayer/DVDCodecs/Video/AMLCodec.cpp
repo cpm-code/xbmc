@@ -2134,6 +2134,10 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
       am_private->gcodec.param  = (void*)EXTERNAL_PTS;
       if (m_hints.ptsinvalid)
         am_private->gcodec.param = (void*)(EXTERNAL_PTS | SYNC_OUTSIDE);
+      if (am_private->gcodec.dec_mode == STREAM_TYPE_STREAM)
+        CSysfsPath("/sys/module/amvdec_h265/parameters/nal_skip_policy", 1);
+      else
+        CSysfsPath("/sys/module/amvdec_h265/parameters/nal_skip_policy", 2);
       break;
     case VFORMAT_H266:
       am_private->gcodec.format = VIDEO_DEC_FORMAT_H266;
