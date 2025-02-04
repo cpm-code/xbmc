@@ -11,6 +11,7 @@
 #include "platform/linux/SysfsPath.h"
 #include "ServiceBroker.h"
 #include "utils/AMLUtils.h"
+#include "utils/MathUtils.h"
 #include "utils/log.h"
 #include "threads/SingleLock.h"
 #include "windowing/GraphicContext.h"
@@ -79,12 +80,7 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
 
   // check for frac_rate_policy change
   int fractional_rate = (res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1;
-  int cur_fractional_rate = fractional_rate;
-  if (aml_has_frac_rate_policy())
-  {
-    CSysfsPath amhdmitx0_frac_rate_policy{"/sys/class/amhdmitx/amhdmitx0/frac_rate_policy"};
-    cur_fractional_rate = amhdmitx0_frac_rate_policy.Get<int>().value();
-  }
+  int cur_fractional_rate = aml_get_drmProperty("FRAC_RATE_POLICY", DRM_MODE_OBJECT_CONNECTOR);
 
   StreamHdrType hdrType = CServiceBroker::GetWinSystem()->GetGfxContext().GetHDRType();
   bool force_mode_switch_by_dv = false;
@@ -137,15 +133,16 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
   DestroyWindow();
 
   // check if a forced mode switch is required
-  if (((current_resolution.iWidth == res.iWidth && current_resolution.iHeight == res.iHeight &&
-        current_resolution.iScreenWidth == res.iScreenWidth && current_resolution.iScreenHeight == res.iScreenHeight &&
-        current_resolution.fRefreshRate == res.fRefreshRate) &&
-       (force_mode_switch_by_dv ||
-       (fractional_rate != cur_fractional_rate))) ||
-       (m_stereo_mode != stereo_mode))
+  if (current_resolution.iWidth == res.iWidth && current_resolution.iHeight == res.iHeight &&
+      current_resolution.iScreenWidth == res.iScreenWidth && current_resolution.iScreenHeight == res.iScreenHeight &&
+      MathUtils::FloatEquals(current_resolution.fRefreshRate, res.fRefreshRate, 0.06f))
   {
-    m_force_mode_switch = true;
-    CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: force mode switch", __FUNCTION__);
+    // same resolution, check frac rate and other parameter
+    if ((cur_fractional_rate != fractional_rate) || force_mode_switch_by_dv || (m_stereo_mode != stereo_mode))
+    {
+      m_force_mode_switch = true;
+      CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: force mode switch", __FUNCTION__);
+    }
   }
 
   // refresh backup data
