@@ -274,19 +274,6 @@ bool aml_dolby_vision_enabled()
   return ((dv_enabled && !!dv_user_enabled) == 1);
 }
 
-bool aml_has_frac_rate_policy()
-{
-  static int has_frac_rate_policy = -1;
-
-  if (has_frac_rate_policy == -1)
-  {
-    CSysfsPath amhdmitx0_frac_rate_policy{"/sys/class/amhdmitx/amhdmitx0/frac_rate_policy"};
-    has_frac_rate_policy = static_cast<int>(amhdmitx0_frac_rate_policy.Exists());
-  }
-
-  return (has_frac_rate_policy == 1);
-}
-
 bool aml_video_started()
 {
   CSysfsPath videostarted{"/sys/class/tsync/videostarted"};
@@ -1347,15 +1334,8 @@ bool aml_get_native_resolution(RESOLUTION_INFO *res)
   std::string mode = aml_get_drmDevice_mode();
   bool result = aml_mode_to_resolution(mode.c_str(), res);
 
-  if (aml_has_frac_rate_policy())
-  {
-    int fractional_rate = 0;
-    CSysfsPath frac_rate_policy{"/sys/class/amhdmitx/amhdmitx0/frac_rate_policy"};
-    if (frac_rate_policy.Exists())
-      fractional_rate = frac_rate_policy.Get<int>().value();
-    if (fractional_rate == 1)
-      res->fRefreshRate /= 1.001f;
-  }
+  if (aml_get_drmProperty("FRAC_RATE_POLICY", DRM_MODE_OBJECT_CONNECTOR) == 1)
+    res->fRefreshRate /= 1.001f;
 
   return result;
 }
@@ -1423,20 +1403,17 @@ bool aml_probe_resolutions(std::vector<RESOLUTION_INFO> &resolutions)
         else
           resolutions.push_back(res);
 
-        if (aml_has_frac_rate_policy())
+        // Add fractional frame rates: 23.976, 29.97 and 59.94 Hz
+        switch ((int)res.fRefreshRate)
         {
-          // Add fractional frame rates: 23.976, 29.97 and 59.94 Hz
-          switch ((int)res.fRefreshRate)
-          {
-            case 24:
-            case 30:
-            case 60:
-              res.fRefreshRate /= 1.001f;
-              res.strMode       = StringUtils::Format("{:d}x{:d} @ {:.2f}{} - Full Screen", res.iScreenWidth, res.iScreenHeight, res.fRefreshRate,
-                res.dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "");
-              resolutions.push_back(res);
-              break;
-          }
+          case 24:
+          case 30:
+          case 60:
+            res.fRefreshRate /= 1.001f;
+            res.strMode       = StringUtils::Format("{:d}x{:d} @ {:.2f}{} - Full Screen", res.iScreenWidth, res.iScreenHeight, res.fRefreshRate,
+              res.dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "");
+            resolutions.push_back(res);
+            break;
         }
       }
     }
@@ -1480,20 +1457,10 @@ bool aml_set_display_resolution(const RESOLUTION_INFO &res, std::string framebuf
     mode = "custombuilt";
   }
 
-  if (aml_has_frac_rate_policy())
-  {
-    int cur_fractional_rate;
-    int fractional_rate = (res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1;
-    CSysfsPath amhdmitx0_frac_rate_policy{"/sys/class/amhdmitx/amhdmitx0/frac_rate_policy"};
-    if (amhdmitx0_frac_rate_policy.Exists())
-      cur_fractional_rate = amhdmitx0_frac_rate_policy.Get<int>().value();
+  int fractional_rate = (res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1;
 
-    if ((cur_fractional_rate != fractional_rate) || force_mode_switch)
-    {
-      if (amhdmitx0_frac_rate_policy.Exists())
-        amhdmitx0_frac_rate_policy.Set(fractional_rate);
-    }
-  }
+  if (aml_get_drmProperty("FRAC_RATE_POLICY", DRM_MODE_OBJECT_CONNECTOR) != fractional_rate)
+    aml_set_drmProperty("FRAC_RATE_POLICY", DRM_MODE_OBJECT_CONNECTOR, fractional_rate);
 
   aml_set_framebuffer_resolution(res.iScreenWidth, res.iScreenHeight, framebuffer_name);
   aml_set_drmDevice_mode(res.iWidth, res.iHeight, mode, force_mode_switch);
