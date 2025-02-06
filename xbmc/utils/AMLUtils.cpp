@@ -1345,10 +1345,23 @@ bool aml_set_native_resolution(const RESOLUTION_INFO &res, std::string framebuff
 {
   bool result = false;
 
-  aml_handle_display_stereo_mode(stereo_mode);
-  result = aml_set_display_resolution(res, framebuffer_name, force_mode_switch);
-  if (stereo_mode != RenderStereoMode::OFF)
-    CSysfsPath("/sys/class/amhdmitx/amhdmitx0/phy", 1);
+  if (aml_get_cpufamily_id() < AML_T7)
+  {
+    aml_handle_display_stereo_mode(stereo_mode);
+    result = aml_set_display_resolution(res, framebuffer_name, force_mode_switch);
+    if (stereo_mode != RenderStereoMode::OFF)
+      CSysfsPath("/sys/class/amhdmitx/amhdmitx0/phy", 1);
+  }
+  else
+  {
+    if (stereo_mode == RenderStereoMode::HARDWAREBASED ||
+        stereo_mode == RenderStereoMode::OFF)
+      aml_handle_display_stereo_mode(stereo_mode);
+    result = aml_set_display_resolution(res, framebuffer_name, force_mode_switch);
+    if (stereo_mode != RenderStereoMode::HARDWAREBASED &&
+        stereo_mode != RenderStereoMode::OFF)
+      aml_handle_display_stereo_mode(stereo_mode);
+  }
 
   return result;
 }
