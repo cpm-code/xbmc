@@ -116,7 +116,6 @@ static bool write_resolution_ini(RESOLUTION_INFO res)
   std::string force_cs[] = { "rgb", "420", "422", "444" };
   std::string limit_cd[] = { "8bit", "10bit", "12bit", "16bit" };
   auto result = statfs(aml_res_path.c_str(), &fsInfo);
-  const bool nativeGui = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING);
 
   if (!result && fsInfo.f_flags & MS_RDONLY)
     result = mount(NULL, aml_res_path.c_str(), NULL, MS_NOATIME | MS_REMOUNT, NULL);
@@ -127,7 +126,6 @@ static bool write_resolution_ini(RESOLUTION_INFO res)
     ofs << "# WARNING DO NOT MODIFY THIS FILE! ALL CHANGES WILL BE LOST!\n";
     ofs << "kernel_hdmimode=" << res.strId.c_str() << "\n";
     ofs << "frac_rate_policy=" << std::to_string((res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1).c_str() << "\n";
-    ofs << "native_4k_gui=" << std::to_string(nativeGui).c_str() << "\n";
     ofs << "hdmitx=";
     if (settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_FORCE_CS) > 0)
       fmt_attr += std::string(force_cs[settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_FORCE_CS) - 1] + ",").c_str();
