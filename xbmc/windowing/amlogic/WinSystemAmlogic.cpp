@@ -38,7 +38,6 @@
 #include "platform/linux/SysfsPath.h"
 
 #include <linux/fb.h>
-#include <linux/version.h>
 #include <poll.h>
 #include <unistd.h>
 
@@ -251,16 +250,6 @@ bool CWinSystemAmlogic::InitWindowSystem()
 
     if (new_value != old_value)
       settings->SetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_LED, new_value);
-  }
-
-  if (((LINUX_VERSION_CODE >> 16) & 0xFF) < 5)
-  {
-    auto setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING);
-    if (setting)
-    {
-      setting->SetVisible(false);
-      settings->SetBool(CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING, false);
-    }
   }
 
   m_nativeDisplay = EGL_DEFAULT_DISPLAY;
