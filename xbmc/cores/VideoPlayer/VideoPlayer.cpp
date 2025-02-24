@@ -4028,8 +4028,7 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
     if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_ADJUSTREFRESHRATE) != ADJUST_REFRESHRATE_OFF)
     {
       double framerate = DVD_TIME_BASE / CDVDCodecUtils::NormalizeFrameduration(
-                                                   (double)DVD_TIME_BASE * hint.fpsscale /
-                                                   (hint.fpsrate * (hint.interlaced ? 2 : 1)));
+                                                   (double)DVD_TIME_BASE * hint.fpsscale / hint.fpsrate);
 
       if (MathUtils::FloatEquals(25.0f, static_cast<float>(framerate), 0.01f))
       {
