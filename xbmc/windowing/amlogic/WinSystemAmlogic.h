@@ -65,11 +65,18 @@ protected:
   CHDRCapabilities m_hdr_caps;
   bool m_force_mode_switch;
 private:
-  static void HotplugEvent();
+  struct callback_data
+  {
+    struct udev_monitor* udevMonitor;
+    CWinSystemAmlogic* object;
+  };
+
+  void RefreshResolutions();
+  void HotplugEvent();
   static void FDEventCallback(int id, int fd, short revents, void *data);
 
   int m_fdMonitorId;
 
   struct udev *m_udev;
-  struct udev_monitor* m_udevMonitor;
+  struct callback_data m_callback_data;
 };
