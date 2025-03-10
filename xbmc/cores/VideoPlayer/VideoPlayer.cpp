@@ -3995,24 +3995,6 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
     }
     hint.dvd = true;
   }
-  else if (m_pInputStream && m_pInputStream->IsStreamType(DVDSTREAM_TYPE_PVRMANAGER))
-  {
-    // set framerate if not set by demuxer
-    if (hint.fpsrate == 0 || hint.fpsscale == 0)
-    {
-      int fpsidx = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_PVRPLAYBACK_FPS);
-      if (fpsidx == 1)
-      {
-        hint.fpsscale = 1000;
-        hint.fpsrate = 50000;
-      }
-      else if (fpsidx == 2)
-      {
-        hint.fpsscale = 1001;
-        hint.fpsrate = 60000;
-      }
-    }
-  }
 
   std::shared_ptr<CDVDInputStream::IMenus> pMenus = std::dynamic_pointer_cast<CDVDInputStream::IMenus>(m_pInputStream);
   if(pMenus && pMenus->IsInMenu())
