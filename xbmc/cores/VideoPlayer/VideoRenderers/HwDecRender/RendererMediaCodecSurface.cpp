@@ -73,7 +73,7 @@ bool CRendererMediaCodecSurface::Configure(const VideoPicture &picture, float fp
   }
   else if (picture.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
   {
-    if (CServiceBroker::GetWinSystem()->GetDisplayHDRCapabilities().SupportsDolbyVision())
+    if (CServiceBroker::GetWinSystem()->GetDisplayHDRCapabilities().SupportsDolbyVision() != DolbyVisionFormat::DOLBYVISION_TYPE_NONE)
       CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(true);
   }
 
