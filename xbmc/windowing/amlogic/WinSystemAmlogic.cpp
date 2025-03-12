@@ -442,12 +442,14 @@ bool CWinSystemAmlogic::IsHDRDisplay()
   if (dv_cap.Exists())
   {
     valstr = dv_cap.Get<std::string>().value();
-    if (valstr.find("DolbyVision RX support list") != std::string::npos)
+    if (valstr.find("2160p30hz: 1") != std::string::npos)
       m_hdr_caps.SetDolbyVision();
+    else if (valstr.find("2160p60hz: 1") != std::string::npos)
+      m_hdr_caps.SetDolbyVision4k60();
   }
 
-  return (m_hdr_caps.SupportsHDR10() | m_hdr_caps.SupportsHDR10Plus() |
-          m_hdr_caps.SupportsHLG() | m_hdr_caps.SupportsDolbyVision());
+  return (m_hdr_caps.SupportsHDR10() | m_hdr_caps.SupportsHDR10Plus() | m_hdr_caps.SupportsHLG() |
+         (m_hdr_caps.SupportsDolbyVision() != DolbyVisionFormat::DOLBYVISION_TYPE_NONE));
 }
 
 CHDRCapabilities CWinSystemAmlogic::GetDisplayHDRCapabilities() const
