@@ -23918,17 +23918,7 @@ msgctxt "#39031"
 msgid "Sources"
 msgstr ""
 
-#: system/settings/settings.xml
-msgctxt "#39032"
-msgid "Accelerate VC1"
-msgstr ""
-
-#: system/settings/settings.xml
-msgctxt "#39033"
-msgid "Exclude 24p"
-msgstr ""
-
-#empty strings from id 39034 to 39099
+#empty strings from id 39032 to 39099
 
 #: system/settings/settings.xml
 msgctxt "#39100"
