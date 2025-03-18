@@ -123,7 +123,6 @@ public:
   static constexpr auto SETTING_VIDEOPLAYER_USEAMCODECMPEG2 = "videoplayer.useamcodecmpeg2";
   static constexpr auto SETTING_VIDEOPLAYER_USEAMCODECMPEG4 = "videoplayer.useamcodecmpeg4";
   static constexpr auto SETTING_VIDEOPLAYER_USEAMCODECH264 = "videoplayer.useamcodech264";
-  static constexpr auto SETTING_VIDEOPLAYER_USEAMCODECVC1 = "videoplayer.useamcodecvc1";
   static constexpr auto SETTING_VIDEOPLAYER_USEMEDIACODEC = "videoplayer.usemediacodec";
   static constexpr auto SETTING_VIDEOPLAYER_USEMEDIACODECSURFACE =
       "videoplayer.usemediacodecsurface";
