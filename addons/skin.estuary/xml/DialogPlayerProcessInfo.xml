@@ -161,6 +161,15 @@
 					<visible>!String.IsEmpty(VideoPlayer.AudioCodec)</visible>
 				</control>
 				<control type="label">
+					<width>900</width>
+					<height>40</height>
+					<aligny>bottom</aligny>
+					<label>[COLOR button_focus]$LOCALIZE[472]:[/COLOR] $INFO[Player.Process(audiochannelssink),]</label>
+					<font>font12</font>
+					<shadowcolor>black</shadowcolor>
+					<visible>!Player.Passthrough</visible>
+				</control>
+				<control type="label">
 					<width>420</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
@@ -173,7 +182,7 @@
 					<width>420</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[VideoPlayer.AudioLanguage,[COLOR button_focus]$LOCALIZE[21447]:[/COLOR] ]</label>
+					<label>[COLOR button_focus]$LOCALIZE[21447]: [/COLOR]$VAR[ActiveVideoPlayerAudioLanguage]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
 					<visible>!String.IsEmpty(VideoPlayer.AudioLanguage)</visible>
@@ -182,19 +191,9 @@
 					<width>420</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[VideoPlayer.SubtitlesLanguage,[COLOR button_focus]$LOCALIZE[21448]:[/COLOR] ]</label>
+					<label>[COLOR button_focus]$LOCALIZE[21448]: [/COLOR]$VAR[ActiveVideoPlayerSubtitleLanguage]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
-					<visible>VideoPlayer.SubtitlesEnabled</visible>
-				</control>
-				<control type="label">
-					<width>420</width>
-					<height>40</height>
-					<aligny>bottom</aligny>
-					<label>[COLOR button_focus]$LOCALIZE[21448]:[/COLOR][COLOR dimgrey]$INFO[VideoPlayer.SubtitlesLanguage, (deactivated) ][/COLOR]</label>
-					<font>font12</font>
-					<shadowcolor>black</shadowcolor>
-					<visible>!VideoPlayer.SubtitlesEnabled</visible>
 				</control>
 			</control>
 			<control type="grouplist">
@@ -268,9 +267,10 @@
 					<width>900</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-                    <label>[COLOR button_focus]$LOCALIZE[460]:[/COLOR] $INFO[Player.Process(audiochannels),]</label>
+					<label>[COLOR button_focus]$LOCALIZE[471]:[/COLOR] $INFO[Player.Process(audiochannels),]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
+					<visible>!Player.Passthrough</visible>
 				</control>
 				<control type="label">
 					<width>900</width>
