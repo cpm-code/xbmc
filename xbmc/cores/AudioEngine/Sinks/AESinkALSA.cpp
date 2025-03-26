@@ -16,6 +16,7 @@
 #endif
 #include "cores/AudioEngine/Utils/AEELDParser.h"
 #include "cores/AudioEngine/Utils/AEUtil.h"
+#include "cores/DataCacheCore.h"
 #include "platform/Platform.h"
 #include "utils/XTimeUtils.h"
 #include "utils/log.h"
@@ -312,6 +313,8 @@ inline CAEChannelInfo CAESinkALSA::GetChannelLayout(const AEAudioFormat& format,
             std::string(format.m_channelLayout));
   CLog::Log(LOGDEBUG, "CAESinkALSA::GetChannelLayout - Got Layout: {} (ALSA: {})",
             std::string(info), alsaMapStr);
+
+  CServiceBroker::GetDataCacheCore().SetAudioChannelsSink(format.m_channelLayout);
 
   return info;
 }
