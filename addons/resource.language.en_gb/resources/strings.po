@@ -2255,7 +2255,15 @@ msgctxt "#470"
 msgid "Credits"
 msgstr ""
 
-#empty strings from id 471 to 473
+msgctxt "#471"
+msgid "Input layout"
+msgstr ""
+
+msgctxt "#472"
+msgid "Output layout"
+msgstr ""
+
+#empty strings from id 472 to 473
 
 msgctxt "#474"
 msgid "Off"
