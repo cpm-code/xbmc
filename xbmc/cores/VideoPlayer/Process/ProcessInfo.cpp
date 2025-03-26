@@ -374,6 +374,16 @@ std::string CProcessInfo::GetAudioChannels()
   return m_audioChannels;
 }
 
+std::string CProcessInfo::GetAudioChannelsSink()
+{
+  std::unique_lock<CCriticalSection> lock(m_audioCodecSection);
+
+  if (m_dataCache)
+    return m_dataCache->GetAudioChannelsSink();
+
+  return m_audioChannels;
+}
+
 void CProcessInfo::SetAudioSampleRate(int sampleRate)
 {
   std::unique_lock lock(m_audioCodecSection);
