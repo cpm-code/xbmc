@@ -565,6 +565,8 @@ bool CVideoPlayerAudio::ProcessDecoderOutput(DVDAudioFrame &audioframe)
       m_messageParent.Put(std::make_shared<CDVDMsgType<SStartMsg>>(CDVDMsg::PLAYER_STARTED, msg));
 
       m_streaminfo.channels = audioframe.format.m_channelLayout.Count();
+      CLog::Log(LOGDEBUG, "CVideoPlayerAudio::ProcessDecoderOutput: GetAudioChannelsSink: {}",
+        m_processInfo.GetAudioChannelsSink());
       m_processInfo.SetAudioChannels(audioframe.format.m_channelLayout);
       m_processInfo.SetAudioSampleRate(audioframe.format.m_sampleRate);
       m_processInfo.SetAudioBitsPerSample(audioframe.bits_per_sample);
