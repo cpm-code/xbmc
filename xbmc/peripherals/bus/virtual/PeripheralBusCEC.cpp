@@ -22,7 +22,10 @@ CPeripheralBusCEC::CPeripheralBusCEC(CPeripherals& manager)
 CPeripheralBusCEC::~CPeripheralBusCEC(void)
 {
   if (m_cecAdapter)
+  {
+    m_cecAdapter->Close();
     CECDestroy(m_cecAdapter);
+  }
 }
 
 bool CPeripheralBusCEC::PerformDeviceScan(PeripheralScanResults& results)
