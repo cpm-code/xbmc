@@ -3002,7 +3002,6 @@ void CVideoPlayer::HandleMessages()
           m_callback.OnPlayBackSeekChapter(msg.GetChapter());
         }
       }
-      m_processInfo->SeekFinished(offset);
     }
     else if (pMsg->IsType(CDVDMsg::DEMUXER_RESET))
     {
@@ -3715,7 +3714,7 @@ bool CVideoPlayer::SeekTimeRelative(int64_t iTime)
   mode.relative = true;
   mode.backward = (iTime < 0) ? true : false;
   mode.accurate = false;
-  mode.trickplay = false;
+  mode.trickplay = true;
   mode.sync = true;
 
   m_messenger.Put(std::make_shared<CDVDMsgPlayerSeek>(mode));
