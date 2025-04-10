@@ -378,6 +378,9 @@ void aml_probe_hdmi_audio()
 
 bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
 {
+  int width = 0, height = 0, rrate = 60;
+  char smode[2] = { 0 };
+
   if (!res)
     return false;
 
@@ -395,84 +398,69 @@ bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)
   if (StringUtils::EndsWith(fromMode, "*"))
     fromMode.erase(fromMode.size() - 1);
 
-  if (StringUtils::EqualsNoCase(fromMode, "4k2ksmpte") || StringUtils::EqualsNoCase(fromMode, "smpte24hz"))
+  if (sscanf(fromMode.c_str(), "%dx%dp%dhz", &width, &height, &rrate) == 3)
   {
-    res->iWidth = nativeGui ? 4096 : 1920;
-    res->iHeight= nativeGui ? 2160 : 1080;
-    res->iScreenWidth = 4096;
-    res->iScreenHeight= 2160;
-    res->fRefreshRate = 24;
-    res->dwFlags = D3DPRESENTFLAG_PROGRESSIVE;
+    *smode = 'p';
+  }
+  else if (sscanf(fromMode.c_str(), "%d%1[ip]%dhz", &height, smode, &rrate) >= 2)
+  {
+    switch (height)
+    {
+      case 480:
+      case 576:
+        width = 720;
+        break;
+      case 720:
+        width = 1280;
+        break;
+      case 1080:
+        width = 1920;
+        break;
+      case 2160:
+        width = 3840;
+        break;
+    }
+  }
+  else if (sscanf(fromMode.c_str(), "%dcvbs", &height) == 1)
+  {
+    width = 720;
+    *smode = 'i';
+    rrate = (height == 576) ? 50 : 60;
+  }
+  else if (sscanf(fromMode.c_str(), "4k2k%d", &rrate) == 1)
+  {
+    width = 3840;
+    height = 2160;
+    *smode = 'p';
+  }
+  else if (StringUtils::EqualsNoCase(fromMode, "dummy_l"))
+  {
+    width = 1920;
+    height = 1080;
+    rrate = 60;
+    *smode = 'p';
   }
   else
   {
-    int width = 0, height = 0, rrate = 60;
-    char smode[2] = { 0 };
+    return false;
+  }
 
-    if (sscanf(fromMode.c_str(), "%dx%dp%dhz", &width, &height, &rrate) == 3)
-    {
-      *smode = 'p';
-    }
-    else if (sscanf(fromMode.c_str(), "%d%1[ip]%dhz", &height, smode, &rrate) >= 2)
-    {
-      switch (height)
-      {
-        case 480:
-        case 576:
-          width = 720;
-          break;
-        case 720:
-          width = 1280;
-          break;
-        case 1080:
-          width = 1920;
-          break;
-        case 2160:
-          width = 3840;
-          break;
-      }
-    }
-    else if (sscanf(fromMode.c_str(), "%dcvbs", &height) == 1)
-    {
-      width = 720;
-      *smode = 'i';
-      rrate = (height == 576) ? 50 : 60;
-    }
-    else if (sscanf(fromMode.c_str(), "4k2k%d", &rrate) == 1)
-    {
-      width = 3840;
-      height = 2160;
-      *smode = 'p';
-    }
-    else if (StringUtils::EqualsNoCase(fromMode, "dummy_l"))
-    {
-      width = 1920;
-      height = 1080;
-      rrate = 60;
-      *smode = 'p';
-    }
-    else
-    {
-      return false;
-    }
+  res->iWidth = nativeGui ? width : std::min(width, 1920);
+  res->iHeight= nativeGui ? height : std::min(height, 1080);
+  res->iScreenWidth = width;
+  res->iScreenHeight = height;
+  res->dwFlags = (*smode == 'p') ? D3DPRESENTFLAG_PROGRESSIVE : D3DPRESENTFLAG_INTERLACED;
 
-    res->iWidth = nativeGui ? width : std::min(width, 1920);
-    res->iHeight= nativeGui ? height : std::min(height, 1080);
-    res->iScreenWidth = width;
-    res->iScreenHeight = height;
-    res->dwFlags = (*smode == 'p') ? D3DPRESENTFLAG_PROGRESSIVE : D3DPRESENTFLAG_INTERLACED;
-
-    switch (rrate)
-    {
-      case 23:
-      case 29:
-      case 59:
-        res->fRefreshRate = (float)((rrate + 1)/1.001f);
-        break;
-      default:
-        res->fRefreshRate = (float)rrate;
-        break;
-    }
+  switch (rrate)
+  {
+    case 23:
+    case 29:
+    case 59:
+      res->fRefreshRate = (float)((rrate + 1)/1.001f);
+      break;
+    default:
+      res->fRefreshRate = (float)rrate;
+      break;
   }
 
   res->bFullScreen   = true;
