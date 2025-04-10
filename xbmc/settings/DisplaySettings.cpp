@@ -24,6 +24,7 @@
 #include "settings/lib/Setting.h"
 #include "settings/lib/SettingDefinitions.h"
 #include "storage/MediaManager.h"
+#include "utils/AMLUtils.h"
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
 #include "utils/XMLUtils.h"
@@ -420,6 +421,17 @@ bool CDisplaySettings::OnSettingChanging(const std::shared_ptr<const CSetting>& 
   {
     const RESOLUTION_INFO res_info = GetResolutionInfo(GetCurrentResolution());
     write_resolution_ini(res_info);
+
+    if (settingId == CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING)
+    {
+      Clear();
+      auto winSystem = CServiceBroker::GetWinSystem();
+      winSystem->UpdateResolutions();
+      RESOLUTION newRes = GetResolutionForScreen();
+
+      SetCurrentResolution(newRes, false);
+      winSystem->GetGfxContext().SetVideoResolution(newRes, true);
+    }
   }
 
   return true;
