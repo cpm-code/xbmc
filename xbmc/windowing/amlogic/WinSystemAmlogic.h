@@ -64,6 +64,7 @@ protected:
   std::unique_ptr<CLibInputHandler> m_libinput;
   CHDRCapabilities m_hdr_caps;
   bool m_force_mode_switch;
+  bool m_nativeGUI;
 private:
   struct callback_data
   {
