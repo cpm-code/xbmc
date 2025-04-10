@@ -10,6 +10,8 @@
 #include "WinSystemAmlogicGLESContext.h"
 #include "platform/linux/SysfsPath.h"
 #include "ServiceBroker.h"
+#include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
 #include "utils/AMLUtils.h"
 #include "utils/MathUtils.h"
 #include "utils/log.h"
@@ -82,6 +84,8 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
   int fractional_rate = (res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1;
   int cur_fractional_rate = aml_get_drmProperty("FRAC_RATE_POLICY", DRM_MODE_OBJECT_CONNECTOR);
 
+  bool nativeGUI = CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING);
+
   StreamHdrType hdrType = CServiceBroker::GetWinSystem()->GetGfxContext().GetHDRType();
   bool force_mode_switch_by_dv = false;
   if (aml_dolby_vision_enabled() &&
@@ -107,14 +111,14 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
     fractional_rate, cur_fractional_rate,
     new_hdrStr.empty() ? "none" : new_hdrStr, old_hdrStr.empty() ? "none" : old_hdrStr, force_mode_switch_by_dv);
   CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: "
-    "cur: iWidth: {:04d}, iHeight: {:04d}, iScreenWidth: {:04d}, iScreenHeight: {:04d}, fRefreshRate: {:02.2f}, dwFlags: {:02x}",
+    "cur: iWidth: {:04d}, iHeight: {:04d}, iScreenWidth: {:04d}, iScreenHeight: {:04d}, fRefreshRate: {:02.2f}, dwFlags: {:02x}, nativeGUI: {}",
     __FUNCTION__,
     current_resolution.iWidth, current_resolution.iHeight, current_resolution.iScreenWidth, current_resolution.iScreenHeight,
-    current_resolution.fRefreshRate, current_resolution.dwFlags);
+    current_resolution.fRefreshRate, current_resolution.dwFlags, m_nativeGUI);
   CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: "
-    "res: iWidth: {:04d}, iHeight: {:04d}, iScreenWidth: {:04d}, iScreenHeight: {:04d}, fRefreshRate: {:02.2f}, dwFlags: {:02x}",
+    "res: iWidth: {:04d}, iHeight: {:04d}, iScreenWidth: {:04d}, iScreenHeight: {:04d}, fRefreshRate: {:02.2f}, dwFlags: {:02x}, nativeGUI: {}",
     __FUNCTION__,
-    res.iWidth, res.iHeight, res.iScreenWidth, res.iScreenHeight, res.fRefreshRate, res.dwFlags);
+    res.iWidth, res.iHeight, res.iScreenWidth, res.iScreenHeight, res.fRefreshRate, res.dwFlags, nativeGUI);
 
   // check if mode switch is needed
   if (current_resolution.iWidth == res.iWidth && current_resolution.iHeight == res.iHeight &&
@@ -123,7 +127,8 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
       (current_resolution.dwFlags & D3DPRESENTFLAG_MODEMASK) == (res.dwFlags & D3DPRESENTFLAG_MODEMASK) &&
       m_stereo_mode == stereo_mode && m_bWindowCreated &&
       !force_mode_switch_by_dv &&
-      (fractional_rate == cur_fractional_rate))
+      (fractional_rate == cur_fractional_rate) &&
+      nativeGUI == m_nativeGUI)
   {
     CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: No need to create a new window", __FUNCTION__);
     return true;
@@ -149,6 +154,7 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
   m_hdrType = hdrType;
   m_stereo_mode = stereo_mode;
   m_bFullScreen = fullScreen;
+  m_nativeGUI = nativeGUI;
 
   if (!CWinSystemAmlogic::CreateNewWindow(name, fullScreen, res))
   {
