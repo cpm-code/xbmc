@@ -52,6 +52,6 @@ private:
     int duration;
   } m_buffers[m_numRenderBuffers];
 
-  int m_prevVPts;
+  uint64_t m_prevVPts;
   bool m_bConfigured;
 };
