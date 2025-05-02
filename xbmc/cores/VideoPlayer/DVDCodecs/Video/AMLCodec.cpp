@@ -2185,7 +2185,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   // translate from generic to firmware version dependent
   m_dll->codec_init_para(&am_private->gcodec, &am_private->vcodec);
 
-  std::string config_data = GetHDRStaticMetadata();
+  std::string config_data = GetHDRStaticMetadata(dv_enable);
   if (!config_data.empty())
   {
     am_private->vcodec.config_len = static_cast<int>(config_data.size());
@@ -3058,10 +3058,11 @@ unsigned int CAMLCodec::GetDecoderVideoRate()
     return 0;
 }
 
-std::string CAMLCodec::GetHDRStaticMetadata()
+std::string CAMLCodec::GetHDRStaticMetadata(bool dv_enable)
 {
   std::stringstream stream;
   std::string config_data;
+  std::string negative_dv = StringUtils::Format("negative_dv:{}", dv_enable ? 0 : 1);
 
   switch(am_private->video_format)
   {
@@ -3094,10 +3095,15 @@ std::string CAMLCodec::GetHDRStaticMetadata()
         config_data = stream.str();
       }
       break;
+    case VFORMAT_AV1:
+      stream << "av1_max_pic_w:" << m_hints.width;
+      stream << ";av1_max_pic_h:" << m_hints.height;
+      stream << ";";
+      [[fallthrough]];
     case VFORMAT_H264:
       [[fallthrough]];
     case VFORMAT_H264_4K2K:
-      stream << "negative_dv:1";
+      stream << negative_dv;
       config_data = stream.str();
       break;
     default:
