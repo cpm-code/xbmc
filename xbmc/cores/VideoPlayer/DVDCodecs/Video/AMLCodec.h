@@ -99,7 +99,7 @@ private:
   float         GetBufferLevel(int new_chunk, int &data_len, int &free_len);
   int           DequeueBuffer();
   unsigned int  GetDecoderVideoRate();
-  std::string   GetHDRStaticMetadata();
+  std::string   GetHDRStaticMetadata(bool dv_enable);
 
   DllLibAmCodec   *m_dll;
   bool             m_opened;
