@@ -39,9 +39,6 @@ double AEDelayStatus::GetDelay() const
 
 CAEChannelInfo CAEUtil::GuessChLayout(const unsigned int channels)
 {
-  CLog::Log(LOGWARNING, "CAEUtil::GuessChLayout - "
-    "This method should really never be used, please fix the code that called this");
-
   CAEChannelInfo result;
   if (channels < 1 || channels > 8)
     return result;
