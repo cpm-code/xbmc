@@ -130,7 +130,7 @@
 				</control>
 			</control>
 			<control type="grouplist">
-				<left>1000</left>
+				<left>900</left>
 				<top>-204</top>
 				<visible>String.IsEqual(Window(Home).Property(PlayerInfoDialogFocus),5553)</visible>
 				<control type="label">
@@ -161,15 +161,6 @@
 					<visible>!String.IsEmpty(VideoPlayer.AudioCodec)</visible>
 				</control>
 				<control type="label">
-					<width>900</width>
-					<height>40</height>
-					<aligny>bottom</aligny>
-					<label>[COLOR button_focus]$LOCALIZE[472]:[/COLOR] $INFO[Player.Process(audiochannelssink),]</label>
-					<font>font12</font>
-					<shadowcolor>black</shadowcolor>
-					<visible>!Player.Passthrough</visible>
-				</control>
-				<control type="label">
 					<width>420</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
@@ -193,11 +184,12 @@
 					<aligny>bottom</aligny>
 					<label>[COLOR button_focus]$LOCALIZE[21448]: [/COLOR]$VAR[ActiveVideoPlayerSubtitleLanguage]</label>
 					<font>font12</font>
+					<scroll>true</scroll>
 					<shadowcolor>black</shadowcolor>
 				</control>
 			</control>
 			<control type="grouplist">
-				<left>1000</left>
+				<left>900</left>
 				<top>35</top>
 				<visible>String.IsEqual(Window(Home).Property(PlayerInfoDialogFocus),5553)</visible>
 				<control type="label">
@@ -219,7 +211,7 @@
 				</control>
 				<control type="progress">
 					<description>RAM BAR</description>
-					<width>870</width>
+					<width>970</width>
 					<height>18</height>
 					<info>system.memory(used)</info>
 				</control>
@@ -258,19 +250,9 @@
 					<width>900</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
-					<label>$INFO[Player.CacheLevel,[COLOR button_focus]$LOCALIZE[31633]:[/COLOR] , %]</label>
-					<font>font12</font>
-					<shadowcolor>black</shadowcolor>
-					<visible>Player.HasVideo</visible>
-				</control>
-				<control type="label">
-					<width>900</width>
-					<height>40</height>
-					<aligny>bottom</aligny>
 					<label>[COLOR button_focus]$LOCALIZE[471]:[/COLOR] $INFO[Player.Process(audiochannels),]</label>
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
-					<visible>!Player.Passthrough</visible>
 				</control>
 				<control type="label">
 					<width>900</width>
@@ -284,14 +266,24 @@
 					<width>900</width>
 					<height>40</height>
 					<aligny>bottom</aligny>
+					<label>$INFO[Player.CacheLevel,[COLOR button_focus]$LOCALIZE[31633]:[/COLOR] , %]</label>
+					<font>font12</font>
+					<shadowcolor>black</shadowcolor>
+					<visible>Player.HasVideo</visible>
+				</control>
+				<control type="label">
+					<width>820</width>
+					<height>40</height>
+					<aligny>bottom</aligny>
 					<label>$INFO[System.CpuUsage,[COLOR button_focus]$LOCALIZE[31609]:[/COLOR] ]</label>
 					<font>font12</font>
+					<scroll>true</scroll>
 					<shadowcolor>black</shadowcolor>
 					<visible>System.SupportsCPUUsage</visible>
 				</control>
 				<control type="label">
 					<height>6</height>
-					<width>870</width>
+					<width>750</width>
 					<aligny>bottom</aligny>
 					<label></label>
 					<font>font8</font>
@@ -299,13 +291,13 @@
 				</control>
 				<control type="progress">
 					<description>CPU BAR</description>
-					<width>870</width>
+					<width>750</width>
 					<height>18</height>
 					<info>System.CPUUsage</info>
 				</control>
 			</control>
 			<control type="grouplist">
-				<left>1450</left>
+				<left>1350</left>
 				<top>-204</top>
 				<visible>Control.HasFocus(5553)</visible>
 				<control type="label">
@@ -334,6 +326,26 @@
 					<font>font12</font>
 					<shadowcolor>black</shadowcolor>
 					<visible>Player.HasVideo</visible>
+				</control>
+				<control type="label">
+					<width>520</width>
+					<height>40</height>
+					<aligny>bottom</aligny>
+					<label>[COLOR button_focus]$LOCALIZE[472]:[/COLOR] $INFO[Player.Process(audiochannelssink),]</label>
+					<font>font12</font>
+					<scroll>true</scroll>
+					<shadowcolor>black</shadowcolor>
+					<visible>!Player.Passthrough</visible>
+				</control>
+				<control type="label">
+					<width>520</width>
+					<height>40</height>
+					<aligny>bottom</aligny>
+					<label>[COLOR button_focus]$LOCALIZE[472]:[/COLOR] $LOCALIZE[31641]</label>
+					<font>font12</font>
+					<scroll>true</scroll>
+					<shadowcolor>black</shadowcolor>
+					<visible>Player.Passthrough</visible>
 				</control>
 				<control type="label">
 					<width>420</width>

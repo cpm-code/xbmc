@@ -1022,10 +1022,16 @@ msgstr ""
 #. Label to show the video resolution
 msgctxt "#31639"
 msgid "Video resolution"
-msgstr "Videó felbontás"
+msgstr ""
 
 #: /xml/DialogPlayerProcessInfo.xml
 #. Label to show the Audio Object Base
 msgctxt "#31640"
 msgid "Audio object base"
-msgstr "HD hang object"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+#. Label to show passtrough
+msgctxt "#31641"
+msgid "Passthrough"
+msgstr ""
