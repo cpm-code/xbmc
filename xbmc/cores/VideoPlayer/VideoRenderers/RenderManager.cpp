@@ -1266,6 +1266,13 @@ void CRenderManager::PrepareNextRender()
       }
     }
 
+    if (m_displayReset)
+    {
+      m_QueueSkip = 0;
+      m_lateframes = 0;
+      m_displayReset = false;
+    }
+
     if (lateframes)
       m_lateframes += lateframes;
     else
