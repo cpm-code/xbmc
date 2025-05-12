@@ -376,6 +376,8 @@ void CRenderManager::PreInit()
     CreateRenderer();
   }
 
+  m_debugRenderer.Initialize();
+
   UpdateLatencyTweak();
 
   m_QueueSize   = 2;
@@ -954,26 +956,14 @@ void CRenderManager::TriggerUpdateResolution(float fps, int width, int height, s
 
 void CRenderManager::ToggleDebug()
 {
-  bool isEnabled = !m_renderDebug;
-  if (isEnabled)
-    m_debugRenderer.Initialize();
-  else
-    m_debugRenderer.Dispose();
-
-  m_renderDebug = isEnabled;
+  m_renderDebug = !m_renderDebug;
   m_debugTimer.SetExpired();
   m_renderDebugVideo = false;
 }
 
 void CRenderManager::ToggleDebugVideo()
 {
-  bool isEnabled = !m_renderDebug;
-  if (isEnabled)
-    m_debugRenderer.Initialize();
-  else
-    m_debugRenderer.Dispose();
-
-  m_renderDebug = isEnabled;
+  m_renderDebug = !m_renderDebug;
   m_debugTimer.SetExpired();
   m_renderDebugVideo = true;
 }
