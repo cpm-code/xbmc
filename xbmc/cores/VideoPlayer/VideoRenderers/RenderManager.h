@@ -95,6 +95,7 @@ public:
   bool Supports(ESCALINGMETHOD method) const;
 
   int GetSkippedFrames()  { return m_QueueSkip; }
+  void DisplayReset() { m_displayReset = true; }
 
   bool Configure(const VideoPicture& picture, float fps, unsigned int orientation, int buffers = 0);
   bool AddVideoPicture(const VideoPicture& picture, volatile std::atomic_bool& bStop, EINTERLACEMETHOD deintMethod, bool wait);
@@ -245,4 +246,5 @@ protected:
   bool m_hasCaptures = false;
 
   std::chrono::time_point<std::chrono::system_clock> m_videostarted;
+  bool m_displayReset = false;
 };
