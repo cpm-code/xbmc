@@ -5469,6 +5469,7 @@ void CVideoPlayer::OnResetDisplay()
   m_clock.Pause(false);
   m_displayLost = false;
   m_VideoPlayerAudio->SendMessage(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_DISPLAY_RESET), 1);
+  m_VideoPlayerVideo->SendMessage(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_DISPLAY_RESET), 1);
 }
 
 void CVideoPlayer::UpdateFileItemStreamDetails(CFileItem& item, UpdateStreamDetails update)
