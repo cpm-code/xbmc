@@ -521,6 +521,20 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
     }
   }
 
+  if (packet.pSideData && packet.iSideDataElems > 0)
+  {
+    const AVPacketSideData* sideData = av_packet_side_data_get(static_cast<AVPacketSideData*>(packet.pSideData),
+                                                               packet.iSideDataElems,
+                                                               AV_PKT_DATA_DYNAMIC_HDR10_PLUS_RAW);
+
+    if (sideData && sideData->size)
+    {
+      if (m_Codec->AddHDR10PData(sideData->data, sideData->size) < 0)
+        CLog::Log(LOGWARNING, "CDVDVideoCodecAmlogic::{}: failed to set hdr10p data with size {}", __FUNCTION__,
+          sideData->size);
+    }
+  }
+
   data_added = m_Codec->AddData(pData, iSize, packet.dts, m_hints.ptsinvalid ? DVD_NOPTS_VALUE : packet.pts);
 
   // pop package only from list if hardware decoder did accept the data

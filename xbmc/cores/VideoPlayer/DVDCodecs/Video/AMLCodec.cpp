@@ -127,6 +127,7 @@ public:
   virtual int codec_resume(codec_para_t *pcodec)=0;
   virtual int codec_write(codec_para_t *pcodec, void *buffer, int len)=0;
   virtual int codec_checkin_pts_us64(codec_para_t *pcodec, unsigned long long pts)=0;
+  virtual int codec_checkin_hdr10p_data(codec_para_t *pcodec)=0;
   virtual int codec_get_vbuf_state(codec_para_t *pcodec, struct buf_status *buf)=0;
   virtual int codec_get_vdec_state(codec_para_t *pcodec, struct vdec_status *vdec)=0;
   virtual int codec_get_vdec_info(codec_para_t *pcodec, struct vdec_info *vdec) = 0;
@@ -155,6 +156,7 @@ class DllLibAmCodec : public DllDynamic, DllLibamCodecInterface
   DEFINE_METHOD1(int, codec_resume,             (codec_para_t *p1))
   DEFINE_METHOD3(int, codec_write,              (codec_para_t *p1, void *p2, int p3))
   DEFINE_METHOD2(int, codec_checkin_pts_us64,   (codec_para_t *p1, unsigned long long p2))
+  DEFINE_METHOD1(int, codec_checkin_hdr10p_data,(codec_para_t *p1))
   DEFINE_METHOD2(int, codec_get_vbuf_state,     (codec_para_t *p1, struct buf_status * p2))
   DEFINE_METHOD2(int, codec_get_vdec_state,     (codec_para_t *p1, struct vdec_status * p2))
   DEFINE_METHOD2(int, codec_get_vdec_info,      (codec_para_t *p1, struct vdec_info * p2))
@@ -178,6 +180,7 @@ class DllLibAmCodec : public DllDynamic, DllLibamCodecInterface
     RESOLVE_METHOD(codec_resume)
     RESOLVE_METHOD(codec_write)
     RESOLVE_METHOD(codec_checkin_pts_us64)
+    RESOLVE_METHOD(codec_checkin_hdr10p_data)
     RESOLVE_METHOD(codec_get_vbuf_state)
     RESOLVE_METHOD(codec_get_vdec_state)
     RESOLVE_METHOD(codec_get_vdec_info)
@@ -2591,6 +2594,13 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
       pts / DVD_TIME_BASE
     );
   return true;
+}
+
+int CAMLCodec::AddHDR10PData(uint8_t *pData, size_t iSize)
+{
+  am_private->vcodec.hdr10p_data.pointer = pData;
+  am_private->vcodec.hdr10p_data.len = iSize;
+  return m_dll->codec_checkin_hdr10p_data(&am_private->vcodec);
 }
 
 int CAMLCodec::m_pollDevice;
