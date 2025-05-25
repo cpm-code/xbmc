@@ -96,8 +96,8 @@ bool CCDDARipJob::DoWork()
   CGUIDialogProgressBarHandle* handle = pDlgProgress->GetHandle(
       CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(605));
 
-  int iTrack = atoi(m_input.substr(13, m_input.size() - 13 - 5).c_str());
-  std::string strLine0 =
+  const int iTrack = atoi(m_input.substr(13, m_input.size() - 13 - 5).c_str());
+  const std::string strLine0 =
       StringUtils::Format("{:02}. {} - {}", iTrack, m_tag.GetArtistString(), m_tag.GetTitle());
   handle->SetText(strLine0);
 
@@ -186,7 +186,7 @@ int CCDDARipJob::RipChunk(CFile& reader, const std::unique_ptr<CEncoder>& encode
 std::unique_ptr<CEncoder> CCDDARipJob::SetupEncoder(CFile& reader)
 {
   std::unique_ptr<CEncoder> encoder;
-  const std::string audioEncoder = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(
+  const auto audioEncoder = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(
       CSettings::SETTING_AUDIOCDS_ENCODER);
   if (audioEncoder == "audioencoder.kodi.builtin.aac" ||
       audioEncoder == "audioencoder.kodi.builtin.wma")
@@ -209,7 +209,7 @@ std::unique_ptr<CEncoder> CCDDARipJob::SetupEncoder(CFile& reader)
   const std::string strTrack = StringUtils::Format(
       "{}", std::stol(m_input.substr(13, m_input.size() - 13 - 5), nullptr, 10));
 
-  const std::string itemSeparator =
+  const std::string& itemSeparator =
       CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_musicItemSeparator;
 
   encoder->SetComment(std::string("Ripped with ") + CSysInfo::GetAppName());
