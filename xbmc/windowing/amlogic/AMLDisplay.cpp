@@ -4,6 +4,7 @@
  *  SPDX-License-Identifier: GPL-2.0-or-later
  *  See LICENSES/README.md for more information.
  */
+#include <drm_fourcc.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <amcodec/codec.h>
@@ -20,6 +21,132 @@
 #include "utils/log.h"
 #include "windowing/GraphicContext.h"
 
+void FbDestroyCallback(gbm_bo* bo, void* data)
+{
+  drm_fb* fb = static_cast<drm_fb*>(data);
+
+  if (fb->fb_id > 0)
+  {
+    CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - removing framebuffer: {}", __FUNCTION__, fb->fb_id);
+    int drm_fd = gbm_device_get_fd(gbm_bo_get_device(bo));
+    drmModeRmFB(drm_fd, fb->fb_id);
+  }
+
+  delete fb;
+}
+
+CAMLGBMUtils::CAMLGBMUtils(int fd)
+{
+  m_device = gbm_create_device(fd);
+  if (!m_device)
+  {
+    CLog::Log(LOGERROR, "CAMLGBMUtils::{} - failed to create GBM device", __FUNCTION__);
+    throw std::runtime_error("failed to create GBM device");
+  }
+}
+
+CAMLGBMUtils::~CAMLGBMUtils()
+{
+  if (m_surface)
+    gbm_surface_destroy(m_surface);
+  gbm_device_destroy(m_device);
+}
+
+bool CAMLGBMUtils::CreateSurface(int width, int height, uint32_t format)
+{
+  uint64_t modifier = DRM_FORMAT_MOD_LINEAR;
+  m_surface = gbm_surface_create_with_modifiers(m_device, width, height, format, &modifier, 1);
+
+  if (!m_surface)
+  {
+    m_surface = gbm_surface_create(m_device, width, height, format,
+                                 GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+  }
+
+  if (!m_surface)
+  {
+    CLog::Log(LOGERROR, "CAMLGBMUtils::{} - failed to create surface: {}", __FUNCTION__,
+              strerror(errno));
+    return false;
+  }
+
+  CLog::Log(LOGDEBUG, "CAMLGBMUtils::{} - created surface with size {}x{}", __FUNCTION__, width,
+            height);
+
+  m_format = format;
+
+  return true;
+}
+
+struct drm_fb* CAMLGBMUtils::GetFBFromBo(int fd, struct gbm_bo* bo)
+{
+  {
+    struct drm_fb* fb = static_cast<drm_fb*>(gbm_bo_get_user_data(bo));
+    if (fb)
+    {
+      if (fb->format == m_format)
+        return fb;
+      else
+        FbDestroyCallback(bo, gbm_bo_get_user_data(bo));
+    }
+  }
+
+  struct drm_fb* fb = new drm_fb;
+  fb->format = m_format;
+
+  uint32_t width, height, handles[4] = {0}, strides[4] = {0}, offsets[4] = {0};
+
+  uint64_t modifiers[4] = {0};
+
+  width = gbm_bo_get_width(bo);
+  height = gbm_bo_get_height(bo);
+
+  for (int i = 0; i < gbm_bo_get_plane_count(bo); i++)
+  {
+    handles[i] = gbm_bo_get_handle_for_plane(bo, i).u32;
+    strides[i] = gbm_bo_get_stride_for_plane(bo, i);
+    offsets[i] = gbm_bo_get_offset(bo, i);
+    modifiers[i] = gbm_bo_get_modifier(bo);
+  }
+
+  uint32_t flags = 0;
+
+  if (modifiers[0] && modifiers[0] != DRM_FORMAT_MOD_INVALID)
+    flags |= DRM_MODE_FB_MODIFIERS;
+
+  int ret = drmModeAddFB2WithModifiers(fd, width, height, fb->format, handles, strides, offsets,
+                                       modifiers, &fb->fb_id, flags);
+
+  if (ret < 0)
+  {
+    ret = drmModeAddFB2(fd, width, height, fb->format, handles, strides, offsets, &fb->fb_id,
+                        flags);
+
+    if (ret < 0)
+    {
+      delete (fb);
+      CLog::Log(LOGDEBUG, "CAMLGBMUtils::{} - failed to add framebuffer: {} ({})", __FUNCTION__,
+                strerror(errno), errno);
+      return nullptr;
+    }
+  }
+
+  gbm_bo_set_user_data(bo, fb, FbDestroyCallback);
+
+  return fb;
+}
+
+void CAMLGBMUtils::LockFrontBuffer(int fd)
+{
+  if (gbm_surface_has_free_buffers(m_surface))
+  {
+    m_buffer = gbm_surface_lock_front_buffer(m_surface);
+
+    if (m_buffer)
+      m_drm_fb = GetFBFromBo(fd, m_buffer);
+  }
+}
+
 CAMLDRMUtils::CAMLDRMUtils()
 {
   // get drmDevice
@@ -30,95 +157,19 @@ CAMLDRMUtils::CAMLDRMUtils()
     throw std::runtime_error("could not get drmDevice");
   }
 
+  /* caps need to be set before allocating connectors, encoders, crtcs, and planes */
+  int ret = drmSetClientCap(m_fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
+  if (ret)
+  {
+    CLog::Log(LOGERROR, "CAMLDRMUtils::{} - failed to set universal planes capability: {}",
+              __FUNCTION__, strerror(errno));
+    throw std::runtime_error("failed to set universal planes capability");
+  }
+
   aml_init_drmDevice();
 
   if (aml_get_drmDevice_connected())
     aml_init_drmDevice_display();
-}
-
-  // get resources of drmDevice
-  m_resources = drmModeGetResources(m_fd);
-  if (!m_resources)
-  {
-    CLog::Log(LOGERROR, "CAMLDRMUtils::{} - failed to get resources of drmDevice", __FUNCTION__);
-    CleanAndClose();
-    throw std::runtime_error("failed to get resources of drmDevice");
-  }
-
-  // get connector of drmDevice
-  CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - devices have {:d} connector(s)", __FUNCTION__,
-    m_resources->count_connectors);
-
-  for (int i = 0; i < m_resources->count_connectors; i++)
-  {
-    m_connector = drmModeGetConnector(m_fd, m_resources->connectors[i]);
-
-    if (m_connector == NULL)
-      continue;
-
-    // connector state as always connected but encoder_id == 0 if not connected
-    m_connection = (m_connector->encoder_id ? DRM_MODE_CONNECTED : DRM_MODE_DISCONNECTED);
-
-    if (m_connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
-      break;
-  }
-  if (!m_connector)
-  {
-    CLog::Log(LOGERROR, "CAMLDRMUtils::{} - failed to get connector of drmDevice", __FUNCTION__);
-    CleanAndClose();
-    throw std::runtime_error("failed to get connector of drmDevice");
-  }
-
-  // get encoder of drmDevice
-  CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - connector[{:d}] is connected with {:d} encoder(s)", __FUNCTION__,
-    m_connector->connector_id, m_connector->count_encoders);
-
-  for (int i = 0; i < m_connector->count_encoders; i++)
-  {
-    m_encoder = drmModeGetEncoder(m_fd, m_connector->encoders[i]);
-
-    if (m_encoder == NULL)
-      continue;
-
-    if (m_encoder->encoder_id == m_connector->encoder_id)
-      break;
-    else
-    {
-      drmModeFreeEncoder(m_encoder);
-      m_encoder = NULL;
-    }
-  }
-  if (!m_encoder)
-  {
-    CLog::Log(LOGERROR, "CAMLDRMUtils::{} - failed to get encoder of drmDevice", __FUNCTION__);
-    CleanAndClose();
-    throw std::runtime_error("failed to get encoder of drmDevice");
-  }
-
-  // get crtc of drmDevice
-  CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - check {:d} crtc(s)", __FUNCTION__, m_resources->count_crtcs);
-
-  for (int i = 0; i < m_resources->count_crtcs; i++)
-  {
-    m_crtc = drmModeGetCrtc(m_fd, m_resources->crtcs[i]);
-
-    if (m_crtc == NULL)
-      continue;
-
-    if (m_encoder->possible_crtcs & (1 << i) && m_crtc->crtc_id == m_encoder->crtc_id)
-      break;
-    else
-    {
-      drmModeFreeCrtc(m_crtc);
-      m_crtc = NULL;
-    }
-  }
-  if (!m_crtc)
-  {
-    CLog::Log(LOGERROR, "CAMLDRMUtils::{} - failed to get crtc of drmDevice", __FUNCTION__);
-    CleanAndClose();
-    throw std::runtime_error("failed to get crtc of drmDevice");
-  }
 }
 
 CAMLDRMUtils::~CAMLDRMUtils()
@@ -129,6 +180,8 @@ CAMLDRMUtils::~CAMLDRMUtils()
                    m_orig_crtc->x, m_orig_crtc->y, m_resources->connectors,
                    1, &m_orig_crtc->mode);
   }
+
+  drmDropMaster(m_fd);
 
   CleanAndClose();
 
@@ -152,6 +205,9 @@ void CAMLDRMUtils::CleanAndClose()
 
   if (m_orig_crtc)
     free(m_orig_crtc);
+
+  if (m_plane)
+    drmModeFreePlane(m_plane);
 }
 
 void CAMLDRMUtils::aml_init_drmDevice()
@@ -194,6 +250,34 @@ void CAMLDRMUtils::aml_init_drmDevice()
   // check if connector of drmDevice is connected
   if (!aml_get_drmDevice_connected())
     CLog::Log(LOGWARNING, "CAMLDRMUtils::{} - connector of drmDevice is not connected", __FUNCTION__);
+
+  drmModePlaneResPtr planeResources = drmModeGetPlaneResources(m_fd);
+  if (!planeResources)
+  {
+    CLog::Log(LOGERROR, "CAMLDRMUtils::{} - failed to get plane resources of drmDevice", __FUNCTION__);
+    throw std::runtime_error("failed to get plane resources of drmDevice");
+  }
+
+  for (uint32_t i = 0; i < planeResources->count_planes; i++)
+  {
+    m_plane = drmModeGetPlane(m_fd, planeResources->planes[i]);
+
+    if (m_plane == NULL)
+      continue;
+
+    if (get_drmProp(m_plane->plane_id, "type", DRM_MODE_OBJECT_PLANE) == DRM_PLANE_TYPE_PRIMARY)
+      break;
+
+    drmModeFreePlane(m_plane);
+    m_plane = NULL;
+  }
+  drmModeFreePlaneResources(planeResources);
+  if (!m_plane)
+  {
+    CLog::Log(LOGERROR, "CAMLDRMUtils::{} - failed to get primary plane of drmDevice", __FUNCTION__);
+    CleanAndClose();
+    throw std::runtime_error("failed to get primary plane of drmDevice");
+  }
 }
 
 void CAMLDRMUtils::aml_init_drmDevice_display()
@@ -263,6 +347,8 @@ void CAMLDRMUtils::aml_init_drmDevice_display()
     throw std::runtime_error("failed to get create backup of current crtc of drmDevice");
   }
   memcpy(m_orig_crtc, m_crtc, sizeof(drmModeCrtc));
+
+  drmSetMaster(m_fd);
 }
 
 void CAMLDRMUtils::aml_set_framebuffer_resolution(unsigned int width,
@@ -327,6 +413,8 @@ int CAMLDRMUtils::aml_get_drmDevice()
     if (fd < 0)
       continue;
 
+    CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - using DRM device {}", __FUNCTION__, device->nodes[DRM_NODE_PRIMARY]);
+
     break;
   }
 
@@ -377,6 +465,11 @@ bool CAMLDRMUtils::aml_set_drmDevice_mode(const RESOLUTION_INFO &res, std::strin
 {
   std::string current_mode = aml_get_drmDevice_mode();
   bool ret = false;
+
+  m_width = res.iWidth;
+  m_height = res.iHeight;
+  m_ScreenWidth = res.iScreenWidth;
+  m_ScreenHeight = res.iScreenHeight;
 
   if (!aml_get_drmDevice_connected())
   {
@@ -605,30 +698,10 @@ std::string CAMLDRMUtils::aml_get_drmDevice_preferred_mode()
   return mode;
 }
 
-bool CAMLDRMUtils::aml_set_drmDevice_hotplug_mode(std::string mode)
+bool CAMLDRMUtils::aml_set_drmDevice_active(std::string mode, bool active)
 {
-  std::string current_mode = aml_get_drmDevice_mode();
   bool ret = false;
-  int res;
-
   drmModeModeInfoPtr drmDevicemode = NULL;
-
-  CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - current mode: {}, new mode: {}", __FUNCTION__,
-    current_mode, mode);
-
-  if (StringUtils::EqualsNoCase(current_mode, mode))
-  {
-    CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - hotplug mode already changed: {}", __FUNCTION__, mode);
-    ret = true;
-    return ret;
-  }
-
-  res = drmSetClientCap(m_fd, DRM_CLIENT_CAP_ATOMIC, 1);
-  if (res)
-  {
-    CLog::Log(LOGERROR, "CAMLDRMUtils::{} - failed to set client cap of drmDevice ({:d})", __FUNCTION__, res);
-    return ret;
-  }
 
   for (int i = 0; i < m_connector->count_modes; i++)
   {
@@ -646,6 +719,13 @@ bool CAMLDRMUtils::aml_set_drmDevice_hotplug_mode(std::string mode)
     uint32_t mode_blobid = 0;
     drmModeAtomicReqPtr req = drmModeAtomicAlloc();
 
+    int res = drmSetClientCap(m_fd, DRM_CLIENT_CAP_ATOMIC, 1);
+    if (res)
+    {
+      CLog::Log(LOGERROR, "CAMLDRMUtils::{} - failed to set client cap of drmDevice ({:d})", __FUNCTION__, res);
+      return ret;
+    }
+
     if (req)
     {
       if (!m_crtc)
@@ -659,22 +739,75 @@ bool CAMLDRMUtils::aml_set_drmDevice_hotplug_mode(std::string mode)
       drmModeCreatePropertyBlob(m_fd, drmDevicemode, sizeof(*drmDevicemode), &mode_blobid);
 
       set_drmProp(m_crtc->crtc_id, "MODE_ID", DRM_MODE_OBJECT_CRTC, mode_blobid, req);
-      set_drmProp(m_crtc->crtc_id, "ACTIVE", DRM_MODE_OBJECT_CRTC, 1, req);
+      set_drmProp(m_crtc->crtc_id, "ACTIVE", DRM_MODE_OBJECT_CRTC, active ? 1 : 0, req);
 
       ret = drmModeAtomicCommit(m_fd, req, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
       if (ret)
         CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - failed to set drmDevice mode: {}", __FUNCTION__, drmDevicemode->name);
 
       drmModeAtomicFree(req);
+      drmModeDestroyPropertyBlob(m_fd, mode_blobid);
     }
   }
 
+  return ret;
+}
+
+bool CAMLDRMUtils::aml_set_drmDevice_hotplug_mode(std::string mode)
+{
+  std::string current_mode = aml_get_drmDevice_mode();
+  bool ret = false;
+
+  CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - current mode: {}, new mode: {}", __FUNCTION__,
+    current_mode, mode);
+
+  if (StringUtils::EqualsNoCase(current_mode, mode))
+  {
+    CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - hotplug mode already changed: {}", __FUNCTION__, mode);
+    ret = true;
+    return ret;
+  }
+
+  ret = aml_set_drmDevice_active(mode, true);
   // force connected
   m_connection = DRM_MODE_CONNECTED;
 
   CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - reset of drmDevice finished", __FUNCTION__);
 
   return ret;
+}
+
+bool CAMLDRMUtils::SupportsFormat(drmModePlane *plane, uint32_t format)
+{
+  for (uint32_t i = 0; i < plane->count_formats; i++)
+    if (plane->formats[i] == format)
+      return true;
+
+  return false;
+}
+
+void CAMLDRMUtils::FlipPage(uint32_t fb_id)
+{
+  if (!aml_get_drmDevice_connected())
+    return;
+
+  drmModeAtomicReqPtr req = drmModeAtomicAlloc();
+
+  set_drmProp(m_plane->plane_id, "FB_ID", DRM_MODE_OBJECT_PLANE , fb_id, req);
+  set_drmProp(m_plane->plane_id, "CRTC_ID", DRM_MODE_OBJECT_PLANE , m_crtc->crtc_id, req);
+  set_drmProp(m_plane->plane_id, "SRC_X", DRM_MODE_OBJECT_PLANE , 0, req);
+  set_drmProp(m_plane->plane_id, "SRC_Y", DRM_MODE_OBJECT_PLANE , 0, req);
+  set_drmProp(m_plane->plane_id, "SRC_W", DRM_MODE_OBJECT_PLANE , m_width << 16, req);
+  set_drmProp(m_plane->plane_id, "SRC_H", DRM_MODE_OBJECT_PLANE , m_height << 16, req);
+  set_drmProp(m_plane->plane_id, "CRTC_X", DRM_MODE_OBJECT_PLANE , 0, req);
+  set_drmProp(m_plane->plane_id, "CRTC_Y", DRM_MODE_OBJECT_PLANE , 0, req);
+  set_drmProp(m_plane->plane_id, "CRTC_W", DRM_MODE_OBJECT_PLANE , m_ScreenWidth, req);
+  set_drmProp(m_plane->plane_id, "CRTC_H", DRM_MODE_OBJECT_PLANE , m_ScreenHeight, req);
+
+  if (drmModeAtomicCommit(m_fd, req, DRM_MODE_ATOMIC_NONBLOCK, NULL))
+    CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - failed to make drmDevice atomic commit", __FUNCTION__);
+
+  drmModeAtomicFree(req);
 }
 
 CAMLDisplay::CAMLDisplay()
