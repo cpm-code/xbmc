@@ -7,6 +7,8 @@
  */
 
 #include "AMLDisplay.h"
+#include "DynamicDll.h"
+
 #include "platform/linux/input/LibInputHandler.h"
 #include "rendering/gles/RenderSystemGLES.h"
 #include "threads/CriticalSection.h"
@@ -14,8 +16,26 @@
 #include "threads/SystemClock.h"
 #include "system_egl.h"
 #include <EGL/fbdev_window.h>
+#include <gbm.h>
 
 class IDispResource;
+
+class DllMaliInterface
+{
+public:
+  virtual ~DllMaliInterface() = default;
+  virtual struct gbm_device *gbm_create_device(int fd) = 0;
+};
+
+class DllMali : public DllDynamic, public DllMaliInterface
+{
+public:
+  DECLARE_DLL_WRAPPER(DllMali, "libMali.so")
+  DEFINE_METHOD1(struct gbm_device *, gbm_create_device, (int p1))
+  BEGIN_METHOD_RESOLVE()
+    RESOLVE_METHOD(gbm_create_device)
+  END_METHOD_RESOLVE()
+};
 
 class CWinSystemAmlogic : public CWinSystemBase
 {
@@ -66,6 +86,7 @@ protected:
   bool m_force_mode_switch;
   bool m_nativeGUI;
   static std::unique_ptr<CAMLDisplay> m_amlDisplay;
+  std::unique_ptr<CAMLGBMUtils> m_amlGBMUtils = nullptr;
 private:
   struct callback_data
   {

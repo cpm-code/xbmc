@@ -22,6 +22,11 @@
 using namespace KODI;
 using namespace KODI::WINDOWING::AML;
 
+CWinSystemAmlogicGLESContext::CWinSystemAmlogicGLESContext()
+: m_pGLContext(new CEGLContextUtils(EGL_PLATFORM_GBM_MESA, "EGL_EXT_platform_base"))
+{
+}
+
 void CWinSystemAmlogicGLESContext::Register()
 {
   KODI::WINDOWING::CWindowSystemFactory::RegisterWindowSystem(CreateWinSystem, "aml");
@@ -39,17 +44,26 @@ bool CWinSystemAmlogicGLESContext::InitWindowSystem()
     return false;
   }
 
-  if (!m_pGLContext.CreateDisplay(m_nativeDisplay))
+  if (m_amlGBMUtils)
+  {
+    if (!m_pGLContext->CreatePlatformDisplay(m_amlGBMUtils->GetDevice(), m_amlGBMUtils->GetDevice()))
+      return false;
+
+    if (m_amlDisplay->aml_get_display_connected())
+      m_amlDisplay->aml_set_drmDevice_active(true);
+  }
+  else
+  {
+    if (!m_pGLContext->CreateDisplay(m_nativeDisplay))
+      return false;
+  }
+
+  if (!m_pGLContext->InitializeDisplay(EGL_OPENGL_ES_API))
   {
     return false;
   }
 
-  if (!m_pGLContext.InitializeDisplay(EGL_OPENGL_ES_API))
-  {
-    return false;
-  }
-
-  if (!m_pGLContext.ChooseConfig(EGL_OPENGL_ES2_BIT))
+  if (!m_pGLContext->ChooseConfig(EGL_OPENGL_ES2_BIT))
   {
     return false;
   }
@@ -57,7 +71,7 @@ bool CWinSystemAmlogicGLESContext::InitWindowSystem()
   CEGLAttributesVec contextAttribs;
   contextAttribs.Add({{EGL_CONTEXT_CLIENT_VERSION, 2}});
 
-  if (!m_pGLContext.CreateContext(contextAttribs))
+  if (!m_pGLContext->CreateContext(contextAttribs))
   {
     return false;
   }
@@ -67,8 +81,11 @@ bool CWinSystemAmlogicGLESContext::InitWindowSystem()
 
 bool CWinSystemAmlogicGLESContext::DestroyWindowSystem()
 {
-  m_pGLContext.DestroyContext();
-  m_pGLContext.Destroy();
+  if (m_amlGBMUtils && m_amlDisplay->aml_get_display_connected())
+    m_amlDisplay->aml_set_drmDevice_active(false);
+
+  m_pGLContext->DestroyContext();
+  m_pGLContext->Destroy();
   return CWinSystemAmlogic::DestroyWindowSystem();
 }
 
@@ -161,12 +178,38 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
     return false;
   }
 
-  if (!m_pGLContext.CreateSurface(static_cast<EGLNativeWindowType>(m_nativeWindow)))
+  if (m_amlGBMUtils)
   {
-    return false;
+    uint32_t format = m_pGLContext->GetConfigAttrib(EGL_NATIVE_VISUAL_ID);
+    if (!m_amlGBMUtils->CreateSurface(res.iWidth, res.iHeight, format))
+    {
+      CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{} - failed to create GBM surface", __FUNCTION__);
+      return false;
+    }
+
+    if (!m_pGLContext->CreatePlatformSurface(
+            m_amlGBMUtils->GetSurface(),
+            reinterpret_cast<EGLNativeWindowType>(m_amlGBMUtils->GetSurface())))
+    {
+      CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{} - failed to create CreatePlatformSurface", __FUNCTION__);
+      return false;
+    }
+  }
+  else
+  {
+    if (m_nativeWindow == NULL)
+      m_nativeWindow = new fbdev_window;
+
+    m_nativeWindow->width = res.iWidth;
+    m_nativeWindow->height = res.iHeight;
+
+    if (!m_pGLContext->CreateSurface(static_cast<EGLNativeWindowType>(m_nativeWindow)))
+    {
+      return false;
+    }
   }
 
-  if (!m_pGLContext.BindContext())
+  if (!m_pGLContext->BindContext())
   {
     return false;
   }
@@ -184,7 +227,7 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
 
 bool CWinSystemAmlogicGLESContext::DestroyWindow()
 {
-  m_pGLContext.DestroySurface();
+  m_pGLContext->DestroySurface();
   return CWinSystemAmlogic::DestroyWindow();
 }
 
@@ -203,48 +246,59 @@ bool CWinSystemAmlogicGLESContext::SetFullScreen(bool fullScreen, RESOLUTION_INF
 
 void CWinSystemAmlogicGLESContext::SetVSyncImpl(bool enable)
 {
-  if (!m_pGLContext.SetVSync(enable))
+  if (!m_pGLContext->SetVSync(enable))
   {
     CLog::Log(LOGERROR, "{},Could not set egl vsync", __FUNCTION__);
   }
 }
 
-void CWinSystemAmlogicGLESContext::PresentRenderImpl(bool rendered)
+void CWinSystemAmlogicGLESContext::PresentRender(bool rendered, bool videoLayer)
 {
-  if (m_delayDispReset && m_dispResetTimer.IsTimePast())
+  SetVSync(true);
+  if (rendered || (videoLayer && m_amlGBMUtils))
   {
-    m_delayDispReset = false;
-    std::unique_lock<CCriticalSection> lock(m_resourceSection);
-    // tell any shared resources
-    for (std::vector<IDispResource *>::iterator i = m_resources.begin(); i != m_resources.end(); ++i)
-      (*i)->OnResetDisplay();
-  }
-  if (!rendered)
-    return;
 
-  // Ignore errors - eglSwapBuffers() sometimes fails during modeswaps on AML,
-  // there is probably nothing we can do about it
-  m_pGLContext.TrySwapBuffers();
+    // Ignore errors - eglSwapBuffers() sometimes fails during modeswaps on AML,
+    // there is probably nothing we can do about it
+    m_pGLContext->TrySwapBuffers();
+
+
+    if (m_amlGBMUtils)
+    {
+      m_amlGBMUtils->LockFrontBuffer(m_amlDisplay->aml_get_Device_handle());
+      m_amlDisplay->FlipPage(m_amlGBMUtils->GetFBId());
+      m_amlGBMUtils->UnlockFrontBuffer();
+    }
+
+    if (m_delayDispReset && m_dispResetTimer.IsTimePast())
+    {
+      m_delayDispReset = false;
+      std::unique_lock<CCriticalSection> lock(m_resourceSection);
+      // tell any shared resources
+      for (std::vector<IDispResource *>::iterator i = m_resources.begin(); i != m_resources.end(); ++i)
+        (*i)->OnResetDisplay();
+    }
+  }
 }
 
 EGLDisplay CWinSystemAmlogicGLESContext::GetEGLDisplay() const
 {
-  return m_pGLContext.GetEGLDisplay();
+  return m_pGLContext->GetEGLDisplay();
 }
 
 EGLSurface CWinSystemAmlogicGLESContext::GetEGLSurface() const
 {
-  return m_pGLContext.GetEGLSurface();
+  return m_pGLContext->GetEGLSurface();
 }
 
 EGLContext CWinSystemAmlogicGLESContext::GetEGLContext() const
 {
-  return m_pGLContext.GetEGLContext();
+  return m_pGLContext->GetEGLContext();
 }
 
 EGLConfig  CWinSystemAmlogicGLESContext::GetEGLConfig() const
 {
-  return m_pGLContext.GetEGLConfig();
+  return m_pGLContext->GetEGLConfig();
 }
 
 std::unique_ptr<CVideoSync> CWinSystemAmlogicGLESContext::GetVideoSync(CVideoReferenceClock *clock)
