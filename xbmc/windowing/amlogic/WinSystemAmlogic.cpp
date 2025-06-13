@@ -59,6 +59,15 @@ CWinSystemAmlogic::CWinSystemAmlogic()
 
   m_amlDisplay = std::make_unique<CAMLDisplay>();
 
+  DllMali *m_dll = new DllMali;
+  if((m_dll->Load()))
+  {
+    CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem is a GBM system");
+    m_dll->Unload();
+    m_amlGBMUtils = std::make_unique<CAMLGBMUtils>(m_amlDisplay->aml_get_Device_handle());
+  }
+  delete m_dll, m_dll = NULL;
+
   // default to framebuffer 0
   m_framebuffer_name = "fb0";
   if (env_framebuffer)
@@ -328,12 +337,6 @@ bool CWinSystemAmlogic::CreateNewWindow(const std::string& name,
   m_nWidth        = res.iWidth;
   m_nHeight       = res.iHeight;
   m_fRefreshRate  = res.fRefreshRate;
-
-  if (m_nativeWindow == NULL)
-    m_nativeWindow = new fbdev_window;
-
-  m_nativeWindow->width = res.iWidth;
-  m_nativeWindow->height = res.iHeight;
 
   int delay = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt("videoscreen.delayrefreshchange");
   if (delay > 0)
