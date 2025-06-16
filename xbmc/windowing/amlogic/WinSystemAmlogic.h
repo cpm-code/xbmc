@@ -6,8 +6,7 @@
  *  See LICENSES/README.md for more information.
  */
 
-#pragma once
-
+#include "AMLDisplay.h"
 #include "platform/linux/input/LibInputHandler.h"
 #include "rendering/gles/RenderSystemGLES.h"
 #include "threads/CriticalSection.h"
@@ -66,6 +65,7 @@ protected:
   CHDRCapabilities m_hdr_caps;
   bool m_force_mode_switch;
   bool m_nativeGUI;
+  static std::unique_ptr<CAMLDisplay> m_amlDisplay;
 private:
   struct callback_data
   {
