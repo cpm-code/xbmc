@@ -45,6 +45,8 @@
 
 using namespace KODI;
 
+std::unique_ptr<CAMLDisplay> CWinSystemAmlogic::m_amlDisplay = nullptr;
+
 CWinSystemAmlogic::CWinSystemAmlogic()
 :  m_nativeWindow(NULL)
 ,  m_libinput(new CLibInputHandler)
@@ -54,6 +56,8 @@ CWinSystemAmlogic::CWinSystemAmlogic()
 ,  m_callback_data(NULL, NULL)
 {
   const char *env_framebuffer = getenv("FRAMEBUFFER");
+
+  m_amlDisplay = std::make_unique<CAMLDisplay>();
 
   // default to framebuffer 0
   m_framebuffer_name = "fb0";
@@ -82,7 +86,7 @@ void CWinSystemAmlogic::SettingOptionsComponentsFiller(const SettingConstPtr& se
                                                  std::vector<IntegerSettingOption>& list,
                                                  int& current)
 {
-  int dv_cap = aml_get_drmProperty("dv_cap", DRM_MODE_OBJECT_CONNECTOR);
+  int dv_cap = m_amlDisplay->aml_get_drmProperty("dv_cap", DRM_MODE_OBJECT_CONNECTOR);
 
   if ((dv_cap & DV_RGB_444_8BIT) != 0)
     list.emplace_back(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(14426),
@@ -156,7 +160,8 @@ void CWinSystemAmlogic::MonitorStop()
 
 void CWinSystemAmlogic::HotplugEvent()
 {
-  std::string preferred_mode = aml_get_preferred_mode();
+  m_amlDisplay->aml_init_drmDevice();
+  std::string preferred_mode = m_amlDisplay->aml_get_preferred_mode();
 
   CDisplaySettings::GetInstance().ClearCustomResolutions();
   RefreshResolutions();
@@ -164,7 +169,7 @@ void CWinSystemAmlogic::HotplugEvent()
 
   if (!preferred_mode.empty())
   {
-    aml_set_hotplug_mode(preferred_mode);
+    m_amlDisplay->aml_set_hotplug_mode(preferred_mode);
 
     // clear screen by fb blank
     usleep(500 * 1000);
@@ -253,7 +258,7 @@ bool CWinSystemAmlogic::InitWindowSystem()
     CServiceBroker::GetSettingsComponent()->GetSettings()->
       GetSettingsManager()->RegisterSettingOptionsFiller("dv_led_modes", SettingOptionsComponentsFiller);
 
-    int dv_cap = aml_get_drmProperty("dv_cap", DRM_MODE_OBJECT_CONNECTOR);
+    int dv_cap = m_amlDisplay->aml_get_drmProperty("dv_cap", DRM_MODE_OBJECT_CONNECTOR);
     AML_DISPLAY_DV_LED old_value = static_cast<AML_DISPLAY_DV_LED>(
       settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_LED));
     AML_DISPLAY_DV_LED new_value = old_value;
@@ -288,7 +293,7 @@ bool CWinSystemAmlogic::InitWindowSystem()
   CSysfsPath("/tmp/openvfd_service", 0);
 
   drmModeConnection connection;
-  int mode_count = aml_get_drmDevice_modes_count(&connection);
+  int mode_count = m_amlDisplay->aml_get_display_modes_count(&connection);
 
   if (connection == DRM_MODE_DISCONNECTED)
   {
@@ -345,7 +350,7 @@ bool CWinSystemAmlogic::CreateNewWindow(const std::string& name,
     }
   }
 
-  aml_set_native_resolution(res, m_framebuffer_name, m_stereo_mode, m_force_mode_switch);
+  m_amlDisplay->set_native_resolution(res, m_framebuffer_name, m_stereo_mode, m_force_mode_switch);
   // reset force mode switch
   m_force_mode_switch = false;
 
@@ -380,11 +385,11 @@ void CWinSystemAmlogic::RefreshResolutions()
   RESOLUTION_INFO resDesktop, curDisplay;
   std::vector<RESOLUTION_INFO> resolutions;
 
-  if (!aml_probe_resolutions(resolutions) || resolutions.empty())
+  if (!m_amlDisplay->aml_probe_resolutions(resolutions) || resolutions.empty())
     CLog::Log(LOGWARNING, "{}: ProbeResolutions failed.",__FUNCTION__);
 
   // get all resolutions supported by connected device
-  if (aml_get_native_resolution(&curDisplay))
+  if (m_amlDisplay->aml_get_native_resolution(&curDisplay))
     resDesktop = curDisplay;
 
   for (auto& res : resolutions)
