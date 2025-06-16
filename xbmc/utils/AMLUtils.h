@@ -6,36 +6,7 @@
  *  See LICENSES/README.md for more information.
  */
 
-#pragma once
-
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-
 #include "utils/StreamDetails.h"
-#include "windowing/Resolution.h"
-
-#include <string>
-#include <vector>
-
-enum AML_DEVICE_TYPE
-{
-  AML_DEVICE_TYPE_UNINIT   = -2,
-  AML_DEVICE_TYPE_UNKNOWN  = -1,
-  AML_DEVICE_TYPE_M1,
-  AML_DEVICE_TYPE_M3,
-  AML_DEVICE_TYPE_M6,
-  AML_DEVICE_TYPE_M8,   // S802
-  AML_DEVICE_TYPE_M8B,  // S805
-  AML_DEVICE_TYPE_M8M2  // S812
-};
-
-enum AML_DISPLAY_AXIS_PARAM
-{
-  AML_DISPLAY_AXIS_PARAM_X = 0,
-  AML_DISPLAY_AXIS_PARAM_Y,
-  AML_DISPLAY_AXIS_PARAM_WIDTH,
-  AML_DISPLAY_AXIS_PARAM_HEIGHT
-};
 
 enum AML_SUPPORT_H264_4K2K
 {
@@ -84,19 +55,3 @@ bool aml_dolby_vision_enabled();
 bool aml_convert_to_dv_by_vs_engine(StreamHdrType hdrType);
 bool aml_video_started();
 void aml_set_3d_video_mode(unsigned int mode, bool framepacking_support, int view_mode);
-bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res);
-bool aml_get_native_resolution(RESOLUTION_INFO *res);
-bool aml_set_native_resolution(const RESOLUTION_INFO &res, std::string framebuffer_name, const RenderStereoMode stereo_mode, bool force_mode_switch);
-bool aml_probe_resolutions(std::vector<RESOLUTION_INFO> &resolutions);
-bool aml_set_display_resolution(const RESOLUTION_INFO &res, std::string framebuffer_name, bool force_mode_switch);
-void aml_handle_display_stereo_mode(const RenderStereoMode stereo_mode);
-bool aml_has_capability_ignore_alpha();
-bool aml_set_reg_ignore_alpha();
-bool aml_unset_reg_ignore_alpha();
-
-void aml_set_drmProperty(std::string name, unsigned int obj_type, unsigned int value);
-int aml_get_drmProperty(std::string name, unsigned int obj_type);
-
-int aml_get_drmDevice_modes_count(drmModeConnection *connection);
-std::string aml_get_preferred_mode(void);
-bool aml_set_hotplug_mode(std::string mode);

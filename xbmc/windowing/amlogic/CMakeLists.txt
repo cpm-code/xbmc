@@ -1,8 +1,10 @@
 set(SOURCES WinSystemAmlogic.cpp
-            VideoSyncAML.cpp)
+            VideoSyncAML.cpp
+            AMLDisplay.cpp)
 
 set(HEADERS WinSystemAmlogic.h
-            VideoSyncAML.h)
+            VideoSyncAML.h
+            AMLDisplay.h)
 
 if(TARGET ${APP_NAME_LC}::OpenGLES)
   list(APPEND SOURCES WinSystemAmlogicGLESContext.cpp)
