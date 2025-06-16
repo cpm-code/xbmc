@@ -82,7 +82,7 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
 
   // check for frac_rate_policy change
   int fractional_rate = (res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1;
-  int cur_fractional_rate = aml_get_drmProperty("FRAC_RATE_POLICY", DRM_MODE_OBJECT_CONNECTOR);
+  int cur_fractional_rate = m_amlDisplay->aml_get_drmProperty("FRAC_RATE_POLICY", DRM_MODE_OBJECT_CONNECTOR);
 
   bool nativeGUI = CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING);
 
@@ -94,7 +94,7 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
       force_mode_switch_by_dv = true;
 
   // get current used resolution
-  if (!aml_get_native_resolution(&current_resolution))
+  if (!m_amlDisplay->aml_get_native_resolution(&current_resolution))
   {
     CLog::Log(LOGERROR, "CWinSystemAmlogicGLESContext::{}: failed to receive current resolution", __FUNCTION__);
     return false;
