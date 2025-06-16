@@ -21,10 +21,6 @@ namespace RETRO
 
     static std::unique_ptr<CRPProcessInfo> Create();
     static void Register();
-
-    // Implementation of CRPProcessInfo
-    void ConfigureRenderSystem(AVPixelFormat format) override;
-
   };
 }
 }
