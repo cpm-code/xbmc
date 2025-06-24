@@ -2198,7 +2198,7 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   }
 
   if (am_private->vcodec.dec_mode == STREAM_TYPE_SINGLE)
-    SetVfmMap("default", "decoder ppmgr amlvideo deinterlace amvideo");
+    SetVfmMap("default", "decoder amlvideo deinterlace amvideo");
 
   int ret = m_dll->codec_init(&am_private->vcodec);
   if (ret != CODEC_ERROR_NONE)
@@ -2227,13 +2227,6 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   pre_header_feeding(am_private, &am_private->am_pkt);
 
   m_display_rect = CRect(0, 0, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iWidth, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iHeight);
-
-  std::string strScaler;
-  CSysfsPath ppscaler{"/sys/class/ppmgr/ppscaler"};
-  if (ppscaler.Exists())
-    strScaler = ppscaler.Get<std::string>().value();
-  if (strScaler.find("enabled") == std::string::npos)     // Scaler not enabled, use screen size
-    m_display_rect = CRect(0, 0, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iScreenWidth, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iScreenHeight);
 
   CSysfsPath("/sys/class/video/freerun_mode", 1);
 
