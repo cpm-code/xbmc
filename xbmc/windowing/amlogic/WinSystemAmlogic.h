@@ -15,6 +15,8 @@
 #include "windowing/WinSystem.h"
 #include "threads/SystemClock.h"
 #include "system_egl.h"
+#include "utils/EGLFence.h"
+#include "utils/EGLUtils.h"
 #include <EGL/fbdev_window.h>
 #include <gbm.h>
 
@@ -86,6 +88,7 @@ protected:
   bool m_nativeGUI;
   static std::unique_ptr<CAMLDisplay> m_amlDisplay;
   std::unique_ptr<CAMLGBMUtils> m_amlGBMUtils = nullptr;
+  std::unique_ptr<KODI::UTILS::EGL::CEGLFence> m_eglFence;
 private:
   struct callback_data
   {

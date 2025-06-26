@@ -76,6 +76,13 @@ bool CWinSystemAmlogicGLESContext::InitWindowSystem()
     return false;
   }
 
+  if (m_amlGBMUtils &&
+      CEGLUtils::HasExtension(GetEGLDisplay(), "EGL_ANDROID_native_fence_sync") &&
+      CEGLUtils::HasExtension(GetEGLDisplay(), "EGL_KHR_fence_sync"))
+  {
+    m_eglFence = std::make_unique<KODI::UTILS::EGL::CEGLFence>(GetEGLDisplay());
+  }
+
   return true;
 }
 
@@ -257,11 +264,33 @@ void CWinSystemAmlogicGLESContext::PresentRender(bool rendered, bool videoLayer)
   SetVSync(true);
   if (rendered || (videoLayer && m_amlGBMUtils))
   {
+#if defined(EGL_ANDROID_native_fence_sync) && defined(EGL_KHR_fence_sync)
+    if (m_eglFence)
+    {
+      int fd = m_amlDisplay->TakeOutFenceFd();
+      if (fd != -1)
+      {
+        m_eglFence->CreateKMSFence(fd);
+        m_eglFence->WaitSyncGPU();
+      }
+
+      m_eglFence->CreateGPUFence();
+    }
+#endif
 
     // Ignore errors - eglSwapBuffers() sometimes fails during modeswaps on AML,
     // there is probably nothing we can do about it
     m_pGLContext->TrySwapBuffers();
 
+#if defined(EGL_ANDROID_native_fence_sync) && defined(EGL_KHR_fence_sync)
+    if (m_eglFence)
+    {
+      int fd = m_eglFence->FlushFence();
+      m_amlDisplay->SetInFenceFd(fd);
+
+      m_eglFence->WaitSyncCPU();
+    }
+#endif
 
     if (m_amlGBMUtils)
     {
