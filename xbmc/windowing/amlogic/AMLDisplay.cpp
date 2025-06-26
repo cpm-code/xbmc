@@ -804,8 +804,20 @@ void CAMLDRMUtils::FlipPage(uint32_t fb_id)
   set_drmProp(m_plane->plane_id, "CRTC_W", DRM_MODE_OBJECT_PLANE , m_ScreenWidth, req);
   set_drmProp(m_plane->plane_id, "CRTC_H", DRM_MODE_OBJECT_PLANE , m_ScreenHeight, req);
 
+  if (m_inFenceFd != -1)
+  {
+    set_drmProp(m_crtc->crtc_id, "OUT_FENCE_PTR", DRM_MODE_OBJECT_CRTC , reinterpret_cast<uint64_t>(&m_outFenceFd), req);
+    set_drmProp(m_plane->plane_id, "IN_FENCE_FD", DRM_MODE_OBJECT_PLANE , m_inFenceFd, req);
+  }
+
   if (drmModeAtomicCommit(m_fd, req, DRM_MODE_ATOMIC_NONBLOCK, NULL))
     CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - failed to make drmDevice atomic commit", __FUNCTION__);
+
+  if (m_inFenceFd != -1)
+  {
+    close(m_inFenceFd);
+    m_inFenceFd = -1;
+  }
 
   drmModeAtomicFree(req);
 }
