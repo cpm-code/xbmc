@@ -9,6 +9,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "rendering/RenderSystemTypes.h"
@@ -62,6 +63,13 @@ public:
   bool aml_set_drmDevice_hotplug_mode(std::string mode);
   bool aml_get_drmDevice_connected() const { return m_connection == DRM_MODE_CONNECTED; }
   void FlipPage(uint32_t fb_id);
+
+  void SetInFenceFd(int fd) { m_inFenceFd = fd; }
+  int TakeOutFenceFd()
+  {
+    int fd{-1};
+    return std::exchange(m_outFenceFd, fd);
+  }
 private:
   void CleanAndClose();
   void aml_init_drmDevice_display();
@@ -85,6 +93,9 @@ private:
   drmModeCrtcPtr m_crtc{nullptr};
   drmModeCrtcPtr m_orig_crtc{nullptr};
   drmModePlanePtr m_plane{nullptr};
+
+  int m_inFenceFd{-1};
+  int m_outFenceFd{-1};
 };
 
 class CAMLDisplay
@@ -111,6 +122,9 @@ public:
   void FlipPage(uint32_t fb_id) { m_amlDRMUtils->FlipPage(fb_id); }
   bool aml_set_drmDevice_active(bool active) const
     { return m_amlDRMUtils->aml_set_drmDevice_active(m_amlDRMUtils->aml_get_drmDevice_mode(), active); }
+
+  void SetInFenceFd(int fd) { m_amlDRMUtils->SetInFenceFd(fd); }
+  int TakeOutFenceFd() const { return m_amlDRMUtils->TakeOutFenceFd(); }
 private:
   std::unique_ptr<CAMLDRMUtils> m_amlDRMUtils;
   bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res);
