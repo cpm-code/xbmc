@@ -102,7 +102,8 @@ public:
   CPeripheralCecAdapter(CPeripherals& manager,
                         const PeripheralScanResult& scanResult,
                         CPeripheralBus* bus);
-  ~CPeripheralCecAdapter(void) override;
+
+  void Deinitialize(void) override;
 
   void Announce(ANNOUNCEMENT::AnnouncementFlag flag,
                 const std::string& sender,
