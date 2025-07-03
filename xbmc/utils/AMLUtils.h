@@ -35,6 +35,7 @@ enum AML_DISPLAY_DV_LED
 #define AML_T7      0x36
 #define AML_S4      0x37
 #define AML_S5      0x3E
+#define AML_S7D     0x47
 
 int  aml_get_cpufamily_id();
 std::string aml_get_cpufamily_name(int cpuid = -1);
