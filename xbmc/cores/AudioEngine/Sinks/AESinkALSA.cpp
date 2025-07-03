@@ -641,33 +641,32 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
           switch (devType) {
             case AE_DEVTYPE_HDMI:
             case AE_DEVTYPE_PCM:
-              switch (soc_id) {
-                case AML_S5:
-                  switch (codec) {
-                    case TRUEHD:
-                    case _DTS_HD_MA:
-                      spdif_id = HDMITX_SRC_TDM_B;
-                      break;
-                    default:
-                      spdif_id = HDMITX_SRC_SPDIF_B;
-                      break;
-                  }
-                  break;
-                case AML_T7:
-                  switch (codec) {
-                    case TRUEHD:
-                    case _DTS_HD_MA:
-                      spdif_id = HDMITX_SRC_TDM_C;
-                      break;
-                    default:
-                      spdif_id = HDMITX_SRC_SPDIF_B;
-                      break;
-                  }
-                  break;
-                default:
-                  spdif_id = HDMITX_SRC_SPDIF_B;
-                  break;
+              if (soc_id >= AML_S5)
+              {
+                switch (codec) {
+                  case TRUEHD:
+                  case _DTS_HD_MA:
+                    spdif_id = HDMITX_SRC_TDM_B;
+                    break;
+                  default:
+                    spdif_id = HDMITX_SRC_SPDIF_B;
+                    break;
+                }
               }
+              else if (soc_id == AML_T7)
+              {
+                switch (codec) {
+                  case TRUEHD:
+                  case _DTS_HD_MA:
+                    spdif_id = HDMITX_SRC_TDM_C;
+                    break;
+                  default:
+                    spdif_id = HDMITX_SRC_SPDIF_B;
+                    break;
+                }
+              }
+              else
+                spdif_id = HDMITX_SRC_SPDIF_B;
               break;
             default:
               spdif_id = HDMITX_SRC_SPDIF;
@@ -1621,7 +1620,8 @@ void CAESinkALSA::EnumerateDevicesEx(AEDeviceInfoList &list, bool force)
 
 AEDeviceType CAESinkALSA::AEDeviceTypeFromName(const std::string &name)
 {
-  bool mark_surround71_as_hdmi = (aml_get_cpufamily_id() == AML_S5 || aml_get_cpufamily_id() == AML_T7);
+  int soc_id = aml_get_cpufamily_id();
+  bool mark_surround71_as_hdmi = (soc_id >= AML_S5 || soc_id == AML_T7);
   if (name.substr(0, name.find(':')) == "hdmi" ||
      (mark_surround71_as_hdmi && name.substr(0, name.find(':')) == "surround71"))
     return AE_DEVTYPE_HDMI;
@@ -1882,7 +1882,8 @@ void CAESinkALSA::EnumerateDevice(AEDeviceInfoList &list, const std::string &dev
 
   if (GetAMLDeviceType(info.m_displayName) != AML_NONE)
   {
-    bool use_surround71_as_lpcm = (aml_get_cpufamily_id() == AML_S5 || aml_get_cpufamily_id() == AML_T7);
+    int soc_id = aml_get_cpufamily_id();
+    bool use_surround71_as_lpcm = (soc_id >= AML_S5 || soc_id == AML_T7);
     if (info.m_deviceType == AE_DEVTYPE_IEC958)
       info.m_displayNameExtra = "S/PDIF";
     else if (info.m_deviceType != AE_DEVTYPE_HDMI)
@@ -1902,40 +1903,36 @@ void CAESinkALSA::EnumerateDevice(AEDeviceInfoList &list, const std::string &dev
   // we don't trust ELD information and push back our supported formats explicitly
   if (info.m_deviceType == AE_DEVTYPE_HDMI)
   {
-    switch (aml_get_cpufamily_id())
+    int soc_id = aml_get_cpufamily_id();
+    if (soc_id >= AML_S5 || soc_id == AML_T7)
     {
-      case AML_S5:
-        [[fallthrough]];
-      case AML_T7:
-        {
-          if (device.substr(0, device.find(':')) == "surround71")
-          {
-            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
-            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_TRUEHD);
-          }
-          else
-          {
-            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_AC3);
-            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD);
-            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_CORE);
-            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_1024);
-            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_2048);
-            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_512);
-            info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_EAC3);
-          }
-          break;
-        }
-      default:
+      if (device.substr(0, device.find(':')) == "surround71")
+      {
+        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
+        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_TRUEHD);
+      }
+      else
+      {
         info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_AC3);
         info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD);
-        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
         info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_CORE);
         info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_1024);
         info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_2048);
         info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_512);
         info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_EAC3);
-        info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_TRUEHD);
-        break;
+      }
+    }
+    else
+    {
+      info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_AC3);
+      info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD);
+      info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
+      info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTSHD_CORE);
+      info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_1024);
+      info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_2048);
+      info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_DTS_512);
+      info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_EAC3);
+      info.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_TRUEHD);
     }
 
     // indicate that we can do AE_FMT_RAW
