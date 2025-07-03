@@ -174,10 +174,11 @@ void CActiveAESettings::SettingOptionsAudioDevicesFillerGeneral(
     list.emplace_back("Error - no devices found", "error");
   else
   {
-    bool filter_passthrough = (aml_get_cpufamily_id() == AML_S5 || aml_get_cpufamily_id() == AML_T7);
+    int soc_id = aml_get_cpufamily_id();
+    bool filter_passthrough = (soc_id >= AML_S5 || soc_id == AML_T7);
     for (AEDeviceList::const_iterator sink = sinkList.begin(); sink != sinkList.end(); ++sink)
     {
-      // filter L-PCM device when passthrough on Amlogic S5/T7
+      // filter L-PCM device when passthrough on Amlogic T7, S5 or newer
       if (passthrough && filter_passthrough &&
           StringUtils::StartsWith(sink->second, "ALSA:surround71"))
         continue;

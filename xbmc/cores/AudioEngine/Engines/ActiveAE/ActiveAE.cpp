@@ -2703,34 +2703,24 @@ void CActiveAE::Deamplify(CSoundPacket &dstSample)
 void CActiveAE::LoadSettings(AEAudioFormat *format)
 {
   const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+  int soc_id = aml_get_cpufamily_id();
 
   m_settings.device = settings->GetString(CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE);
   m_settings.passthroughdevice = settings->GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE);
 
-  switch (aml_get_cpufamily_id())
+  // find on NEWSTREAM the matching passthrough device by device type
+  if (format != NULL && (soc_id >= AML_S5 || soc_id == AML_T7))
   {
-    case AML_S5:
-      [[fallthrough]];
-    case AML_T7:
+    std::string device(m_settings.passthroughdevice);
+    if (SupportsFormat(*format, &device))
+    {
+      if (device != m_settings.passthroughdevice)
       {
-        // find on NEWSTREAM the matching passthrough device by device type
-        if (format != NULL)
-        {
-          std::string device(m_settings.passthroughdevice);
-          if (SupportsFormat(*format, &device))
-          {
-            if (device != m_settings.passthroughdevice)
-            {
-              CLog::LogF(LOGINFO, "Change temporary passthrough output device because of Amlogic SoC '{}', stream type: {:d}",
-                 aml_get_cpufamily_name(), format->m_streamInfo.m_type);
-              m_settings.passthroughdevice = device;
-            }
-          }
-        }
-        break;
+        CLog::LogF(LOGINFO, "Change temporary passthrough output device because of Amlogic SoC '{}', stream type: {:d}",
+           aml_get_cpufamily_name(), format->m_streamInfo.m_type);
+        m_settings.passthroughdevice = device;
       }
-    default:
-      break;
+    }
   }
 
   m_settings.config = settings->GetInt(CSettings::SETTING_AUDIOOUTPUT_CONFIG);
