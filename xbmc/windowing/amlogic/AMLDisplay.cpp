@@ -377,6 +377,17 @@ void CAMLDRMUtils::aml_set_framebuffer_resolution(unsigned int width,
   }
 }
 
+void CAMLDRMUtils::aml_drmDevice_vsync()
+{
+  if (m_fd != -1)
+  {
+    drmVBlank vbl = {};
+    vbl.request.type = DRM_VBLANK_RELATIVE;
+    vbl.request.sequence = 1;
+    drmWaitVBlank(m_fd, &vbl);
+  }
+}
+
 // get drmDevice
 int CAMLDRMUtils::aml_get_drmDevice()
 {
