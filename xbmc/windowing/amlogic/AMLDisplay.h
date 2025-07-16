@@ -51,6 +51,7 @@ public:
 
   int aml_get_drmDevice_handle() const { return m_fd; }
   void aml_init_drmDevice();
+  void aml_drmDevice_vsync();
   std::string aml_get_drmDevice_mode();
   std::string aml_get_drmDevice_modes();
   bool aml_set_drmDevice_mode(const RESOLUTION_INFO &res, std::string mode,
@@ -105,6 +106,7 @@ public:
 
   int aml_get_Device_handle() const { return m_amlDRMUtils->aml_get_drmDevice_handle(); }
   void aml_init_drmDevice() { m_amlDRMUtils->aml_init_drmDevice(); }
+  void aml_drmDevice_vsync() { m_amlDRMUtils->aml_drmDevice_vsync(); };
   bool aml_get_display_connected() const { return m_amlDRMUtils->aml_get_drmDevice_connected(); }
   bool set_native_resolution(const RESOLUTION_INFO &res, std::string framebuffer_name,
     const RenderStereoMode stereo_mode, bool force_mode_switch);
