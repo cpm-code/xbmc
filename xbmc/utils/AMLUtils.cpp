@@ -69,6 +69,8 @@ std::string aml_get_cpufamily_name(int cpuid)
       return "S5";
     case AML_S7D:
       return "S7D";
+    case AML_S6:
+      return "S6";
     default:
       return aml_get_cpufamily_name(aml_get_cpufamily_id());
   }
