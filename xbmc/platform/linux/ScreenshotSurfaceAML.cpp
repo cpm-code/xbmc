@@ -70,7 +70,11 @@ bool CScreenshotSurfaceAML::Capture()
 
   delete [] surface;
 
+  return true;
+}
+
+void CScreenshotSurfaceAML::CaptureVideo(bool blendToBuffer)
+{
   // Captures the current visible videobuffer and blend it into m_buffer (captured overlay)
   CScreenshotAML::CaptureVideoFrame(m_buffer, m_width, m_height);
-  return true;
 }
