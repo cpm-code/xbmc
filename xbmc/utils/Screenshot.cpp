@@ -48,40 +48,7 @@ void CScreenShot::TakeScreenshot(const std::string& filename, bool sync)
     return;
   }
 
-  surface->CaptureVideo(true);
-
-  CLog::Log(LOGDEBUG, "Saving screenshot {}", CURL::GetRedacted(filename));
-
-  //set alpha byte to 0xFF
-  for (int y = 0; y < surface->GetHeight(); y++)
-  {
-    unsigned char* alphaptr = surface->GetBuffer() - 1 + y * surface->GetStride();
-    for (int x = 0; x < surface->GetWidth(); x++)
-      *(alphaptr += 4) = 0xFF;
-  }
-
-  //if sync is true, the png file needs to be completely written when this function returns
-  if (sync)
-  {
-    if (!CPicture::CreateThumbnailFromSurface(surface->GetBuffer(), surface->GetWidth(), surface->GetHeight(), surface->GetStride(), filename))
-      CLog::Log(LOGERROR, "Unable to write screenshot {}", CURL::GetRedacted(filename));
-
-    surface->ReleaseBuffer();
-  }
-  else
-  {
-    //make sure the file exists to avoid concurrency issues
-    XFILE::CFile file;
-    if (file.OpenForWrite(filename))
-      file.Close();
-    else
-      CLog::Log(LOGERROR, "Unable to create file {}", CURL::GetRedacted(filename));
-
-    //write .png file asynchronous with CThumbnailWriter, prevents stalling of the render thread
-    //buffer is deleted from CThumbnailWriter
-    CThumbnailWriter* thumbnailwriter = new CThumbnailWriter(surface->GetBuffer(), surface->GetWidth(), surface->GetHeight(), surface->GetStride(), filename);
-    CServiceBroker::GetJobManager()->AddJob(thumbnailwriter, nullptr);
-  }
+  CServiceBroker::GetJobManager()->AddJob(new CCaptureVideo(surface, filename, sync), nullptr);
 }
 
 void CScreenShot::TakeScreenshot()
@@ -116,4 +83,49 @@ void CScreenShot::TakeScreenshot()
       CLog::Log(LOGWARNING, "Too many screen shots or invalid folder");
     }
   }
+}
+
+CCaptureVideo::CCaptureVideo(std::unique_ptr<IScreenshotSurface> &surface, const std::string filename, bool sync)
+ : m_surface(std::move(surface)), m_filename(filename), m_sync(sync)
+{
+}
+
+bool CCaptureVideo::DoWork()
+{
+  m_surface->CaptureVideo(true);
+
+  CLog::Log(LOGDEBUG, "Saving screenshot {}", CURL::GetRedacted(m_filename));
+
+  //set alpha byte to 0xFF
+  for (int y = 0; y < m_surface->GetHeight(); y++)
+  {
+    unsigned char* alphaptr = m_surface->GetBuffer() - 1 + y * m_surface->GetStride();
+    for (int x = 0; x < m_surface->GetWidth(); x++)
+      *(alphaptr += 4) = 0xFF;
+  }
+
+  //if sync is true, the png file needs to be completely written when this function returns
+  if (m_sync)
+  {
+    if (!CPicture::CreateThumbnailFromSurface(m_surface->GetBuffer(), m_surface->GetWidth(), m_surface->GetHeight(), m_surface->GetStride(), m_filename))
+      CLog::Log(LOGERROR, "Unable to write screenshot {}", CURL::GetRedacted(m_filename));
+
+    m_surface->ReleaseBuffer();
+  }
+  else
+  {
+    //make sure the file exists to avoid concurrency issues
+    XFILE::CFile file;
+    if (file.OpenForWrite(m_filename))
+      file.Close();
+    else
+      CLog::Log(LOGERROR, "Unable to create file {}", CURL::GetRedacted(m_filename));
+
+    //write .png file asynchronous with CThumbnailWriter, prevents stalling of the render thread
+    //buffer is deleted from CThumbnailWriter
+    CThumbnailWriter* thumbnailwriter = new CThumbnailWriter(m_surface->GetBuffer(), m_surface->GetWidth(), m_surface->GetHeight(), m_surface->GetStride(), m_filename);
+    CServiceBroker::GetJobManager()->AddJob(thumbnailwriter, nullptr);
+  }
+
+  return true;
 }
