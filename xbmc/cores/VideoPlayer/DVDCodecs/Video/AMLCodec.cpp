@@ -938,6 +938,75 @@ static int hevc_write_header(am_private_t *para, am_packet_t *pkt)
     return ret;
 }
 
+int vvc_add_frame_dec_info(am_private_t *para)
+{
+  size_t size = para->extradata.GetSize();
+  size_t data_pos = 0;
+
+  if (size)
+  {
+    uint8_t *header_data = para->extradata.GetData();
+
+    if (header_data[0] == 0xff && (header_data[1] & 0xf0) == 0x0)
+    {
+      uint16_t unit_size;
+      uint8_t array_nb, num_sublayers, num_bytes_constraint_info, ptl_sublayer_level_present_flags;
+      static const uint8_t nalu_header[4] = {0, 0, 0, 1};
+      // skip several fields of VVCDecoderConfigurationRecord
+      // extradata point to 00 after FF, 8b
+      header_data++;
+      // ols_idx, num_sublayers , constant_frame_rate, chroma_format_idc, 16b
+      num_sublayers = ((header_data[0] << 8 | header_data[1]) >> 4) & 0x7;
+      header_data += 2;
+      // bit_depth_minus8, 8b
+      header_data++;
+      // num_bytes_constraint_info, 8b
+      num_bytes_constraint_info = header_data[0] & 0x3f;
+      header_data++;
+      // general_profile_idc, general_tier_flag, 8b
+      // general_level_idc, 8b
+      header_data += 2;
+      // constraint_info, 8b * num_bytes_constraint_info
+      header_data += num_bytes_constraint_info;
+      // ptl_sublayer_level_present_flag, 8b
+      ptl_sublayer_level_present_flags = *header_data++ & 0x3f;
+      for (int i = num_sublayers - 2; i >= 0; i--)
+          if ((ptl_sublayer_level_present_flags >> 1) & 0x1)
+              header_data++;
+      // ptl_num_sub_profiles, 8b
+      // max_picture_width, 16b
+      // max_picture_height, 16b
+      // avg_frame_rate, 16b
+      header_data += 7;
+      // num_of_arrays, 8b
+      array_nb = *header_data++;
+
+      while (array_nb--)
+      {
+        header_data++; // array_completeness
+        header_data += 2; // nal header 0x00 0x01
+        unit_size = header_data[0] << 8 | header_data[1];
+        header_data += 2; // nal unit size
+        para->hdr_buf.data = (char *)realloc(para->hdr_buf.data, data_pos + unit_size + 4);
+        memcpy(para->hdr_buf.data + data_pos, nalu_header, 4);
+        memcpy(para->hdr_buf.data + data_pos + 4, header_data, unit_size);
+        header_data += unit_size;
+        data_pos += unit_size + 4;
+      }
+    }
+    else if (header_data[0] == 0x0 && header_data[1] == 0x0 && header_data[2] == 0x1)
+    {
+      para->hdr_buf.data = (char *)malloc(size);
+      memcpy(para->hdr_buf.data, header_data, size);
+      data_pos = size;
+    }
+
+    para->hdr_buf.size = data_pos;
+  }
+
+  return PLAYER_SUCCESS;
+}
+
 int mpeg12_add_frame_dec_info(am_private_t *para)
 {
   am_packet_t *pkt = &para->am_pkt;
@@ -1561,6 +1630,11 @@ int pre_header_feeding(am_private_t *para, am_packet_t *pkt)
             }
         } else if (VFORMAT_HEVC == para->video_format) {
             ret = hevc_write_header(para, pkt);
+            if (ret != PLAYER_SUCCESS) {
+                return ret;
+            }
+        } else if (VFORMAT_H266 == para->video_format) {
+            ret = vvc_add_frame_dec_info(para);
             if (ret != PLAYER_SUCCESS) {
                 return ret;
             }
