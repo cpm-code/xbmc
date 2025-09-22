@@ -344,6 +344,10 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
         goto FAIL;
       }
       m_pFormatName = "am-h266";
+      m_bitstream = new CBitstreamConverter();
+      m_bitstream->Open(m_hints.codec, m_hints.extradata.GetData(), m_hints.extradata.GetSize(), true);
+      if (m_hints.extradata.GetSize() == 0)
+        m_bitstream->ResetStartDecode();
       break;
     default:
       CLog::Log(LOGDEBUG, "{}: Unknown hints.codec({:d})", __MODULE_NAME__, m_hints.codec);
