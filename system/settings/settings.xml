@@ -3286,14 +3286,8 @@
           <constraints>
             <options>
               <option label="34101">1</option> <!-- AE_CH_LAYOUT_2_0 -->
-              <option label="34102">2</option> <!-- AE_CH_LAYOUT_2_1 -->
-              <option label="34103">3</option> <!-- AE_CH_LAYOUT_3_0 -->
               <option label="34104">4</option> <!-- AE_CH_LAYOUT_3_1 -->
-              <option label="34105">5</option> <!-- AE_CH_LAYOUT_4_0 -->
-              <option label="34106">6</option> <!-- AE_CH_LAYOUT_4_1 -->
-              <option label="34107">7</option> <!-- AE_CH_LAYOUT_5_0 -->
               <option label="34108">8</option> <!-- AE_CH_LAYOUT_5_1 -->
-              <option label="34109">9</option> <!-- AE_CH_LAYOUT_7_0 -->
               <option label="34110">10</option> <!-- AE_CH_LAYOUT_7_1 -->
             </options>
           </constraints>
