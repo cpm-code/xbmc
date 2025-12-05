@@ -558,7 +558,16 @@ void CAESinkALSA::GetAESParams(const AEAudioFormat& format, std::string& params)
   else
     params = "AES0=0x04";
 
-  params += ",AES1=0x82,AES2=0x00";
+  params += ",AES1=0x82";
+
+  if (!m_passthrough)
+  {
+    if (format.m_channelLayout.Count() > 6) params += ",AES2=0x1F";      // 7.1
+    else if (format.m_channelLayout.Count() > 2) params += ",AES2=0x0B"; // 5.1, 4.1, 3.1 → all reported as 6-ch (5.1)
+    else params += ",AES2=0x00";                                         // 2-channel (stereo)
+  }
+  else
+    params += ",AES2=0x00";                                              // 2-channel (stereo)
 
   if (m_passthrough && format.m_channelLayout.Count() == 8) params += ",AES3=0x09";
   else if (format.m_sampleRate == 192000) params += ",AES3=0x0e";
