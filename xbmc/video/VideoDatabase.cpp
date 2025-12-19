@@ -57,6 +57,7 @@
 #include "utils/i18n/TableLanguageCodes.h"
 #include "utils/log.h"
 #include "video/VideoDatabaseColumns.h"
+#include "video/VideoDatabaseDDL.h"
 #include "video/VideoDbUrl.h"
 #include "video/VideoFileItemClassify.h"
 #include "video/VideoInfoTag.h"
@@ -94,6 +95,16 @@ CVideoDatabase::~CVideoDatabase() = default;
 bool CVideoDatabase::Open()
 {
   return CDatabase::Open(CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_databaseVideo);
+}
+
+void CVideoDatabase::CreateTables()
+{
+  KODI::DATABASE::CVideoDatabaseDDL::CreateTables(*this);
+}
+
+void CVideoDatabase::CreateAnalytics()
+{
+  KODI::DATABASE::CVideoDatabaseDDL::CreateAnalytics(*this);
 }
 
 //********************************************************************************************************************************
