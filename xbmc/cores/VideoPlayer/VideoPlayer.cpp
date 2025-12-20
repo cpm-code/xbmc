@@ -2203,6 +2203,20 @@ void CVideoPlayer::HandlePlaySpeed()
     }
     else if (video && audio)
     {
+      //========================================================================
+      // LAV-style A/V sync fix: Wait for valid video PTS before sending RESYNC
+      //========================================================================
+      // At video start, video may take longer to decode than audio.
+      // If we send RESYNC before video has valid PTS, audio syncs to a clock
+      // that doesn't account for video latency, causing A/V desync.
+      // Wait until video has reported valid starttime before proceeding.
+      //========================================================================
+      if (m_CurrentVideo.starttime == DVD_NOPTS_VALUE)
+      {
+        // Video hasn't reported valid PTS yet - don't sync audio to garbage
+        return;
+      }
+      
       double clock = 0;
       if (m_CurrentAudio.syncState == IDVDStreamPlayer::SYNC_WAITSYNC)
         CLog::Log(LOGDEBUG, "VideoPlayer::Sync - Audio - pts: {:.3f}, cache: {:.3f}, totalcache: {:.3f}, packets:{:d} level:{:d}",
