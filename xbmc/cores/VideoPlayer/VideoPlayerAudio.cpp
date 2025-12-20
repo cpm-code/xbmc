@@ -9,6 +9,7 @@
 #include "VideoPlayerAudio.h"
 
 #include "DVDCodecs/Audio/DVDAudioCodec.h"
+#include "DVDCodecs/Audio/DVDAudioCodecPassthrough.h"
 #include "DVDCodecs/DVDFactoryCodec.h"
 #include "ServiceBroker.h"
 #include "cores/AudioEngine/Interfaces/AE.h"
@@ -30,6 +31,21 @@
 #include <math.h>
 
 using namespace std::chrono_literals;
+
+//==============================================================================
+// LAV PTS validation utilities (same as DVDAudioCodecPassthrough.cpp)
+//==============================================================================
+// Sentinel for invalid PTS (avoids confusion with garbage values like DVD_NOPTS_VALUE cast to double)
+constexpr double LOCAL_NOPTS = -1.0;
+
+// Maximum reasonable PTS value (24 hours in DVD_TIME_BASE units)
+constexpr double MAX_REASONABLE_PTS = 86400.0 * DVD_TIME_BASE; // 24 hours
+
+// Check if a PTS value is valid (not sentinel and not garbage)
+inline bool IsValidPts(double pts)
+{
+  return (pts >= 0.0) && (pts <= MAX_REASONABLE_PTS);
+}
 
 class CDVDMsgAudioCodecChange : public CDVDMsg
 {
@@ -146,6 +162,10 @@ void CVideoPlayerAudio::OpenStream(CDVDStreamInfo& hints, std::unique_ptr<CDVDAu
 
   m_messageParent.Put(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_AVCHANGE));
   m_syncState = IDVDStreamPlayer::SYNC_STARTING;
+
+  m_pcmJitterTracker.Reset();
+  m_pcmOutputClock = LOCAL_NOPTS;
+  m_pcmResyncTimestamp = true;
 }
 
 void CVideoPlayerAudio::CloseStream(bool bWaitForBuffers)
@@ -232,6 +252,8 @@ void CVideoPlayerAudio::Process()
   DVDAudioFrame audioframe;
   audioframe.nb_frames = 0;
   audioframe.framesOut = 0;
+  audioframe.hasDiscontinuity = false;
+  audioframe.discontinuityCorrection = 0.0;
   m_audioStats.Start();
   m_disconAdjustCounter = 0;
 
@@ -328,6 +350,26 @@ void CVideoPlayerAudio::Process()
         m_audioSink.Resume();
       m_syncState = IDVDStreamPlayer::SYNC_INSYNC;
       m_syncTimer.Set(3000ms);
+
+      // LAV-style: Sync passthrough codec's internal clock to RESYNC pts
+      // This is the KEY fix for video switch A/V desync
+      if (m_pAudioCodec && m_pAudioCodec->NeedPassthrough())
+      {
+        CDVDAudioCodecPassthrough* passthroughCodec =
+            dynamic_cast<CDVDAudioCodecPassthrough*>(m_pAudioCodec.get());
+        if (passthroughCodec)
+        {
+          passthroughCodec->ResetLavSyncState();
+          passthroughCodec->SyncToResyncPts(pts + delay);
+        }
+      }
+      else
+      {
+        // PCM: Reset output clock for RESYNC
+        m_pcmOutputClock = LOCAL_NOPTS;
+        m_pcmResyncTimestamp = true;
+        m_pcmJitterTracker.Reset();
+      }
     }
     else if (pMsg->IsType(CDVDMsg::GENERAL_RESET))
     {
@@ -338,6 +380,9 @@ void CVideoPlayerAudio::Process()
       m_audioClock = 0;
       audioframe.nb_frames = 0;
       m_syncState = IDVDStreamPlayer::SYNC_STARTING;
+      // Reset PCM jitter tracking on reset - will resync on next valid PTS
+      m_pcmJitterTracker.Reset();
+      m_pcmResyncTimestamp = true;
     }
     else if (pMsg->IsType(CDVDMsg::GENERAL_FLUSH))
     {
@@ -346,6 +391,10 @@ void CVideoPlayerAudio::Process()
       m_stalled = true;
       m_audioClock = 0;
       audioframe.nb_frames = 0;
+
+      // Reset PCM jitter tracking on flush (seek, stream change) - will resync on next valid PTS
+      m_pcmJitterTracker.Reset();
+      m_pcmResyncTimestamp = true;
 
       if (sync)
       {
@@ -458,14 +507,100 @@ bool CVideoPlayerAudio::ProcessDecoderOutput(DVDAudioFrame &audioframe)
       return false;
     }
 
+    // Initialize discontinuity fields for non-passthrough audio
+    // (passthrough codec initializes these in its GetData)
+    if (!audioframe.passthrough)
+    {
+      audioframe.hasDiscontinuity = false;
+      audioframe.discontinuityCorrection = 0.0;
+    }
+
     audioframe.hasTimestamp = true;
-    if (audioframe.pts == DVD_NOPTS_VALUE)
+    if (!IsValidPts(audioframe.pts))
     {
       audioframe.pts = m_audioClock;
       audioframe.hasTimestamp = false;
     }
     else
     {
+      //========================================================================
+      // LAV-style Jitter Tracking for PCM/Decoded Audio
+      //========================================================================
+      // LAV's approach:
+      // 1. Maintain a running output timestamp (m_rtStart / m_pcmOutputClock)
+      // 2. On discontinuity (flush/seek), set resync flag
+      // 3. When resync flag is set and we get valid input PTS, sync output clock to input
+      // 4. After that, output clock runs freely via duration accumulation
+      // 5. Track jitter = output_clock - input_pts, correct when threshold exceeded
+      //
+      // This is different from original Kodi which syncs m_audioClock to demuxer
+      // PTS every frame (which defeats jitter tracking).
+      //========================================================================
+
+      if (!audioframe.passthrough)
+      {
+        // LAV-style resync: on first valid PTS after discontinuity, sync output clock to input
+        if (m_pcmResyncTimestamp)
+        {
+          m_pcmOutputClock = audioframe.pts;
+          m_pcmResyncTimestamp = false;
+          m_pcmJitterTracker.Reset();
+          CLog::Log(LOGDEBUG, LOGAUDIO, "CVideoPlayerAudio: PCM resync, output clock set to {:.3f}",
+                    audioframe.pts / DVD_TIME_BASE);
+        }
+        else
+        {
+          // Calculate jitter: output_clock (calculated) - input_pts (from demuxer)
+          double jitter = m_pcmOutputClock - audioframe.pts;
+
+          double absJitter = std::abs(jitter);
+
+          // Handle different jitter ranges:
+          // 1. Normal jitter (<1s): Jitter tracking and correction
+          // 2. Huge jitter (>1s): Likely a seek or stream change - resync to input
+
+          if (absJitter < 1000000.0)  // Less than 1 second - normal jitter tracking
+          {
+            m_pcmJitterTracker.Sample(jitter);
+
+            double absMinJitter = m_pcmJitterTracker.AbsMinimum();
+            if (std::abs(absMinJitter) > PCM_JITTER_THRESHOLD)
+            {
+              CLog::Log(LOGDEBUG, LOGAUDIO,
+                        "CVideoPlayerAudio: LAV-style PCM jitter correction, "
+                        "adjusting by {:.2f}ms (absMin={:.2f}ms, avg={:.2f}ms)",
+                        absMinJitter / 1000.0,
+                        absMinJitter / 1000.0,
+                        m_pcmJitterTracker.Average() / 1000.0);
+
+              // Adjust output clock (like LAV's m_rtStart -= rtJitterMin)
+              m_pcmOutputClock -= absMinJitter;
+
+              // Reset jitter tracking baseline
+              m_pcmJitterTracker.OffsetValues(-absMinJitter);
+
+              // Signal discontinuity for hardware clock sync
+              audioframe.hasDiscontinuity = true;
+              audioframe.discontinuityCorrection = absMinJitter;
+            }
+          }
+          else
+          {
+            // Huge jump (>1s) - likely seek or stream change, resync to input
+            CLog::Log(LOGDEBUG, LOGAUDIO,
+                      "CVideoPlayerAudio: PCM huge jitter {:.2f}s, resyncing to input",
+                      jitter / DVD_TIME_BASE);
+            m_pcmOutputClock = audioframe.pts;
+            m_pcmJitterTracker.Reset();
+          }
+        }
+
+        // Use our output clock for frame PTS (this is what gets sent downstream)
+        // Note: We still update m_audioClock for other Kodi systems that use it
+        audioframe.pts = m_pcmOutputClock;
+      }
+
+      // Update m_audioClock (used by other Kodi systems)
       m_audioClock = audioframe.pts;
     }
 
@@ -526,25 +661,56 @@ bool CVideoPlayerAudio::ProcessDecoderOutput(DVDAudioFrame &audioframe)
     audioframe.hasDownmix = true;
   }
 
+  // A/V sync correction
   if (m_synctype == SYNC_DISCON)
   {
-    double syncerror = m_audioSink.GetSyncError();
-
-    if (std::abs(syncerror) > DVD_MSEC_TO_TIME(m_disconAdjustTimeMs))
+    if (audioframe.hasDiscontinuity && audioframe.discontinuityCorrection != 0)
     {
-      double correction = m_pClock->ErrorAdjust(syncerror, "CVideoPlayerAudio::OutputPacket");
+      // LAV-style jitter correction already adjusted the PTS (either in codec
+      // for passthrough, or above for PCM). Now we update the master clock.
+      // This ensures: 1) Jitter correction adjusts PTS first, 2) Clock syncs to match.
+      const char* source = audioframe.passthrough ? "passthrough-jitter" : "pcm-jitter";
+      double correction = m_pClock->ErrorAdjust(audioframe.discontinuityCorrection,
+                                                 source);
       if (correction != 0)
       {
         m_audioSink.SetSyncErrorCorrection(-correction);
         m_disconAdjustCounter++;
+        CLog::Log(LOGDEBUG, LOGAUDIO,
+                  "CVideoPlayerAudio:: {} clock sync correction:{:.3f}ms",
+                  source, correction / DVD_TIME_BASE * 1000.0);
+      }
+    }
+    else
+    {
+      // No jitter correction triggered - use hardware-level sync error for ALL audio
+      // This handles cases where hardware timing drifts independently of PTS
+      double syncerror = m_audioSink.GetSyncError();
+
+      if (std::abs(syncerror) > DVD_MSEC_TO_TIME(m_disconAdjustTimeMs))
+      {
+        double correction = m_pClock->ErrorAdjust(syncerror, "CVideoPlayerAudio::OutputPacket");
+        if (correction != 0)
+        {
+          m_audioSink.SetSyncErrorCorrection(-correction);
+          m_disconAdjustCounter++;
+          CLog::Log(LOGDEBUG, LOGAUDIO, "CVideoPlayerAudio:: sync error correction:{:.3f}", correction / DVD_TIME_BASE);
+        }
       }
     }
   }
 
   int framesOutput = m_audioSink.AddPackets(audioframe);
 
-  // guess next pts
-  m_audioClock += audioframe.duration * ((double)framesOutput / audioframe.nb_frames);
+  // Calculate duration actually output
+  double durationOutput = audioframe.duration * ((double)framesOutput / audioframe.nb_frames);
+
+  // Update clocks by duration output
+  m_audioClock += durationOutput;
+
+  // Also update PCM output clock for non-passthrough jitter tracking
+  if (!audioframe.passthrough)
+    m_pcmOutputClock += durationOutput;
 
   audioframe.framesOut += framesOutput;
 
