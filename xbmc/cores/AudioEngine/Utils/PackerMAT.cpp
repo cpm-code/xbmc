@@ -47,6 +47,19 @@ CPackerMAT::CPackerMAT()
   m_buffer.reserve(MAT_BUFFER_SIZE);
 }
 
+void CPackerMAT::Reset()
+{
+  m_state = {};
+  m_buffer.clear();
+  m_bufferCount = 0;
+  m_outputQueue.clear();
+  m_offsetQueue.clear();
+  m_discontinuityQueue.clear();
+  m_lastOutputSamplesOffset = 0;
+  m_lastOutputHadDiscontinuity = false;
+  m_pendingDiscontinuity = false;
+}
+
 // On a high level, a MAT frame consists of a sequence of padded TrueHD frames
 // The size of the padded frame can be determined from the frame time/sequence code in the frame header,
 // since it varies to accommodate spikes in bitrate.
@@ -57,24 +70,55 @@ CPackerMAT::CPackerMAT()
 // high-bitrate streams can overshoot this size and therefor require proper handling of dynamic padding.
 bool CPackerMAT::PackTrueHD(const uint8_t* data, int size)
 {
-  // discard too small packets (cannot be valid)
-  if (size < 10)
-    return false;
+  TrueHDMajorSyncInfo info;
+  bool isMajorSync = (AV_RB32(data + 4) == FORMAT_MAJOR_SYNC);
 
-  // get the ratebits from the major sync frame
-  if (AV_RB32(data + 4) == FORMAT_MAJOR_SYNC)
+  // get the ratebits and output timing from the sync frame
+  if (isMajorSync)
   {
-    // read audio_sampling_frequency (high nibble after format major sync)
-    m_state.ratebits = data[8] >> 4;
+    info = ParseTrueHDMajorSyncHeaders(data, size);
+
+    if (!info.valid)
+      return false;
+
+    m_state.ratebits = info.ratebits;
   }
-  else if (!m_state.prevFrametimeValid)
+  else if (m_state.prevFrametimeValid == false)
   {
     // only start streaming on a major sync frame
+    m_state.numberOfSamplesOffset = 0;
     return false;
   }
 
   const uint16_t frameTime = AV_RB16(data + 2);
   uint32_t spaceSize = 0;
+  const uint16_t frameSamples = 40 << (m_state.ratebits & 7);
+  m_state.outputTiming += frameSamples;
+
+  // Detect stream discontinuity via outputTiming mismatch (seamless branch points).
+  // LAV Filters approach: detect discontinuity BEFORE padding calculation and
+  // preemptively set a reasonable default padding to prevent overflow.
+  if (info.outputTimingPresent)
+  {
+    if (m_state.outputTimingValid && (info.outputTiming != m_state.outputTiming))
+    {
+      CLog::Log(LOGDEBUG, "CPackerMAT::PackTrueHD: detected stream discontinuity "
+                "(seamless branch), expected outputTiming={}, actual={}",
+                m_state.outputTiming, info.outputTiming);
+
+      // Reset frame timing state and use default padding (like LAV Filters)
+      // NOTE: Do NOT reset prevMatFramesize - LAV keeps it for proper padding calculation
+      m_state.prevFrametimeValid = false;
+      m_state.numberOfSamplesOffset = 0;
+      // Standard padding: 40 samples * (64 >> ratebits) bytes = 2560 bytes for 48kHz
+      spaceSize = 40 * (64 >> (m_state.ratebits & 7));
+
+      // Mark discontinuity to propagate to output (LAV-style discontinuity flag)
+      m_pendingDiscontinuity = true;
+    }
+    m_state.outputTiming = info.outputTiming;
+    m_state.outputTimingValid = true;
+  }
 
   // compute final padded size for the previous frame, if any
   if (m_state.prevFrametimeValid)
@@ -89,17 +133,12 @@ bool CPackerMAT::PackTrueHD(const uint8_t* data, int size)
 
   m_state.padding += (spaceSize - m_state.prevMatFramesize);
 
-  // detect seeks and re-initialize internal state i.e. skip stream
-  // until the next major sync frame
-  if (m_state.padding > MAT_BUFFER_SIZE * 5)
-  {
-    CLog::Log(LOGINFO, "CPackerMAT::PackTrueHD: seek detected, re-initializing MAT packer state");
-    m_state = {};
-    m_state.init = true;
-    m_buffer.clear();
-    m_bufferCount = 0;
-    return false;
-  }
+  // LAV Filters has no overflow safety net - it trusts the early discontinuity detection.
+  // If padding goes negative, WritePadding() will simply skip (padding <= 0 check).
+  // If padding is excessively large, it will be consumed over multiple MAT frames.
+  // We only clamp negative padding to 0 to prevent issues in WritePadding loop.
+  if (m_state.padding < 0)
+    m_state.padding = 0;
 
   // store frame time of the previous frame
   m_state.prevFrametime = frameTime;
@@ -135,6 +174,9 @@ bool CPackerMAT::PackTrueHD(const uint8_t* data, int size)
     }
   }
 
+  // count the number of samples in this frame
+  m_state.samples += frameSamples;
+
   // write actual audio data to the buffer
   int remaining = FillDataBuffer(data, size, Type::DATA);
 
@@ -166,14 +208,33 @@ bool CPackerMAT::PackTrueHD(const uint8_t* data, int size)
 
 std::vector<uint8_t> CPackerMAT::GetOutputFrame()
 {
-  std::vector<uint8_t> buffer;
-
   if (m_outputQueue.empty())
     return {};
 
-  buffer = std::move(m_outputQueue.front());
-
+  std::vector<uint8_t> buffer = std::move(m_outputQueue.front());
   m_outputQueue.pop_front();
+
+  // Store the samples offset for this frame (caller can retrieve via GetSamplesOffset)
+  if (!m_offsetQueue.empty())
+  {
+    m_lastOutputSamplesOffset = m_offsetQueue.front();
+    m_offsetQueue.pop_front();
+  }
+  else
+  {
+    m_lastOutputSamplesOffset = 0;
+  }
+
+  // Store the discontinuity flag for this frame (caller can retrieve via HadDiscontinuity)
+  if (!m_discontinuityQueue.empty())
+  {
+    m_lastOutputHadDiscontinuity = m_discontinuityQueue.front();
+    m_discontinuityQueue.pop_front();
+  }
+  else
+  {
+    m_lastOutputHadDiscontinuity = false;
+  }
 
   return buffer;
 }
@@ -313,9 +374,100 @@ void CPackerMAT::FlushPacket()
 
   assert(GetCount() == MAT_BUFFER_SIZE);
 
-  // push MAT packet to output queue
+  // normal number of samples per frame
+  const uint16_t frameSamples = 40 << (m_state.ratebits & 7);
+  const uint32_t MATSamples = (frameSamples * 24);
+
+  // push MAT packet to output queue along with current samples offset and discontinuity flag
+  // (like LAV Filters, the offset is captured BEFORE updating, so it applies to this frame)
   m_outputQueue.emplace_back(std::move(m_buffer));
+  m_offsetQueue.push_back(m_state.numberOfSamplesOffset);
+  m_discontinuityQueue.push_back(m_pendingDiscontinuity);
+  m_pendingDiscontinuity = false; // Clear after queuing
+
+  // we expect 24 frames per MAT frame, so calculate an offset from that
+  // this is done after delivery, because it modifies the duration of the frame,
+  //  eg. the start of the next frame
+  if (MATSamples != m_state.samples)
+    m_state.numberOfSamplesOffset += m_state.samples - MATSamples;
+
+  m_state.samples = 0;
 
   m_buffer.clear();
   m_bufferCount = 0;
+}
+
+TrueHDMajorSyncInfo CPackerMAT::ParseTrueHDMajorSyncHeaders(const uint8_t* p, int buffsize) const
+{
+  TrueHDMajorSyncInfo info;
+
+  if (buffsize < 32)
+    return {};
+
+  // parse major sync and look for a restart header
+  int majorSyncSize = 28;
+  if (p[29] & 1) // restart header exists
+  {
+    int extensionSize = p[30] >> 4; // calculate headers size
+    majorSyncSize += 2 + extensionSize * 2;
+  }
+
+  CBitStream bs(p + 4, buffsize - 4);
+
+  bs.SkipBits(32); // format_sync
+
+  info.ratebits = bs.ReadBits(4); // ratebits
+  info.valid = true;
+
+  //  (1) 6ch_multichannel_type
+  //  (1) 8ch_multichannel_type
+  //  (2) reserved
+  //  (2) 2ch_presentation_channel_modifier
+  //  (2) 6ch_presentation_channel_modifier
+  //  (5) 6ch_presentation_channel_assignment
+  //  (2) 8ch_presentation_channel_modifier
+  // (13) 8ch_presentation_channel_assignment
+  // (16) signature
+  // (16) flags
+  // (16) reserved
+  //  (1) variable_rate
+  // (15) peak_data_rate
+  bs.SkipBits(1 + 1 + 2 + 2 + 2 + 5 + 2 + 13 + 16 + 16 + 16 + 1 + 15);
+
+  const int numSubstreams = bs.ReadBits(4);
+
+  bs.SkipBits(4 + (majorSyncSize - 17) * 8);
+
+  // substream directory
+  for (int i = 0; i < numSubstreams; i++)
+  {
+    int extraSubstreamWord = bs.ReadBits(1);
+    //  (1) restart_nonexistent
+    //  (1) crc_present
+    //  (1) reserved
+    // (12) substream_end_ptr
+    bs.SkipBits(15);
+    if (extraSubstreamWord)
+      bs.SkipBits(16); // drc_gain_update, drc_time_update, reserved
+  }
+
+  // substream segments
+  for (int i = 0; i < numSubstreams; i++)
+  {
+    if (bs.ReadBits(1))
+    { // block_header_exists
+      if (bs.ReadBits(1))
+      { // restart_header_exists
+        bs.SkipBits(14); // restart_sync_word
+        info.outputTiming = bs.ReadBits(16);
+        info.outputTimingPresent = true;
+        // XXX: restart header
+      }
+      // XXX: Block header
+    }
+    // XXX: All blocks, all substreams?
+    break;
+  }
+
+  return info;
 }

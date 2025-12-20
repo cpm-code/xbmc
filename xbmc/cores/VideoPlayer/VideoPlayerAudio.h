@@ -10,6 +10,7 @@
 
 #include "AudioSinkAE.h"
 #include "DVDClock.h"
+#include "DVDCodecs/Audio/FloatingAverage.h"
 #include "DVDMessageQueue.h"
 #include "DVDStreamInfo.h"
 #include "IVideoPlayer.h"
@@ -120,5 +121,24 @@ protected:
   bool m_displayReset = false;
   unsigned int m_disconAdjustTimeMs = 50; // maximum sync-off before adjusting
   int m_disconAdjustCounter = 0;
+
+  //============================================================================
+  // LAV-style Jitter Tracking for PCM/Decoded Audio
+  //============================================================================
+  // LAV Filters approach: maintain a running output timestamp (m_rtStart) and
+  // compare against input (demuxer) timestamps. On discontinuity (flush/seek),
+  // resync the output timestamp to input, then let it run freely.
+  //
+  // m_pcmOutputClock: Our running output timestamp (equivalent to LAV's m_rtStart)
+  // m_pcmResyncTimestamp: Flag to resync on next valid input timestamp (like LAV's m_bResyncTimestamp)
+  //
+  // Jitter = m_pcmOutputClock (calculated) - audioframe.pts (input)
+  // When jitter exceeds threshold, adjust m_pcmOutputClock.
+  //============================================================================
+  static constexpr size_t PCM_JITTER_WINDOW_SIZE = 64;  // LAV uses 64 for non-bitstream
+  static constexpr double PCM_JITTER_THRESHOLD = 10000.0;  // 10ms in DVD_TIME_BASE (LAV: MAX_JITTER_DESYNC)
+  AudioSync::CFloatingAverage<double, PCM_JITTER_WINDOW_SIZE> m_pcmJitterTracker;
+  double m_pcmOutputClock{0.0};  // Running output timestamp (like LAV's m_rtStart)
+  bool m_pcmResyncTimestamp{true};  // Resync output clock to input on next valid PTS
 };
 

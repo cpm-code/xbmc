@@ -29,6 +29,8 @@ typedef struct stDVDAudioFrame
   uint8_t* data[16];
   double pts;
   bool hasTimestamp;
+  bool hasDiscontinuity; // Set when a timing discontinuity was detected (e.g., seamless branching)
+  double discontinuityCorrection; // Amount of PTS correction applied (for clock sync)
   double duration;
   unsigned int nb_frames;
   unsigned int framesOut;
