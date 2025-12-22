@@ -2200,20 +2200,6 @@ void CVideoPlayer::HandlePlaySpeed()
     }
     else if (video && audio)
     {
-      //========================================================================
-      // LAV-style A/V sync fix: Wait for valid video PTS before sending RESYNC
-      //========================================================================
-      // At video start, video may take longer to decode than audio.
-      // If we send RESYNC before video has valid PTS, audio syncs to a clock
-      // that doesn't account for video latency, causing A/V desync.
-      // Wait until video has reported valid starttime before proceeding.
-      //========================================================================
-      if (m_CurrentVideo.starttime == DVD_NOPTS_VALUE)
-      {
-        // Video hasn't reported valid PTS yet - don't sync audio to garbage
-        return;
-      }
-      
       double clock = 0;
       if (m_CurrentAudio.syncState == IDVDStreamPlayer::SYNC_WAITSYNC)
         CLog::Log(LOGDEBUG, "VideoPlayer::Sync - Audio - pts: {:.3f}, cache: {:.3f}, totalcache: {:.3f}, packets:{:d} level:{:d}",
@@ -2221,6 +2207,16 @@ void CVideoPlayer::HandlePlaySpeed()
       if (m_CurrentVideo.syncState == IDVDStreamPlayer::SYNC_WAITSYNC)
         CLog::Log(LOGDEBUG, "VideoPlayer::Sync - Video - pts: {:.3f}, cache: {:.3f}, totalcache: {:.3f}, packets:{:d} level:{:d}",
                              m_CurrentVideo.starttime / DVD_TIME_BASE, m_CurrentVideo.cachetime / DVD_TIME_BASE, m_CurrentVideo.cachetotal / DVD_TIME_BASE, m_CurrentVideo.packets, m_processInfo->GetLevelVQ());
+
+      //========================================================================
+      // LAV-style A/V sync fix: Don't send RESYNC to audio until video PTS valid
+      //========================================================================
+      // At video start, video may take longer to decode than audio.
+      // If we send RESYNC to audio before video has valid PTS, audio syncs to
+      // a clock that doesn't account for video latency, causing A/V desync.
+      // We still process video normally - only audio RESYNC is delayed.
+      //========================================================================
+      bool waitingForVideoPts = (m_CurrentVideo.id >= 0 && m_CurrentVideo.starttime == DVD_NOPTS_VALUE);
 
       if (m_CurrentVideo.starttime != DVD_NOPTS_VALUE && m_CurrentVideo.packets > 0 &&
           m_playSpeed == DVD_PLAYSPEED_PAUSE)
@@ -2259,14 +2255,21 @@ void CVideoPlayer::HandlePlaySpeed()
       }
 
       m_clock.Discontinuity(clock);
-      m_CurrentAudio.syncState = IDVDStreamPlayer::SYNC_INSYNC;
-      m_CurrentAudio.avsync = CCurrentStream::AV_SYNC_NONE;
       m_CurrentVideo.syncState = IDVDStreamPlayer::SYNC_INSYNC;
       m_CurrentVideo.avsync = CCurrentStream::AV_SYNC_NONE;
-      m_VideoPlayerAudio->SendMessage(
-          std::make_shared<CDVDMsgDouble>(CDVDMsg::GENERAL_RESYNC, clock), 1);
       m_VideoPlayerVideo->SendMessage(
           std::make_shared<CDVDMsgDouble>(CDVDMsg::GENERAL_RESYNC, clock), 1);
+
+      // Only send RESYNC to audio if video PTS is valid
+      // This prevents audio from syncing to garbage during video startup
+      if (!waitingForVideoPts)
+      {
+        m_CurrentAudio.syncState = IDVDStreamPlayer::SYNC_INSYNC;
+        m_CurrentAudio.avsync = CCurrentStream::AV_SYNC_NONE;
+        m_VideoPlayerAudio->SendMessage(
+            std::make_shared<CDVDMsgDouble>(CDVDMsg::GENERAL_RESYNC, clock), 1);
+      }
+
       SetCaching(CACHESTATE_DONE);
       UpdatePlayState(0);
 
