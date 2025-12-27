@@ -119,9 +119,9 @@ protected:
   float m_totalSize;
 
   CScroller m_scroller;
-  std::optional<int> m_lastScrollerValue;
-  std::optional<int> m_lastPageControlSize;
-  std::optional<int> m_lastPageControlTotalSize;
+  int m_lastScrollerValue;
+  int m_lastPageControlSize = -1;
+  int m_lastPageControlTotalSize = -1;
 
   bool m_useControlPositions;
   ORIENTATION m_orientation;
