@@ -1667,6 +1667,47 @@ void CGUIWindowManager::DispatchThreadMessages()
 
   std::unique_lock lock(m_critSection);
 
+  // Optimize: Remove redundant messages for idempotent operations
+  // Only keep the latest message for each (message_type, window, control) tuple
+  // for message types where only the final value matters
+  if (m_vecThreadMessages.size() > 1)
+  {
+    auto it = m_vecThreadMessages.begin();
+    while (it != m_vecThreadMessages.end())
+    {
+      CGUIMessage* msg = it->first;
+      int win = it->second;
+      bool foundDuplicate = false;
+
+      // Only deduplicate safe "set" messages where order doesn't matter
+      if (msg->GetMessage() == GUI_MSG_ITEM_SELECT ||
+          msg->GetMessage() == GUI_MSG_LABEL_SET ||
+          msg->GetMessage() == GUI_MSG_LABEL2_SET ||
+          msg->GetMessage() == GUI_MSG_SET_TEXT)
+      {
+        // Look ahead for duplicate messages to the same control in the same window
+        auto next = std::next(it);
+        while (next != m_vecThreadMessages.end())
+        {
+          if (next->first->GetMessage() == msg->GetMessage() &&
+              next->first->GetControlId() == msg->GetControlId() &&
+              next->second == win)
+          {
+            // Found a duplicate - delete this older message
+            delete msg;
+            it = m_vecThreadMessages.erase(it);
+            foundDuplicate = true;
+            break;
+          }
+          ++next;
+        }
+      }
+
+      if (!foundDuplicate)
+        ++it;
+    }
+  }
+
   while (!m_vecThreadMessages.empty())
   {
     // pop up one message per time to make messages be processed by order.
@@ -1677,7 +1718,7 @@ void CGUIWindowManager::DispatchThreadMessages()
 
     lock.unlock();
 
-    // XXX: during SendMessage(), there could be a deeper 'xbmc main loop' inited by e.g. doModal
+    // XXX: during SendMessage(), there could be a deeper 'xbmc main thread loop' inited by e.g. doModal
     //      which may loop there and callback to DispatchThreadMessages() multiple times.
     if (window)
       SendMessage( *pMsg, window );
