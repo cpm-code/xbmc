@@ -240,22 +240,6 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
     case AV_CODEC_ID_CAVS:
       m_pFormatName = "am-avs";
       break;
-    case AV_CODEC_ID_AVS2:
-      if (!aml_support_avs2())
-      {
-        CLog::Log(LOGDEBUG, "{}::{} - AVS2 hardward decoder is not supported on current platform", __MODULE_NAME__, __FUNCTION__);
-        goto FAIL;
-      }
-      m_pFormatName = "am-avs2";
-      break;
-    case AV_CODEC_ID_AVS3:
-      if (!aml_support_avs3())
-      {
-        CLog::Log(LOGDEBUG, "{}::{} - AVS3 hardward decoder is not supported on current platform", __MODULE_NAME__, __FUNCTION__);
-        goto FAIL;
-      }
-      m_pFormatName = "am-avs3";
-      break;
     case AV_CODEC_ID_VP9:
       if (!aml_support_vp9())
       {
@@ -336,18 +320,6 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       m_hints.extradata = {};
       m_hints.extradata = FFmpegExtraData(m_bitstream->GetExtraSize());
       memcpy(m_hints.extradata.GetData(), m_bitstream->GetExtraData(), m_hints.extradata.GetSize());
-      break;
-    case AV_CODEC_ID_VVC:
-      if (!aml_support_h266())
-      {
-        CLog::Log(LOGDEBUG, "{}::{} - H266 hardward decoder is not supported on current platform", __MODULE_NAME__, __FUNCTION__);
-        goto FAIL;
-      }
-      m_pFormatName = "am-h266";
-      m_bitstream = new CBitstreamConverter();
-      m_bitstream->Open(m_hints.codec, m_hints.extradata.GetData(), m_hints.extradata.GetSize(), true);
-      if (m_hints.extradata.GetSize() == 0)
-        m_bitstream->ResetStartDecode();
       break;
     default:
       CLog::Log(LOGDEBUG, "{}: Unknown hints.codec({:d})", __MODULE_NAME__, m_hints.codec);
@@ -522,20 +494,6 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
       m_videoBufferPool = std::shared_ptr<CAMLVideoBufferPool>(new CAMLVideoBufferPool());
 
       m_opened = true;
-    }
-  }
-
-  if (packet.pSideData && packet.iSideDataElems > 0)
-  {
-    const AVPacketSideData* sideData = av_packet_side_data_get(static_cast<AVPacketSideData*>(packet.pSideData),
-                                                               packet.iSideDataElems,
-                                                               AV_PKT_DATA_DYNAMIC_HDR10_PLUS_RAW);
-
-    if (sideData && sideData->size)
-    {
-      if (m_Codec->AddHDR10PData(sideData->data, sideData->size) < 0)
-        CLog::Log(LOGWARNING, "CDVDVideoCodecAmlogic::{}: failed to set hdr10p data with size {}", __FUNCTION__,
-          sideData->size);
     }
   }
 
