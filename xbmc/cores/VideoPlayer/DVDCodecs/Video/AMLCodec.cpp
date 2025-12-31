@@ -127,7 +127,6 @@ public:
   virtual int codec_resume(codec_para_t *pcodec)=0;
   virtual int codec_write(codec_para_t *pcodec, void *buffer, int len)=0;
   virtual int codec_checkin_pts_us64(codec_para_t *pcodec, unsigned long long pts)=0;
-  virtual int codec_checkin_hdr10p_data(codec_para_t *pcodec)=0;
   virtual int codec_get_vbuf_state(codec_para_t *pcodec, struct buf_status *buf)=0;
   virtual int codec_get_vdec_state(codec_para_t *pcodec, struct vdec_status *vdec)=0;
   virtual int codec_get_vdec_info(codec_para_t *pcodec, struct vdec_info *vdec) = 0;
@@ -156,7 +155,6 @@ class DllLibAmCodec : public DllDynamic, DllLibamCodecInterface
   DEFINE_METHOD1(int, codec_resume,             (codec_para_t *p1))
   DEFINE_METHOD3(int, codec_write,              (codec_para_t *p1, void *p2, int p3))
   DEFINE_METHOD2(int, codec_checkin_pts_us64,   (codec_para_t *p1, unsigned long long p2))
-  DEFINE_METHOD1(int, codec_checkin_hdr10p_data,(codec_para_t *p1))
   DEFINE_METHOD2(int, codec_get_vbuf_state,     (codec_para_t *p1, struct buf_status * p2))
   DEFINE_METHOD2(int, codec_get_vdec_state,     (codec_para_t *p1, struct vdec_status * p2))
   DEFINE_METHOD2(int, codec_get_vdec_info,      (codec_para_t *p1, struct vdec_info * p2))
@@ -180,7 +178,6 @@ class DllLibAmCodec : public DllDynamic, DllLibamCodecInterface
     RESOLVE_METHOD(codec_resume)
     RESOLVE_METHOD(codec_write)
     RESOLVE_METHOD(codec_checkin_pts_us64)
-    RESOLVE_METHOD(codec_checkin_hdr10p_data)
     RESOLVE_METHOD(codec_get_vbuf_state)
     RESOLVE_METHOD(codec_get_vdec_state)
     RESOLVE_METHOD(codec_get_vdec_info)
@@ -441,14 +438,8 @@ static vformat_t codecid_to_vformat(enum AVCodecID id)
     case AV_CODEC_ID_AVS2:
       format = VFORMAT_AVS2;
       break;
-    case AV_CODEC_ID_AVS3:
-      format = VFORMAT_AVS3;
-      break;
     case AV_CODEC_ID_HEVC:
       format = VFORMAT_HEVC;
-      break;
-    case AV_CODEC_ID_VVC:
-      format = VFORMAT_H266;
       break;
 
     default:
@@ -568,17 +559,9 @@ static vdec_type_t codec_tag_to_vdec_type(unsigned int codec_tag)
       // avs2
       dec_type = VIDEO_DEC_FORMAT_AVS2;
       break;
-    case AV_CODEC_ID_AVS3:
-      // avs3
-      dec_type = VIDEO_DEC_FORMAT_AVS3;
-      break;
     case AV_CODEC_ID_HEVC:
       // h265
       dec_type = VIDEO_DEC_FORMAT_HEVC;
-      break;
-    case AV_CODEC_ID_VVC:
-      // h266
-      dec_type = VIDEO_DEC_FORMAT_H266;
       break;
     default:
       dec_type = VIDEO_DEC_FORMAT_UNKNOW;
@@ -1633,11 +1616,6 @@ int pre_header_feeding(am_private_t *para, am_packet_t *pkt)
             if (ret != PLAYER_SUCCESS) {
                 return ret;
             }
-        } else if (VFORMAT_H266 == para->video_format) {
-            ret = vvc_add_frame_dec_info(para);
-            if (ret != PLAYER_SUCCESS) {
-                return ret;
-            }
         }
 
         if (pkt->hdr) {
@@ -2229,12 +2207,6 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
       else
         CSysfsPath("/sys/module/amvdec_h265/parameters/nal_skip_policy", 2);
       break;
-    case VFORMAT_H266:
-      am_private->gcodec.format = VIDEO_DEC_FORMAT_H266;
-      am_private->gcodec.param  = (void*)EXTERNAL_PTS;
-      if (m_hints.ptsinvalid)
-        am_private->gcodec.param = (void*)(EXTERNAL_PTS | SYNC_OUTSIDE);
-      break;
     case VFORMAT_VP9:
       am_private->gcodec.format = VIDEO_DEC_FORMAT_VP9;
       am_private->gcodec.param  = (void*)EXTERNAL_PTS;
@@ -2656,13 +2628,6 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
       pts / DVD_TIME_BASE
     );
   return true;
-}
-
-int CAMLCodec::AddHDR10PData(uint8_t *pData, size_t iSize)
-{
-  am_private->vcodec.hdr10p_data.pointer = pData;
-  am_private->vcodec.hdr10p_data.len = iSize;
-  return m_dll->codec_checkin_hdr10p_data(&am_private->vcodec);
 }
 
 int CAMLCodec::m_pollDevice;
