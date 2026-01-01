@@ -20,7 +20,6 @@
 #include "windowing/GraphicContext.h"
 #include "windowing/Resolution.h"
 #include "platform/linux/powermanagement/LinuxPowerSyscall.h"
-#include "platform/linux/FDEventMonitor.h"
 #include "platform/linux/ScreenshotSurfaceAML.h"
 #include "resources/LocalizeStrings.h"
 #include "resources/ResourcesComponent.h"
@@ -28,45 +27,27 @@
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "settings/lib/Setting.h"
-#include "settings/lib/SettingsManager.h"
 #include "guilib/DispResource.h"
 #include "utils/AMLUtils.h"
-#include "utils/BitstreamConverter.h"
 #include "utils/log.h"
 #include "threads/SingleLock.h"
+#include "DolbyVisionAML.h"
 
 #include "platform/linux/SysfsPath.h"
 
 #include <linux/fb.h>
-#include <poll.h>
-#include <unistd.h>
+#include <linux/version.h>
 
 #include "system_egl.h"
 
 using namespace KODI;
 
-std::unique_ptr<CAMLDisplay> CWinSystemAmlogic::m_amlDisplay = nullptr;
-
 CWinSystemAmlogic::CWinSystemAmlogic()
-:  m_nativeWindow(NULL)
+:  m_nativeWindow(nullptr)
 ,  m_libinput(new CLibInputHandler)
 ,  m_force_mode_switch(false)
-,  m_fdMonitorId(-1)
-,  m_udev(NULL)
-,  m_callback_data(NULL, NULL)
 {
   const char *env_framebuffer = getenv("FRAMEBUFFER");
-
-  m_amlDisplay = std::make_unique<CAMLDisplay>();
-
-  DllMali *m_dll = new DllMali;
-  if((m_dll->Load()))
-  {
-    CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem is a GBM system");
-    m_dll->Unload();
-    m_amlGBMUtils = std::make_unique<CAMLGBMUtils>(m_amlDisplay->aml_get_Device_handle());
-  }
-  delete m_dll, m_dll = NULL;
 
   // default to framebuffer 0
   m_framebuffer_name = "fb0";
@@ -81,205 +62,47 @@ CWinSystemAmlogic::CWinSystemAmlogic()
   m_stereo_mode = RenderStereoMode::OFF;
   m_delayDispReset = false;
 
-  m_nativeGUI = CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING);
-
   m_libinput->Start();
-}
-
-CWinSystemAmlogic::~CWinSystemAmlogic()
-{
-  MonitorStop();
-}
-
-void CWinSystemAmlogic::SettingOptionsComponentsFiller(const SettingConstPtr& setting,
-                                                 std::vector<IntegerSettingOption>& list,
-                                                 int& current)
-{
-  int dv_cap = m_amlDisplay->aml_get_drmProperty("dv_cap", DRM_MODE_OBJECT_CONNECTOR);
-
-  if ((dv_cap & DV_RGB_444_8BIT) != 0)
-    list.emplace_back(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(14426),
-                      AML_DV_TV_LED);
-
-  if ((dv_cap & LL_YCbCr_422_12BIT) != 0)
-    list.emplace_back(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(14427),
-                      AML_DV_PLAYER_LED);
-}
-
-void CWinSystemAmlogic::MonitorStart()
-{
-  int err;
-
-  if (!m_udev && m_fdMonitorId == -1)
-  {
-    m_udev = udev_new();
-    if (!m_udev)
-    {
-      CLog::Log(LOGWARNING, "CWinSystemAmlogic::Start - Unable to open udev handle");
-      return;
-    }
-
-    m_callback_data.udevMonitor = udev_monitor_new_from_netlink(m_udev, "udev");
-    if (!m_callback_data.udevMonitor)
-    {
-      CLog::Log(LOGERROR, "CWinSystemAmlogic::Start - udev_monitor_new_from_netlink() failed");
-      goto err_unref_udev;
-    }
-
-    err = udev_monitor_filter_add_match_subsystem_devtype(m_callback_data.udevMonitor, "drm", NULL);
-    if (err)
-    {
-      CLog::Log(LOGERROR, "CWinSystemAmlogic::Start - udev_monitor_filter_add_match_subsystem_devtype() failed");
-      goto err_unref_udev;
-    }
-
-    err = udev_monitor_enable_receiving(m_callback_data.udevMonitor);
-    if (err)
-    {
-      CLog::Log(LOGERROR, "CWinSystemAmlogic::Start - udev_monitor_enable_receiving() failed");
-      goto err_unref_udev;
-    }
-
-    const auto eventMonitor = CServiceBroker::GetPlatform().GetService<CFDEventMonitor>();
-    m_callback_data.object = this;
-    m_fdMonitorId = 0;
-    eventMonitor->AddFD(
-        CFDEventMonitor::MonitoredFD(udev_monitor_get_fd(m_callback_data.udevMonitor),
-                                     POLLIN, FDEventCallback, (void *)&m_callback_data),
-        m_fdMonitorId);
-  }
-
-  return;
-
-err_unref_udev:
-  udev_unref(m_udev);
-  m_udev = NULL;
-}
-
-void CWinSystemAmlogic::MonitorStop()
-{
-  if (m_udev && m_fdMonitorId != -1)
-  {
-    const auto eventMonitor = CServiceBroker::GetPlatform().GetService<CFDEventMonitor>();
-    eventMonitor->RemoveFD(m_fdMonitorId);
-    udev_unref(m_udev);
-    m_fdMonitorId = -1;
-  }
-}
-
-void CWinSystemAmlogic::HotplugEvent()
-{
-  m_amlDisplay->aml_init_drmDevice();
-  std::string preferred_mode = m_amlDisplay->aml_get_preferred_mode();
-
-  CDisplaySettings::GetInstance().ClearCustomResolutions();
-  RefreshResolutions();
-  CDisplaySettings::GetInstance().ApplyCalibrations();
-
-  if (!preferred_mode.empty())
-  {
-    m_amlDisplay->aml_set_hotplug_mode(preferred_mode);
-
-    // clear screen by fb blank
-    usleep(500 * 1000);
-    CSysfsPath("/sys/class/graphics/fb0/blank", 1);
-    usleep(500 * 1000);
-    CSysfsPath("/sys/class/graphics/fb0/blank", 0);
-  }
-
-  RESOLUTION res = CDisplaySettings::GetInstance().GetDisplayResolution();
-  CLog::Log(LOGDEBUG, "CWinSystemAmlogic - HotplugEvent, preferred mode: {}, display mode: {}",
-    preferred_mode, CDisplaySettings::GetInstance().GetResolutionInfo(res).strId);
-
-  CServiceBroker::GetWinSystem()->GetGfxContext().SetVideoResolution(res, false);
-}
-
-void CWinSystemAmlogic::FDEventCallback(int id, int fd, short revents, void *data)
-{
-  struct udev_monitor *udevMonitor = ((struct callback_data *)data)->udevMonitor;
-  CWinSystemAmlogic *_this = ((struct callback_data *)data)->object;
-  struct udev_device *device;
-
-  while ((device = udev_monitor_receive_device(udevMonitor)) != NULL)
-  {
-    const char* action = udev_device_get_action(device);
-    CLog::Log(LOGDEBUG, "CWinSystemAmlogic - FDEventCallback (\"{}\", \"{}\"), action: {}",
-      udev_device_get_syspath(device), udev_device_get_devpath(device), action);
-
-    if (StringUtils::EqualsNoCase(action, "change"))
-    {
-      _this->MonitorStop();
-      _this->HotplugEvent();
-    }
-  }
 }
 
 bool CWinSystemAmlogic::InitWindowSystem()
 {
+  // Setup DV UI Elements etc.
+  m_dolbyVisionAML = std::make_unique<CDolbyVisionAML>();
+  if (!m_dolbyVisionAML->Setup()) m_dolbyVisionAML.reset();
+
   const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
 
   if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_NOISEREDUCTION))
   {
      CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- disabling noise reduction");
-     CSysfsPath("/sys/module/aml_media/parameters/nr2_en", 0);
+     CSysfsPath("/sys/module/di/parameters/nr2_en", 0);
   }
 
   int sdr2hdr = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_SDR2HDR);
   if (sdr2hdr)
   {
     CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- setting sdr2hdr mode to {:d}", sdr2hdr);
-    CSysfsPath("/sys/module/aml_media/parameters/sdr_mode", 1);
-    CSysfsPath("/sys/module/aml_media/parameters/dolby_vision_policy", 0);
-    CSysfsPath("/sys/module/aml_media/parameters/hdr_policy", 0);
+    CSysfsPath("/sys/module/am_vecm/parameters/sdr_mode", 1);
+    CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_policy", 0);
+    CSysfsPath("/sys/module/am_vecm/parameters/hdr_policy", 0);
   }
 
   int hdr2sdr = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_HDR2SDR);
   if (hdr2sdr)
   {
     CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- setting hdr2sdr mode to {:d}", hdr2sdr);
-    CSysfsPath("/sys/module/aml_media/parameters/hdr_mode", 1);
+    CSysfsPath("/sys/module/am_vecm/parameters/hdr_mode", 1);
   }
 
-  if (!aml_support_dolby_vision() || !aml_display_support_dv())
+  if (((LINUX_VERSION_CODE >> 16) & 0xFF) < 5)
   {
-    auto setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_DV_DISABLE);
+    auto setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING);
     if (setting)
     {
       setting->SetVisible(false);
-      settings->SetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_DISABLE, false);
-      setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_SDR2DV);
-      setting->SetVisible(false);
-      settings->SetBool(CSettings::SETTING_COREELEC_AMLOGIC_SDR2DV, false);
-      setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_HDR2DV);
-      setting->SetVisible(false);
-      settings->SetBool(CSettings::SETTING_COREELEC_AMLOGIC_HDR2DV, false);
+      settings->SetBool(CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING, false);
     }
-
-    setting = settings->GetSetting(CSettings::SETTING_COREELEC_AMLOGIC_DV_LED);
-    if (setting)
-    {
-      setting->SetVisible(false);
-      settings->SetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_LED, AML_DV_TV_LED);
-    }
-  }
-  else
-  {
-    CServiceBroker::GetSettingsComponent()->GetSettings()->
-      GetSettingsManager()->RegisterSettingOptionsFiller("dv_led_modes", SettingOptionsComponentsFiller);
-
-    int dv_cap = m_amlDisplay->aml_get_drmProperty("dv_cap", DRM_MODE_OBJECT_CONNECTOR);
-    AML_DISPLAY_DV_LED old_value = static_cast<AML_DISPLAY_DV_LED>(
-      settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_LED));
-    AML_DISPLAY_DV_LED new_value = old_value;
-
-    if (old_value == AML_DV_TV_LED && !(dv_cap & DV_RGB_444_8BIT))
-      new_value = static_cast<AML_DISPLAY_DV_LED>((dv_cap & LL_YCbCr_422_12BIT) != 0 ? AML_DV_PLAYER_LED : -1);
-
-    if (old_value == AML_DV_PLAYER_LED && !(dv_cap & LL_YCbCr_422_12BIT))
-      new_value = static_cast<AML_DISPLAY_DV_LED>((dv_cap & DV_RGB_444_8BIT) != 0 ? AML_DV_TV_LED : -1);
-
-    if (new_value != old_value)
-      settings->SetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_LED, new_value);
   }
 
   m_nativeDisplay = EGL_DEFAULT_DISPLAY;
@@ -291,6 +114,9 @@ bool CWinSystemAmlogic::InitWindowSystem()
   CRendererAML::Register();
   CScreenshotSurfaceAML::Register();
 
+  if (aml_get_cpufamily_id() <= AML_GXL)
+    aml_set_framebuffer_resolution(1920, 1080, m_framebuffer_name);
+
   auto setting = settings->GetSetting(CSettings::SETTING_VIDEOPLAYER_USEDISPLAYASCLOCK);
   if (setting)
   {
@@ -298,29 +124,12 @@ bool CWinSystemAmlogic::InitWindowSystem()
     settings->SetBool(CSettings::SETTING_VIDEOPLAYER_USEDISPLAYASCLOCK, false);
   }
 
-  // Close the OpenVFD splash and switch the display into time mode.
-  CSysfsPath("/tmp/openvfd_service", 0);
-
-  drmModeConnection connection;
-  int mode_count = m_amlDisplay->aml_get_display_modes_count(&connection);
-
-  if (connection == DRM_MODE_DISCONNECTED)
-  {
-    if (mode_count > 1)
-    {
-      CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem Looks like display was hotplugged before Kodi start");
-      HotplugEvent();
-    }
-    else if (mode_count == 1)
-    {
-      CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem Looks like no display is connected, wait for hotplug");
-      MonitorStart();
-    }
-  }
-
   // kill a running animation
   CLog::Log(LOGDEBUG,"CWinSystemAmlogic: Sending SIGUSR1 to 'splash-image'");
   std::system("killall -s SIGUSR1 splash-image &> /dev/null");
+
+  // Close the OpenVFD splash and switch the display into time mode.
+  CSysfsPath("/tmp/openvfd_service", 0);
 
   return CWinSystemBase::InitWindowSystem();
 }
@@ -338,6 +147,12 @@ bool CWinSystemAmlogic::CreateNewWindow(const std::string& name,
   m_nHeight       = res.iHeight;
   m_fRefreshRate  = res.fRefreshRate;
 
+  if (m_nativeWindow == nullptr)
+    m_nativeWindow = new fbdev_window;
+
+  m_nativeWindow->width = res.iWidth;
+  m_nativeWindow->height = res.iHeight;
+
   int delay = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt("videoscreen.delayrefreshchange");
   if (delay > 0)
   {
@@ -346,26 +161,31 @@ bool CWinSystemAmlogic::CreateNewWindow(const std::string& name,
   }
 
   {
-    std::unique_lock<CCriticalSection> lock(m_resourceSection);
-    for (std::vector<IDispResource *>::iterator i = m_resources.begin(); i != m_resources.end(); ++i)
+    std::lock_guard lock(m_resourceSection);
+
+    for (auto i = m_resources.begin(); i != m_resources.end(); ++i)
     {
       (*i)->OnLostDisplay();
     }
   }
 
-  m_amlDisplay->set_native_resolution(res, m_framebuffer_name, m_stereo_mode, m_force_mode_switch);
+  aml_set_native_resolution(res, m_framebuffer_name, m_stereo_mode, m_force_mode_switch);
   // reset force mode switch
   m_force_mode_switch = false;
 
   if (!m_delayDispReset)
   {
-    std::unique_lock<CCriticalSection> lock(m_resourceSection);
+    std::lock_guard lock(m_resourceSection);
+
     // tell any shared resources
-    for (std::vector<IDispResource *>::iterator i = m_resources.begin(); i != m_resources.end(); ++i)
+    for (auto i = m_resources.begin(); i != m_resources.end(); ++i)
     {
       (*i)->OnResetDisplay();
     }
   }
+
+  // Make sure DV Display activates if enabled - TODO: Why needed?
+  aml_dv_display_trigger();
 
   m_bWindowCreated = true;
   return true;
@@ -373,61 +193,84 @@ bool CWinSystemAmlogic::CreateNewWindow(const std::string& name,
 
 bool CWinSystemAmlogic::DestroyWindow()
 {
-  if (m_nativeWindow != NULL)
+  if (m_nativeWindow != nullptr)
   {
     delete(m_nativeWindow);
-    m_nativeWindow = NULL;
+    m_nativeWindow = nullptr;
   }
 
   m_bWindowCreated = false;
   return true;
 }
 
-void CWinSystemAmlogic::RefreshResolutions()
-{
-  RESOLUTION_INFO resDesktop, curDisplay;
-  std::vector<RESOLUTION_INFO> resolutions;
-
-  if (!m_amlDisplay->aml_probe_resolutions(resolutions) || resolutions.empty())
-    CLog::Log(LOGWARNING, "{}: ProbeResolutions failed.",__FUNCTION__);
-
-  // get all resolutions supported by connected device
-  if (m_amlDisplay->aml_get_native_resolution(&curDisplay))
-    resDesktop = curDisplay;
-
-  for (auto& res : resolutions)
-  {
-    CLog::Log(LOGINFO, "Found resolution {:d} x {:d} with {:d} x {:d}{} @ {:f} Hz",
-      res.iWidth,
-      res.iHeight,
-      res.iScreenWidth,
-      res.iScreenHeight,
-      res.dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "",
-      res.fRefreshRate);
-
-    // add new custom resolution
-    CServiceBroker::GetWinSystem()->GetGfxContext().ResetOverscan(res);
-    CDisplaySettings::GetInstance().AddResolutionInfo(res);
-
-    // check if resolution match current mode
-    if(resDesktop.iWidth == res.iWidth &&
-       resDesktop.iHeight == res.iHeight &&
-       resDesktop.iScreenWidth == res.iScreenWidth &&
-       resDesktop.iScreenHeight == res.iScreenHeight &&
-       (resDesktop.dwFlags & D3DPRESENTFLAG_MODEMASK) == (res.dwFlags & D3DPRESENTFLAG_MODEMASK) &&
-       fabs(resDesktop.fRefreshRate - res.fRefreshRate) < FLT_EPSILON)
-    {
-      // update desktop resolution
-      CDisplaySettings::GetInstance().GetResolutionInfo(RES_DESKTOP) = res;
-    }
-  }
-}
-
 void CWinSystemAmlogic::UpdateResolutions()
 {
   CWinSystemBase::UpdateResolutions();
 
-  RefreshResolutions();
+  RESOLUTION_INFO resDesktop, curDisplay;
+  std::vector<RESOLUTION_INFO> resolutions;
+
+  if (!aml_probe_resolutions(resolutions) || resolutions.empty())
+  {
+    CLog::Log(LOGWARNING, "{}: ProbeResolutions failed.",__FUNCTION__);
+  }
+
+  /* ProbeResolutions includes already all resolutions.
+   * Only get desktop resolution so we can replace xbmc's desktop res
+   */
+  if (aml_get_native_resolution(curDisplay))
+  {
+    resDesktop = curDisplay;
+  }
+
+  RESOLUTION ResDesktop = RES_INVALID;
+  RESOLUTION res_index  = RES_DESKTOP;
+
+  for (size_t i = 0; i < resolutions.size(); i++)
+  {
+    // if this is a new setting,
+    // create a new empty setting to fill in.
+    if ((int)CDisplaySettings::GetInstance().ResolutionInfoSize() <= res_index)
+    {
+      RESOLUTION_INFO res;
+      CDisplaySettings::GetInstance().AddResolutionInfo(res);
+    }
+
+    CServiceBroker::GetWinSystem()->GetGfxContext().ResetOverscan(resolutions[i]);
+    CDisplaySettings::GetInstance().GetResolutionInfo(res_index) = resolutions[i];
+
+    CLog::Log(LOGINFO, "Found resolution {:d} x {:d} with {:d} x {:d}{} @ {:f} Hz",
+      resolutions[i].iWidth,
+      resolutions[i].iHeight,
+      resolutions[i].iScreenWidth,
+      resolutions[i].iScreenHeight,
+      resolutions[i].dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "",
+      resolutions[i].fRefreshRate);
+
+    if(resDesktop.iWidth == resolutions[i].iWidth &&
+       resDesktop.iHeight == resolutions[i].iHeight &&
+       resDesktop.iScreenWidth == resolutions[i].iScreenWidth &&
+       resDesktop.iScreenHeight == resolutions[i].iScreenHeight &&
+       (resDesktop.dwFlags & D3DPRESENTFLAG_MODEMASK) == (resolutions[i].dwFlags & D3DPRESENTFLAG_MODEMASK) &&
+       fabs(resDesktop.fRefreshRate - resolutions[i].fRefreshRate) < FLT_EPSILON)
+    {
+      ResDesktop = res_index;
+    }
+
+    res_index = (RESOLUTION)((int)res_index + 1);
+  }
+
+  // set RES_DESKTOP
+  if (ResDesktop != RES_INVALID)
+  {
+    CLog::Log(LOGINFO, "Found ({:d}x{:d}{}@{:f}) at {:d}, setting to RES_DESKTOP at {:d}",
+      resDesktop.iWidth, resDesktop.iHeight,
+      resDesktop.dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "",
+      resDesktop.fRefreshRate,
+      (int)ResDesktop, (int)RES_DESKTOP);
+
+    CDisplaySettings::GetInstance().GetResolutionInfo(RES_DESKTOP) = CDisplaySettings::GetInstance().GetResolutionInfo(ResDesktop);
+  }
 }
 
 bool CWinSystemAmlogic::IsHDRDisplay()
@@ -452,19 +295,21 @@ bool CWinSystemAmlogic::IsHDRDisplay()
   if (dv_cap.Exists())
   {
     valstr = dv_cap.Get<std::string>().value();
-    if (valstr.find("2160p30hz: 1") != std::string::npos)
+    if (valstr.find("DolbyVision RX support list") != std::string::npos)
       m_hdr_caps.SetDolbyVision();
-    else if (valstr.find("2160p60hz: 1") != std::string::npos)
-      m_hdr_caps.SetDolbyVision4k60();
   }
 
-  return (m_hdr_caps.SupportsHDR10() | m_hdr_caps.SupportsHDR10Plus() | m_hdr_caps.SupportsHLG() |
-         (m_hdr_caps.SupportsDolbyVision() != DolbyVisionFormat::DOLBYVISION_TYPE_NONE));
+  return (m_hdr_caps.SupportsHDR10() | m_hdr_caps.SupportsHDR10Plus() | m_hdr_caps.SupportsHLG());
 }
 
 CHDRCapabilities CWinSystemAmlogic::GetDisplayHDRCapabilities() const
 {
   return m_hdr_caps;
+}
+
+float CWinSystemAmlogic::GetDisplayLatency()
+{
+  return 0.0f;
 }
 
 float CWinSystemAmlogic::GetGuiSdrPeakLuminance() const
@@ -473,11 +318,6 @@ float CWinSystemAmlogic::GetGuiSdrPeakLuminance() const
   const int guiSdrPeak = settings->GetInt(CSettings::SETTING_VIDEOSCREEN_GUISDRPEAKLUMINANCE);
 
   return ((0.7f * guiSdrPeak + 30.0f) / 100.0f);
-}
-
-HDR_STATUS CWinSystemAmlogic::GetOSHDRStatus()
-{
-  return (IsHDRDisplay() ? HDR_STATUS::HDR_ON : HDR_STATUS::HDR_UNSUPPORTED);
 }
 
 bool CWinSystemAmlogic::Hide()
@@ -493,14 +333,16 @@ bool CWinSystemAmlogic::Show(bool show)
 
 void CWinSystemAmlogic::Register(IDispResource *resource)
 {
-  std::unique_lock<CCriticalSection> lock(m_resourceSection);
+  std::lock_guard lock(m_resourceSection);
+
   m_resources.push_back(resource);
 }
 
 void CWinSystemAmlogic::Unregister(IDispResource *resource)
 {
-  std::unique_lock<CCriticalSection> lock(m_resourceSection);
-  std::vector<IDispResource*>::iterator i = find(m_resources.begin(), m_resources.end(), resource);
+  std::lock_guard lock(m_resourceSection);
+
+  auto i = find(m_resources.begin(), m_resources.end(), resource);
   if (i != m_resources.end())
     m_resources.erase(i);
 }
