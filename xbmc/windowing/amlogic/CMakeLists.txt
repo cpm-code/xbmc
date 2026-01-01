@@ -1,12 +1,12 @@
 set(SOURCES WinSystemAmlogic.cpp
             VideoSyncAML.cpp
-            AMLDisplay.cpp)
+            DolbyVisionAML.cpp)
 
 set(HEADERS WinSystemAmlogic.h
             VideoSyncAML.h
-            AMLDisplay.h)
+            DolbyVisionAML.h)
 
-if(TARGET ${APP_NAME_LC}::OpenGLES)
+if(ENABLE_OPENGLES)
   list(APPEND SOURCES WinSystemAmlogicGLESContext.cpp)
   list(APPEND HEADERS WinSystemAmlogicGLESContext.h)
 endif()
