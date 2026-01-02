@@ -55,6 +55,13 @@ public:
   }
 
   template<typename T>
+  T GetOrDefault(T defaultValue = T{})
+  {
+    auto value = Get<T>();
+    return value ? *value : std::move(defaultValue);
+  }
+
+  template<typename T>
   void Set(T value)
   {
     std::ofstream file(m_path);
