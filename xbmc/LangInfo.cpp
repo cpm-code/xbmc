@@ -652,19 +652,38 @@ void CLangInfo::SetDefaults()
 
 std::string CLangInfo::GetGuiCharSet() const
 {
-  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  const auto setting = settings->GetSetting(CSettings::SETTING_LOCALE_CHARSET);
-  const auto charsetSetting = std::static_pointer_cast<CSettingString>(setting);
+  const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+  if (!settingsComponent)
+    return m_strGuiCharSet;
+
+  const auto settings = settingsComponent->GetSettings();
+  if (!settings)
+    return m_strGuiCharSet;
+
+  const auto charsetSetting =
+      std::dynamic_pointer_cast<CSettingString>(settings->GetSetting(CSettings::SETTING_LOCALE_CHARSET));
+  if (!charsetSetting || charsetSetting->IsDefault())
+    return m_strGuiCharSet;
 
   return charsetSetting->IsDefault() ? m_strGuiCharSet : charsetSetting->GetValue();
 }
 
 std::string CLangInfo::GetSubtitleCharSet() const
 {
-  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  const auto setting = settings->GetSetting(CSettings::SETTING_SUBTITLES_CHARSET);
-  const auto charsetSetting = std::static_pointer_cast<CSettingString>(setting);
-  return charsetSetting->IsDefault() ? m_strSubtitleCharSet : charsetSetting->GetValue();
+  const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+  if (!settingsComponent)
+    return m_strSubtitleCharSet;
+
+  const auto settings = settingsComponent->GetSettings();
+  if (!settings)
+    return m_strSubtitleCharSet;
+
+  const auto charsetSetting =
+      std::dynamic_pointer_cast<CSettingString>(settings->GetSetting(CSettings::SETTING_SUBTITLES_CHARSET));
+  if (!charsetSetting || charsetSetting->IsDefault())
+    return m_strSubtitleCharSet;
+
+  return charsetSetting->GetValue();
 }
 
 void CLangInfo::GetAddonsLanguageCodes(std::map<std::string, std::string>& languages)
@@ -691,7 +710,13 @@ LanguageResourcePtr CLangInfo::GetLanguageAddon(const std::string& locale /* = "
 
   std::string addonId = ADDON::CLanguageResource::GetAddonId(locale);
   if (addonId.empty())
-    addonId = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(CSettings::SETTING_LOCALE_LANGUAGE);
+  {
+    const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+    const auto settings = settingsComponent ? settingsComponent->GetSettings() : nullptr;
+    if (!settings)
+      return nullptr;
+    addonId = settings->GetString(CSettings::SETTING_LOCALE_LANGUAGE);
+  }
 
   ADDON::AddonPtr addon;
   if (CServiceBroker::GetAddonMgr().GetAddon(addonId, addon, ADDON::AddonType::RESOURCE_LANGUAGE,
