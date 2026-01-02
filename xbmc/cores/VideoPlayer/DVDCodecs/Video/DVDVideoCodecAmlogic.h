@@ -22,10 +22,11 @@ struct mpeg2_sequence;
 struct h264_sequence;
 class CBitstreamParser;
 class CBitstreamConverter;
+class CDataCacheCore;
 
 class CDVDVideoCodecAmlogic;
 
-typedef std::tuple<uint8_t*, uint32_t, bool> DLDemuxPacket;
+typedef std::tuple<uint8_t*, uint32_t, bool, double> DLDemuxPacket;
 
 class CAMLVideoBuffer : public CVideoBuffer
 {
@@ -81,31 +82,43 @@ public:
   virtual bool SupportsExtention() { return true; }
 
 protected:
-  void            Close(void);
-  void            FrameRateTracking(uint8_t *pData, int iSize, double dts, double pts);
-  //void            RemoveInfo(CDVDAmlogicInfo* info);
+  void Close(void);
+  void FrameRateTracking(uint8_t *pData, int iSize, double dts, double pts);
+
+  CDataCacheCore& m_dataCacheCore;
 
   std::shared_ptr<CAMLCodec> m_Codec;
 
   const char     *m_pFormatName;
-  VideoPicture m_videobuffer;
+  VideoPicture    m_videobuffer;
   bool            m_opened;
   int             m_codecControlFlags;
   CDVDStreamInfo  m_hints;
   double          m_framerate;
   int             m_video_rate;
   float           m_aspect_ratio;
-  mpeg2_sequence *m_mpeg2_sequence;
   double          m_mpeg2_sequence_pts;
-  h264_sequence  *m_h264_sequence;
   double          m_h264_sequence_pts;
   bool            m_has_keyframe;
 
-  CBitstreamParser *m_bitparser;
-  CBitstreamConverter *m_bitstream;
+  mpeg2_sequence* m_mpeg2_sequence = nullptr;
+  h264_sequence* m_h264_sequence = nullptr;
+
+  CBitstreamParser* m_bitparser = nullptr;
+  CBitstreamConverter* m_bitstream = nullptr;
+
 private:
+  bool DualLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet);
+  bool SingleLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet) const;
+  void ClearBitstreamCommon(void);
+
   std::shared_ptr<CAMLVideoBufferPool> m_videoBufferPool;
   static std::atomic<bool> m_InstanceGuard;
 
   std::list<DLDemuxPacket> m_packages;
+
+  bool      m_last_added = true;
+  uint8_t  *m_last_pData = nullptr;
+  uint32_t  m_last_iSize = 0;
+
 };
