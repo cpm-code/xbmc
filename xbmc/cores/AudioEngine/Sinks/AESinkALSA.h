@@ -27,7 +27,6 @@ enum IEC958_mode_codec {
 // sound/soc/amlogic/auge/card.h
 enum spdif_id {
   HDMITX_SRC_SPDIF, HDMITX_SRC_SPDIF_B,
-  HDMITX_SRC_TDM_A, HDMITX_SRC_TDM_B, HDMITX_SRC_TDM_C,
   HDMITX_SRC_NUM
 };
 
@@ -52,6 +51,7 @@ public:
   double GetCacheTotal() override;
   unsigned int AddPackets(uint8_t **data, unsigned int frames, unsigned int offset) override;
   void Drain() override;
+  void Flush() override;
 
 private:
   CAEChannelInfo GetChannelLayoutRaw(const AEAudioFormat& format);
@@ -64,6 +64,7 @@ private:
   static snd_pcm_chmap_t* AEChannelMapToALSAchmap(const CAEChannelInfo& info);
   static snd_pcm_chmap_t* CopyALSAchmap(snd_pcm_chmap_t* alsaMap);
   static std::string ALSAchmapToString(snd_pcm_chmap_t* alsaMap);
+  static unsigned int ALSAchmapActiveCount(const snd_pcm_chmap_t& chmap);
   static CAEChannelInfo GetAlternateLayoutForm(const CAEChannelInfo& info);
   snd_pcm_chmap_t* SelectALSAChannelMap(const CAEChannelInfo& info);
 
@@ -72,15 +73,18 @@ private:
   void GetAESParams(const AEAudioFormat& format, std::string& params);
   void HandleError(const char* name, int err);
 
-  std::string m_initDevice;
-  AEAudioFormat m_initFormat;
   AEAudioFormat m_format;
   unsigned int m_bufferSize = 0;
   double m_formatSampleRateMul = 0.0;
   bool m_passthrough = false;
+  bool m_isAmlDevice = false;
   std::string m_device;
   snd_pcm_t *m_pcm;
   int m_timeout = 0;
+
+  // cached SW parameters (used in ApplySwParams())
+  unsigned int m_swSampleRate = 0;
+  snd_pcm_uframes_t m_swAvailMin = 0;
   // support fragmentation, e.g. looping in the sink to get a certain amount of data onto the device
   bool m_fragmented = false;
   unsigned int m_originalPeriodSize = AE_MIN_PERIODSIZE;
@@ -98,16 +102,16 @@ private:
 
   bool InitializeHW(const ALSAConfig &inconfig, ALSAConfig &outconfig);
   bool InitializeSW(const ALSAConfig &inconfig);
+  bool ApplySwParams();
 
-  static void AppendParams(std::string &device, const std::string &params);
+  static void AppendParams(std::string &device, std::string_view params);
   static bool TryDevice(const std::string &name, snd_pcm_t **pcmp, snd_config_t *lconf);
   static bool TryDeviceWithParams(const std::string &name, const std::string &params, snd_pcm_t **pcmp, snd_config_t *lconf);
   static bool OpenPCMDevice(const std::string &name, const std::string &params, int channels, snd_pcm_t **pcmp, snd_config_t *lconf);
 
-  static AEDeviceType AEDeviceTypeFromName(const std::string &name);
+  static AEDeviceType AEDeviceTypeFromName(std::string_view name);
   static std::string GetParamFromName(const std::string &name, const std::string &param);
   static void EnumerateDevice(AEDeviceInfoList &list, const std::string &device, const std::string &description, snd_config_t *config);
-  static bool SoundDeviceExists(const std::string& device);
   static bool GetELD(snd_hctl_t *hctl, int device, CAEDeviceInfo& info, bool& badHDMI);
 
   static void sndLibErrorHandler(const char *file, int line, const char *function, int err, const char *fmt, ...);
