@@ -945,12 +945,15 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
     m_messageParent.Put(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_AVCHANGE));
   }
 
-  double config_framerate = m_bFpsInvalid ? 0.0 : m_fFrameRate;
+  double config_framerate = m_bFpsInvalid
+    ? static_cast<double>(CServiceBroker::GetWinSystem()->GetGfxContext().GetFPS())
+    : m_fFrameRate;
+
   if (m_processInfo.GetVideoInterlaced())
   {
-    if (MathUtils::FloatEquals(config_framerate, 25.0, 0.02))
+    if (MathUtils::FloatEquals(static_cast<float>(config_framerate), 25.0f, 0.02f))
       config_framerate = 50.0;
-    else if (MathUtils::FloatEquals(config_framerate, 29.97, 0.02))
+    else if (MathUtils::FloatEquals(static_cast<float>(config_framerate), 29.97f, 0.02f))
       config_framerate = 59.94;
   }
 
