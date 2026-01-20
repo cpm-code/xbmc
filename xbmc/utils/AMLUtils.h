@@ -109,7 +109,6 @@ AML_SUPPORT_H264_4K2K aml_support_h264_4k2k();
 bool aml_support_vp9();
 bool aml_support_av1();
 bool aml_support_dolby_vision();
-bool aml_dolby_vision_enabled();
 std::string aml_dv_output_mode_to_string(unsigned int mode);
 std::string aml_dv_mode_to_string(enum DV_MODE mode);
 std::string aml_dv_type_to_string(enum DV_TYPE type);
