@@ -439,17 +439,6 @@ bool aml_support_dolby_vision()
   return (support_dv == 1);
 }
 
-bool aml_dolby_vision_enabled()
-{
-  static int dv_enabled = -1;
-  bool dv_user_enabled(aml_dv_mode() != DV_MODE::OFF);
-
-  if (dv_enabled == -1)
-    dv_enabled = (!!aml_support_dolby_vision());
-
-  return ((dv_enabled && !!dv_user_enabled) == 1);
-}
-
 std::string aml_dv_output_mode_to_string(unsigned int mode)
 {
   std::string mode_string = "Unkown";
