@@ -1585,14 +1585,11 @@ int CApplication::Run()
   // pin the main thread (Process/FrameMove/Render) to core
   const int appCore = static_cast<int>(CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_threadApplicationCore);
   aml_pin_thread_to_core(appCore);
+
+  // Exclude other threads from this core
   CThread::SetGlobalExcludedCpu(appCore);
 
-  // Best-effort: modest boost to reduce wakeup latency for video presentation.
-  // Avoid real-time scheduling here; it can be too aggressive on some systems.
-  aml_try_set_thread_nice(-8);
-
-  // Tighten timer behavior on the main render thread: reduce timer slack (timer coalescing)
-  // so absolute sleeps wake closer to their target time.
+  // Tighten timer behavior so absolute sleeps wake closer to their target time.
   aml_set_timer_slack_ns(1L);
 
   // max time for other tasks on main thread
