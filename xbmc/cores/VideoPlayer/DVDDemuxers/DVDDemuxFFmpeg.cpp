@@ -1770,19 +1770,19 @@ CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
         // https://github.com/FFmpeg/FFmpeg/blob/release/7.0/doc/APIchanges
         const AVPacketSideData* sideData = nullptr;
 
-        if (streamIdx > 0 && st->hdr_type == StreamHdrType::HDR_TYPE_DOLBYVISION)
-          m_dv_dual_stream = true;
-
         if (st->hdr_type == StreamHdrType::HDR_TYPE_DOLBYVISION)
         {
+          if (streamIdx > 0) m_dv_dual_stream = true;
+
           sideData =
               av_packet_side_data_get(pStream->codecpar->coded_side_data,
                                       pStream->codecpar->nb_coded_side_data, AV_PKT_DATA_DOVI_CONF);
 
           if (!m_dv_dual_stream && sideData && sideData->size)
+          {
             st->dovi = *reinterpret_cast<const AVDOVIDecoderConfigurationRecord*>(sideData->data);
-          // force dovi configuration for DV dual stream
-          else if (aml_dolby_vision_enabled())
+          }
+          else // force dovi configuration for DV dual stream
           {
             // force dovi side data to bl stream
             CDemuxStream* bl_stream = GetStream(0);
@@ -2112,15 +2112,6 @@ CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
 #ifdef HAVE_LIBBLURAY
     if (m_pInput->IsStreamType(DVDSTREAM_TYPE_BLURAY))
     {
-      // UHD BD have a secondary video stream called by Dolby as enhancement layer.
-      // This is not used by streaming services and devices (ATV, Nvidia Shield, XONE).
-      if (pStream->id == 0x1015 && !aml_dolby_vision_enabled())
-      {
-        CLog::Log(LOGDEBUG, "CDVDDemuxFFmpeg::AddStream - discarding Dolby Vision stream");
-        pStream->discard = AVDISCARD_ALL;
-        delete stream;
-        return nullptr;
-      }
       stream->dvdNavId = pStream->id;
 
       auto it = std::find_if(m_streams.begin(), m_streams.end(),
@@ -2769,11 +2760,10 @@ void CDVDDemuxFFmpeg::GetL16Parameters(int &channels, int &samplerate)
 StreamHdrType CDVDDemuxFFmpeg::DetermineHdrType(AVStream* pStream)
 {
   StreamHdrType hdrType = StreamHdrType::HDR_TYPE_NONE;
-  bool convert_dual_stream((pStream->id == 0x1015) && aml_dolby_vision_enabled());
 
   if (av_packet_side_data_get(pStream->codecpar->coded_side_data,
                               pStream->codecpar->nb_coded_side_data,
-                              AV_PKT_DATA_DOVI_CONF) || convert_dual_stream) // DoVi
+                              AV_PKT_DATA_DOVI_CONF) || (pStream->id == 0x1015)) // DoVi
     hdrType = StreamHdrType::HDR_TYPE_DOLBYVISION;
   else if (pStream->codecpar->color_trc == AVCOL_TRC_SMPTE2084) // HDR10
     hdrType = StreamHdrType::HDR_TYPE_HDR10;
