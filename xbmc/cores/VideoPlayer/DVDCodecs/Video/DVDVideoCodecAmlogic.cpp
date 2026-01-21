@@ -531,7 +531,7 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
       }
       else
       {
-        if (packet.isDualStream && aml_dolby_vision_enabled())
+        if (packet.isDualStream)
         {
           if (!DualLayerConvert(pData, iSize, packet))
             return true;
