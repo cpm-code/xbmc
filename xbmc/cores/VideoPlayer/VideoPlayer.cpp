@@ -3899,6 +3899,7 @@ bool CVideoPlayer::OpenStream(CCurrentStream& current, int64_t demuxerId, int iS
       res = OpenVideoStream(hint, reset);
       break;
     case StreamType::SUBTITLE:
+      hint.hdrType = m_CurrentVideo.hint.hdrType; // Set by Video Stream which is opened first
       res = OpenSubtitleStream(hint);
       break;
     case StreamType::TELETEXT:
