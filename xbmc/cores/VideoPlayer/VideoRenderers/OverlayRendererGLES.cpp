@@ -166,8 +166,9 @@ COverlayTextureGLES::COverlayTextureGLES(const CDVDOverlayImage& o, CRect& rSour
   }
 
   // If the overlay is already authored as HDR PQ code values (e.g. UHD-BD PGS HDR subtitles),
-  // bypass the GUI shader's transferPQ stage to avoid a second SDR->PQ conversion.
-  m_bypassTransferPQ = o.m_isHdrPq;
+  // we can bypass the GUI shader's SDR->PQ transfer stage during composition.
+  // The final bypass decision is made at render time based on current output state.
+  m_isHdrPqAuthored = o.m_isHdrPq;
 
   glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -449,8 +450,10 @@ void COverlayTextureGLES::Render(SRenderState& state)
 
   CRenderSystemGLES* renderSystem =
       dynamic_cast<CRenderSystemGLES*>(CServiceBroker::GetRenderSystem());
-  renderSystem->EnableGUIShader(m_bypassTransferPQ ? ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ
-                                                   : ShaderMethodGLES::SM_TEXTURE_NOBLEND);
+  const bool bypassTransferPQ = m_isHdrPqAuthored &&
+                                CServiceBroker::GetWinSystem()->GetGfxContext().IsTransferPQ();
+  renderSystem->EnableGUIShader(bypassTransferPQ ? ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ
+                                                 : ShaderMethodGLES::SM_TEXTURE_NOBLEND);
   GLint posLoc = renderSystem->GUIShaderGetPos();
   GLint tex0Loc = renderSystem->GUIShaderGetCoord0();
   GLint depthLoc = renderSystem->GUIShaderGetDepth();
