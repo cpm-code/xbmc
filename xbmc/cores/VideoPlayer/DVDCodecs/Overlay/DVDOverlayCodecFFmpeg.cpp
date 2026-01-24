@@ -117,10 +117,17 @@ bool CDVDOverlayCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &optio
   AVDictionary* codecOpts = nullptr;
   if (m_pCodecContext->codec_id == AV_CODEC_ID_HDMV_PGS_SUBTITLE)
   {
-    // BT2020 ?
-    const bool outputPQ = CServiceBroker::GetWinSystem()->GetGfxContext().IsTransferPQ();
+    // UHD-BD HDR PGS is BT.2020 PQ, SDR PGS is SDR BT.709 or SDR BT.2020.
+    StreamHdrType videoHdrType = hints.hdrType;
 
-    const char* matrix = outputPQ ? "bt2020" : "auto";
+    // Note: HDR10+ is not identified currently upstream - will though be caught as HDR10.
+    m_pgsIsPqAuthored = (videoHdrType == StreamHdrType::HDR_TYPE_HDR10 ||
+                         videoHdrType == StreamHdrType::HDR_TYPE_HDR10PLUS ||
+                         videoHdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
+
+    // TODO: identify SDR BT.2020 and do the right thing for the PGS matrix, currently will treat as BT.709.
+    const char* matrix = m_pgsIsPqAuthored ? "bt2020" : "auto";
+
     av_dict_set(&codecOpts, "pgs_matrix", matrix, 0);
   }
 
@@ -315,7 +322,10 @@ std::shared_ptr<CDVDOverlay> CDVDOverlayCodecFFmpeg::GetOverlay()
     {
       // UHD-BD PGS subtitles for HDR content are authored as BT.2020 + ST2084 code values
       // Treat them as already PQ-coded to avoid applying GUI PQ conversion a second time during composition.
-      overlay->m_isHdrPq = CServiceBroker::GetWinSystem()->GetGfxContext().IsTransferPQ();;
+      // Don't key this off IsTransferPQ()/HDRType here: at playback start the renderer may not have
+      // established PQ output yet, leading to the first subtitle(s) using the wrong composition path.
+      // We mark the overlay as a PQ-bypass candidate and decide at render time based on output state.
+      overlay->m_isHdrPq = m_pgsIsPqAuthored;
     }
 
     m_SubtitleIndex++;
