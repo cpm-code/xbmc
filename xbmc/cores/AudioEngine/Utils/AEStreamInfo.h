@@ -40,12 +40,14 @@ public:
     STREAM_TYPE_DTSHD_MA
   };
   DataType m_type = STREAM_TYPE_NULL;
-  unsigned int m_sampleRate;
-  unsigned int m_channels;
+  unsigned int m_sampleRate = 0;
+  unsigned int m_bitDepth = 0;
+  unsigned int m_channels = 0;
   bool m_dataIsLE = true;
   unsigned int m_dtsPeriod = 0;
   unsigned int m_repeat = 0;
   unsigned int m_frameSize = 0;
+  unsigned int m_dtsSamplesPerFrame = 0;
 };
 
 class CAEStreamParser
@@ -55,7 +57,7 @@ public:
   CAEStreamParser();
   ~CAEStreamParser() = default;
 
-  int AddData(uint8_t *data, unsigned int size, uint8_t **buffer = NULL, unsigned int *bufferSize = 0);
+  int AddData(uint8_t *data, unsigned int size, uint8_t **buffer = nullptr, unsigned int *bufferSize = nullptr);
 
   void SetCoreOnly(bool value) { m_coreOnly = value; }
   unsigned int IsValid() const { return m_hasSync; }
@@ -99,4 +101,3 @@ private:
 
   static unsigned int GetTrueHDChannels(const uint16_t chanmap);
 };
-
