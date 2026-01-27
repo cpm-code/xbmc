@@ -735,6 +735,15 @@ void aml_dv_enable_fel()
   CSysfsPath("/sys/class/amdolby_vision/debug", "enable_fel 1");
 }
 
+void aml_set_osd_pq_bypass(StreamHdrType hdrType)
+{
+  const bool enable = ((hdrType == StreamHdrType::HDR_TYPE_HDR10) ||
+                       (hdrType == StreamHdrType::HDR_TYPE_HDR10PLUS));
+
+  CSysfsPath("/sys/module/am_vecm/parameters/osd_pq_bypass", enable);
+  logM(LOGINFO, "AMLUtils", "am_vecm osd_pq_bypass [{}]", enable ? "enabled" : "disabled");
+}
+
 void aml_set_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth) {
 
   // Configure GUI/OSD for HDR PQ when display is in HDR PQ mode
