@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -115,6 +116,13 @@ public:
   int GetAudioSampleRate();
   void SetAudioBitsPerSample(int bitsPerSample);
   int GetAudioBitsPerSample();
+
+  // Speaker layout bitmasks (per-speaker booleans for skins)
+  static uint64_t MakeSpeakerMask(const class CAEChannelInfo& channels);
+  void SetAudioSpeakerMask(uint64_t mask);
+  uint64_t GetAudioSpeakerMask();
+  void SetAudioSpeakerMaskSink(uint64_t mask);
+  uint64_t GetAudioSpeakerMaskSink();
 
   // Additional Player Process Info data (Only set in Data Core Cache)
   void SetAudioLiveBitRate(double bitRate);
@@ -301,6 +309,8 @@ protected:
     std::string channels_sink;
     int sampleRate;
     int bitsPerSample;
+    uint64_t speakerMask = 0;
+    uint64_t speakerMaskSink = 0;
     double liveBitRate = 0;
     int queueLevel = 0;
     int queueDataLevel = 0;
