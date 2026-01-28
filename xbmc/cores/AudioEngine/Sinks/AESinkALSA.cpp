@@ -313,7 +313,9 @@ inline CAEChannelInfo CAESinkALSA::GetChannelLayout(const AEAudioFormat& format,
   CLog::Log(LOGDEBUG, "CAESinkALSA::GetChannelLayout - Got Layout: {} (ALSA: {})",
             std::string(info), alsaMapStr);
 
-  CServiceBroker::GetDataCacheCore().SetAudioChannelsSink(format.m_channelLayout);
+  // Expose the actual ALSA channel map chosen for this sink.
+  CServiceBroker::GetDataCacheCore().SetAudioChannelsSink(info);
+  CServiceBroker::GetDataCacheCore().SetAudioSpeakerMaskSink(CDataCacheCore::MakeSpeakerMask(info));
 
   return info;
 }
