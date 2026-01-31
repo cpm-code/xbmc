@@ -1170,7 +1170,7 @@ bool CAESinkALSA::ApplySwParams()
     }
     else
     {
-      startThreshold = (periodSize > 0) ? std::min(bufferSize, periodSize * 2) : bufferSize;
+      startThreshold = (periodSize > 0) ? std::min(bufferSize, periodSize * 4) : bufferSize;
     }
 
     snd_pcm_sw_params_set_start_threshold(m_pcm, sw_params, startThreshold);
@@ -1262,26 +1262,38 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
     int ret = snd_pcm_writei(m_pcm, buffer, amount);
     if (ret < 0)
     {
-      CLog::Log(LOGERROR, "CAESinkALSA - snd_pcm_writei({}) {} - trying to recover", ret,
-                snd_strerror(ret));
-      ret = snd_pcm_recover(m_pcm, ret, 1);
-      if(ret < 0)
+      const int writeErr = ret;
+      CLog::Log(LOGERROR, "CAESinkALSA - snd_pcm_writei({}) {} - trying to recover", writeErr,
+                snd_strerror(writeErr));
+
+      const int recoverErr = snd_pcm_recover(m_pcm, writeErr, 1);
+      if (recoverErr == 0)
       {
-        HandleError("snd_pcm_writei(1)", ret);
+        // Recovered successfully; retry the write.
+        ret = snd_pcm_writei(m_pcm, buffer, amount);
+      }
+      else
+      {
+        // Some drivers return errors that snd_pcm_recover can't resolve; fall back
+        // to our explicit error handler then retry.
+        HandleError("snd_pcm_writei(recover)", writeErr);
         if (m_passthrough)
           snd_pcm_wait(m_pcm, std::min(m_timeout, 20));
         ret = snd_pcm_writei(m_pcm, buffer, amount);
-        if (ret < 0)
+      }
+
+      if (ret < 0)
+      {
+        HandleError("snd_pcm_writei(retry)", ret);
+        if (m_passthrough)
         {
-          HandleError("snd_pcm_writei(2)", ret);
-          if (m_passthrough)
-          {
-            // One extra retry for IEC61937 bursts after prepare/resume.
-            snd_pcm_wait(m_pcm, std::min(m_timeout, 20));
-            ret = snd_pcm_writei(m_pcm, buffer, amount);
-          }
-          ret = 0;
+          // One extra retry for IEC61937 bursts after prepare/resume.
+          snd_pcm_wait(m_pcm, std::min(m_timeout, 20));
+          ret = snd_pcm_writei(m_pcm, buffer, amount);
         }
+
+        if (ret < 0)
+          ret = 0;
       }
     }
 
