@@ -2015,10 +2015,17 @@ bool CActiveAE::RunStages()
     }
   }
 
-  // TrueHD is very jumpy, meaning the frames don't come in equidistantly. They are only smoothed
-  // at the end when the IEC packing happens. Therefore adjust earlier.
-  const bool isTrueHDPassthrough =
+  // TrueHD can be very "jumpy" (frames don't come in equidistantly) and is only smoothed at the
+  // end when IEC packing happens. On AML, DTS-HD MA can show similar pacing sensitivity.
+#if defined(HAS_LIBAMCODEC)
+  const bool isJumpyPassthrough =
+      (m_mode == MODE_RAW &&
+       (m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD ||
+        m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA));
+#else
+  const bool isJumpyPassthrough =
       (m_mode == MODE_RAW && m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD);
+#endif
 
   if (m_settings.lowLatencyMode)
   {
@@ -2032,7 +2039,7 @@ bool CActiveAE::RunStages()
   // The buffer level "GetWaterLevel()" always tries to follow m_targetBufferLevel because when it
   // is lower, audio samples are added, and when it is higher, audio samples stop being added
   // and the level goes down.
-  if ((m_stats.GetWaterLevel() < m_targetBufferLevel || isTrueHDPassthrough) &&
+  if ((m_stats.GetWaterLevel() < m_targetBufferLevel || isJumpyPassthrough) &&
       (m_mode != MODE_TRANSCODE || (m_encoderBuffers && !m_encoderBuffers->m_freeSamples.empty())))
   {
     // calculate sync error
@@ -2059,9 +2066,9 @@ bool CActiveAE::RunStages()
         double maxError = ((*it)->m_syncState == CAESyncInfo::SYNC_INSYNC) ? 1000 : 5000;
         double error = playingPts - (*it)->m_pClock->GetClock();
 
-        // underestimate error for TrueHD passthrough
-        // oscillations should be less than frametime 40ms to avoid unnecessary a/v sync corrections
-        if (isTrueHDPassthrough)
+        // Underestimate error for jumpy passthrough formats to avoid unnecessary a/v sync
+        // corrections due to burst timing jitter.
+        if (isJumpyPassthrough)
           error *= 0.45;
 
         if (error > maxError)
