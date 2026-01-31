@@ -746,7 +746,10 @@ bool CVideoPlayerAudio::ProcessDecoderOutput(DVDAudioFrame &audioframe)
         m_processInfo.GetAudioChannelsSink());
       m_processInfo.SetAudioChannels(audioframe.format.m_channelLayout);
       m_processInfo.SetAudioSampleRate(audioframe.format.m_sampleRate);
-      m_processInfo.SetAudioBitsPerSample(audioframe.bits_per_sample);
+      int bitsPerSample = audioframe.bits_per_sample;
+      if (audioframe.passthrough && audioframe.format.m_streamInfo.m_bitDepth > 0)
+        bitsPerSample = audioframe.format.m_streamInfo.m_bitDepth;
+      m_processInfo.SetAudioBitsPerSample(bitsPerSample);
       m_processInfo.SetAudioDecoderName(m_pAudioCodec->GetName());
       m_messageParent.Put(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_AVCHANGE));
     }
