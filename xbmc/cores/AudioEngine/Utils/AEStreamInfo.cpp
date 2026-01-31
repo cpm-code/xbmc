@@ -413,6 +413,7 @@ bool CAEStreamParser::TrySyncAC3(uint8_t* data,
     m_info.m_type = CAEStreamInfo::STREAM_TYPE_AC3;
     m_info.m_frameSize += m_fsize;
     m_info.m_repeat = 1;
+    m_info.m_bitDepth = 16;
 
     CLog::Log(LOGINFO, "CAEStreamParser::TrySyncAC3 - AC3 stream detected ({} channels, {}Hz)",
               m_info.m_channels, m_info.m_sampleRate);
