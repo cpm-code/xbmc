@@ -1158,20 +1158,13 @@ bool CAESinkALSA::ApplySwParams()
 
     // Waiting for an (almost) full buffer adds a large startup mute (on AML we can have ~1s buffers).
     // Prefill a small amount to keep IEC61937 stable without audible start delay.
-    // TrueHD in particular can arrive in sparse bursts after pause/resume; keep its threshold tiny.
+    // Use a low start threshold (~20ms) for all passthrough formats for consistent fast startup.
     snd_pcm_uframes_t startThreshold = bufferSize;
-    if (m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD)
-    {
-      const snd_pcm_uframes_t maxPrefill =
-          std::max<snd_pcm_uframes_t>(1, static_cast<snd_pcm_uframes_t>(m_swSampleRate / 50)); // ~20ms
-      const snd_pcm_uframes_t prefill =
-          (periodSize > 0) ? std::min(periodSize, maxPrefill) : maxPrefill;
-      startThreshold = std::min(bufferSize, prefill);
-    }
-    else
-    {
-      startThreshold = (periodSize > 0) ? std::min(bufferSize, periodSize * 4) : bufferSize;
-    }
+    const snd_pcm_uframes_t maxPrefill =
+        std::max<snd_pcm_uframes_t>(1, static_cast<snd_pcm_uframes_t>(m_swSampleRate / 50)); // ~20ms
+    const snd_pcm_uframes_t prefill =
+        (periodSize > 0) ? std::min(periodSize, maxPrefill) : maxPrefill;
+    startThreshold = std::min(bufferSize, prefill);
 
     snd_pcm_sw_params_set_start_threshold(m_pcm, sw_params, startThreshold);
   }
