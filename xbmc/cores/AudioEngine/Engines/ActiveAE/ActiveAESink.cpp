@@ -928,6 +928,8 @@ void CActiveAESink::OpenSink()
 {
   bool passthrough = (m_requestedFormat.m_dataFormat == AE_FMT_RAW);
 
+  m_hasIecBurst = false;
+
   AESinkDevice dev = CAESinkFactory::ParseDevice(m_device);
 
   if (dev.driver.empty() && m_sink)
@@ -1051,6 +1053,7 @@ unsigned int CActiveAESink::OutputSamples(CSampleBuffer* samples)
   uint8_t *packBuffer;
   unsigned int frames = samples->pkt->nb_samples;
   unsigned int totalFrames = frames;
+  const bool isPassthroughAudioPacket = (m_requestedFormat.m_dataFormat == AE_FMT_RAW) && (frames > 0);
   unsigned int maxFrames;
   int retry = 0;
   unsigned int written = 0;
@@ -1069,7 +1072,11 @@ unsigned int CActiveAESink::OutputSamples(CSampleBuffer* samples)
       else if (samples->pkt->pause_burst_ms > 0)
       {
         // construct a pause burst if we have already output valid audio
-        bool burst = m_extStreaming && (m_packer->GetBuffer()[0] != 0);
+#if defined(HAS_LIBAMCODEC)
+        bool burst = m_extStreaming;
+#else
+        bool burst = m_extStreaming && m_hasIecBurst;
+#endif
         if (!m_packer->PackPause(m_sinkFormat.m_streamInfo, samples->pkt->pause_burst_ms, burst))
           skipSwap = true;
       }
@@ -1117,6 +1124,10 @@ unsigned int CActiveAESink::OutputSamples(CSampleBuffer* samples)
   {
     maxFrames = std::min(frames, m_sinkFormat.m_frames);
     written = m_sink->AddPackets(buffer, maxFrames, totalFrames - frames);
+
+    if (written > 0 && isPassthroughAudioPacket)
+      m_hasIecBurst = true;
+
     if (written == 0)
     {
       CThread::Sleep(
