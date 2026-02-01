@@ -150,6 +150,7 @@ protected:
   void PresentBlend(bool clear, DWORD flags, DWORD alpha);
 
   void SetPresentSource();
+  void DiscardBufferLocked();
   bool Paused(bool paused, double clock);
   void PrepareNextRender();
   bool IsPresenting();
