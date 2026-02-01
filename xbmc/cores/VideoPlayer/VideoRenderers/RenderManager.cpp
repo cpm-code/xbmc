@@ -133,7 +133,7 @@ bool CRenderManager::Configure(const VideoPicture& picture, float fps, unsigned 
         m_forceNext = false;
         return false;
       }
-      m_presentevent.wait(lock, endtime.GetTimeLeft());
+      WaitPresent(lock, endtime.GetTimeLeft());
     }
     m_forceNext = false;
   }
@@ -153,7 +153,7 @@ bool CRenderManager::Configure(const VideoPicture& picture, float fps, unsigned 
 
     std::unique_lock lock2(m_presentlock);
     m_presentstep = PRESENT_READY;
-    m_presentevent.notifyAll();
+    NotifyPresentWaiters();
   }
 
   if (!m_stateEvent.Wait(1000ms))
@@ -230,7 +230,7 @@ bool CRenderManager::Configure()
     m_presentstep = PRESENT_IDLE;
     m_presentpts = DVD_NOPTS_VALUE;
     m_lateframes = -1;
-    m_presentevent.notifyAll();
+    NotifyPresentWaiters();
     m_renderedOverlay = false;
     m_renderDebug = false;
     m_clockSync.Reset();
@@ -280,7 +280,7 @@ void CRenderManager::FrameWait(std::chrono::milliseconds duration)
   XbmcThreads::EndTime<> timeout{duration};
   std::unique_lock lock(m_presentlock);
   while(m_presentstep == PRESENT_IDLE && !timeout.IsTimePast())
-    m_presentevent.wait(lock, timeout.GetTimeLeft());
+    WaitPresent(lock, timeout.GetTimeLeft());
 }
 
 bool CRenderManager::IsPresenting()
@@ -334,7 +334,7 @@ void CRenderManager::FrameMove()
     if (m_presentstep == PRESENT_FLIP)
     {
       m_presentstep = PRESENT_FRAME;
-      m_presentevent.notifyAll();
+      NotifyPresentWaiters();
     }
 
     // release all previous
@@ -874,7 +874,7 @@ void CRenderManager::Render(bool clear, DWORD flags, DWORD alpha, bool gui)
         m_presentstep = PRESENT_READY;
     }
 
-    m_presentevent.notifyAll();
+    NotifyPresentWaiters();
   }
 }
 
@@ -1161,7 +1161,7 @@ bool CRenderManager::AddVideoPicture(const VideoPicture& picture, volatile std::
   if (m_presentstep == PRESENT_IDLE)
   {
     m_presentstep = PRESENT_READY;
-    m_presentevent.notifyAll();
+    NotifyPresentWaiters();
   }
 
   if (wait)
@@ -1170,7 +1170,7 @@ bool CRenderManager::AddVideoPicture(const VideoPicture& picture, volatile std::
     XbmcThreads::EndTime<> endtime(200ms);
     while (m_presentstep == PRESENT_READY)
     {
-      m_presentevent.wait(lock, 20ms);
+      WaitPresent(lock, 20ms);
       if (endtime.IsTimePast() || bStop)
       {
         if (!bStop)
@@ -1243,7 +1243,7 @@ int CRenderManager::WaitForBuffer(volatile std::atomic_bool& bStop,
     if (sleeptime < 0ms)
       sleeptime = 0ms;
     sleeptime = std::min(sleeptime, 20ms);
-    m_presentevent.wait(lock, sleeptime);
+    WaitPresent(lock, sleeptime);
     DiscardBufferLocked();
     return 0;
   }
@@ -1251,7 +1251,7 @@ int CRenderManager::WaitForBuffer(volatile std::atomic_bool& bStop,
   XbmcThreads::EndTime<> endtime{timeout};
   while(m_free.empty())
   {
-    m_presentevent.wait(lock, std::min(50ms, timeout));
+    WaitPresent(lock, std::min(50ms, timeout));
     if (endtime.IsTimePast() || bStop)
     {
       return -1;
@@ -1349,7 +1349,7 @@ void CRenderManager::PrepareNextRender()
   m_presentstep = PRESENT_FLIP;
   m_presentstarted = true;
   m_queued.pop_front();
-  m_presentevent.notifyAll();
+  NotifyPresentWaiters();
 
   logComponentM(LOGDEBUG, LOGAVTIMING, "CRenderManager", "render:[{:.3f}] presenting:[{:02d}] [{:.3f}] "
                                                          "diff:[{:.3f}] "
@@ -1376,7 +1376,7 @@ void CRenderManager::DiscardBufferLocked()
 
   if (m_presentstep == PRESENT_READY)
     m_presentstep = PRESENT_IDLE;
-  m_presentevent.notifyAll();
+  NotifyPresentWaiters();
 }
 
 bool CRenderManager::GetStats(int &lateframes, double &pts, int &queued, int &discard)
