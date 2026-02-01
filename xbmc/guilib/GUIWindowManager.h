@@ -241,6 +241,9 @@ private:
    */
   void RenderPassDual() const;
 
+  void InvalidateActiveDialogsRenderList() const;
+  const std::vector<std::shared_ptr<CGUIWindow>>& GetActiveDialogsRenderList() const;
+
   void LoadNotOnDemandWindows();
   void UnloadNotOnDemandWindows();
   void AddToWindowHistory(int newWindowID);
@@ -274,7 +277,10 @@ private:
 
   std::unordered_map<int, std::shared_ptr<CGUIWindow>> m_mapWindows;
   std::vector<std::shared_ptr<CGUIWindow>> m_vecCustomWindows;
+  std::vector<std::shared_ptr<CGUIWindow>> m_dialogWindows;
   std::vector<std::shared_ptr<CGUIWindow>> m_activeDialogs;
+  mutable std::vector<std::shared_ptr<CGUIWindow>> m_activeDialogsRenderList;
+  mutable bool m_activeDialogsRenderListDirty{true};
   std::vector<std::shared_ptr<CGUIWindow>> m_deleteWindows;
 
   std::deque<int> m_windowHistory;
