@@ -1523,6 +1523,8 @@ void CApplication::FrameMove(bool processEvents, bool processGUI)
   {
     m_skipGuiRender = false;
 
+    const auto advancedSettings = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings();
+
     /*! @todo look into the possibility to use this for GBM
     int fps = 0;
 
@@ -1538,7 +1540,7 @@ void CApplication::FrameMove(bool processEvents, bool processGUI)
       m_skipGuiRender = true;
     */
 
-    if (CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiSmartRedraw && m_guiRefreshTimer.IsTimePast())
+    if (advancedSettings->m_guiSmartRedraw && m_guiRefreshTimer.IsTimePast())
     {
       CServiceBroker::GetGUI()->GetWindowManager().SendMessage(GUI_MSG_REFRESH_TIMER, 0, 0);
       m_guiRefreshTimer.Set(500ms);
@@ -1583,7 +1585,8 @@ int CApplication::Run()
   }
 
   // pin the main thread (Process/FrameMove/Render) to core
-  const int appCore = static_cast<int>(CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_threadApplicationCore);
+  const auto advancedSettings = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings();
+  const int appCore = static_cast<int>(advancedSettings->m_threadApplicationCore);
   aml_pin_thread_to_core(appCore);
 
   // Exclude other threads from this core
@@ -1593,7 +1596,7 @@ int CApplication::Run()
   aml_set_timer_slack_ns(1L);
 
   // max time for other tasks on main thread
-  m_maxOtherTaskTime = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_threadApplicationMaxOtherTaskTime;
+  m_maxOtherTaskTime = advancedSettings->m_threadApplicationMaxOtherTaskTime;
 
   // Run the app
   while (!m_bStop)
