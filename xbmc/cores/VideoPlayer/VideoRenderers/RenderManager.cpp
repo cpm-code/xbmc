@@ -32,6 +32,7 @@
 #include "windowing/GraphicContext.h"
 #include "windowing/WinSystem.h"
 
+#include <algorithm>
 #include <memory>
 #include <mutex>
 
@@ -1138,7 +1139,23 @@ bool CRenderManager::AddVideoPicture(const VideoPicture& picture, volatile std::
   present.pts = picture.pts;
   present.duration = picture.iDuration;
 
-  m_queued.push_back(index);
+  // Keep the queue sorted by pts (and avoid duplicate indices) so the render tick doesn't
+  // have to scan/sort.
+  if (std::find(m_queued.begin(), m_queued.end(), index) == m_queued.end())
+  {
+    const double pts = present.pts;
+    if (m_queued.empty() || m_Queue[m_queued.back()].pts <= pts)
+    {
+      m_queued.push_back(index);
+    }
+    else
+    {
+      auto insertPos = std::upper_bound(
+          m_queued.begin(), m_queued.end(), pts,
+          [this](double ptsValue, int queuedIndex) { return ptsValue < m_Queue[queuedIndex].pts; });
+      m_queued.insert(insertPos, index);
+    }
+  }
 
   // signal to any waiters to check state
   if (m_presentstep == PRESENT_IDLE)
@@ -1284,12 +1301,6 @@ void CRenderManager::PrepareNextRender()
   if (paused) return;
 
   bool playing = (speed == 1.0f);
-
-  // Make sure the queued are sorted by pts and no duplicates.
-  std::sort(m_queued.begin(), m_queued.end(), [this](int a, int b) { return m_Queue[a].pts < m_Queue[b].pts; });
-  auto last = std::unique(m_queued.begin(), m_queued.end());
-  m_queued.erase(last, m_queued.end());
-
   SetPresentSource(); // get next frame
 
   if (m_dvdClock.GetClockSpeed() < 0)
