@@ -2972,7 +2972,6 @@ void CVideoPlayer::HandleMessages()
 
       CDVDMsgPlayerSeekChapter& msg(*std::static_pointer_cast<CDVDMsgPlayerSeekChapter>(pMsg));
       double start = DVD_NOPTS_VALUE;
-      int offset = 0;
 
       // This should always be the case.
       if (m_pDemuxer)
@@ -3004,8 +3003,6 @@ void CVideoPlayer::HandleMessages()
         if (m_pDemuxer->SeekTime(time, true, &start))
         {
           FlushBuffers(start, true, true);
-          int64_t beforeSeek = GetTime();
-          offset = DVD_TIME_TO_MSEC(start) - static_cast<int>(beforeSeek);
           m_callback.OnPlayBackSeekChapter(msg.GetChapter());
         }
       }
@@ -3015,8 +3012,6 @@ void CVideoPlayer::HandleMessages()
         if (pChapter && pChapter->SeekChapter(msg.GetChapter()))
         {
           FlushBuffers(start, true, true);
-          int64_t beforeSeek = GetTime();
-          offset = DVD_TIME_TO_MSEC(start) - static_cast<int>(beforeSeek);
           m_callback.OnPlayBackSeekChapter(msg.GetChapter());
         }
       }
