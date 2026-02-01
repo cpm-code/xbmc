@@ -806,52 +806,62 @@ void CRenderManager::Render(bool clear, DWORD flags, DWORD alpha, bool gui)
     if (!m_pRenderer->IsGuiLayer())
       m_pRenderer->Update();
 
-    m_renderedOverlay = m_overlays.HasOverlay(m_presentsource);
-    CRect src, dst, view;
-    m_pRenderer->GetVideoRect(src, dst, view);
-    m_overlays.SetForceInside(CalcOverlayActiveArea(src, dst));
-    m_overlays.SetVideoRect(src, dst, view);
-    m_overlays.Render(m_presentsource);
+    const bool hasOverlay = m_overlays.HasOverlay(m_presentsource);
+    m_renderedOverlay = hasOverlay;
 
-    if (m_renderDebug)
+    if (hasOverlay || m_renderDebug)
     {
-      if (m_renderDebugVideo)
+      CRect src, dst, view;
+      m_pRenderer->GetVideoRect(src, dst, view);
+
+      if (hasOverlay)
       {
-        DEBUG_INFO_VIDEO video = m_pRenderer->GetDebugInfo(m_presentsource);
-        DEBUG_INFO_RENDER render = CServiceBroker::GetWinSystem()->GetDebugInfo();
-
-        m_debugRenderer.SetInfo(video, render);
-      }
-      else
-      {
-        DEBUG_INFO_PLAYER info;
-
-        m_playerPort->GetDebugInfo(info.audio, info.video, info.player);
-
-        double refreshrate, clockspeed;
-        int missedvblanks;
-
-        info.vsync = StringUtils::Format("VSync Off:{:.1f}", (m_clockSync.m_syncOffset / 1000));
-
-        if (m_dvdClock.GetClockInfo(missedvblanks, clockspeed, refreshrate))
-          info.vsync += StringUtils::Format("VSync: refresh:{:.3f} missed:{} speed:{:.3f}%",
-                                            refreshrate, missedvblanks, (clockspeed * 100));
-
-        double videoLatency = (m_videoLatencyTweak / 1000.0);
-        double audioLatency = (m_audioLatencyTweak / 1000.0);
-        double videoDelay = (-m_videoDelay / 1000.0);
-        double totalLatency = videoLatency + audioLatency + videoDelay;
-
-        info.latency = StringUtils::Format("Latency: video:{:.3f} audio:{:.3f} user:{:.3f} total:{:.3f}",
-                                            videoLatency, audioLatency, videoDelay, totalLatency);
-
-        m_debugRenderer.SetInfo(info);
+        m_overlays.SetForceInside(CalcOverlayActiveArea(src, dst));
+        m_overlays.SetVideoRect(src, dst, view);
+        m_overlays.Render(m_presentsource);
       }
 
-      m_debugRenderer.Render(src, dst, view);
+      if (m_renderDebug)
+      {
+        if (m_renderDebugVideo)
+        {
+          DEBUG_INFO_VIDEO video = m_pRenderer->GetDebugInfo(m_presentsource);
+          DEBUG_INFO_RENDER render = CServiceBroker::GetWinSystem()->GetDebugInfo();
 
-      m_debugTimer.Set(1000ms);
-      m_renderedOverlay = true;
+          m_debugRenderer.SetInfo(video, render);
+        }
+        else
+        {
+          DEBUG_INFO_PLAYER info;
+
+          m_playerPort->GetDebugInfo(info.audio, info.video, info.player);
+
+          double refreshrate, clockspeed;
+          int missedvblanks;
+
+          info.vsync = StringUtils::Format("VSync Off:{:.1f}", (m_clockSync.m_syncOffset / 1000));
+
+          if (m_dvdClock.GetClockInfo(missedvblanks, clockspeed, refreshrate))
+            info.vsync += StringUtils::Format("VSync: refresh:{:.3f} missed:{} speed:{:.3f}%",
+                                              refreshrate, missedvblanks, (clockspeed * 100));
+
+          double videoLatency = (m_videoLatencyTweak / 1000.0);
+          double audioLatency = (m_audioLatencyTweak / 1000.0);
+          double videoDelay = (-m_videoDelay / 1000.0);
+          double totalLatency = videoLatency + audioLatency + videoDelay;
+
+          info.latency = StringUtils::Format(
+              "Latency: video:{:.3f} audio:{:.3f} user:{:.3f} total:{:.3f}", videoLatency, audioLatency,
+              videoDelay, totalLatency);
+
+          m_debugRenderer.SetInfo(info);
+        }
+
+        m_debugRenderer.Render(src, dst, view);
+
+        m_debugTimer.Set(1000ms);
+        m_renderedOverlay = true;
+      }
     }
   }
 
