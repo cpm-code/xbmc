@@ -906,9 +906,12 @@ void CVideoPlayerVideo::ProcessOverlays(const VideoPicture& picture, double pts)
         continue;
 
       double pts2 = pOverlay->bForced ? pts : subsPts;
-      auto libassOverlay = std::dynamic_pointer_cast<CDVDOverlayLibass>(pOverlay);
-      if (libassOverlay) {
-        if (!libassOverlay->GetLibassHandler()->EventActive(pts2))
+
+      // Only attempt RTTI for overlay types that can be backed by libass.
+      if (pOverlay->IsOverlayType(DVDOVERLAY_TYPE_TEXT) || pOverlay->IsOverlayType(DVDOVERLAY_TYPE_SSA))
+      {
+        auto libassOverlay = std::dynamic_pointer_cast<CDVDOverlayLibass>(pOverlay);
+        if (libassOverlay && !libassOverlay->GetLibassHandler()->EventActive(pts2))
           continue;
       }
 
@@ -925,12 +928,13 @@ void CVideoPlayerVideo::ProcessOverlays(const VideoPicture& picture, double pts)
           overlays.push_back(pOverlay);
       }
     }
+  }
 
-    for(it = overlays.begin(); it != overlays.end(); ++it)
-    {
-      double pts2 = (*it)->bForced ? pts : subsPts;
-      m_renderManager.AddOverlay(*it, pts2);
-    }
+  // Add overlays outside the overlay container lock to keep the critical section small.
+  for (auto& overlay : overlays)
+  {
+    double pts2 = overlay->bForced ? pts : subsPts;
+    m_renderManager.AddOverlay(overlay, pts2);
   }
 }
 
