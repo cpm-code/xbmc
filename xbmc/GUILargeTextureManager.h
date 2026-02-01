@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -133,6 +134,35 @@ public:
   void CleanupUnusedImages(bool immediately = false);
 
 private:
+  struct ImageKey
+  {
+    std::string path;
+    unsigned int width{0};
+    unsigned int height{0};
+    int aspectRatio{0};
+  };
+
+  struct ImageKeyHash
+  {
+    size_t operator()(const ImageKey& key) const noexcept
+    {
+      size_t h = std::hash<std::string>{}(key.path);
+      h ^= (std::hash<unsigned int>{}(key.width) + 0x9e3779b9 + (h << 6) + (h >> 2));
+      h ^= (std::hash<unsigned int>{}(key.height) + 0x9e3779b9 + (h << 6) + (h >> 2));
+      h ^= (std::hash<int>{}(key.aspectRatio) + 0x9e3779b9 + (h << 6) + (h >> 2));
+      return h;
+    }
+  };
+
+  struct ImageKeyEq
+  {
+    bool operator()(const ImageKey& a, const ImageKey& b) const noexcept
+    {
+      return a.width == b.width && a.height == b.height && a.aspectRatio == b.aspectRatio &&
+             a.path == b.path;
+    }
+  };
+
   class CLargeTexture
   {
   public:
@@ -165,16 +195,21 @@ private:
     unsigned int m_timeToDelete;
   };
 
+  static ImageKey MakeKey(const std::string& path,
+                          unsigned int width,
+                          unsigned int height,
+                          CAspectRatio::AspectRatio aspectRatio);
+
   void QueueImage(const std::string& path,
                   unsigned int width,
                   unsigned int height,
                   CAspectRatio::AspectRatio aspectRatio,
                   bool useCache = true);
 
-  std::vector< std::pair<unsigned int, CLargeTexture *> > m_queued;
-  std::vector<CLargeTexture *> m_allocated;
-  typedef std::vector<CLargeTexture *>::iterator listIterator;
-  typedef std::vector< std::pair<unsigned int, CLargeTexture *> >::iterator queueIterator;
+  std::unordered_map<ImageKey, CLargeTexture*, ImageKeyHash, ImageKeyEq> m_allocated;
+  std::unordered_map<ImageKey, CLargeTexture*, ImageKeyHash, ImageKeyEq> m_queued;
+  std::unordered_map<ImageKey, unsigned int, ImageKeyHash, ImageKeyEq> m_queuedJobByKey;
+  std::unordered_map<unsigned int, ImageKey> m_queuedKeyByJob;
 
   CCriticalSection m_listSection;
 };
