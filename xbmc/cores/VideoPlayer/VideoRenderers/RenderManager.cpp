@@ -1068,20 +1068,27 @@ void CRenderManager::SetSubtitleVerticalPosition(int value, bool save)
 
 bool CRenderManager::AddVideoPicture(const VideoPicture& picture, volatile std::atomic_bool& bStop, EINTERLACEMETHOD deintMethod, bool wait)
 {
-  std::unique_lock lock(m_presentlock);
+  int index;
+  {
+    std::unique_lock lock(m_presentlock);
+    if (m_free.empty())
+      return false;
+    index = m_free.front();
+    m_free.pop_front();
+  }
 
-  if (m_free.empty())
-    return false;
-
-  int index = m_free.front();
-
+  bool wantsDoublePass = false;
   {
     std::lock_guard lock2(m_datalock);
-
     if (!m_pRenderer)
+    {
+      std::unique_lock lock(m_presentlock);
+      m_free.push_front(index);
       return false;
+    }
 
     m_pRenderer->AddVideoPicture(picture, index);
+    wantsDoublePass = m_pRenderer->WantsDoublePass();
   }
 
   // set fieldsync if picture is interlaced
@@ -1115,13 +1122,15 @@ bool CRenderManager::AddVideoPicture(const VideoPicture& picture, volatile std::
         presentmethod = PRESENT_METHOD_BOB;
       else
       {
-        if (!m_pRenderer->WantsDoublePass())
+        if (!wantsDoublePass)
           presentmethod = PRESENT_METHOD_SINGLE;
         else
           presentmethod = PRESENT_METHOD_BOB;
       }
     }
   }
+
+  std::unique_lock lock(m_presentlock);
 
   SPresent& present = m_Queue[index];
   present.presentfield = displayField;
@@ -1130,7 +1139,6 @@ bool CRenderManager::AddVideoPicture(const VideoPicture& picture, volatile std::
   present.duration = picture.iDuration;
 
   m_queued.push_back(index);
-  m_free.pop_front();
 
   // signal to any waiters to check state
   if (m_presentstep == PRESENT_IDLE)
@@ -1219,7 +1227,7 @@ int CRenderManager::WaitForBuffer(volatile std::atomic_bool& bStop,
       sleeptime = 0ms;
     sleeptime = std::min(sleeptime, 20ms);
     m_presentevent.wait(lock, sleeptime);
-    DiscardBuffer();
+    DiscardBufferLocked();
     return 0;
   }
 
@@ -1344,13 +1352,18 @@ void CRenderManager::DiscardBuffer()
 {
   std::unique_lock lock2(m_presentlock);
 
-  while(!m_queued.empty())
+  DiscardBufferLocked();
+}
+
+void CRenderManager::DiscardBufferLocked()
+{
+  while (!m_queued.empty())
   {
     m_discard.push_back(m_queued.front());
     m_queued.pop_front();
   }
 
-  if(m_presentstep == PRESENT_READY)
+  if (m_presentstep == PRESENT_READY)
     m_presentstep = PRESENT_IDLE;
   m_presentevent.notifyAll();
 }
