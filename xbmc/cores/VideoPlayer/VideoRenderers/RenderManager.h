@@ -145,6 +145,24 @@ public:
 
 protected:
 
+  inline void NotifyPresentWaiters()
+  {
+    if (m_presentWaiters.load(std::memory_order_relaxed) != 0)
+      m_presentevent.notifyAll();
+  }
+
+  inline void WaitPresent(std::unique_lock<CCriticalSection>& lock, std::chrono::milliseconds duration)
+  {
+    m_presentWaiters.fetch_add(1, std::memory_order_relaxed);
+    m_presentevent.wait(lock, duration);
+    m_presentWaiters.fetch_sub(1, std::memory_order_relaxed);
+  }
+
+  inline void WaitPresent(std::unique_lock<CCriticalSection>& lock, unsigned int durationMs)
+  {
+    WaitPresent(lock, std::chrono::milliseconds(durationMs));
+  }
+
   void PresentSingle(bool clear, DWORD flags, DWORD alpha);
   void PresentFields(bool clear, DWORD flags, DWORD alpha);
   void PresentBlend(bool clear, DWORD flags, DWORD alpha);
@@ -245,6 +263,7 @@ protected:
   bool m_presentstarted = false;
   int m_presentsource = 0;
   double m_presentframetime = 0;
+  std::atomic_uint m_presentWaiters{0};
   XbmcThreads::ConditionVariable m_presentevent;
   CEvent m_flushEvent;
   CEvent m_initEvent;
