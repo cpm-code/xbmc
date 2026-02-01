@@ -69,6 +69,7 @@
 #include "windows/GUIWindowSystemInfo.h"
 
 #include <mutex>
+#include <unordered_set>
 
 // Dialog includes
 #include "music/dialogs/GUIDialogMusicOSD.h"
@@ -1669,68 +1670,91 @@ void CGUIWindowManager::DispatchThreadMessages()
   // 5. If possible, queued messages can be removed by certain filter condition
   //    and not break above.
 
-  std::unique_lock lock(m_critSection);
-
-  // Optimize: Remove redundant messages for idempotent operations
-  // Only keep the latest message for each (message_type, window, control) tuple
-  // for message types where only the final value matters
-  if (m_vecThreadMessages.size() > 1)
+  std::list<std::pair<CGUIMessage*, int>> threadMessages;
   {
-    auto it = m_vecThreadMessages.begin();
-    while (it != m_vecThreadMessages.end())
+    std::unique_lock lock(m_critSection);
+
+    // Optimize: Remove redundant messages for idempotent operations
+    // Only keep the latest message for each (message_type, window, control) tuple
+    // for message types where only the final value matters
+    if (m_vecThreadMessages.size() > 1)
     {
-      CGUIMessage* msg = it->first;
-      int win = it->second;
-      bool foundDuplicate = false;
-
-      // Only deduplicate safe "set" messages where order doesn't matter
-      if (msg->GetMessage() == GUI_MSG_ITEM_SELECT ||
-          msg->GetMessage() == GUI_MSG_LABEL_SET ||
-          msg->GetMessage() == GUI_MSG_LABEL2_SET ||
-          msg->GetMessage() == GUI_MSG_SET_TEXT)
+      struct MsgKey
       {
-        // Look ahead for duplicate messages to the same control in the same window
-        auto next = std::next(it);
-        while (next != m_vecThreadMessages.end())
-        {
-          if (next->first->GetMessage() == msg->GetMessage() &&
-              next->first->GetControlId() == msg->GetControlId() &&
-              next->second == win)
-          {
-            // Found a duplicate - delete this older message
-            delete msg;
-            it = m_vecThreadMessages.erase(it);
-            foundDuplicate = true;
-            break;
-          }
-          ++next;
-        }
-      }
+        int message;
+        int window;
+        int control;
+      };
 
-      if (!foundDuplicate)
+      struct MsgKeyHash
+      {
+        size_t operator()(const MsgKey& key) const noexcept
+        {
+          size_t h = std::hash<int>{}(key.message);
+          h ^= (std::hash<int>{}(key.window) + 0x9e3779b9 + (h << 6) + (h >> 2));
+          h ^= (std::hash<int>{}(key.control) + 0x9e3779b9 + (h << 6) + (h >> 2));
+          return h;
+        }
+      };
+
+      struct MsgKeyEq
+      {
+        bool operator()(const MsgKey& a, const MsgKey& b) const noexcept
+        {
+          return a.message == b.message && a.window == b.window && a.control == b.control;
+        }
+      };
+
+      const auto shouldDedupe = [](int message) {
+        return message == GUI_MSG_ITEM_SELECT || message == GUI_MSG_LABEL_SET ||
+               message == GUI_MSG_LABEL2_SET || message == GUI_MSG_SET_TEXT;
+      };
+
+      // Iterate from newest -> oldest and drop older duplicates (keep latest).
+      std::unordered_set<MsgKey, MsgKeyHash, MsgKeyEq> seen;
+      for (auto it = m_vecThreadMessages.rbegin(); it != m_vecThreadMessages.rend();)
+      {
+        CGUIMessage* msg = it->first;
+        const int win = it->second;
+        const int message = msg->GetMessage();
+
+        if (shouldDedupe(message))
+        {
+          MsgKey key{message, win, msg->GetControlId()};
+          if (!seen.insert(key).second)
+          {
+            delete msg;
+            auto forwardIt = std::prev(it.base());
+            auto nextForward = m_vecThreadMessages.erase(forwardIt);
+            it = std::make_reverse_iterator(nextForward);
+            continue;
+          }
+        }
+
         ++it;
+      }
     }
+
+    // Snapshot the current queue so we minimize lock hold time and ensure
+    // newly queued messages aren't processed by this dispatch pass.
+    threadMessages.splice(threadMessages.end(), m_vecThreadMessages);
   }
 
-  while (!m_vecThreadMessages.empty())
+  while (!threadMessages.empty())
   {
     // pop up one message per time to make messages be processed by order.
     // this will ensure rule No.2 & No.3
-    CGUIMessage *pMsg = m_vecThreadMessages.front().first;
-    int window = m_vecThreadMessages.front().second;
-    m_vecThreadMessages.pop_front();
+    CGUIMessage* pMsg = threadMessages.front().first;
+    int window = threadMessages.front().second;
+    threadMessages.pop_front();
 
-    lock.unlock();
-
-    // XXX: during SendMessage(), there could be a deeper 'xbmc main thread loop' inited by e.g. doModal
+    // XXX: during SendMessage(), there could be a deeper 'xbmc main loop' inited by e.g. doModal
     //      which may loop there and callback to DispatchThreadMessages() multiple times.
     if (window)
-      SendMessage( *pMsg, window );
+      SendMessage(*pMsg, window);
     else
-      SendMessage( *pMsg );
+      SendMessage(*pMsg);
     delete pMsg;
-
-    lock.lock();
   }
 }
 
