@@ -166,14 +166,26 @@ CGUILargeTextureManager::CGUILargeTextureManager() = default;
 
 CGUILargeTextureManager::~CGUILargeTextureManager() = default;
 
+CGUILargeTextureManager::ImageKey CGUILargeTextureManager::MakeKey(const std::string& path,
+                                                                   unsigned int width,
+                                                                   unsigned int height,
+                                                                   CAspectRatio::AspectRatio aspectRatio)
+{
+  ImageKey key;
+  key.path = path;
+  key.width = width;
+  key.height = height;
+  key.aspectRatio = static_cast<int>(aspectRatio);
+  return key;
+}
+
 void CGUILargeTextureManager::CleanupUnusedImages(bool immediately)
 {
   std::unique_lock lock(m_listSection);
-  // check for items to remove from allocated list, and remove
-  listIterator it = m_allocated.begin();
-  while (it != m_allocated.end())
+
+  for (auto it = m_allocated.begin(); it != m_allocated.end();)
   {
-    CLargeTexture *image = *it;
+    CLargeTexture* image = it->second;
     if (image->DeleteIfRequired(immediately))
       it = m_allocated.erase(it);
     else
@@ -191,13 +203,14 @@ bool CGUILargeTextureManager::GetImage(const std::string& path,
                                        bool firstRequest,
                                        const bool useCache)
 {
-  std::unique_lock lock(m_listSection);
-  for (listIterator it = m_allocated.begin(); it != m_allocated.end(); ++it)
   {
-    CLargeTexture *image = *it;
-    if (image->GetPath() == path && image->GetTargetWidth() == width &&
-        image->GetTargetHeight() == height && image->GetAspectRatio() == aspectRatio)
+    std::unique_lock lock(m_listSection);
+
+    const auto key = MakeKey(path, width, height, aspectRatio);
+    auto it = m_allocated.find(key);
+    if (it != m_allocated.end())
     {
+      CLargeTexture* image = it->second;
       if (firstRequest)
         image->AddRef();
       texture = image->GetTexture();
@@ -218,30 +231,35 @@ void CGUILargeTextureManager::ReleaseImage(const std::string& path,
                                            bool immediately)
 {
   std::unique_lock lock(m_listSection);
-  for (listIterator it = m_allocated.begin(); it != m_allocated.end(); ++it)
+
+  const auto key = MakeKey(path, width, height, aspectRatio);
+
+  auto itAllocated = m_allocated.find(key);
+  if (itAllocated != m_allocated.end())
   {
-    CLargeTexture *image = *it;
-    if (image->GetPath() == path && image->GetTargetWidth() == width &&
-        image->GetTargetHeight() == height && image->GetAspectRatio() == aspectRatio)
-    {
-      if (image->DecrRef(immediately) && immediately)
-        m_allocated.erase(it);
-      return;
-    }
+    CLargeTexture* image = itAllocated->second;
+    if (image->DecrRef(immediately) && immediately)
+      m_allocated.erase(itAllocated);
+    return;
   }
-  for (queueIterator it = m_queued.begin(); it != m_queued.end(); ++it)
+
+  auto itQueued = m_queued.find(key);
+  if (itQueued != m_queued.end())
   {
-    unsigned int id = it->first;
-    CLargeTexture *image = it->second;
-    if (image->GetPath() == path && image->GetTargetWidth() == width &&
-        image->GetTargetHeight() == height && image->GetAspectRatio() == aspectRatio &&
-        image->DecrRef(true))
+    CLargeTexture* image = itQueued->second;
+    if (image->DecrRef(true))
     {
-      // cancel this job
-      CServiceBroker::GetJobManager()->CancelJob(id);
-      m_queued.erase(it);
-      return;
+      const auto itJob = m_queuedJobByKey.find(key);
+      if (itJob != m_queuedJobByKey.end())
+      {
+        const unsigned int id = itJob->second;
+        CServiceBroker::GetJobManager()->CancelJob(id);
+        m_queuedKeyByJob.erase(id);
+        m_queuedJobByKey.erase(itJob);
+      }
+      m_queued.erase(itQueued);
     }
+    return;
   }
 }
 
@@ -256,39 +274,50 @@ void CGUILargeTextureManager::QueueImage(const std::string& path,
     return;
 
   std::unique_lock lock(m_listSection);
-  for (queueIterator it = m_queued.begin(); it != m_queued.end(); ++it)
+
+  const auto key = MakeKey(path, width, height, aspectRatio);
+  auto itQueued = m_queued.find(key);
+  if (itQueued != m_queued.end())
   {
-    CLargeTexture *image = it->second;
-    if (image->GetPath() == path && image->GetTargetWidth() == width &&
-        image->GetTargetHeight() == height && image->GetAspectRatio() == aspectRatio)
-    {
-      image->AddRef();
-      return; // already queued
-    }
+    itQueued->second->AddRef();
+    return; // already queued
   }
 
   // queue the item
   CLargeTexture* image = new CLargeTexture(path, width, height, aspectRatio);
   unsigned int jobID = CServiceBroker::GetJobManager()->AddJob(
       new CImageLoader(path, width, height, aspectRatio, useCache), this, CJob::PRIORITY_NORMAL);
-  m_queued.emplace_back(jobID, image);
+  m_queued.emplace(key, image);
+  m_queuedJobByKey.emplace(key, jobID);
+  m_queuedKeyByJob.emplace(jobID, key);
 }
 
 void CGUILargeTextureManager::OnJobComplete(unsigned int jobID, bool success, CJob *job)
 {
-  // see if we still have this job id
   std::unique_lock lock(m_listSection);
-  for (queueIterator it = m_queued.begin(); it != m_queued.end(); ++it)
+
+  // see if we still have this job id
+  auto itKey = m_queuedKeyByJob.find(jobID);
+  if (itKey == m_queuedKeyByJob.end())
+    return;
+
+  const ImageKey key = itKey->second;
+  auto itQueued = m_queued.find(key);
+  if (itQueued == m_queued.end())
   {
-    if (it->first == jobID)
-    { // found our job
-      CImageLoader *loader = static_cast<CImageLoader*>(job);
-      CLargeTexture *image = it->second;
-      image->SetTexture(std::move(loader->m_texture));
-      loader->m_texture = NULL; // we want to keep the texture, and jobs are auto-deleted.
-      m_queued.erase(it);
-      m_allocated.push_back(image);
-      return;
-    }
+    m_queuedKeyByJob.erase(itKey);
+    m_queuedJobByKey.erase(key);
+    return;
   }
+
+  CImageLoader* loader = static_cast<CImageLoader*>(job);
+  CLargeTexture* image = itQueued->second;
+
+  image->SetTexture(std::move(loader->m_texture));
+  loader->m_texture = NULL; // we want to keep the texture, and jobs are auto-deleted.
+
+  m_queued.erase(itQueued);
+  m_queuedJobByKey.erase(key);
+  m_queuedKeyByJob.erase(itKey);
+  m_allocated.emplace(key, image);
 }
