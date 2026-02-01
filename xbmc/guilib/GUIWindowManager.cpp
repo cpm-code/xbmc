@@ -644,6 +644,13 @@ bool CGUIWindowManager::Add(CGUIWindow* pWindow)
 
     m_mapWindows.insert(std::make_pair(id, windowPtr));
   }
+
+  // Keep a dedicated list of dialog-like windows for per-frame processing.
+  // Note: Python WindowXMLDialog instances live in the WINDOW_PYTHON_* range but
+  // may not report IsDialog()==true (they are mapped to CGUIMediaWindow).
+  if (pWindow->IsDialog() || IsPythonWindow(pWindow->GetID()))
+    m_dialogWindows.emplace_back(windowPtr);
+
   return true;
 }
 
@@ -673,7 +680,10 @@ void CGUIWindowManager::RegisterDialog(CGUIWindow* dialog)
   }
   auto it = m_mapWindows.find(dialog->GetID());
   if (it != m_mapWindows.end())
+  {
     m_activeDialogs.emplace_back(it->second);
+    InvalidateActiveDialogsRenderList();
+  }
 }
 
 void CGUIWindowManager::Remove(int id)
@@ -692,6 +702,13 @@ void CGUIWindowManager::Remove(int id)
                                          [window](const std::shared_ptr<CGUIWindow>& w)
                                          { return w.get() == window; }),
                           m_activeDialogs.end());
+
+    m_dialogWindows.erase(std::remove_if(m_dialogWindows.begin(), m_dialogWindows.end(),
+                                         [window](const std::shared_ptr<CGUIWindow>& w)
+                                         { return w.get() == window; }),
+                          m_dialogWindows.end());
+
+    InvalidateActiveDialogsRenderList();
     m_mapWindows.erase(it);
   }
   else
@@ -1241,6 +1258,22 @@ bool RenderOrderSortFunction(const std::shared_ptr<CGUIWindow>& first,
   return first->GetRenderOrder() < second->GetRenderOrder();
 }
 
+void CGUIWindowManager::InvalidateActiveDialogsRenderList() const
+{
+  m_activeDialogsRenderListDirty = true;
+}
+
+const std::vector<std::shared_ptr<CGUIWindow>>& CGUIWindowManager::GetActiveDialogsRenderList() const
+{
+  if (!m_activeDialogsRenderListDirty)
+    return m_activeDialogsRenderList;
+
+  m_activeDialogsRenderList = m_activeDialogs;
+  stable_sort(m_activeDialogsRenderList.begin(), m_activeDialogsRenderList.end(), RenderOrderSortFunction);
+  m_activeDialogsRenderListDirty = false;
+  return m_activeDialogsRenderList;
+}
+
 void CGUIWindowManager::Process(unsigned int currentTime)
 {
   assert(CServiceBroker::GetAppMessenger()->IsProcessThread());
@@ -1253,15 +1286,11 @@ void CGUIWindowManager::Process(unsigned int currentTime)
     pWindow->DoProcess(currentTime, m_dirtyregions);
 
   // process all dialogs - visibility may change etc.
-  // copy shared_ptrs to ensure windows stay alive during iteration even if map is modified
-  std::vector<std::shared_ptr<CGUIWindow>> windows;
-  windows.reserve(m_mapWindows.size());
-  for (const auto& entry : m_mapWindows)
-    windows.emplace_back(entry.second);
-
-  for (const auto& window : windows)
+  // copy shared_ptrs to ensure dialogs stay alive during iteration even if internal containers are modified
+  auto dialogs = m_dialogWindows;
+  for (const auto& window : dialogs)
   {
-    if (window && window->IsDialog())
+    if (window && (window->IsDialog() || IsPythonWindow(window->GetID())))
       window->DoProcess(currentTime, m_dirtyregions);
   }
 
@@ -1269,9 +1298,7 @@ void CGUIWindowManager::Process(unsigned int currentTime)
   if (pWindow)
     pWindow->AssignDepth();
 
-  auto activeDialogs = m_activeDialogs;
-  stable_sort(activeDialogs.begin(), activeDialogs.end(), RenderOrderSortFunction);
-
+  const auto& activeDialogs = GetActiveDialogsRenderList();
   for (const auto& window : activeDialogs)
   {
     if (window->IsDialogRunning())
@@ -1320,9 +1347,7 @@ void CGUIWindowManager::RenderPassSingle() const
   }
 
   // we render the dialogs based on their render order.
-  auto renderList = m_activeDialogs;
-  stable_sort(renderList.begin(), renderList.end(), RenderOrderSortFunction);
-
+  const auto& renderList = GetActiveDialogsRenderList();
   for (const auto& window : renderList)
   {
     if (window->IsDialogRunning())
@@ -1336,8 +1361,7 @@ void CGUIWindowManager::RenderPassDual() const
   if (pWindow)
     pWindow->ClearBackground();
 
-  auto renderList = m_activeDialogs;
-  stable_sort(renderList.begin(), renderList.end(), RenderOrderSortFunction);
+  const auto& renderList = GetActiveDialogsRenderList();
 
   // first the opaque pass, rendering from front to back
   CServiceBroker::GetWinSystem()->GetGfxContext().SetRenderOrder(RENDER_ORDER_FRONT_TO_BACK);
@@ -1585,6 +1609,7 @@ void CGUIWindowManager::DeInitialize()
   // clear our vectors of windows
   m_vecCustomWindows.clear();
   m_activeDialogs.clear();
+  InvalidateActiveDialogsRenderList();
 
   m_initialized = false;
 }
@@ -1598,6 +1623,7 @@ void CGUIWindowManager::RemoveDialog(int id)
                                        [id](const std::shared_ptr<CGUIWindow>& dialog)
                                        { return dialog->GetID() == id; }),
                         m_activeDialogs.end());
+  InvalidateActiveDialogsRenderList();
 }
 
 bool CGUIWindowManager::HasModalDialog(bool ignoreClosing) const
@@ -1705,7 +1731,8 @@ void CGUIWindowManager::DispatchThreadMessages()
         }
       };
 
-      const auto shouldDedupe = [](int message) {
+      const auto shouldDedupe = [](int message)
+      {
         return message == GUI_MSG_ITEM_SELECT || message == GUI_MSG_LABEL_SET ||
                message == GUI_MSG_LABEL2_SET || message == GUI_MSG_SET_TEXT;
       };
