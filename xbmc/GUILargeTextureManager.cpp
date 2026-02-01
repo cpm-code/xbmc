@@ -47,6 +47,9 @@ bool CImageLoader::DoWork()
   bool needsChecking = false;
   std::string loadPath;
 
+  const bool asyncTextureUpload =
+      CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiAsyncTextureUpload;
+
   std::string texturePath = CServiceBroker::GetGUI()->GetTextureManager().GetTexturePath(m_path);
   if (texturePath.empty())
     return false;
@@ -73,7 +76,7 @@ bool CImageLoader::DoWork()
       if (needsChecking)
         CServiceBroker::GetTextureCache()->BackgroundCacheImage(texturePath);
 
-      if (CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiAsyncTextureUpload)
+      if (asyncTextureUpload)
         m_texture->LoadToGPUAsync();
 
       return true;
@@ -93,7 +96,7 @@ bool CImageLoader::DoWork()
   if (!m_texture)
     return false;
 
-  if (CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiAsyncTextureUpload)
+  if (asyncTextureUpload)
     m_texture->LoadToGPUAsync();
 
   return true;
