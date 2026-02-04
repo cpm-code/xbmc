@@ -1522,8 +1522,10 @@ void aml_pin_thread_to_core(unsigned int core_id) {
                             tid, name, core_id, ret_affinity);
 }
 
-void aml_wait(useconds_t uSeconds)
+void aml_wait(double waitUs)
 {
+  useconds_t uSeconds = static_cast<useconds_t>(waitUs);
+
   static constexpr uint64_t LOG_THRESHOLD_US = 2000;
 
   struct timespec now{};
@@ -1543,7 +1545,11 @@ void aml_wait(useconds_t uSeconds)
 
   const uint64_t deadline_us = static_cast<uint64_t>(target.tv_sec) * 1000000ULL +
                                static_cast<uint64_t>(target.tv_nsec) / 1000ULL;
-  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &target, nullptr);
+  int ret;
+  do
+  {
+    ret = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &target, nullptr);
+  } while (ret == EINTR);
 
   clock_gettime(CLOCK_MONOTONIC, &now);
   const uint64_t after_us = static_cast<uint64_t>(now.tv_sec) * 1000000ULL +
@@ -1561,6 +1567,72 @@ void aml_wait(useconds_t uSeconds)
          static_cast<unsigned long long>(late_us),
          name);
   }
+}
+
+namespace
+{
+struct fb_vsync_early_request
+{
+  int32_t offset_us;
+  int32_t reserved;
+  int64_t next_vsync_ts;
+};
+
+#ifndef FBIO_WAITFORVSYNC_EARLY_64
+#define FBIO_WAITFORVSYNC_EARLY_64 _IOWR('F', 0x24, struct fb_vsync_early_request)
+#endif
+
+std::string GetFramebufferDevicePath()
+{
+  const char* env = getenv("FRAMEBUFFER");
+  if (env && env[0] != '\0')
+  {
+    std::string fb(env);
+    auto pos = fb.find("fb");
+    if (pos != std::string::npos)
+      fb = fb.substr(pos);
+
+    if (fb.rfind("/dev/", 0) == 0)
+      return fb;
+    return "/dev/" + fb;
+  }
+
+  return "/dev/fb0";
+}
+} // namespace
+
+bool aml_wait_vsync_early(int offsetUs)
+{
+  if (offsetUs <= 0) return false;
+
+  static int fbFd{-1};
+  static std::string fbPath;
+  if (fbFd < 0)
+  {
+    fbPath = GetFramebufferDevicePath();
+    fbFd = open(fbPath.c_str(), O_RDWR | O_CLOEXEC);
+    if (fbFd < 0)
+    {
+      logM(LOGWARNING, "AMLUtils", "vsync early: failed to open {}: {}", fbPath, strerror(errno));
+      return false;
+    }
+  }
+
+  fb_vsync_early_request req{};
+  req.offset_us = offsetUs;
+  req.reserved = 0;
+  req.next_vsync_ts = 0;
+
+  if (ioctl(fbFd, FBIO_WAITFORVSYNC_EARLY_64, &req) < 0)
+  {
+    logM(LOGWARNING, "AMLUtils", "vsync early: ioctl failed on {}: {}", fbPath, strerror(errno));
+    close(fbFd);
+    fbFd = -1;
+    fbPath.clear();
+    return false;
+  }
+
+  return true;
 }
 
 bool aml_try_set_thread_nice(int niceLevel)
