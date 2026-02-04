@@ -792,6 +792,19 @@ constexpr uint32_t ADDON_SETTING_INT                 = ADDON_INFOS_START + 2;
 
 // start cpm 1700 to 1900
 
+constexpr uint32_t VIDEOPLAYER_AUDIO_BIT_RATE        = 1700;
+constexpr uint32_t VIDEOPLAYER_VIDEO_BIT_RATE        = 1701;
+constexpr uint32_t VIDEOPLAYER_VIDEO_KIBIT_RATE      = 1702;
+constexpr uint32_t VIDEOPLAYER_VIDEO_MIBIT_RATE      = 1703;
+constexpr uint32_t VIDEOPLAYER_AUDIO_KIBIT_RATE      = 1704;
+constexpr uint32_t VIDEOPLAYER_AUDIO_MIBIT_RATE      = 1705;
+constexpr uint32_t VIDEOPLAYER_SUBTITLES_LANG_EX     = 1706;
+constexpr uint32_t VIDEOPLAYER_SUBTITLES_NAME        = 1707;
+constexpr uint32_t VIDEOPLAYER_AUDIO_LANG_EX         = 1708;
+constexpr uint32_t VIDEOPLAYER_AUDIO_NAME            = 1709;
+
+constexpr uint32_t SYSTEM_CPU_ALT_USAGE              = 1710;
+
 constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_HAS_CONFIG                     = 1711;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_VERSION_MAJOR                  = 1712;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_VERSION_MINOR                  = 1713;
@@ -841,6 +854,28 @@ constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_MIN_LUM           = 1753;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_MAX_LUM           = 1754;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_COLOUR_PRIMARIES  = 1755;
 
+constexpr uint32_t PLAYER_PROCESS_VIDEO_LIVE_BIT_RATE         = 1756;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_LIVE_KIBIT_RATE       = 1757;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_LIVE_MIBIT_RATE       = 1758;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_QUEUE_LEVEL           = 1759;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_QUEUE_DATA_LEVEL      = 1760;
+
+constexpr uint32_t PLAYER_PROCESS_AML_VS10_MODE               = 1761;
+constexpr uint32_t PLAYER_PROCESS_AML_VS10_MODE_RAW           = 1762;
+constexpr uint32_t PLAYER_PROCESS_AML_VIDEO_FPS_INFO          = 1763;
+constexpr uint32_t PLAYER_PROCESS_AML_VIDEO_FPS_DROP          = 1764;
+
+constexpr uint32_t PLAYER_PROCESS_AV_CHANGE                   = 1765;
+constexpr uint32_t PLAYER_PROCESS_RENDER_PTS                  = 1766;
+
+constexpr uint32_t PLAYER_PROCESS_AUDIO_SAMPLE_RATE           = 1767;
+
+constexpr uint32_t PLAYER_PROCESS_AUDIO_LIVE_BIT_RATE         = 1768;
+constexpr uint32_t PLAYER_PROCESS_AUDIO_LIVE_KIBIT_RATE       = 1769;
+constexpr uint32_t PLAYER_PROCESS_AUDIO_LIVE_MIBIT_RATE       = 1770;
+constexpr uint32_t PLAYER_PROCESS_AUDIO_QUEUE_LEVEL           = 1771;
+constexpr uint32_t PLAYER_PROCESS_AUDIO_QUEUE_DATA_LEVEL      = 1772;
+
 constexpr uint32_t PLAYER_PROCESS_VIDEO_BIT_DEPTH             = 1773;
 
 constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_TYPE              = 1774;
@@ -859,6 +894,8 @@ constexpr uint32_t PLAYER_PROCESS_VIDEO_COLOR_SPACE                   = 1782;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_COLOR_RANGE                   = 1783;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_COLOR_PRIMARIES               = 1784;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_COLOR_TRANSFER_CHARACTERISTIC = 1785;
+
+constexpr uint32_t SKIN_HAS_FILE                     = 1786;
 
 // end cpm
 
