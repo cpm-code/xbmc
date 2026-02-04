@@ -360,6 +360,12 @@ constexpr const int ACTION_SET_RATING = 164;
 
 constexpr const int ACTION_PREV_SUBTITLE = 165;
 
+// Amlogic VS10 modes
+constexpr const int ACTION_VS10_ORIGINAL = 166;
+constexpr const int ACTION_VS10_SDR = 167;
+constexpr const int ACTION_VS10_HDR10 = 168;
+constexpr const int ACTION_VS10_DV = 169;
+
 constexpr const int ACTION_RECORD = 170;
 
 constexpr const int ACTION_PASTE = 180;
