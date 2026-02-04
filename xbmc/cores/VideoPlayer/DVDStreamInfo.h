@@ -25,6 +25,61 @@ extern "C"
 class CDemuxStream;
 struct DemuxCryptoSession;
 
+enum DOVIELType : int
+{
+  TYPE_NONE = 0,
+  TYPE_FEL,
+  TYPE_MEL
+};
+
+struct DOVIFrameMetadata
+{
+  double pts;
+  uint16_t level1_min_pq = 0;
+  uint16_t level1_max_pq = 0;
+  uint16_t level1_avg_pq = 0;
+
+  bool has_level5_metadata = false;
+  uint16_t level5_active_area_left_offset = 0;
+  uint16_t level5_active_area_right_offset = 0;
+  uint16_t level5_active_area_top_offset = 0;
+  uint16_t level5_active_area_bottom_offset = 0;
+};
+
+struct DOVIStreamMetadata
+{
+  uint16_t source_min_pq = 0;
+  uint16_t source_max_pq = 0;
+
+  bool has_level6_metadata = false;
+  uint16_t level6_max_lum = 0;
+  uint16_t level6_min_lum = 0;
+  uint16_t level6_max_cll = 0;
+  uint16_t level6_max_fall = 0;
+
+  std::string meta_version = "";
+};
+
+struct DOVIStreamInfo
+{
+  DOVIELType dovi_el_type = DOVIELType::TYPE_NONE;
+  bool has_config = false;
+  bool has_header = false;
+  AVDOVIDecoderConfigurationRecord dovi = {};
+};
+
+struct HDRStaticMetadataInfo
+{
+  bool has_mdcv_metadata = false;
+  uint32_t max_lum = 0;
+  uint32_t min_lum = 0;
+  std::string colour_primaries = "";
+
+  bool has_cll_metadata = false;
+  uint16_t max_cll = 0;
+  uint16_t max_fall = 0;
+};
+
 class CDVDStreamInfo
 {
 public:
@@ -83,7 +138,10 @@ public:
   std::shared_ptr<AVContentLightMetadata> contentLightMetadata;
   std::string stereo_mode; // stereoscopic 3d mode
   AVDOVIDecoderConfigurationRecord dovi{};
+  DOVIELType dovi_el_type = DOVIELType::TYPE_NONE;
   CDVDClock *pClock;
+
+  static constexpr AVDOVIDecoderConfigurationRecord empty_dovi{}; // For comparison
 
   // AUDIO
   int channels;
