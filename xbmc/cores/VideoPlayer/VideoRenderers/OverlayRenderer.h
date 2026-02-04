@@ -119,6 +119,7 @@ namespace OVERLAY {
     void Release(int idx);
     bool HasOverlay(int idx);
     void SetVideoRect(CRect &source, CRect &dest, CRect &view);
+    void SetForceInside(bool forceInside);
     void SetStereoMode(const std::string &stereomode);
 
     /*!
@@ -186,6 +187,7 @@ namespace OVERLAY {
     CRect m_rv; // Frame size
     CRect m_rs; // Source size
     CRect m_rd; // Video size, may be influenced by video settings (e.g. zoom)
+    bool m_forceInside{false};
     std::string m_stereomode;
     // Current subtitle position
     int m_subtitlePosition{0};

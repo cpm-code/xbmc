@@ -244,6 +244,71 @@ void CRenderer::Render(COverlay* o)
 
   state.x += GetStereoscopicDepth(o->m_pgsSubtitle, o->m_3dSubtitleDepth);
 
+  if (m_forceInside)
+  {
+    // Keep overlays inside the current video destination rectangle.
+    // RenderManager may pass an adjusted dest rect (e.g. DV L5 active area).
+    const CRect& bounds = m_rd;
+    if (bounds.Width() > 0.0f && bounds.Height() > 0.0f && state.width > 0.0f && state.height > 0.0f)
+    {
+      // Libass glyph overlays (text/SSA) use a full-frame transform (ALIGN_SCREEN, POSITION_RELATIVE,
+      // width/height = 1.0) and the actual quad positions are baked into the vertex data.
+      // Clamping them as if (x,y) were a centered quad will shift the whole subtitle plane.
+      // Instead, remap the full-frame transform to the active-area bounds.
+      if (o->m_pos == COverlay::POSITION_RELATIVE && o->m_align == COverlay::ALIGN_SCREEN &&
+          o->m_width == 1.0f && o->m_height == 1.0f)
+      {
+        state.x = bounds.x1;
+        state.y = bounds.y1;
+        state.width = bounds.Width();
+        state.height = bounds.Height();
+      }
+      else
+      if (o->m_pos == COverlay::POSITION_RELATIVE)
+      {
+        const float halfW = state.width * 0.5f;
+        const float halfH = state.height * 0.5f;
+
+        const float minX = bounds.x1 + halfW;
+        const float maxX = bounds.x2 - halfW;
+        const float minY = bounds.y1 + halfH;
+        const float maxY = bounds.y2 - halfH;
+
+        if (minX <= maxX)
+        {
+          if (state.x < minX)
+            state.x = minX;
+          else if (state.x > maxX)
+            state.x = maxX;
+        }
+
+        if (minY <= maxY)
+        {
+          if (state.y < minY)
+            state.y = minY;
+          else if (state.y > maxY)
+            state.y = maxY;
+        }
+      }
+      else
+      {
+        if (state.x < bounds.x1)
+          state.x = bounds.x1;
+        if (state.y < bounds.y1)
+          state.y = bounds.y1;
+        if (state.x + state.width > bounds.x2)
+          state.x = bounds.x2 - state.width;
+        if (state.y + state.height > bounds.y2)
+          state.y = bounds.y2 - state.height;
+
+        if (state.x < bounds.x1)
+          state.x = bounds.x1;
+        if (state.y < bounds.y1)
+          state.y = bounds.y1;
+      }
+    }
+  }
+
   o->Render(state);
 }
 
@@ -284,6 +349,11 @@ void CRenderer::OnViewChange()
 void CRenderer::SetStereoMode(const std::string &stereomode)
 {
   m_stereomode = stereomode;
+}
+
+void CRenderer::SetForceInside(bool forceInside)
+{
+  m_forceInside = forceInside;
 }
 
 void CRenderer::SetSubtitleVerticalPosition(const int value, bool save)
@@ -514,15 +584,12 @@ std::shared_ptr<COverlay> CRenderer::ConvertLibass(
   if (!images)
     return nullptr;
 
-  if (o.m_textureid)
+  if (o.m_textureid && changes == 0)
   {
-    if (changes == 0)
-    {
-      std::map<unsigned int, std::shared_ptr<COverlay>>::iterator it =
-          m_textureCache.find(o.m_textureid);
-      if (it != m_textureCache.end())
-        return it->second;
-    }
+    std::map<unsigned int, std::shared_ptr<COverlay>>::iterator it =
+        m_textureCache.find(o.m_textureid);
+    if (it != m_textureCache.end())
+      return it->second;
   }
 
   std::shared_ptr<COverlay> overlay = COverlay::Create(images, rOpts.frameWidth, rOpts.frameHeight);
