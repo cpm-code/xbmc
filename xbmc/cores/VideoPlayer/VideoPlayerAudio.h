@@ -66,6 +66,11 @@ public:
     return m_info.pts;
   }
 
+  double GetCurrentPacketDelay() override
+  {
+    return 0.0;
+  }
+
   bool IsStalled() const override { return m_stalled;  }
   bool IsPassthrough() const override;
 
