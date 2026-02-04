@@ -92,13 +92,17 @@ std::string CPlayerGUIInfo::GetAMLConfigInfo(std::string item) const
 
           if (sub_items.size() > 1)
           {
-            double fps = CServiceBroker::GetWinSystem()->GetGfxContext().GetFPS();
+            int cur_fractional_rate = 0;
             item_value = StringUtils::Left(sub_items.at(1), sub_items.at(1).length() - 4) + " ";
 
-            if (fps != floor(fps))
+            CSysfsPath frac_rate_policy{"/sys/class/amhdmitx/amhdmitx0/frac_rate_policy"};
+            if (frac_rate_policy.Exists())
+              cur_fractional_rate = frac_rate_policy.Get<int>().value();
+
+            if (cur_fractional_rate)
             {
               float refreshrate = static_cast<float>(atof(StringUtils::Mid(sub_items.at(1), sub_items.at(1).length() - 4, 2).c_str()));
-              item_value += fmt::format("{:.2f}", refreshrate / 1.001f) + "Hz";
+              item_value += fmt::format("{:.3f}", refreshrate / 1.001f) + "Hz";
             }
             else
               item_value += StringUtils::Mid(sub_items.at(1), sub_items.at(1).length() - 4, 2) + "Hz";
@@ -241,6 +245,17 @@ std::string DoViELTypeToString(DOVIELType doviElType) {
   return "";
 }
 
+std::string VS10ModeToString(unsigned int vs10Mode) {
+  switch (vs10Mode) {
+    case DOLBY_VISION_OUTPUT_MODE_IPT: return "Dolby Vision";
+    case DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL: return "Dolby Vision";
+    case DOLBY_VISION_OUTPUT_MODE_HDR10: return "HDR10";
+    case DOLBY_VISION_OUTPUT_MODE_SDR10: return "SDR";
+    case DOLBY_VISION_OUTPUT_MODE_BYPASS: return "Bypass";
+  }
+  return "";
+}
+
 std::string uint8_to_padded_string(uint8_t value) {
   std::stringstream ss;
   ss << std::setw(2) << std::setfill('0') << static_cast<int>(value);
@@ -254,6 +269,25 @@ std::string VideoDoViCodecString() {
   uint8_t level = CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi.dv_level;
 
   return fmt::format("{}.{}.{}", fourCC, uint8_to_padded_string(profile), uint8_to_padded_string(level));
+}
+
+std::string FormatSampleRate(int rate) {
+
+  // Convert to kHz
+  double kHzRate = static_cast<double>(rate) / 1000.0;
+  std::ostringstream oss;
+
+  if (std::floor(kHzRate) == kHzRate) {
+    // If it's a whole number, display without decimal places
+    oss << static_cast<int>(kHzRate);
+  } else if (kHzRate * 10 == std::floor(kHzRate * 10)) {
+    // If it has one decimal place, display with one decimal place
+    oss << std::fixed << std::setprecision(1) << kHzRate;
+  } else {
+    // Otherwise, display with two decimal places
+    oss << std::fixed << std::setprecision(2) << kHzRate;
+  }
+  return oss.str();
 }
 
 // Constants for PQ/Nits conversion
@@ -457,8 +491,13 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
       value = CServiceBroker::GetDataCacheCore().GetVideoPixelFormat();
       return true;
     case PLAYER_PROCESS_VIDEOFPS:
-      value = StringUtils::Format("{:.3f}", CServiceBroker::GetDataCacheCore().GetVideoFps());
+    {
+      double video_fps_value = CServiceBroker::GetDataCacheCore().GetVideoFps();
+      value = (std::floor(video_fps_value) == video_fps_value) ?
+        StringUtils::Format("{}", video_fps_value) :
+        StringUtils::Format("{:.3f}", video_fps_value);
       return true;
+    }
     case PLAYER_PROCESS_VIDEODAR:
       value = StringUtils::Format("{:.2f}", CServiceBroker::GetDataCacheCore().GetVideoDAR());
       return true;
@@ -483,8 +522,42 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     case PLAYER_PROCESS_AUDIOSAMPLERATE:
       value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetAudioSampleRate());
       return true;
+    case PLAYER_PROCESS_AUDIO_SAMPLE_RATE:
+      value = FormatSampleRate(CServiceBroker::GetDataCacheCore().GetAudioSampleRate());
+      return true;
     case PLAYER_PROCESS_AUDIOBITSPERSAMPLE:
       value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetAudioBitsPerSample());
+      return true;
+
+    case PLAYER_PROCESS_AUDIO_LIVE_BIT_RATE:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetAudioLiveBitRate());
+      return true;
+    case PLAYER_PROCESS_AUDIO_LIVE_KIBIT_RATE:
+      value = StringUtils::FormatNumber((CServiceBroker::GetDataCacheCore().GetAudioLiveBitRate() / 1024), 0);
+      return true;
+    case PLAYER_PROCESS_AUDIO_LIVE_MIBIT_RATE:
+      value = StringUtils::FormatNumber((CServiceBroker::GetDataCacheCore().GetAudioLiveBitRate() / 1048576), 2);
+      return true;
+    case PLAYER_PROCESS_AUDIO_QUEUE_LEVEL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetAudioQueueLevel());
+      return true;
+    case PLAYER_PROCESS_AUDIO_QUEUE_DATA_LEVEL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetAudioQueueDataLevel());
+      return true;
+    case PLAYER_PROCESS_VIDEO_LIVE_BIT_RATE:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoLiveBitRate());
+      return true;
+    case PLAYER_PROCESS_VIDEO_LIVE_KIBIT_RATE:
+      value = StringUtils::FormatNumber((CServiceBroker::GetDataCacheCore().GetVideoLiveBitRate() / 1024), 0);
+      return true;
+    case PLAYER_PROCESS_VIDEO_LIVE_MIBIT_RATE:
+      value = StringUtils::FormatNumber((CServiceBroker::GetDataCacheCore().GetVideoLiveBitRate() / 1048576), 2);
+      return true;
+    case PLAYER_PROCESS_VIDEO_QUEUE_LEVEL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoQueueLevel());
+      return true;
+    case PLAYER_PROCESS_VIDEO_QUEUE_DATA_LEVEL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoQueueDataLevel());
       return true;
     case PLAYER_PROCESS_VIDEO_BIT_DEPTH:
       value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetVideoBitDepth());
@@ -681,6 +754,25 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
       return true;
     case PLAYER_PROCESS_AML_EOFT_GAMUT:
       value = GetAMLConfigInfo("EOTF") + " " + GetAMLConfigInfo("Colourimetry");
+      return true;
+    case PLAYER_PROCESS_AML_VS10_MODE:
+      value = VS10ModeToString(aml_dv_dolby_vision_mode());
+      return true;
+    case PLAYER_PROCESS_AML_VS10_MODE_RAW:
+      value = std::to_string(aml_dv_dolby_vision_mode());
+      return true;
+    case PLAYER_PROCESS_AML_VIDEO_FPS_INFO:
+      value = aml_video_fps_info();
+      return true;
+    case PLAYER_PROCESS_AML_VIDEO_FPS_DROP:
+      value = aml_video_fps_drop();
+      return true;
+
+    case PLAYER_PROCESS_AV_CHANGE:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetAVChange());
+      return true;
+    case PLAYER_PROCESS_RENDER_PTS:
+      value = std::to_string((int)CServiceBroker::GetDataCacheCore().GetRenderPts());
       return true;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
