@@ -69,6 +69,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <cstring>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -3568,26 +3569,109 @@ bool CVideoPlayer::SeekScene(Direction seekDirection)
 
 void CVideoPlayer::GetGeneralInfo(std::string& strGeneralInfo)
 {
-  if (!m_bStop)
-  {
-    double apts = m_VideoPlayerAudio->GetCurrentPts();
-    double vpts = m_VideoPlayerVideo->GetCurrentPts();
-    double dDiff = 0;
 
-    if (apts != DVD_NOPTS_VALUE && vpts != DVD_NOPTS_VALUE)
-      dDiff = (apts - vpts) / DVD_TIME_BASE;
+  // Moving Average variables.
+  static const int BUFFER_SIZE = 128;
+  static int index = 0;
+  static bool bufferFilled = false;
+  static bool resetDone = false;
+
+  static double bufferAudio[BUFFER_SIZE] = {0};
+  static double bufferVideo[BUFFER_SIZE] = {0};
+  static double bufferDelta[BUFFER_SIZE] = {0};
+  static double bufferDelay[BUFFER_SIZE] = {0};
+
+  static double sumAudio = 0;
+  static double sumVideo = 0;
+  static double sumDelta = 0;
+  static double sumDelay = 0;
+
+  if (!m_bStop && (m_playSpeed == DVD_PLAYSPEED_NORMAL))
+  {
+    resetDone = false;
+
+    const double clock = m_clock.GetClock();
+    const double apts = m_VideoPlayerAudio->GetCurrentPts();
+    const double vpts = m_VideoPlayerVideo->GetCurrentPts();
+    const double aPacketDelay = m_VideoPlayerAudio->GetCurrentPacketDelay();
+
+    const bool have_apts = (apts != DVD_NOPTS_VALUE);
+    const bool have_vpts = (vpts != DVD_NOPTS_VALUE);
+
+    const double dDiffAudio = (have_apts) ? (apts - clock) / DVD_TIME_BASE : 0;
+    const double dDiffVideo = (have_vpts) ? (vpts - clock) / DVD_TIME_BASE : 0;
+    const double dDiff = (have_apts && have_vpts) ? (apts - vpts) / DVD_TIME_BASE : 0;
+
+    // Moving Average Delta of Audio and Video
+    sumDelta -= bufferDelta[index];  // subtract "oldest" value from sum
+    sumDelta += dDiff;               // add new value to sum
+    bufferDelta[index] = dDiff;      // store new value at the index of "oldest"
+
+    // Moving Average Delta of Audio and Clock
+    sumAudio -= bufferAudio[index];  // subtract "oldest" value from sum
+    sumAudio += dDiffAudio;          // add new value to sum
+    bufferAudio[index] = dDiffAudio; // store new value at the index of "oldest"
+
+    // Moving Average Delta of Video and Clock
+    sumVideo -= bufferVideo[index];  // subtract "oldest" value from sum
+    sumVideo += dDiffVideo;          // add new value to sum
+    bufferVideo[index] = dDiffVideo; // store new value at the index of "oldest"
+
+    // Moving Average Packet Delay of Audio
+    sumDelay -= bufferDelay[index];    // subtract "oldest" value from sum
+    sumDelay += aPacketDelay;          // add new value to sum
+    bufferDelay[index] = aPacketDelay; // store new value at the index of "oldest"
+
+    index = (index + 1) % BUFFER_SIZE;           // next slot in ring buffers, wraps back to 0 for last index entry @ 127
+    bufferFilled = bufferFilled || (index == 0); // buffer already filled or index wrapped i.e. all buffer slots now have a value so filled
+    const int filled = bufferFilled ? BUFFER_SIZE : index;
+
+    // calc moving average from sum and how many entries in buffer
+    const double dDiffDeltaMovingAverage = sumDelta / filled;
+    const double dDiffAudioMovingAverage = sumAudio / filled;
+    const double dDiffVideoMovingAverage = sumVideo / filled;
+    const double dPacketDelayMovingAverage = sumDelay / filled;
+
+    std::string extraBuf;
+    extraBuf += StringUtils::Format(", rm-q:{:d}/{:d}",
+                                   m_renderManager.GetQueuedFrames(),
+                                   m_renderManager.GetQueueSize());
 
     std::string strBuf;
-    std::unique_lock lock(m_StateSection);
+    std::lock_guard lock(m_StateSection);
     if (m_State.cache_bytes >= 0)
     {
-      strBuf += StringUtils::Format("forward: {} / {:2.0f}% / {:6.3f}s / {:.3f}%",
+      strBuf += StringUtils::Format("fwd: {} / {:2.0f}% / {:6.3f}s / {:.3f}%",
                                     StringUtils::SizeToString(m_State.cache_bytes),
                                     m_State.cache_level * 100.0, m_State.cache_time,
                                     m_State.cache_offset * 100.0);
     }
 
-    strGeneralInfo = StringUtils::Format("Player: a/v:{: 6.3f}, {}", dDiff, strBuf);
+    if (!strBuf.empty())
+      extraBuf += " " + strBuf;
+
+    strGeneralInfo =
+        StringUtils::Format("P: a/v:{: 6.3f}, a/c:{: 6.3f}, v/c:{: 6.3f}, pd/c:{: 6.3f}{}",
+                            dDiffDeltaMovingAverage, dDiffAudioMovingAverage,
+                            dDiffVideoMovingAverage, dPacketDelayMovingAverage, extraBuf);
+  }
+  else if (!resetDone)
+  {
+    // Reset the Moving Average variables.
+    index = 0;
+    bufferFilled = false;
+
+    std::memset(bufferAudio, 0, sizeof(bufferAudio));
+    std::memset(bufferVideo, 0, sizeof(bufferVideo));
+    std::memset(bufferDelta, 0, sizeof(bufferDelta));
+    std::memset(bufferDelay, 0, sizeof(bufferDelay));
+
+    sumAudio = 0;
+    sumVideo = 0;
+    sumDelta = 0;
+    sumDelay = 0;
+
+    resetDone = true;
   }
 }
 
