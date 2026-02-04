@@ -790,6 +790,78 @@ constexpr uint32_t ADDON_SETTING_STRING              = ADDON_INFOS_START;
 constexpr uint32_t ADDON_SETTING_BOOL                = ADDON_INFOS_START + 1;
 constexpr uint32_t ADDON_SETTING_INT                 = ADDON_INFOS_START + 2;
 
+// start cpm 1700 to 1900
+
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_HAS_CONFIG                     = 1711;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_VERSION_MAJOR                  = 1712;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_VERSION_MINOR                  = 1713;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_PROFILE                        = 1714;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_LEVEL                          = 1715;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_RPU_PRESENT                    = 1716;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_EL_PRESENT                     = 1717;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_BL_PRESENT                     = 1718;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_BL_SIGNAL_COMPATIBILITY        = 1719;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_SOURCE_DOVI_PROFILE                 = 1720;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_SOURCE_DOVI_EL_PRESENT              = 1721;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_SOURCE_DOVI_EL_TYPE                 = 1722;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_SOURCE_DOVI_BL_SIGNAL_COMPATIBILITY = 1723;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC                   = 1724;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_CODEC_STRING                   = 1725;
+
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_EL_TYPE          = 1726;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_META_VERSION     = 1727;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_HAS_HEADER       = 1728;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L1_MIN_PQ        = 1729;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L1_MAX_PQ        = 1730;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L1_AVG_PQ        = 1731;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L1_MIN_NITS      = 1732;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L1_MAX_NITS      = 1733;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L1_AVG_NITS      = 1734;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_HAS_L5           = 1735;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L5_LEFT_OFFSET   = 1736;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L5_RIGHT_OFFSET  = 1737;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L5_TOP_OFFSET    = 1738;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L5_BOTTOM_OFFSET = 1739;
+
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MIN_PQ    = 1740;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MAX_PQ    = 1741;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MIN_NITS  = 1742;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MAX_NITS  = 1743;
+
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_HAS_L6           = 1744;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_CLL       = 1745;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_FALL      = 1746;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L6_MIN_LUM       = 1747;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_LUM       = 1748;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_HAS_CLL           = 1749;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_MAX_CLL           = 1750;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_MAX_FALL          = 1751;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_HAS_MDCV          = 1752;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_MIN_LUM           = 1753;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_MAX_LUM           = 1754;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_COLOUR_PRIMARIES  = 1755;
+
+constexpr uint32_t PLAYER_PROCESS_VIDEO_BIT_DEPTH             = 1773;
+
+constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_TYPE              = 1774;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_TYPE_RAW          = 1775;
+
+constexpr uint32_t PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE       = 1776;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE_RAW   = 1777;
+
+constexpr uint32_t PLAYER_PROCESS_VIDEO_SOURCE_ADDITIONAL_HDR_TYPE     = 1778;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_SOURCE_ADDITIONAL_HDR_TYPE_RAW = 1779;
+
+constexpr uint32_t PLAYER_PROCESS_VIDEO_WIDTH_RAW                     = 1780;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_HEIGHT_RAW                    = 1781;
+
+constexpr uint32_t PLAYER_PROCESS_VIDEO_COLOR_SPACE                   = 1782;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_COLOR_RANGE                   = 1783;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_COLOR_PRIMARIES               = 1784;
+constexpr uint32_t PLAYER_PROCESS_VIDEO_COLOR_TRANSFER_CHARACTERISTIC = 1785;
+
+// end cpm
+
 constexpr uint32_t WINDOW_PROPERTY                   = 9993;
 // unused id 9994
 constexpr uint32_t WINDOW_IS_VISIBLE                 = 9995;
