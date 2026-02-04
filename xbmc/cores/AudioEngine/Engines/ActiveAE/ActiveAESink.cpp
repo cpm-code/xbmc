@@ -307,6 +307,8 @@ void CActiveAESink::StateMachine(int signal, Protocol *port, Message *msg)
 
         case CSinkControlProtocol::FLUSH:
           ReturnBuffers();
+          if (m_sink)
+            m_sink->Flush();
           msg->Reply(CSinkControlProtocol::ACC);
           return;
 
