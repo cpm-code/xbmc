@@ -10,18 +10,23 @@
 
 #include "cores/FFmpeg.h"
 
+#include <optional>
 #include <stdint.h>
 
-extern "C"
-{
+#include "ServiceBroker.h"
+#include "cores/DataCacheCore.h"
+#include "cores/VideoPlayer/DVDStreamInfo.h"
+#include "cores/VideoPlayer/Process/ProcessInfo.h"
+
+#include "HevcSei.h"
+#include "HDR10Plus.h"
+#include "HDR10PlusConvert.h"
+
+extern "C" {
 #include <libavutil/avutil.h>
 #include <libavformat/avformat.h>
 #include <libavfilter/avfilter.h>
 #include <libavcodec/avcodec.h>
-
-#ifdef HAVE_LIBDOVI
-#include <libdovi/rpu_parser.h>
-#endif
 }
 
 typedef struct
@@ -84,22 +89,11 @@ typedef struct
   int frame_crop_bottom_offset;
 } sps_info_struct;
 
-enum ELType : int
-{
-  TYPE_NONE = 0,
-  TYPE_FEL,
-  TYPE_MEL
-};
-
 enum DOVIMode : int
 {
-  MODE_NONE = -1,
-  MODE_LOSSLESS = 0,
+  MODE_NONE = 0,
   MODE_TOMEL,
-  MODE_TO81,
-  MODE_PROFILE5TO81,
-  MODE_TO84,
-  MODE_TO81MAPPINGPRESERVED
+  MODE_TO81
 };
 
 class CBitstreamParser
@@ -116,14 +110,14 @@ public:
 class CBitstreamConverter
 {
 public:
-  CBitstreamConverter();
+  CBitstreamConverter(CDVDStreamInfo& hints);
   ~CBitstreamConverter();
 
-  bool Open(enum AVCodecID codec, uint8_t* in_extradata, int in_extrasize, bool to_annexb);
+  bool Open(bool to_annexb);
   void Close();
   bool NeedConvert() const { return m_convert_bitstream; }
-  bool Convert(uint8_t* pData, int iSize);
-  bool Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pData_el, int iSize_el);
+  bool Convert(uint8_t* pData, int iSize, double pts);
+  bool Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pData_el, int iSize_el, double pts);
   uint8_t* GetConvertBuffer() const;
   int GetConvertSize() const;
   uint8_t* GetExtraData();
@@ -132,10 +126,12 @@ public:
   void ResetStartDecode();
   bool CanStartDecode() const;
   void SetConvertDovi(enum DOVIMode value) { m_convert_dovi = value; }
+  void SetConvertHdr10Plus(bool value) { m_convert_Hdr10Plus = value; }
+  void SetPreferCovertHdr10Plus(bool value) { m_prefer_Hdr10Plus_conversion = value; }
+  void SetConvertHdr10PlusPeakBrightnessSource(enum PeakBrightnessSource value) { m_convert_Hdr10Plus_peak_brightness_source = value; };
+  void SetDualPriorityHdr10Plus(bool value) { m_dual_priority_Hdr10Plus = value; }
   void SetRemoveDovi(bool value) { m_removeDovi = value; }
   void SetRemoveHdr10Plus(bool value) { m_removeHdr10Plus = value; }
-  void SetDoviZeroLevel5(bool value) { m_setDoviZeroLevel5 = value; }
-  enum ELType GetDoviElType() const { return m_dovi_el_type; }
 
   static bool mpeg2_sequence_header(const uint8_t* data,
                                     const uint32_t size,
@@ -154,7 +150,7 @@ protected:
   bool BitstreamConvertInitAVC(void* in_extradata, int in_extrasize);
   bool BitstreamConvertInitHEVC(void* in_extradata, int in_extrasize);
   bool BitstreamConvertInitVVC(void* in_extradata, int in_extrasize);
-  bool BitstreamConvert(uint8_t* pData, int iSize, uint8_t** poutbuf, int* poutbuf_size);
+  bool BitstreamConvert(uint8_t* pData, int iSize, uint8_t** poutbuf, int* poutbuf_size, double pts);
   static void BitstreamAllocAndCopy(uint8_t** poutbuf,
                                     int* poutbuf_size,
                                     const uint8_t* sps_pps,
@@ -167,10 +163,18 @@ protected:
                                     const uint8_t* in,
                                     uint32_t in_size,
                                     uint8_t nal_type);
+  void ApplyMasteringDisplayColourVolume(const MasteringDisplayColourVolume& metadata, bool& update);
+  void ApplyContentLightLevel(const ContentLightLevel& metadata, bool& update);
+  void UpdateHdrStaticMetadata() const;
 
-#ifdef HAVE_LIBDOVI
-  const DoviData* processDoviRpu(uint8_t* buf, uint32_t nalSize);
-#endif
+  void AddDoViRpuNaluWrap(const Hdr10PlusMetadata& meta, uint8_t **poutbuf, uint32_t& poutbuf_size, double pts);
+  void AddDoViRpuNalu(const Hdr10PlusMetadata& meta, uint8_t **poutbuf, int *poutbuf_size, double pts) const;
+
+  void ProcessSeiPrefixWrap(uint8_t *buf, int32_t nal_size, uint8_t **poutbuf, uint32_t& poutbuf_size, Hdr10PlusMetadata& meta, bool& convert_hdr10plus_meta);
+  void ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8_t **poutbuf, int *poutbuf_size, Hdr10PlusMetadata& meta, bool& convert_hdr10plus_meta);
+
+  void ProcessDoViRpuWrap(uint8_t* buf, int32_t nal_size, uint8_t** poutbuf, uint32_t& poutbuf_size, double pts) const;
+  void ProcessDoViRpu(uint8_t* buf, int32_t nal_size, uint8_t** poutbuf, int* poutbuf_size, double pts) const;
 
   typedef struct omx_bitstream_ctx {
       uint8_t  length_size;
@@ -195,10 +199,17 @@ protected:
   bool m_convert_3byteTo4byteNALSize;
   bool m_convert_bytestream;
   AVCodecID m_codec;
+  CDVDStreamInfo& m_hints;
+  CDataCacheCore& m_dataCacheCore;
+  StreamHdrType m_initial_hdrType;
   bool m_start_decode;
   enum DOVIMode m_convert_dovi;
   bool m_removeDovi;
   bool m_removeHdr10Plus;
-  bool m_setDoviZeroLevel5;
-  enum ELType m_dovi_el_type;
+  bool m_convert_Hdr10Plus;
+  bool m_prefer_Hdr10Plus_conversion;
+  bool m_dual_priority_Hdr10Plus;
+  enum PeakBrightnessSource m_convert_Hdr10Plus_peak_brightness_source;
+  bool m_first_frame;
+  HDRStaticMetadataInfo m_hdrStaticMetadataInfo;
 };
