@@ -770,7 +770,7 @@ CVideoPlayer::CVideoPlayer(IPlayerCallback& callback)
 
   m_dvd.Clear();
   m_State.Clear();
-
+  m_demuxSeekBasePts = DVD_NOPTS_VALUE;
   m_bAbortRequest = false;
   m_offset_pts = 0.0;
   m_playSpeed = DVD_PLAYSPEED_NORMAL;
@@ -1384,6 +1384,7 @@ void CVideoPlayer::Prepare()
   m_processInfo->SetTempo(1.0);
   m_processInfo->SetFrameAdvance(false);
   m_State.Clear();
+  m_demuxSeekBasePts = DVD_NOPTS_VALUE;
   m_CurrentVideo.hint.Clear();
   m_CurrentAudio.hint.Clear();
   m_CurrentSubtitle.hint.Clear();
@@ -2937,7 +2938,12 @@ void CVideoPlayer::HandleMessages()
       //! of the desired segment. With the current approach calculated time may point
       //! to nirvana
       if (m_pInputStream->GetIPosTime() == nullptr)
-        time -= m_State.time_offset/1000l;
+      {
+        if (m_State.time_offset != 0)
+          time -= m_State.time_offset / 1000l;
+        else if (m_demuxSeekBasePts != DVD_NOPTS_VALUE)
+          time += DVD_TIME_TO_MSEC(m_demuxSeekBasePts);
+      }
 
       CLog::Log(LOGDEBUG, "demuxer seek to: {:f}", time);
       if (m_pDemuxer && m_pDemuxer->SeekTime(time, msg.GetBackward(), &start))
@@ -5281,6 +5287,7 @@ void CVideoPlayer::UpdatePlayState(double timeout)
     CDVDInputStream::IDisplayTime* pDisplayTime = m_pInputStream->GetIDisplayTime();
 
     CDVDInputStream::ITimes::Times times;
+    double candidateBasePts = DVD_NOPTS_VALUE;
     if (pTimes && pTimes->GetTimes(times))
     {
       state.startTime = times.startTime;
@@ -5288,6 +5295,7 @@ void CVideoPlayer::UpdatePlayState(double timeout)
       state.timeMax = (times.ptsEnd - times.ptsStart) * 1000 / DVD_TIME_BASE;
       state.timeMin = (times.ptsBegin - times.ptsStart) * 1000 / DVD_TIME_BASE;
       state.time_offset = -times.ptsStart;
+      candidateBasePts = times.ptsStart;
     }
     else if (pDisplayTime && pDisplayTime->GetTotalTime() > 0)
     {
@@ -5307,6 +5315,12 @@ void CVideoPlayer::UpdatePlayState(double timeout)
     else
     {
       state.time_offset = 0;
+    }
+
+    if ((candidateBasePts != DVD_NOPTS_VALUE) &&
+        (m_demuxSeekBasePts == DVD_NOPTS_VALUE))
+    {
+      m_demuxSeekBasePts = candidateBasePts;
     }
 
     if (pMenu)
@@ -5425,6 +5439,14 @@ void CVideoPlayer::UpdatePlayState(double timeout)
 
   std::unique_lock lock(m_StateSection);
   m_State = state;
+
+  if ((m_demuxSeekBasePts == DVD_NOPTS_VALUE) &&
+      (state.dts != DVD_NOPTS_VALUE))
+  {
+    const double base = state.dts - DVD_MSEC_TO_TIME(state.time);
+    if (std::isfinite(base))
+      m_demuxSeekBasePts = base;
+  }
 }
 
 bool CVideoPlayer::CanTempo()
