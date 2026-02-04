@@ -282,7 +282,6 @@
             <or>
               <condition>HAS_MEDIACODEC</condition>
               <condition>HAVE_WEBOS</condition>
-              <condition>HAVE_AMCODEC</condition>
             </or>
           </requirement>
           <dependencies>
@@ -992,6 +991,7 @@
     <category id="advanced" label="14187" help="38113">
       <group id="1" label="14188">
         <setting id="videoplayer.queuetimesize" type="integer" label="37130" help="37131">
+          <visible>false</visible> <!-- Fixed 16s in code -->
           <level>2</level>
           <default>80</default> <!-- 8.0 s -->
           <constraints>
@@ -1000,6 +1000,7 @@
           <control type="list" format="string" />
         </setting>
         <setting id="videoplayer.queuedatasize" type="integer" label="37132" help="37133">
+          <visible>false</visible> <!-- Fixed 16s in code -->
           <level>2</level>
           <default>40</default> <!-- 40 MB -->
           <constraints>
@@ -4325,7 +4326,7 @@
           <control type="spinner" format="string" />
         </setting>
         <!-- Move Convert Dolby Vision to here so with other settings - keep underlying name for now -->
-        <setting id="videoplayer.convertdovi" type="integer" label="39196" help="39197" parent="coreelec.amlogic.dolbyvision.type">
+        <setting id="coreelec.amlogic.dolbyvision.rpu.convert" type="integer" label="50300" help="50301" parent="coreelec.amlogic.dolbyvision.type">
           <requirement>HAVE_AMCODEC</requirement>
           <visible>false</visible>
           <level>2</level>
@@ -4335,9 +4336,9 @@
           </dependencies>
           <constraints>
             <options>
-              <option label="39300">0</option>  <!-- None (off) -->
-              <option label="39301">1</option>  <!-- ToMel -->
-              <option label="39302">2</option>  <!-- To81 -->
+              <option label="50310">0</option>  <!-- None (off) -->
+              <option label="50311">1</option>  <!-- ToMel -->
+              <option label="50312">2</option>  <!-- To81 -->
             </options>
           </constraints>
           <control type="spinner" format="string" />
