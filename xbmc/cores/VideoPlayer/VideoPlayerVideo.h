@@ -26,6 +26,7 @@
 #define DROP_BUFFER_LEVEL 4
 
 class CDemuxStreamVideo;
+class CDataCacheCore;
 
 class CDroppingStats
 {
@@ -98,8 +99,12 @@ protected:
                                 std::chrono::milliseconds timeout,
                                 int& priority);
 
-  EOutputState OutputPicture(const VideoPicture* src);
-  void ProcessOverlays(const VideoPicture* pSource, double pts);
+  int GetLevel() const override { return m_messageQueue.GetLevel(); }
+
+  void UpdatePlayerInfo();
+
+  EOutputState OutputPicture(const VideoPicture& src);
+  void ProcessOverlays(const VideoPicture& source, double pts);
   void OpenStream(CDVDStreamInfo& hint, std::unique_ptr<CDVDVideoCodec> codec);
 
   void ResetFrameRateCalc();
@@ -141,6 +146,7 @@ protected:
   std::list<DVDMessageListItem> m_packets;
   CDroppingStats m_droppingStats;
   CRenderManager& m_renderManager;
+  CDataCacheCore& m_dataCacheCore;
   VideoPicture m_picture;
 
   EOutputState m_outputSate{OUTPUT_NORMAL};
