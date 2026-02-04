@@ -25596,3 +25596,33 @@ msgstr ""
 msgctxt "#50211"
 msgid "Brightness adjustment (compensation) when using Min PQ 20."
 msgstr ""
+
+#. Title of Dolby Vision RPU conversion setting
+#: system/settings/settings.xml
+msgctxt "#50300"
+msgid "Dolby Vision compatibility mode"
+msgstr ""
+
+#. Help text for setting "Convert Dolby Vision Profile 7 FEL for compatibility" of label #50300
+#: system/settings/settings.xml
+msgctxt "#50301"
+msgid "If enabled, Dolby Vision Profile 7 FEL will be converted to either profile 7 MEL or profile 8.1, which are more commonly supported by devices. Enable if your device supports Dolby Vision, but has issues with some videos."
+msgstr ""
+
+#. "Dolby Vision RPU conversion"
+#: system/settings/settings.xml
+msgctxt "#50310"
+msgid "off"
+msgstr ""
+
+#. "Dolby Vision RPU conversion"
+#: system/settings/settings.xml
+msgctxt "#50311"
+msgid "To Profile 7 (MEL)"
+msgstr ""
+
+#. "Dolby Vision RPU conversion"
+#: system/settings/settings.xml
+msgctxt "#50312"
+msgid "To Profile 8.1"
+msgstr ""
