@@ -3660,6 +3660,7 @@ void CVideoPlayer::SetSubtitleVisible(bool bVisible)
   data["property"]["subtitleenabled"] = bVisible;
   CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Player, "OnPropertyChanged",
                                                      data);
+  aml_dv_set_subtitles(bVisible);
 }
 
 void CVideoPlayer::SetEnableStream(CCurrentStream& current, bool isEnabled)
@@ -3676,6 +3677,7 @@ void CVideoPlayer::SetSubtitleVisibleInternal(bool bVisible)
     std::static_pointer_cast<CDVDInputStreamNavigator>(m_pInputStream)->EnableSubtitleStream(bVisible);
 
   CServiceBroker::GetDataCacheCore().SignalSubtitleInfoChange();
+  aml_dv_set_subtitles(bVisible);
 }
 
 void CVideoPlayer::SetSubtitleVerticalPosition(int value, bool save)
