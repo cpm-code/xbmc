@@ -82,6 +82,7 @@ public:
   virtual void Flush(bool sync) = 0;
   bool AcceptsData() const override = 0;
   virtual bool HasData() const = 0;
+  virtual int GetLevel() const = 0;
   bool IsInited() const override = 0;
   void SendMessage(std::shared_ptr<CDVDMsg> pMsg, int priority = 0) override = 0;
   virtual void EnableSubtitle(bool bEnable) = 0;
@@ -120,6 +121,7 @@ public:
   virtual std::string GetPlayerInfo() = 0;
   virtual int GetAudioChannels() = 0;
   virtual double GetCurrentPts() = 0;
+  virtual double GetCurrentPacketDelay() = 0;
   bool IsStalled() const override = 0;
   virtual bool IsPassthrough() const = 0;
   virtual float GetDynamicRangeAmplification() const = 0;
