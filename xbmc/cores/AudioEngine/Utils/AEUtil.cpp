@@ -23,16 +23,14 @@ void AEDelayStatus::SetDelay(double d)
 {
   delay = d;
   maxcorrection = d;
-  tick = CurrentHostCounter();
+  startTime = std::chrono::steady_clock::now();
 }
 
 double AEDelayStatus::GetDelay() const
 {
-  double d = 0;
-  if (tick)
-    d = (double)(CurrentHostCounter() - tick) / CurrentHostFrequency();
-  if (d > maxcorrection)
-    d = maxcorrection;
+  auto elapsed = std::chrono::steady_clock::now() - startTime;
+  double d = std::chrono::duration<double>(elapsed).count();
+  d = std::min(d, maxcorrection);
 
   return delay - d;
 }
