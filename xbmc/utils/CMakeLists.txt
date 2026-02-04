@@ -81,6 +81,7 @@ set(SOURCES ActorProtocol.cpp
             XMLUtils.cpp)
 
 set(HEADERS ActorProtocol.h
+            AgedMap.h
             AlarmClock.h
             AliasShortcutUtils.h
             Archive.h
