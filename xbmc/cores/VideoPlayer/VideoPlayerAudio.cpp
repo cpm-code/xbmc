@@ -12,11 +12,14 @@
 #include "DVDCodecs/Audio/DVDAudioCodecPassthrough.h"
 #include "DVDCodecs/DVDFactoryCodec.h"
 #include "ServiceBroker.h"
+#include "cores/DataCacheCore.h"
 #include "cores/AudioEngine/Interfaces/AE.h"
 #include "cores/AudioEngine/Utils/AEUtil.h"
 #include "cores/VideoPlayer/Interface/DemuxPacket.h"
 #include "settings/Settings.h"
+#include "settings/AdvancedSettings.h"
 #include "settings/SettingsComponent.h"
+#include "utils/AMLUtils.h"
 #include "utils/MathUtils.h"
 #include "utils/log.h"
 
@@ -61,12 +64,15 @@ public:
 
 CVideoPlayerAudio::CVideoPlayerAudio(CDVDClock* pClock,
                                      CDVDMessageQueue& parent,
+                                     CRenderManager& renderManager,
                                      CProcessInfo& processInfo,
                                      double messageQueueTimeSize)
   : CThread("VideoPlayerAudio"),
     IDVDStreamPlayerAudio(processInfo),
     m_messageQueue("audio"),
     m_messageParent(parent),
+    m_renderManager(renderManager),
+    m_dataCacheCore(CServiceBroker::GetDataCacheCore()),
     m_audioSink(pClock)
 {
   m_pClock = pClock;
@@ -81,7 +87,7 @@ CVideoPlayerAudio::CVideoPlayerAudio(CDVDClock* pClock,
   m_maxspeedadjust = 0.0;
 
   // allows max bitrate of 18 Mbit/s (TrueHD max peak) during m_messageQueueTimeSize seconds
-  m_messageQueue.SetMaxDataSize(32 * messageQueueTimeSize / 8 * 1024 * 1024);
+  m_messageQueue.SetMaxDataSize(18 * messageQueueTimeSize / 8 * 1024 * 1024);
   m_messageQueue.SetMaxTimeSize(messageQueueTimeSize);
 
   m_disconAdjustTimeMs = processInfo.GetMaxPassthroughOffSyncDuration();
@@ -98,7 +104,7 @@ CVideoPlayerAudio::~CVideoPlayerAudio()
 bool CVideoPlayerAudio::OpenStream(CDVDStreamInfo hints)
 {
   CLog::Log(LOGINFO, "Finding audio codec for: {}", hints.codec);
-  bool allowpassthrough = !CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_VIDEOPLAYER_USEDISPLAYASCLOCK);
+  bool allowpassthrough = true;
 
   CAEStreamInfo::DataType streamType =
       m_audioSink.GetPassthroughStreamType(hints.codec, hints.samplerate, hints.profile);
@@ -149,12 +155,10 @@ void CVideoPlayerAudio::OpenStream(CDVDStreamInfo& hints, std::unique_ptr<CDVDAu
   m_stalled = m_messageQueue.GetPacketCount(CDVDMsg::DEMUXER_PACKET) == 0;
 
   m_prevsynctype = -1;
-  m_synctype = SYNC_DISCON;
-  if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_VIDEOPLAYER_USEDISPLAYASCLOCK))
-    m_synctype = SYNC_RESAMPLE;
+  m_synctype = m_processInfo.IsRealtimeStream() ? SYNC_RESAMPLE : SYNC_DISCON;
 
   if (m_synctype == SYNC_DISCON)
-    CLog::LogF(LOGINFO, "Allowing max Out-Of-Sync Value of {} ms", m_disconAdjustTimeMs);
+    CLog::LogF(LOGDEBUG, "Allowing max Out-Of-Sync Value of {} ms", m_disconAdjustTimeMs);
 
   m_prevskipped = false;
 
@@ -208,6 +212,17 @@ void CVideoPlayerAudio::CloseStream(bool bWaitForBuffers)
     m_pAudioCodec->Dispose();
     m_pAudioCodec.reset();
   }
+
+  std::ostringstream s;
+  SInfo info;
+  info.info        = s.str();
+  info.pts         = DVD_NOPTS_VALUE;
+  info.packetDelay = 0.0;
+  info.passthrough = false;
+
+  { std::unique_lock<CCriticalSection> lock(m_info_section);
+    m_info = info;
+  }
 }
 
 void CVideoPlayerAudio::OnStartup()
@@ -217,32 +232,33 @@ void CVideoPlayerAudio::OnStartup()
 void CVideoPlayerAudio::UpdatePlayerInfo()
 {
   std::ostringstream s;
-  s << "aq:" << std::setw(2) << std::min(99, m_messageQueue.GetLevel()) << "% (" << std::setw(2) << std::min(99,m_messageQueue.GetLevel(true)) << "%)";
-  s << std::fixed << std::setprecision(3) << m_messageQueue.GetTimeSize();
-  s << "s, Kb/s:" << std::fixed << std::setprecision(2) << m_audioStats.GetBitrate() / 1024.0;
+  s << "aq:"     << std::setw(2) << std::min(99, m_messageQueue.GetLevel()) << "% (" << std::setw(2)
+    << std::min(99, m_messageQueue.GetLevel(true)) << "%)";
+  s << ", Kb/s:" << std::fixed << std::setprecision(2) << m_audioStats.GetBitrate() / 1024.0;
   s << ", ac:"   << m_processInfo.GetAudioDecoderName().c_str();
   if (!m_info.passthrough)
     s << ", chan:" << m_processInfo.GetAudioChannels().c_str();
   s << ", " << m_streaminfo.samplerate/1000 << " kHz";
 
-  // print a/v discontinuity adjustments counter when audio is not resampled (passthrough mode)
-  if (m_synctype == SYNC_DISCON)
-    s << ", a/v corrections (" << m_disconAdjustTimeMs << "ms): " << m_disconAdjustCounter;
-
-  //print the inverse of the resample ratio, since that makes more sense
-  //if the resample ratio is 0.5, then we're playing twice as fast
-  else if (m_synctype == SYNC_RESAMPLE)
+  // print the inverse of the resample ratio, since that makes more sense
+  // if the resample ratio is 0.5, then we're playing twice as fast
+  if (m_synctype == SYNC_RESAMPLE)
     s << ", rr:" << std::fixed << std::setprecision(5) << 1.0 / m_audioSink.GetResampleRatio();
 
   SInfo info;
   info.info        = s.str();
   info.pts         = m_audioSink.GetPlayingPts();
+  info.packetDelay = m_audioSink.GetDelay();
   info.passthrough = m_pAudioCodec && m_pAudioCodec->NeedPassthrough();
 
   {
     std::unique_lock lock(m_info_section);
     m_info = info;
   }
+
+  m_dataCacheCore.SetAudioLiveBitRate(m_audioStats.GetBitrate());
+  m_dataCacheCore.SetAudioQueueLevel(std::min(99, m_messageQueue.GetLevel()));
+  m_dataCacheCore.SetAudioQueueDataLevel(std::min(99, m_messageQueue.GetLevel(true)));
 }
 
 void CVideoPlayerAudio::Process()
