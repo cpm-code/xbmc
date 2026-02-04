@@ -8,15 +8,23 @@
 
 #include "DataCacheCore.h"
 
+#include "DVDStreamInfo.h"
 #include "ServiceBroker.h"
 #include "cores/EdlEdit.h"
+#include "cores/AudioEngine/Utils/AEStreamInfo.h"
+#include "utils/AgedMap.h"
+#include "utils/BitstreamConverter.h"
+#include "utils/log.h"
 
-#include <chrono>
 #include <mutex>
 #include <utility>
 
-CDataCacheCore::CDataCacheCore()
-  : m_playerVideoInfo{}, m_playerAudioInfo{}, m_contentInfo{}, m_stateInfo{}
+CDataCacheCore::CDataCacheCore() :
+  m_playerVideoInfo {},
+  m_playerAudioInfo {},
+  m_contentInfo {},
+  m_renderInfo {},
+  m_stateInfo {}
 {
 }
 
@@ -78,6 +86,26 @@ void CDataCacheCore::SignalAudioInfoChange()
 void CDataCacheCore::SignalSubtitleInfoChange()
 {
   m_hasAVInfoChanges = true;
+}
+
+void CDataCacheCore::SetAVChange(bool value)
+{
+  m_AVChange = value;
+}
+
+bool CDataCacheCore::GetAVChange()
+{
+  return m_AVChange;
+}
+
+void CDataCacheCore::SetAVChangeExtended(bool value)
+{
+  m_AVChangeExtended = value;
+}
+
+bool CDataCacheCore::GetAVChangeExtended()
+{
+  return m_AVChangeExtended;
 }
 
 void CDataCacheCore::SetVideoDecoderName(std::string name, bool isHw)
@@ -165,6 +193,254 @@ int CDataCacheCore::GetVideoHeight()
   std::unique_lock lock(m_videoPlayerSection);
 
   return m_playerVideoInfo.height;
+}
+
+void CDataCacheCore::SetVideoBitDepth(int bitDepth)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.bitDepth = bitDepth;
+}
+
+int CDataCacheCore::GetVideoBitDepth()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.bitDepth;
+}
+
+void CDataCacheCore::SetVideoHdrType(StreamHdrType hdrType)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.hdrType = hdrType;
+}
+
+StreamHdrType CDataCacheCore::GetVideoHdrType()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.hdrType;
+}
+
+void CDataCacheCore::SetVideoSourceHdrType(StreamHdrType hdrType)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.sourceHdrType = hdrType;
+}
+
+StreamHdrType CDataCacheCore::GetVideoSourceHdrType()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.sourceHdrType;
+}
+
+void CDataCacheCore::SetVideoSourceAdditionalHdrType(StreamHdrType hdrType)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.sourceAdditionalHdrType = hdrType;
+}
+
+StreamHdrType CDataCacheCore::GetVideoSourceAdditionalHdrType()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.sourceAdditionalHdrType;
+}
+
+void CDataCacheCore::SetVideoColorSpace(AVColorSpace colorSpace)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.colorSpace = colorSpace;
+}
+
+AVColorSpace CDataCacheCore::GetVideoColorSpace()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.colorSpace;
+}
+
+void CDataCacheCore::SetVideoColorRange(AVColorRange colorRange)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.colorRange = colorRange;
+}
+
+AVColorRange CDataCacheCore::GetVideoColorRange()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.colorRange;
+}
+
+void CDataCacheCore::SetVideoColorPrimaries(AVColorPrimaries colorPrimaries)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.colorPrimaries = colorPrimaries;
+}
+
+AVColorPrimaries CDataCacheCore::GetVideoColorPrimaries()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.colorPrimaries;
+}
+
+void CDataCacheCore::SetVideoColorTransferCharacteristic(AVColorTransferCharacteristic colorTransferCharacteristic)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.colorTransferCharacteristic = colorTransferCharacteristic;
+}
+
+AVColorTransferCharacteristic CDataCacheCore::GetVideoColorTransferCharacteristic()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.colorTransferCharacteristic;
+}
+
+void CDataCacheCore::SetVideoDoViFrameMetadata(DOVIFrameMetadata value)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  uint64_t pts = value.pts;
+  logM(LOGDEBUG, "CDataCacheCore", "Set meta for pts [{}] [{}]", pts, value.level1_max_pq);
+  m_playerVideoInfo.doviFrameMetadataMap.insert(pts, std::move(value));
+}
+
+DOVIFrameMetadata CDataCacheCore::GetVideoDoViFrameMetadata()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  uint64_t pts = GetRenderPts();
+  auto doviFrameMetadata = m_playerVideoInfo.doviFrameMetadataMap.findOrLatest(pts);
+  if (doviFrameMetadata != m_playerVideoInfo.doviFrameMetadataMap.end())
+  {
+    logM(LOGDEBUG, "CDataCacheCore", "Get meta for pts [{}] [{}] (matched pts [{}])",
+                                     pts, doviFrameMetadata->second.level1_max_pq, doviFrameMetadata->first);
+    return doviFrameMetadata->second;
+  }
+  return {};
+}
+
+void CDataCacheCore::SetVideoDoViStreamMetadata(DOVIStreamMetadata value)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.doviStreamMetadata = std::move(value);
+}
+
+DOVIStreamMetadata CDataCacheCore::GetVideoDoViStreamMetadata()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.doviStreamMetadata;
+}
+
+void CDataCacheCore::SetVideoDoViStreamInfo(DOVIStreamInfo value)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.doviStreamInfo = std::move(value);
+}
+
+DOVIStreamInfo CDataCacheCore::GetVideoDoViStreamInfo()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.doviStreamInfo;
+}
+
+void CDataCacheCore::SetVideoSourceDoViStreamInfo(DOVIStreamInfo value)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.sourceDoViStreamInfo = std::move(value);
+}
+
+DOVIStreamInfo CDataCacheCore::GetVideoSourceDoViStreamInfo()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.sourceDoViStreamInfo;
+}
+
+void CDataCacheCore::SetVideoDoViCodecFourCC(std::string codecFourCC)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.doviCodecFourCC = std::move(codecFourCC);
+}
+
+std::string CDataCacheCore::GetVideoDoViCodecFourCC()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.doviCodecFourCC;
+}
+
+void CDataCacheCore::SetVideoHDRStaticMetadataInfo(HDRStaticMetadataInfo value)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.hdrStaticMetadataInfo = std::move(value);
+}
+
+HDRStaticMetadataInfo CDataCacheCore::GetVideoHDRStaticMetadataInfo()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.hdrStaticMetadataInfo;
+}
+
+void CDataCacheCore::SetVideoLiveBitRate(double bitRate)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.liveBitRate = bitRate;
+}
+
+double CDataCacheCore::GetVideoLiveBitRate()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.liveBitRate;
+}
+
+void CDataCacheCore::SetVideoQueueLevel(int level)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.queueLevel = level;
+}
+
+int CDataCacheCore::GetVideoQueueLevel()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.queueLevel;
+}
+
+void CDataCacheCore::SetVideoQueueDataLevel(int level)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.queueDataLevel = level;
+}
+
+int CDataCacheCore::GetVideoQueueDataLevel()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.queueDataLevel;
 }
 
 void CDataCacheCore::SetVideoFps(float fps)
@@ -278,6 +554,48 @@ int CDataCacheCore::GetAudioBitsPerSample()
   return m_playerAudioInfo.bitsPerSample;
 }
 
+void CDataCacheCore::SetAudioLiveBitRate(double bitRate)
+{
+  std::lock_guard lock(m_audioPlayerSection);
+
+  m_playerAudioInfo.liveBitRate = bitRate;
+}
+
+double CDataCacheCore::GetAudioLiveBitRate()
+{
+  std::lock_guard lock(m_audioPlayerSection);
+
+  return m_playerAudioInfo.liveBitRate;
+}
+
+void CDataCacheCore::SetAudioQueueLevel(int level)
+{
+  std::lock_guard lock(m_audioPlayerSection);
+
+  m_playerAudioInfo.queueLevel = level;
+}
+
+int CDataCacheCore::GetAudioQueueLevel()
+{
+  std::lock_guard lock(m_audioPlayerSection);
+
+  return m_playerAudioInfo.queueLevel;
+}
+
+void CDataCacheCore::SetAudioQueueDataLevel(int level)
+{
+  std::lock_guard lock(m_audioPlayerSection);
+
+  m_playerAudioInfo.queueDataLevel = level;
+}
+
+int CDataCacheCore::GetAudioQueueDataLevel()
+{
+  std::lock_guard lock(m_audioPlayerSection);
+
+  return m_playerAudioInfo.queueDataLevel;
+}
+
 void CDataCacheCore::SetEditList(const std::vector<EDL::Edit>& editList)
 {
   std::unique_lock lock(m_contentSection);
@@ -338,6 +656,20 @@ bool CDataCacheCore::IsRenderClockSync()
   std::unique_lock lock(m_renderSection);
 
   return m_renderInfo.m_isClockSync;
+}
+
+void CDataCacheCore::SetRenderPts(double pts)
+{
+  std::lock_guard lock(m_renderSection);
+
+  m_renderInfo.pts = pts;
+}
+
+double CDataCacheCore::GetRenderPts()
+{
+  std::lock_guard lock(m_renderSection);
+
+  return m_renderInfo.pts;
 }
 
 // player states
