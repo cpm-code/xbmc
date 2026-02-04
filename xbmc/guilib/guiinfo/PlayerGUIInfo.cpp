@@ -30,6 +30,8 @@
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
 #include "utils/log.h"
+#include "utils/AMLUtils.h"
+#include "utils/BitstreamConverter.h"
 #include "windowing/WinSystem.h"
 
 #include "platform/linux/SysfsPath.h"
@@ -39,6 +41,15 @@
 #include <cmath>
 #include <fmt/format.h>
 #include <memory>
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <string>
+
+extern "C"
+{
+#include <libavutil/pixdesc.h>
+}
 
 using namespace KODI::GUILIB::GUIINFO;
 
@@ -208,6 +219,81 @@ bool CPlayerGUIInfo::InitCurrentItem(CFileItem* item)
     m_currentItem.reset();
   }
   return false;
+}
+
+std::string HdrTypeToString(StreamHdrType hdrType) {
+  switch (hdrType) {
+    case StreamHdrType::HDR_TYPE_NONE: return "SDR";
+    case StreamHdrType::HDR_TYPE_HDR10: return "HDR10";
+    case StreamHdrType::HDR_TYPE_HDR10PLUS: return "HDR10+";
+    case StreamHdrType::HDR_TYPE_DOLBYVISION: return "Dolby Vision";
+    case StreamHdrType::HDR_TYPE_HLG: return "HLG HDR";
+  }
+  return "";
+}
+
+std::string DoViELTypeToString(DOVIELType doviElType) {
+  switch (doviElType) {
+    case DOVIELType::TYPE_NONE: return "none";
+    case DOVIELType::TYPE_FEL: return "full";
+    case DOVIELType::TYPE_MEL: return "minimum";
+  }
+  return "";
+}
+
+std::string uint8_to_padded_string(uint8_t value) {
+  std::stringstream ss;
+  ss << std::setw(2) << std::setfill('0') << static_cast<int>(value);
+  return ss.str();
+}
+
+std::string VideoDoViCodecString() {
+
+  std::string fourCC = CServiceBroker::GetDataCacheCore().GetVideoDoViCodecFourCC();
+  uint8_t profile = CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi.dv_profile;
+  uint8_t level = CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi.dv_level;
+
+  return fmt::format("{}.{}.{}", fourCC, uint8_to_padded_string(profile), uint8_to_padded_string(level));
+}
+
+// Constants for PQ/Nits conversion
+constexpr double ST2084_Y_MAX = 10000.0;
+constexpr double ST2084_M1 = 2610.0 / 16384.0;
+constexpr double ST2084_M2 = (2523.0 / 4096.0) * 128.0;
+constexpr double ST2084_C1 = 3424.0 / 4096.0;
+constexpr double ST2084_C2 = (2413.0 / 4096.0) * 32.0;
+constexpr double ST2084_C3 = (2392.0 / 4096.0) * 32.0;
+
+static double pq_to_nits(uint16_t pq) {
+
+  // short circuit for well known PQ to nits (eliminate rounding from original 12 bit quantization)
+  switch (pq) {
+    case 0:    { return 0; }
+    case 7:    { return 0.0001; }
+    case 10:   { return 0.0002; }
+    case 17:   { return 0.0005; }
+    case 26:   { return 0.001; }
+    case 38:   { return 0.002; }
+    case 62:   { return 0.005; }
+    case 3079: { return 1000.0; }
+    case 3388: { return 2000.0; }
+    case 3696: { return 4000.0; }
+    case 4095: { return 10000.0; }
+  }
+
+  // Normalize 12-bit PQ value to 0-1 range
+  double pq_normalized = pq / 4095.0;
+
+  double pq_pow = std::pow(pq_normalized, 1.0 / ST2084_M2);
+  double num = std::max(pq_pow - ST2084_C1, 0.0);
+  double den = ST2084_C2 - ST2084_C3 * pq_pow;
+
+  // Protect against division by zero
+  if (std::abs(den) < std::numeric_limits<double>::epsilon()) {
+    return 0.0;
+  }
+
+  return ST2084_Y_MAX * std::pow(num / den, 1.0 / ST2084_M1);
 }
 
 bool CPlayerGUIInfo::GetLabel(std::string& value,
@@ -400,6 +486,193 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     case PLAYER_PROCESS_AUDIOBITSPERSAMPLE:
       value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetAudioBitsPerSample());
       return true;
+    case PLAYER_PROCESS_VIDEO_BIT_DEPTH:
+      value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetVideoBitDepth());
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_TYPE:
+      value = HdrTypeToString(CServiceBroker::GetDataCacheCore().GetVideoHdrType());
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_TYPE_RAW:
+      value = std::to_string(static_cast<int>(CServiceBroker::GetDataCacheCore().GetVideoHdrType()));
+      return true;
+    case PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE:
+      value = HdrTypeToString(CServiceBroker::GetDataCacheCore().GetVideoSourceHdrType());
+      return true;
+    case PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE_RAW:
+      value = std::to_string(static_cast<int>(CServiceBroker::GetDataCacheCore().GetVideoSourceHdrType()));
+      return true;
+    case PLAYER_PROCESS_VIDEO_SOURCE_ADDITIONAL_HDR_TYPE:
+      value = HdrTypeToString(CServiceBroker::GetDataCacheCore().GetVideoSourceAdditionalHdrType());
+      return true;
+    case PLAYER_PROCESS_VIDEO_SOURCE_ADDITIONAL_HDR_TYPE_RAW:
+      value = std::to_string(static_cast<int>(CServiceBroker::GetDataCacheCore().GetVideoSourceAdditionalHdrType()));
+      return true;
+    case PLAYER_PROCESS_VIDEO_WIDTH_RAW:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoWidth());
+      return true;
+    case PLAYER_PROCESS_VIDEO_HEIGHT_RAW:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoHeight());
+      return true;
+    case PLAYER_PROCESS_VIDEO_COLOR_SPACE:
+      value = av_color_space_name(CServiceBroker::GetDataCacheCore().GetVideoColorSpace());
+      return true;
+    case PLAYER_PROCESS_VIDEO_COLOR_RANGE:
+      value = av_color_range_name(CServiceBroker::GetDataCacheCore().GetVideoColorRange());
+      return true;
+    case PLAYER_PROCESS_VIDEO_COLOR_PRIMARIES:
+      value = av_color_primaries_name(CServiceBroker::GetDataCacheCore().GetVideoColorPrimaries());
+      return true;
+    case PLAYER_PROCESS_VIDEO_COLOR_TRANSFER_CHARACTERISTIC:
+      value = av_color_transfer_name(CServiceBroker::GetDataCacheCore().GetVideoColorTransferCharacteristic());
+      return true;
+
+    case PLAYER_PROCESS_VIDEO_DOVI_HAS_CONFIG:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().has_config);
+      return true;
+
+    case PLAYER_PROCESS_VIDEO_DOVI_VERSION_MAJOR:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi.dv_version_major);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_VERSION_MINOR:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi.dv_version_minor);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_PROFILE:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi.dv_profile);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_LEVEL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi.dv_level);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_RPU_PRESENT:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi.rpu_present_flag);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_EL_PRESENT:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi.el_present_flag);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_BL_PRESENT:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi.bl_present_flag);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_BL_SIGNAL_COMPATIBILITY:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi.dv_bl_signal_compatibility_id);
+      return true;
+
+    case PLAYER_PROCESS_VIDEO_SOURCE_DOVI_PROFILE:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoSourceDoViStreamInfo().dovi.dv_profile);
+      return true;
+    case PLAYER_PROCESS_VIDEO_SOURCE_DOVI_BL_SIGNAL_COMPATIBILITY:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoSourceDoViStreamInfo().dovi.dv_bl_signal_compatibility_id);
+      return true;
+    case PLAYER_PROCESS_VIDEO_SOURCE_DOVI_EL_PRESENT:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoSourceDoViStreamInfo().dovi.el_present_flag);
+      return true;
+    case PLAYER_PROCESS_VIDEO_SOURCE_DOVI_EL_TYPE:
+      value = DoViELTypeToString(CServiceBroker::GetDataCacheCore().GetVideoSourceDoViStreamInfo().dovi_el_type);
+      return true;
+
+    case PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC:
+      value = CServiceBroker::GetDataCacheCore().GetVideoDoViCodecFourCC();
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_CODEC_STRING:
+      value = VideoDoViCodecString();
+      return true;
+
+    case PLAYER_PROCESS_VIDEO_DOVI_EL_TYPE:
+      value = DoViELTypeToString(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi_el_type);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_META_VERSION:
+      value = CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().meta_version;
+      return true;
+
+    case PLAYER_PROCESS_VIDEO_DOVI_HAS_HEADER:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().has_header);
+      return true;
+
+    case PLAYER_PROCESS_VIDEO_DOVI_L1_MIN_PQ:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().level1_min_pq);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_L1_MAX_PQ:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().level1_max_pq);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_L1_AVG_PQ:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().level1_avg_pq);
+      return true;
+
+    case PLAYER_PROCESS_VIDEO_DOVI_L1_MIN_NITS:
+      value = StringUtils::FormatNumber(pq_to_nits(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().level1_min_pq), 4);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_L1_MAX_NITS:
+      value = std::to_string(static_cast<int>(pq_to_nits(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().level1_max_pq)));
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_L1_AVG_NITS:
+      value = std::to_string(static_cast<int>(pq_to_nits(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().level1_avg_pq)));
+      return true;
+
+    case PLAYER_PROCESS_VIDEO_DOVI_HAS_L5:
+      value =std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().has_level5_metadata);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_L5_LEFT_OFFSET:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().level5_active_area_left_offset);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_L5_RIGHT_OFFSET:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().level5_active_area_right_offset);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_L5_TOP_OFFSET:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().level5_active_area_top_offset);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_L5_BOTTOM_OFFSET:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().level5_active_area_bottom_offset);
+      return true;
+
+    case PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MIN_PQ:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().source_min_pq);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MAX_PQ:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().source_max_pq);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MIN_NITS:
+      value = StringUtils::FormatNumber(pq_to_nits(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().source_min_pq), 4);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MAX_NITS:
+      value = std::to_string(static_cast<int>(pq_to_nits(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().source_max_pq)));
+      return true;
+
+    case PLAYER_PROCESS_VIDEO_DOVI_HAS_L6:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().has_level6_metadata);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_CLL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().level6_max_cll);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_FALL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().level6_max_fall);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_L6_MIN_LUM:
+      value = StringUtils::FormatNumber((CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().level6_min_lum * 0.0001), 4);
+      return true;
+    case PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_LUM:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().level6_max_lum);
+      return true;
+
+    case PLAYER_PROCESS_VIDEO_HDR_HAS_CLL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoHDRStaticMetadataInfo().has_cll_metadata);
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_MAX_CLL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoHDRStaticMetadataInfo().max_cll);
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_MAX_FALL:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoHDRStaticMetadataInfo().max_fall);
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_HAS_MDCV:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoHDRStaticMetadataInfo().has_mdcv_metadata);
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_MIN_LUM:
+      value = StringUtils::FormatNumber((CServiceBroker::GetDataCacheCore().GetVideoHDRStaticMetadataInfo().min_lum * 0.0001), 4);
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_MAX_LUM:
+      value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoHDRStaticMetadataInfo().max_lum);
+      return true;
+    case PLAYER_PROCESS_VIDEO_HDR_COLOUR_PRIMARIES:
+      value = CServiceBroker::GetDataCacheCore().GetVideoHDRStaticMetadataInfo().colour_primaries;
+      return true;
+
     case PLAYER_PROCESS_AML_PIXELFORMAT:
       value = GetAMLConfigInfo("Colour depth") + ", " + GetAMLConfigInfo("Colourspace");
       return true;
@@ -463,6 +736,21 @@ bool CPlayerGUIInfo::GetInt(int& value,
       return true;
     case PLAYER_AUDIO_DELAY:
       value = m_appPlayer->GetAudioDelay();
+      return true;
+    case PLAYER_PROCESS_AUDIO_QUEUE_LEVEL:
+      value = CServiceBroker::GetDataCacheCore().GetAudioQueueLevel();
+      return true;
+    case PLAYER_PROCESS_AUDIO_QUEUE_DATA_LEVEL:
+      value = CServiceBroker::GetDataCacheCore().GetAudioQueueDataLevel();
+      return true;
+    case PLAYER_PROCESS_VIDEO_QUEUE_LEVEL:
+      value = CServiceBroker::GetDataCacheCore().GetVideoQueueLevel();
+      return true;
+    case PLAYER_PROCESS_VIDEO_QUEUE_DATA_LEVEL:
+      value = CServiceBroker::GetDataCacheCore().GetVideoQueueDataLevel();
+      return true;
+    case PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE_RAW:
+      value = static_cast<int>(CServiceBroker::GetDataCacheCore().GetVideoSourceHdrType());
       return true;
     default:
       break;
