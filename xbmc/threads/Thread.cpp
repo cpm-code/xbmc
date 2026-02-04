@@ -21,6 +21,9 @@
 #include <iostream>
 #include <mutex>
 #include <stdlib.h>
+#include <pthread.h>
+#include <sched.h>
+#include <unistd.h>
 
 #include <fmt/format.h>
 #if FMT_VERSION >= 90000
@@ -47,6 +50,16 @@ struct fmt::formatter<std::thread::id> : fmt::formatter<std::string>
 #endif
 
 static thread_local CThread* currentThread;
+
+static std::atomic<int> g_reservedCpu{-1};
+
+void CThread::SetGlobalExcludedCpu(int cpu)
+{
+  if (cpu >= 0)
+    g_reservedCpu.store(cpu, std::memory_order_relaxed);
+  else
+    g_reservedCpu.store(-1, std::memory_order_relaxed);
+}
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -143,6 +156,34 @@ void CThread::Create(bool bAutoDelete)
         pThread->m_impl = IThreadImpl::CreateThreadImpl(pThread->m_thread->native_handle());
         pThread->m_impl->SetThreadInfo(pThread->m_ThreadName);
 
+        // If the application reserved a single core (by pinning the main kodi.bin thread),
+        // keep other Kodi threads off that core to reduce scheduling jitter.
+        const int reservedCpu = g_reservedCpu.load(std::memory_order_relaxed);
+        if (reservedCpu >= 0)
+        {
+          cpu_set_t mask;
+          CPU_ZERO(&mask);
+          if (pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &mask) == 0)
+          {
+            // Preserve the main pinned kodi.bin thread.
+            const bool isMainPinnedKodiThread =
+                (pThread->m_ThreadName == "kodi.bin") && CPU_ISSET(reservedCpu, &mask) &&
+                (CPU_COUNT(&mask) == 1);
+
+            if (!isMainPinnedKodiThread && CPU_ISSET(reservedCpu, &mask))
+            {
+              CPU_CLR(reservedCpu, &mask);
+              if (CPU_COUNT(&mask) == 0)
+              {
+                const int onlineCpus = static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
+                for (int cpu = 0; cpu < onlineCpus && cpu < CPU_SETSIZE; ++cpu)
+                  CPU_SET(cpu, &mask);
+              }
+              pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &mask);
+            }
+          }
+        }
+
         CLog::Log(LOGDEBUG, "Thread {} start, auto delete: {}", pThread->m_ThreadName,
                   (pThread->m_bAutoDelete ? "true" : "false"));
 
@@ -172,6 +213,46 @@ void CThread::Create(bool bAutoDelete)
 
       promise.set_value(true);
     }, this, std::move(prom));
+
+    // On Linux, new threads inherit the creating thread's CPU affinity mask.
+    // Since CoreELEC/Amlogic configurations often pin the main Kodi thread (kodi.bin)
+    // to a single core, threads created by it would otherwise be stuck on that core.
+    // Avoid that by widening child thread affinity to all online CPUs except the
+    // creator's single pinned CPU.
+    char creatorName[16] = {0};
+    pthread_getname_np(pthread_self(), creatorName, sizeof(creatorName));
+    if (strcmp(creatorName, "kodi.bin") == 0)
+    {
+      cpu_set_t creatorMask;
+      CPU_ZERO(&creatorMask);
+      if (pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &creatorMask) == 0)
+      {
+        const int onlineCpus = static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
+        int pinnedCpu = -1;
+        int count = 0;
+        for (int cpu = 0; cpu < onlineCpus && cpu < CPU_SETSIZE; ++cpu)
+        {
+          if (CPU_ISSET(cpu, &creatorMask))
+          {
+            pinnedCpu = cpu;
+            ++count;
+          }
+        }
+
+        if (count == 1 && pinnedCpu >= 0)
+        {
+          g_reservedCpu.store(pinnedCpu, std::memory_order_relaxed);
+          cpu_set_t childMask;
+          CPU_ZERO(&childMask);
+          for (int cpu = 0; cpu < onlineCpus && cpu < CPU_SETSIZE; ++cpu)
+          {
+            if (cpu != pinnedCpu)
+              CPU_SET(cpu, &childMask);
+          }
+          pthread_setaffinity_np(m_thread->native_handle(), sizeof(cpu_set_t), &childMask);
+        }
+      }
+    }
   } // let the lambda proceed
 
   m_StartEvent.Wait(); // wait for the thread just spawned to set its internals

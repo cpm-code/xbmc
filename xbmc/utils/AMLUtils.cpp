@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <sys/resource.h>
 #include <string>
 #include <regex>
 #include <chrono>
@@ -19,6 +21,8 @@
 #include <numeric>
 #include <cmath>
 #include <algorithm>
+#include <time.h>
+#include <sys/prctl.h>
 
 #include "AMLUtils.h"
 
@@ -708,9 +712,9 @@ void aml_dv_set_xbmc_osd()
 {
   auto &wm = CServiceBroker::GetGUI()->GetWindowManager();
 
-  bool osd_active = wm.HasVisibleModalDialog() ||
-                    wm.IsWindowVisible(WINDOW_VIDEO_MENU); // ||
-                    //CServiceBroker::GetDataCacheCore().GetAVChangeExtended(); //cpm-check
+  bool osd_active = wm.HasVisibleDialog() ||
+                    wm.IsWindowVisible(WINDOW_VIDEO_MENU) ||
+                    CServiceBroker::GetDataCacheCore().GetAVChangeExtended();
 
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_xbmc_osd", osd_active ? 1 : 0);
 }
@@ -1522,22 +1526,72 @@ void aml_pin_thread_to_core(unsigned int core_id) {
 
 void aml_wait(useconds_t uSeconds)
 {
-   struct timespec target, now;
+  static constexpr uint64_t LOG_THRESHOLD_US = 2000;
 
-   clock_gettime(CLOCK_MONOTONIC, &now);
+  struct timespec now{};
+  clock_gettime(CLOCK_MONOTONIC, &now);
 
-   target.tv_sec = uSeconds / 1000000;
-   target.tv_nsec = (uSeconds % 1000000) * 1000;
+  struct timespec target{};
+  target.tv_sec = uSeconds / 1000000;
+  target.tv_nsec = (uSeconds % 1000000) * 1000;
 
-   target.tv_sec += now.tv_sec;
-   target.tv_nsec += now.tv_nsec;
+  target.tv_sec += now.tv_sec;
+  target.tv_nsec += now.tv_nsec;
 
-   if (target.tv_nsec >= 1000000000) {
-     target.tv_sec++;
-     target.tv_nsec -= 1000000000;
-   }
+  if (target.tv_nsec >= 1000000000) {
+    target.tv_sec++;
+    target.tv_nsec -= 1000000000;
+  }
 
-   clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &target, nullptr);
+  const uint64_t deadline_us = static_cast<uint64_t>(target.tv_sec) * 1000000ULL +
+                               static_cast<uint64_t>(target.tv_nsec) / 1000ULL;
+  clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &target, nullptr);
+
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  const uint64_t after_us = static_cast<uint64_t>(now.tv_sec) * 1000000ULL +
+                            static_cast<uint64_t>(now.tv_nsec) / 1000ULL;
+
+  const uint64_t late_us = (after_us > deadline_us) ? (after_us - deadline_us) : 0;
+
+  if (late_us > LOG_THRESHOLD_US)
+  {
+    char name[16] = {0};
+    pthread_getname_np(pthread_self(), name, sizeof(name));
+
+    logM(LOGINFO, "AMLUtils", "overslept: req:{}us late:{}us thread:{}",
+         static_cast<unsigned>(uSeconds),
+         static_cast<unsigned long long>(late_us),
+         name);
+  }
+}
+
+bool aml_try_set_thread_nice(int niceLevel)
+{
+  const int lvl = std::max(-20, std::min(niceLevel, 19));
+  errno = 0;
+  const int ret = setpriority(PRIO_PROCESS, 0, lvl);
+  if (ret != 0)
+  {
+    logM(LOGWARNING, "AMLUtils", "Failed to set nice {}: {}", lvl, strerror(errno));
+    return false;
+  }
+  logM(LOGINFO, "AMLUtils", "Set nice {}", lvl);
+  return true;
+}
+
+bool aml_set_timer_slack_ns(long slackNs)
+{
+#if defined(PR_SET_TIMERSLACK) && defined(PR_GET_TIMERSLACK)
+  const long oldSlackNs = prctl(PR_GET_TIMERSLACK);
+  const int setRet = prctl(PR_SET_TIMERSLACK, slackNs);
+  const long newSlackNs = prctl(PR_GET_TIMERSLACK);
+  logM(LOGINFO, "AMLUtils", "old:{}ns new:{}ns set_ret:{}", oldSlackNs, newSlackNs,
+       setRet);
+  return setRet == 0;
+#else
+  (void)slackNs;
+  return false;
+#endif
 }
 
 bool aml_video_started()

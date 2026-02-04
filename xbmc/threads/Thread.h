@@ -99,6 +99,10 @@ public:
 
   static CThread* GetCurrentThread();
 
+  // Linux-only: reserve a CPU by excluding it from newly created Kodi threads.
+  // Intended for platforms that pin the main render thread to a single core.
+  static void SetGlobalExcludedCpu(int cpu);
+
   virtual void OnException(){} // signal termination handler
 
 protected:
