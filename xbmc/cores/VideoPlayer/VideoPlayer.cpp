@@ -43,6 +43,7 @@
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "interfaces/AnnouncementManager.h"
+#include "jobs/JobManager.h"
 #include "jobs/JobQueue.h"
 #include "messaging/ApplicationMessenger.h"
 #include "resources/LocalizeStrings.h"
@@ -72,6 +73,7 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <thread>
 #include <utility>
 
 using namespace KODI;
@@ -686,6 +688,30 @@ int CSelectionStreams::CountType(StreamType type) const
 //------------------------------------------------------------------------------
 // main class
 //------------------------------------------------------------------------------
+
+void CVideoPlayer::SetAVChange(std::string from) const
+{
+  CLog::Log(LOGINFO, "VideoPlayer::SetAVChange true [{}]", from);
+
+  if (CServiceBroker::GetDataCacheCore().GetAVChange())
+    return; // already set, do not allow set again until done.
+
+  CServiceBroker::GetDataCacheCore().SetAVChange(true);
+  CServiceBroker::GetDataCacheCore().SetAVChangeExtended(true);
+
+  const unsigned int timeout{CServiceBroker::GetSettingsComponent()
+                                 ->GetAdvancedSettings()
+                                 ->m_guiAVChangeFlagTimeout};
+
+  // Schedule set to false after the configured timeout in advanced settings - user can dial-in as preferred.
+  CServiceBroker::GetJobManager()->Submit([from = std::move(from), timeout]() {
+    std::this_thread::sleep_for(std::chrono::seconds(timeout));
+    CServiceBroker::GetDataCacheCore().SetAVChange(false);
+    CLog::Log(LOGINFO, "VideoPlayer::SetAVChange false [{}] after [{}] seconds", from, timeout);
+    std::this_thread::sleep_for(2s);
+    CServiceBroker::GetDataCacheCore().SetAVChangeExtended(false);
+  });
+}
 
 void CVideoPlayer::CreatePlayers()
 {
@@ -3987,6 +4013,8 @@ bool CVideoPlayer::OpenAudioStream(CDVDStreamInfo& hint, bool reset)
   static_cast<IDVDStreamPlayerAudio*>(player)->SendMessage(
       std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_REQUEST_STATE), 1);
 
+  SetAVChange("OpenAudioStream");
+
   return true;
 }
 
@@ -4095,6 +4123,8 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
                                                  static_cast<int>(hint.extradata.GetSize()));
     m_SelectionStreams.Clear(StreamType::NONE, STREAM_SOURCE_VIDEOMUX);
   }
+
+  SetAVChange("OpenVideoStream");
 
   return true;
 }
