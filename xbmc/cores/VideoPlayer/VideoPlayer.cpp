@@ -776,10 +776,7 @@ CVideoPlayer::CVideoPlayer(IPlayerCallback& callback)
   m_HasVideo = false;
   m_HasAudio = false;
 
-  const int tenthsSeconds = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
-      CSettings::SETTING_VIDEOPLAYER_QUEUETIMESIZE);
-
-  m_messageQueueTimeSize = static_cast<double>(tenthsSeconds) / 10.0;
+  m_messageQueueTimeSize = 16; // 16 seconds for buffer at max bit rate.
 
   m_SkipCommercials = true;
 
