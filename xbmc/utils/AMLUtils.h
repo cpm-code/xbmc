@@ -12,6 +12,7 @@
 #include "windowing/Resolution.h"
 #include "utils/StreamDetails.h"
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -156,7 +157,8 @@ bool aml_unset_reg_ignore_alpha();
 std::string aml_video_fps_info();
 std::string aml_video_fps_drop();
 void aml_pin_thread_to_core(unsigned int core_id);
-void aml_wait(useconds_t uSeconds);
+void aml_wait(double waitUs);
+bool aml_wait_vsync_early(int offsetUs);
 bool aml_try_set_thread_nice(int niceLevel);
 bool aml_set_timer_slack_ns(long slackNs);
 bool aml_video_started();
