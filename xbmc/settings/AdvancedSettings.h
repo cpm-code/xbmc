@@ -15,8 +15,10 @@
 #include "threads/CriticalSection.h"
 #include "utils/RegExp.h"
 #include "utils/SortUtils.h"
+#include "cores/AudioEngine/Utils/AEStreamInfo.h"
 
 #include <cstdint>
+#include <set>
 #include <functional>
 #include <map>
 #include <string>
@@ -103,8 +105,14 @@ struct RefreshVideoLatency
 
   unsigned int resolution;
 
-  float delay;
-  float hdrextradelay;
+  int delay;
+};
+
+struct PassthroughAudioLatency
+{
+  CAEStreamInfo::DataType type;
+
+  int delay;
 };
 
 using SETTINGS_TVSHOWLIST = std::vector<TVShowRegexp>;
@@ -146,6 +154,12 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
                                  std::vector<std::string>& settings);
     static void GetCustomExtensions(const TiXmlElement* pRootElement, std::string& extensions);
 
+    unsigned int m_threadApplicationCore;
+    unsigned int m_threadVideoPlayerVideoCore;
+    unsigned int m_threadActiveAECore;
+
+    unsigned int m_threadApplicationMaxOtherTaskTime;
+
     std::string m_audioDefaultPlayer;
     float m_audioPlayCountMinimumPercent;
     float m_limiterHold;
@@ -182,7 +196,8 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     int m_videoIgnoreSecondsAtStart;
     float m_videoIgnorePercentAtEnd;
     float m_audioApplyDrc;
-    unsigned int m_maxPassthroughOffSyncDuration = 50; // when 50 ms off adjust
+    unsigned int m_maxPassthroughOffSyncDuration = 10; // when off by this value then adjust
+    unsigned int m_audioAddPacketUnlockTime = 1000;
     bool m_AllowMultiChannelFloat = false; // Android only switch to be removed in v22
     bool m_superviseAudioDelay = false; // Android only to correct broken audio firmwares
 
@@ -191,8 +206,9 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     float m_videoAutoScaleMaxFps;
     std::vector<RefreshOverride> m_videoAdjustRefreshOverrides;
     std::vector<RefreshVideoLatency> m_videoRefreshLatency;
-    float m_videoDefaultLatency;
-    float m_videoDefaultHdrExtraLatency;
+    std::vector<PassthroughAudioLatency> m_audioPassthroughLatency;
+    bool m_hasVideoDefaultLatency;
+    int m_videoDefaultLatency;
     int  m_videoCaptureUseOcclusionQuery;
     bool m_DXVACheckCompatibility;
     bool m_DXVACheckCompatibilityPresent;
@@ -381,7 +397,7 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     bool m_guiGeometryClear{false};
     bool m_guiAsyncTextureUpload{false};
     bool m_guiVideoLayoutTransparent{false};
-
+    unsigned int m_guiAVChangeFlagTimeout;
     unsigned int m_addonPackageFolderSize;
 
     bool m_jsonOutputCompact;
@@ -390,8 +406,11 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     bool m_enableMultimediaKeys;
     std::vector<std::string> m_settingsFiles;
     void ParseSettingsFile(const std::string &file);
+    void ParseAudioLatencySettings(const TiXmlElement* pAudioElement);
 
-    float GetLatencyTweak(float refreshrate, bool isHDREnabled, unsigned int resolution) const;
+    int GetVideoLatencyTweak(float refreshrate, unsigned int resolution);
+    int GetAudioLatencyTweak(CAEStreamInfo::DataType type);
+
     bool m_initialized{false};
 
     void SetDebugMode(bool debug);
@@ -422,7 +441,12 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     uint32_t m_nfsTimeout;
     int m_nfsRetries;
 
-    int  m_videoDecoderTimeout;
+    int m_videoDecoderTimeout;
+    float m_videoDecoderBuffer;
+    float m_videoDecoderStreamBuffer;
+    float m_videoDecoderMinimumBuffer;
+    float m_videoDecoderMinimumStreamBuffer;
+    int m_videoDecoderH264Offset;
 
   private:
     void Initialize();
