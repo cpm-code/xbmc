@@ -11,13 +11,16 @@
 #include "DVDClock.h"
 #include "DebugRenderer.h"
 #include "cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodec.h"
+#include "cores/DataCacheCore.h"
 #include "cores/VideoPlayer/VideoRenderers/BaseRenderer.h"
 #include "cores/VideoPlayer/VideoRenderers/OverlayRenderer.h"
 #include "cores/VideoSettings.h"
+#include "application/ApplicationPlayer.h"
 #include "threads/CriticalSection.h"
 #include "threads/Event.h"
 #include "threads/SystemClock.h"
 #include "utils/Geometry.h"
+#include "utils/StreamDetails.h"
 #include "windowing/Resolution.h"
 
 #include <atomic>
@@ -66,9 +69,10 @@ public:
   void FrameWait(std::chrono::milliseconds duration);
   void Render(bool clear, DWORD flags = 0, DWORD alpha = 255, bool gui = true);
   bool IsVideoLayer();
-  RESOLUTION GetResolution();
-  void UpdateResolution();
+  RESOLUTION GetResolution() const;
+  void UpdateResolution(bool force = false);
   void TriggerUpdateResolution(float fps, int width, int height, std::string &stereomode);
+  void TriggerUpdateResolutionHdr(StreamHdrType m_hdrType);
   void SetViewMode(int iViewMode);
   void PreInit();
   void UnInit();
@@ -95,12 +99,13 @@ public:
   bool Supports(ESCALINGMETHOD method) const;
 
   int GetSkippedFrames()  { return m_QueueSkip; }
-  void DisplayReset() { m_displayReset = true; }
 
-  bool Configure(const VideoPicture& picture, float fps, unsigned int orientation, int buffers = 0);
+  bool Configure(const VideoPicture& picture, float fps, unsigned int orientation, StreamHdrType hdrType, int buffers = 0);
   bool AddVideoPicture(const VideoPicture& picture, volatile std::atomic_bool& bStop, EINTERLACEMETHOD deintMethod, bool wait);
   void AddOverlay(std::shared_ptr<CDVDOverlay> o, double pts);
   void ShowVideo(bool enable);
+
+  void DisplayReset();
 
   /**
    * If player uses buffering it has to wait for a buffer before it calls
@@ -117,13 +122,24 @@ public:
    */
   bool GetStats(int &lateframes, double &pts, int &queued, int &discard);
 
+  int GetQueuedFrames() const;
+  int GetQueueSize() const;
+
+  double GetRenderPts();
+  double GetFramePts();
+
   /**
-   * Video player call this on flush in order to discard any queued frames
+   * Video player call this on flush in oder to discard any queued frames
    */
   void DiscardBuffer();
 
   void SetDelay(int delay) { m_videoDelay = delay; }
   int GetDelay() { return m_videoDelay; }
+
+  int GetVideoLatencyTweak() { return m_videoLatencyTweak; }
+
+  void SetAudioLatencyTweak(int tweak) { m_audioLatencyTweak = tweak; }
+  int GetAudioLatencyTweak() { return m_audioLatencyTweak; }
 
   void SetVideoSettings(const CVideoSettings& settings);
 
@@ -133,6 +149,8 @@ protected:
   void PresentFields(bool clear, DWORD flags, DWORD alpha);
   void PresentBlend(bool clear, DWORD flags, DWORD alpha);
 
+  void SetPresentSource();
+  bool Paused(bool paused, double clock);
   void PrepareNextRender();
   bool IsPresenting();
   bool IsGuiLayer();
@@ -142,14 +160,15 @@ protected:
   void DeleteRenderer();
   void ManageCaptures();
 
-  void UpdateLatencyTweak();
+  void UpdateVideoLatencyTweak();
   void CheckEnableClockSync();
 
   CBaseRenderer *m_pRenderer = nullptr;
   OVERLAY::CRenderer m_overlays;
   CDebugRenderer m_debugRenderer;
   mutable CCriticalSection m_statelock;
-  CCriticalSection m_presentlock;
+  CCriticalSection m_resolutionlock;
+  mutable CCriticalSection m_presentlock;
   CCriticalSection m_datalock;
   bool m_bTriggerUpdateResolution = false;
   bool m_bRenderGUI = true;
@@ -184,11 +203,13 @@ protected:
   ERENDERSTATE m_renderState = STATE_UNCONFIGURED;
   CEvent m_stateEvent;
 
-  /// Display latency tweak value from AdvancedSettings for the current refresh rate
-  /// in milliseconds
-  double m_latencyTweak = 0.0;
-  /// Display latency updated in PrepareNextRender in DVD clock units, includes m_latencyTweak
-  double m_displayLatency = 0.0;
+  // Display latency tweak from AdvancedSettings for the current refresh rate and resolution in milliseconds
+  std::atomic_int m_videoLatencyTweak = 0;
+
+  // Display latency tweak from AdvancedSettings for audio in milliseconds
+  std::atomic_int m_audioLatencyTweak = 0;
+
+  // User set latency
   std::atomic_int m_videoDelay = {};
 
   int m_QueueSize = 2;
@@ -197,6 +218,7 @@ protected:
   struct SPresent
   {
     double         pts;
+    double         duration;
     EFIELDSYNC     presentfield;
     EPRESENTMETHOD presentmethod;
   } m_Queue[NUM_BUFFERS]{};
@@ -211,14 +233,17 @@ protected:
 
   float m_fps = 0.0;
   unsigned int m_orientation = 0;
+  StreamHdrType m_hdrType = StreamHdrType::HDR_TYPE_NONE;
+  StreamHdrType m_hdrType_override = StreamHdrType::HDR_TYPE_NONE;
   int m_NumberBuffers = 0;
   int m_lateframes = -1;
   double m_presentpts = 0.0;
   EPRESENTSTEP m_presentstep = PRESENT_IDLE;
   XbmcThreads::EndTime<> m_presentTimer;
   bool m_forceNext = false;
-  int m_presentsource = -1;
-  int m_presentsourcePast = -1;
+  bool m_presentstarted = false;
+  int m_presentsource = 0;
+  double m_presentframetime = 0;
   XbmcThreads::ConditionVariable m_presentevent;
   CEvent m_flushEvent;
   CEvent m_initEvent;
@@ -235,7 +260,7 @@ protected:
   };
   CClockSync m_clockSync;
 
-  void RenderCapture(CRenderCapture* capture);
+  void RenderCapture(CRenderCapture* capture) const;
   void RemoveCaptures();
   CCriticalSection m_captCritSect;
   std::map<unsigned int, CRenderCapture*> m_captures;
@@ -245,6 +270,10 @@ protected:
   //std::list::empty() isn't thread safe, using an extra bool will save a lock per render when no captures are requested
   bool m_hasCaptures = false;
 
-  std::chrono::time_point<std::chrono::system_clock> m_videostarted;
-  bool m_displayReset = false;
+private:
+  bool CalcOverlayActiveArea(CRect& src, CRect& dst) const;
+  void ClockAlign();
+  void RenderUpdate(bool clear, unsigned int flags, unsigned int alpha);
+
+  CDataCacheCore &m_dataCacheCore;
 };
