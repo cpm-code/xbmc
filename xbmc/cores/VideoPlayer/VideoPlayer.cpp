@@ -4969,6 +4969,25 @@ bool CVideoPlayer::OnAction(const CAction &action)
     case ACTION_PLAYER_PROCESS_INFO:
       CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Player, "OnProcessInfo");
       return true;
+
+    case ACTION_VS10_ORIGINAL:
+      if (CServiceBroker::GetDataCacheCore().GetVideoHdrType() == StreamHdrType::HDR_TYPE_DOLBYVISION)
+        aml_dv_set_vs10_mode(DOLBY_VISION_OUTPUT_MODE_IPT);
+      else
+        aml_dv_set_vs10_mode(DOLBY_VISION_OUTPUT_MODE_BYPASS);
+      return true;
+
+    case ACTION_VS10_SDR:
+      aml_dv_set_vs10_mode(DOLBY_VISION_OUTPUT_MODE_SDR10);
+      return true;
+
+    case ACTION_VS10_HDR10:
+      aml_dv_set_vs10_mode(DOLBY_VISION_OUTPUT_MODE_HDR10);
+      return true;
+
+    case ACTION_VS10_DV:
+      aml_dv_set_vs10_mode(DOLBY_VISION_OUTPUT_MODE_IPT);
+      return true;
   }
 
   // return false to inform the caller we didn't handle the message
