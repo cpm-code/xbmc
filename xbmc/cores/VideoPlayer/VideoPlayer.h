@@ -264,6 +264,8 @@ class CVideoPlayer : public IPlayer, public CThread, public IVideoPlayer,
     ALWAYS_UPDATE
   };
 
+  void SetAVChange(std::string from) const;
+
 public:
   explicit CVideoPlayer(IPlayerCallback& callback);
   ~CVideoPlayer() override;
