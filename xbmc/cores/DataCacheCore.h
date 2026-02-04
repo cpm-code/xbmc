@@ -8,8 +8,12 @@
 
 #pragma once
 
+#include "DVDStreamInfo.h"
 #include "EdlEdit.h"
+#include "cores/AudioEngine/Utils/AEStreamInfo.h"
 #include "threads/CriticalSection.h"
+#include "utils/AgedMap.h"
+#include "utils/BitstreamConverter.h"
 
 #include <atomic>
 #include <chrono>
@@ -29,6 +33,11 @@ public:
   void SignalAudioInfoChange();
   void SignalSubtitleInfoChange();
 
+  void SetAVChange(bool value);
+  bool GetAVChange();
+  void SetAVChangeExtended(bool value);
+  bool GetAVChangeExtended();
+
   // player video info
   void SetVideoDecoderName(std::string name, bool isHw);
   std::string GetVideoDecoderName();
@@ -46,6 +55,42 @@ public:
   float GetVideoFps();
   void SetVideoDAR(float dar);
   float GetVideoDAR();
+
+  // Additional Player Process Info data (Only set in Data Core Cache)
+  void SetVideoBitDepth(int bitDepth);
+  int GetVideoBitDepth();
+  void SetVideoHdrType(StreamHdrType hdrType);
+  StreamHdrType GetVideoHdrType();
+  void SetVideoSourceHdrType(StreamHdrType hdrType);
+  StreamHdrType GetVideoSourceHdrType();
+  void SetVideoSourceAdditionalHdrType(StreamHdrType hdrType);
+  StreamHdrType GetVideoSourceAdditionalHdrType();
+  void SetVideoColorSpace(AVColorSpace colorSpace);
+  AVColorSpace GetVideoColorSpace();
+  void SetVideoColorRange(AVColorRange colorRange);
+  AVColorRange GetVideoColorRange();
+  void SetVideoColorPrimaries(AVColorPrimaries colorPrimaries);
+  AVColorPrimaries GetVideoColorPrimaries();
+  void SetVideoColorTransferCharacteristic(AVColorTransferCharacteristic colorTransferCharacteristic);
+  AVColorTransferCharacteristic GetVideoColorTransferCharacteristic();
+  void SetVideoDoViFrameMetadata(DOVIFrameMetadata value);
+  DOVIFrameMetadata GetVideoDoViFrameMetadata();
+  void SetVideoDoViStreamMetadata(DOVIStreamMetadata value);
+  DOVIStreamMetadata GetVideoDoViStreamMetadata();
+  void SetVideoDoViStreamInfo(DOVIStreamInfo value);
+  DOVIStreamInfo GetVideoDoViStreamInfo();
+  void SetVideoSourceDoViStreamInfo(DOVIStreamInfo value);
+  DOVIStreamInfo GetVideoSourceDoViStreamInfo();
+  void SetVideoDoViCodecFourCC(std::string value);
+  std::string GetVideoDoViCodecFourCC();
+  void SetVideoHDRStaticMetadataInfo(HDRStaticMetadataInfo value);
+  HDRStaticMetadataInfo GetVideoHDRStaticMetadataInfo();
+  void SetVideoLiveBitRate(double bitRate);
+  double GetVideoLiveBitRate();
+  void SetVideoQueueLevel(int level);
+  int GetVideoQueueLevel();
+  void SetVideoQueueDataLevel(int level);
+  int GetVideoQueueDataLevel();
 
   /*!
    * @brief Set if the video is interlaced in cache.
@@ -70,6 +115,14 @@ public:
   int GetAudioSampleRate();
   void SetAudioBitsPerSample(int bitsPerSample);
   int GetAudioBitsPerSample();
+
+  // Additional Player Process Info data (Only set in Data Core Cache)
+  void SetAudioLiveBitRate(double bitRate);
+  double GetAudioLiveBitRate();
+  void SetAudioQueueLevel(int level);
+  int GetAudioQueueLevel();
+  void SetAudioQueueDataLevel(int level);
+  int GetAudioQueueDataLevel();
 
   // content info
 
@@ -120,6 +173,8 @@ public:
   // render info
   void SetRenderClockSync(bool enabled);
   bool IsRenderClockSync();
+  void SetRenderPts(double pts);
+  double GetRenderPts();
 
   // player states
   /*!
@@ -199,6 +254,8 @@ public:
   int64_t GetMaxTime();
 
 protected:
+  std::atomic_bool m_AVChange = false;
+  std::atomic_bool m_AVChangeExtended = false;
   std::atomic_bool m_hasAVInfoChanges = false;
 
   CCriticalSection m_videoPlayerSection;
@@ -214,6 +271,26 @@ protected:
     float fps;
     float dar;
     bool m_isInterlaced;
+    int bitDepth = 0;
+    StreamHdrType hdrType = StreamHdrType::HDR_TYPE_NONE;
+    StreamHdrType sourceHdrType = StreamHdrType::HDR_TYPE_NONE;
+    StreamHdrType sourceAdditionalHdrType = StreamHdrType::HDR_TYPE_NONE;
+    AVColorSpace colorSpace = AVCOL_SPC_UNSPECIFIED;
+    AVColorRange colorRange = AVCOL_RANGE_UNSPECIFIED;
+    AVColorPrimaries colorPrimaries = AVCOL_PRI_UNSPECIFIED;
+    AVColorTransferCharacteristic colorTransferCharacteristic = AVCOL_TRC_UNSPECIFIED;
+    AgedMap<uint64_t, DOVIFrameMetadata> doviFrameMetadataMap;
+    DOVIStreamMetadata doviStreamMetadata = {};
+    DOVIStreamInfo doviStreamInfo = {};
+    DOVIStreamInfo sourceDoViStreamInfo = {};
+
+    std::string doviCodecFourCC = "";
+
+    HDRStaticMetadataInfo hdrStaticMetadataInfo = {};
+
+    double liveBitRate = 0;
+    int queueLevel = 0;
+    int queueDataLevel = 0;
   } m_playerVideoInfo;
 
   CCriticalSection m_audioPlayerSection;
@@ -224,6 +301,9 @@ protected:
     std::string channels_sink;
     int sampleRate;
     int bitsPerSample;
+    double liveBitRate = 0;
+    int queueLevel = 0;
+    int queueDataLevel = 0;
   } m_playerAudioInfo;
 
   mutable CCriticalSection m_contentSection;
@@ -310,6 +390,7 @@ protected:
   struct SRenderInfo
   {
     bool m_isClockSync;
+    double pts = 0;
   } m_renderInfo{};
 
   mutable CCriticalSection m_stateSection;
