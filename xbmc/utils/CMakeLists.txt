@@ -5,6 +5,7 @@ set(SOURCES ActorProtocol.cpp
             ArtUtils.cpp
             Base64.cpp
             BitstreamConverter.cpp
+            BitstreamConverterDoVi.cpp
             BitstreamIoWriter.cpp
             BitstreamReader.cpp
             BitstreamStats.cpp
