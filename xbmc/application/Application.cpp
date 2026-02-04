@@ -47,7 +47,9 @@
 #include "application/ApplicationSkinHandling.h"
 #include "application/ApplicationStackHelper.h"
 #include "application/ApplicationVolumeHandling.h"
+#include "threads/Thread.h"
 #include "cores/AudioEngine/Engines/ActiveAE/ActiveAE.h"
+#include "cores/DataCacheCore.h"
 #include "cores/FFmpeg.h"
 #include "cores/playercorefactory/PlayerCoreFactory.h"
 #include "dialogs/GUIDialogBusy.h"
@@ -131,6 +133,9 @@
 #include "settings/lib/Setting.h"
 #include "speech/ISpeechRecognition.h"
 #include "storage/MediaManager.h"
+#include "threads/SingleLock.h"
+#include "threads/SystemClock.h"
+#include "utils/AMLUtils.h"
 #include "utils/AlarmClock.h"
 #include "utils/CPUInfo.h"
 #include "utils/CharsetConverter.h"
@@ -1493,20 +1498,21 @@ void CApplication::FrameMove(bool processEvents, bool processGUI)
     }
 
     // Open the door for external calls e.g python exactly here.
-    // Window size can be between 2 and 10ms and depends on number of continuous requests
+    // Window size can be between 2 and max configured ms and depends on number of continuous requests
     if (m_WaitingExternalCalls)
     {
       CSingleExit ex(CServiceBroker::GetWinSystem()->GetGfxContext());
       m_frameMoveGuard.unlock();
 
-      // Calculate a window size between 2 and 10ms, 4 continuous requests let the window grow by 1ms
+      // Calculate a window size between 2 and max configured ms, 4 continuous requests let the window grow by 1ms
       // When not playing video we allow it to increase to 80ms
-      unsigned int max_sleep = 10;
+      unsigned int max_sleep = m_maxOtherTaskTime;
       if (!appPlayer->IsPlayingVideo() || appPlayer->IsPausedPlayback())
         max_sleep = 80;
       unsigned int sleepTime = std::max(static_cast<unsigned int>(2), std::min(m_ProcessedExternalCalls >> 2, max_sleep));
       KODI::TIME::Sleep(std::chrono::milliseconds(sleepTime));
       m_frameMoveGuard.lock();
+
       m_ProcessedExternalDecay = 5;
     }
     if (m_ProcessedExternalDecay && --m_ProcessedExternalDecay == 0)
@@ -1575,6 +1581,22 @@ int CApplication::Run()
     CServiceBroker::GetPlaylistPlayer().SetCurrentPlaylist(PLAYLIST::Id::TYPE_MUSIC);
     CServiceBroker::GetAppMessenger()->PostMsg(TMSG_PLAYLISTPLAYER_PLAY, -1);
   }
+
+  // pin the main thread (Process/FrameMove/Render) to core
+  const int appCore = static_cast<int>(CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_threadApplicationCore);
+  aml_pin_thread_to_core(appCore);
+  CThread::SetGlobalExcludedCpu(appCore);
+
+  // Best-effort: modest boost to reduce wakeup latency for video presentation.
+  // Avoid real-time scheduling here; it can be too aggressive on some systems.
+  aml_try_set_thread_nice(-8);
+
+  // Tighten timer behavior on the main render thread: reduce timer slack (timer coalescing)
+  // so absolute sleeps wake closer to their target time.
+  aml_set_timer_slack_ns(1L);
+
+  // max time for other tasks on main thread
+  m_maxOtherTaskTime = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_threadApplicationMaxOtherTaskTime;
 
   // Run the app
   while (!m_bStop)
