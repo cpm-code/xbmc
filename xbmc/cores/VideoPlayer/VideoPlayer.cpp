@@ -697,8 +697,8 @@ void CVideoPlayer::CreatePlayers()
   m_VideoPlayerVideo =
       std::make_unique<CVideoPlayerVideo>(&m_clock, &m_overlayContainer, m_messenger,
                                           m_renderManager, *m_processInfo, m_messageQueueTimeSize);
-  m_VideoPlayerAudio = std::make_unique<CVideoPlayerAudio>(&m_clock, m_messenger, *m_processInfo,
-                                                           m_messageQueueTimeSize);
+    m_VideoPlayerAudio = std::make_unique<CVideoPlayerAudio>(&m_clock, m_messenger, m_renderManager,
+                                 *m_processInfo, m_messageQueueTimeSize);
   m_VideoPlayerSubtitle =
       std::make_unique<CVideoPlayerSubtitle>(&m_overlayContainer, *m_processInfo);
   m_VideoPlayerTeletext = std::make_unique<CDVDTeletextData>(*m_processInfo);
