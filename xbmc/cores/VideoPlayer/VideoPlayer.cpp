@@ -5415,6 +5415,7 @@ void CVideoPlayer::TriggerUpdateResolution()
 
 void CVideoPlayer::TriggerUpdateResolutionHdr(StreamHdrType hdrType)
 {
+  m_renderManager.TriggerUpdateResolutionHdr(hdrType);
 }
 
 bool CVideoPlayer::IsRenderingVideo() const
