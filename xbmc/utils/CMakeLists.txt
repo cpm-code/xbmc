@@ -31,6 +31,7 @@ set(SOURCES ActorProtocol.cpp
             FontUtils.cpp
             GpuInfo.cpp
             GroupUtils.cpp
+            HDR10.cpp
             HDR10Plus.cpp
             HDR10PlusConvert.cpp
             HDR10PlusWriter.cpp
@@ -123,6 +124,7 @@ set(HEADERS ActorProtocol.h
             GlobalsHandling.h
             GpuInfo.h
             GroupUtils.h
+            HDR10.h
             HDR10Plus.h
             HDR10PlusConvert.h
             HDR10PlusWriter.h
