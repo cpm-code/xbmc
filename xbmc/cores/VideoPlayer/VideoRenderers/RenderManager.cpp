@@ -738,20 +738,67 @@ void CRenderManager::ClockAlign()
   double diff = (renderPts - m_presentpts);
   double delay = diff;
 
-  // Seek may push the diff to a large negative value, make sure it is sensible. TODO should be better protected elsewhere.
+  const auto WaitSlice = [&](double waitUs)
+  {
+    // Sleep a bounded slice of the remaining gap.
+    // i.e. home in on the PTS, ramping perceived frame rate until matching
+    const double frameTimeUs = m_presentframetime;
+    const double sleepUs = (waitUs > 1000000)
+      ? (frameTimeUs * 4)
+      : (frameTimeUs * (((waitUs / frameTimeUs) / 10) + 1));
+    aml_wait(sleepUs);
+  };
+
+  const auto Wait = [&](double waitUs)
+  {
+    // GUI-layer renderers are paced by the normal swap/present path.
+    if (!m_pRenderer || m_pRenderer->IsGuiLayer())
+      return aml_wait(waitUs);
+
+    // Wait taking into account early VSync timing.
+    constexpr int configuredGuardUs = 10000;
+    constexpr int minLeadUs = 2000;
+
+    // Sleep until we're close to the deadline, then apply early-VSYNC guard.
+    // This avoids waking well before PTS while still preventing queuing too close to VSYNC.
+    const double finalWindowUs = static_cast<double>(configuredGuardUs + minLeadUs);
+    double remainingUs = waitUs;
+
+    if (remainingUs > finalWindowUs)
+    {
+      aml_wait(remainingUs - finalWindowUs);
+
+      // Recheck the clock after the coarse sleep. aml_wait() can oversleep under load.
+      remainingUs = m_presentpts - m_dvdClock.GetClock();
+      if (remainingUs <= 0)
+        return;
+
+      if (remainingUs > finalWindowUs)
+        remainingUs = finalWindowUs;
+    }
+
+    const int latestSafeGuardUs = std::max(0, static_cast<int>(remainingUs) - minLeadUs);
+    const int guardUs = std::min(configuredGuardUs, latestSafeGuardUs);
+
+    if (guardUs > 0)
+    {
+      if (!aml_wait_vsync_early(guardUs))
+        aml_wait(remainingUs);
+    }
+    else
+      aml_wait(remainingUs);
+  };
+
+  // Seek may push the diff to a large negative value, make sure it is sensible.
+  // TODO: should be better protected elsewhere.
   if (diff < 0)
   {
     double wait = -diff;
 
     if (wait > m_presentframetime)
-    {
-      double maxWait = (wait > 1000000)
-        ? (m_presentframetime * 4)
-        : (m_presentframetime * (((wait / m_presentframetime) / 10) + 1));
-      aml_wait(static_cast<useconds_t>(maxWait));
-    }
+      WaitSlice(wait);
     else
-      aml_wait(static_cast<useconds_t>(wait));
+      Wait(wait);
 
     renderPts = m_dvdClock.GetClock();
     diff = (renderPts - m_presentpts);
