@@ -422,6 +422,20 @@ public:
     return std::move(ss).str();
   }
 
+  template<typename T>
+  [[nodiscard]] static std::string FormatNumber(T num, unsigned int precision)
+  {
+    std::stringstream ss;
+// ifdef is needed because when you set _ITERATOR_DEBUG_LEVEL=0 and you use custom numpunct you will get runtime error in debug mode
+// for more info https://connect.microsoft.com/VisualStudio/feedback/details/2655363
+#if !(defined(_DEBUG) && defined(TARGET_WINDOWS))
+    ss.imbue(GetOriginalLocale());
+#endif
+    ss.precision(precision);
+    ss << std::fixed << num;
+    return std::move(ss).str();
+  }
+
   /*! \brief Escapes the given string to be able to be used as a parameter.
 
    Escapes backslashes and double-quotes with an additional backslash and
