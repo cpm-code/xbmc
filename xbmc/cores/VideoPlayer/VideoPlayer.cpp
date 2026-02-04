@@ -1501,6 +1501,8 @@ void CVideoPlayer::Prepare()
 
   if (starttime > 0ms)
   {
+    m_clock.Discontinuity(DVD_MSEC_TO_TIME(static_cast<double>(starttime.count())));
+
     double startpts = DVD_NOPTS_VALUE;
     if (m_pDemuxer)
     {
@@ -1523,8 +1525,6 @@ void CVideoPlayer::Prepare()
         CLog::Log(LOGDEBUG, "{} - failed to start subtitle demuxing from: {}", __FUNCTION__,
                   starttime.count());
     }
-
-    m_clock.Discontinuity(DVD_MSEC_TO_TIME(starttime.count()));
   }
 
   UpdatePlayState(0);
