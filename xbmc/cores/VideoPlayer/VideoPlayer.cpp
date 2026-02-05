@@ -5353,6 +5353,10 @@ void CVideoPlayer::TriggerUpdateResolution()
   m_renderManager.TriggerUpdateResolution(0, 0, 0, stereomode);
 }
 
+void CVideoPlayer::TriggerUpdateResolutionHdr(StreamHdrType hdrType)
+{
+}
+
 bool CVideoPlayer::IsRenderingVideo() const
 {
   return m_renderManager.IsConfigured();
