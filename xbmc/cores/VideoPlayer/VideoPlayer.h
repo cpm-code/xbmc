@@ -357,6 +357,7 @@ public:
   void GetRects(CRect& source, CRect& dest, CRect& view) const override;
   unsigned int GetOrientation() const override;
   void TriggerUpdateResolution() override;
+  void TriggerUpdateResolutionHdr(StreamHdrType hdrType);
   bool IsRenderingVideo() const override;
   bool IsLiveStream() const override;
   bool Supports(EINTERLACEMETHOD method) const override;
