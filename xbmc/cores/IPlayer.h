@@ -237,6 +237,7 @@ public:
   virtual void SetRenderViewMode(int mode, float zoom, float par, float shift, bool stretch) {}
   virtual float GetRenderAspectRatio() const { return 1.0; }
   virtual void TriggerUpdateResolution() {}
+  virtual void TriggerUpdateResolutionHdr(StreamHdrType hdrType) {}
   virtual bool IsRenderingVideo() const { return false; }
   virtual bool IsLiveStream() const { return false; }
   virtual void GetRects(CRect& source, CRect& dest, CRect& view) const
