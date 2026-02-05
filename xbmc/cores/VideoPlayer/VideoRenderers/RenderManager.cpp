@@ -745,18 +745,38 @@ bool CRenderManager::CalcOverlayActiveArea(CRect& src, CRect& dst) const {
 
 void CRenderManager::ClockAlign()
 {
-  double renderPts = m_dvdClock.GetClock();
-  double diff = (renderPts - m_presentpts);
-  double delay = diff;
+  struct WaitDebugInfo
+  {
+    bool used = false;
+    bool usedSlice = false;
+    bool gui = false;
+    bool gotNextIn = false;
+    bool gotNextInAfter = false;
+    double waitUs = 0.0;
+    double sleepUs = 0.0;
+    double sliceSleepUs = 0.0;
+    double frameTimeUs = 0.0;
+    int nextInUs = 0;
+    int nextInAfterUs = 0;
+    int guardUs = 0;
+    bool clamped = false;
+  } waitDbg;
 
   const auto WaitSlice = [&](double waitUs)
   {
     // Sleep a bounded slice of the remaining gap.
-    // i.e. home in on the PTS, ramping perceived frame rate until matching
+    // i.e. home in on the pts, ramping perceived frame rate until matching
     const double frameTimeUs = m_presentframetime;
     const double sleepUs = (waitUs > 1000000)
       ? (frameTimeUs * 4)
       : (frameTimeUs * (((waitUs / frameTimeUs) / 10) + 1));
+
+    waitDbg.used = true;
+    waitDbg.usedSlice = true;
+    waitDbg.waitUs = waitUs;
+    waitDbg.sliceSleepUs = sleepUs;
+    waitDbg.frameTimeUs = frameTimeUs;
+
     aml_wait(sleepUs);
   };
 
@@ -764,41 +784,58 @@ void CRenderManager::ClockAlign()
   {
     // GUI-layer renderers are paced by the normal swap/present path.
     if (!m_pRenderer || m_pRenderer->IsGuiLayer())
+    {
+      waitDbg.used = true;
+      waitDbg.gui = true;
+      waitDbg.waitUs = waitUs;
       return aml_wait(waitUs);
-
-    // Wait taking into account early VSync timing.
-    constexpr int configuredGuardUs = 10000;
-    constexpr int minLeadUs = 2000;
-
-    // Sleep until we're close to the deadline, then apply early-VSYNC guard.
-    // This avoids waking well before PTS while still preventing queuing too close to VSYNC.
-    const double finalWindowUs = static_cast<double>(configuredGuardUs + minLeadUs);
-    double remainingUs = waitUs;
-
-    if (remainingUs > finalWindowUs)
-    {
-      aml_wait(remainingUs - finalWindowUs);
-
-      // Recheck the clock after the coarse sleep. aml_wait() can oversleep under load.
-      remainingUs = m_presentpts - m_dvdClock.GetClock();
-      if (remainingUs <= 0)
-        return;
-
-      if (remainingUs > finalWindowUs)
-        remainingUs = finalWindowUs;
     }
 
-    const int latestSafeGuardUs = std::max(0, static_cast<int>(remainingUs) - minLeadUs);
-    const int guardUs = std::min(configuredGuardUs, latestSafeGuardUs);
-
-    if (guardUs > 0)
+    int nextInUs{0};
+    if (!aml_get_time_to_next_vsync_us(nextInUs))
     {
-      if (!aml_wait_vsync_early(guardUs))
-        aml_wait(remainingUs);
+      waitDbg.used = true;
+      waitDbg.waitUs = waitUs;
+      aml_wait(waitUs);
+      return;
     }
-    else
-      aml_wait(remainingUs);
+
+    waitDbg.used = true;
+    waitDbg.waitUs = waitUs;
+    waitDbg.gotNextIn = true;
+    waitDbg.nextInUs = nextInUs;
+
+    // Wait for the pts, but never closer than 8ms to the next vsync.
+    // If the pts would land inside the guard window, stop early to leave setup time.
+    constexpr int vsyncGuardUs = 8000;
+    waitDbg.guardUs = vsyncGuardUs;
+
+    double sleepUs = waitUs;
+    if (waitUs < nextInUs)
+    {
+      // pts is before the upcoming vsync: stop early if we'd land inside the guard window.
+      const int maxBeforeGuardUs = std::max(0, nextInUs - vsyncGuardUs);
+      sleepUs = std::min(waitUs, static_cast<double>(maxBeforeGuardUs));
+    }
+
+    waitDbg.sleepUs = sleepUs;
+    waitDbg.clamped = (sleepUs < waitUs);
+
+    if (sleepUs > 0)
+    {
+      aml_wait(sleepUs);
+
+      int nextInAfterUs{0};
+      if (aml_get_time_to_next_vsync_us(nextInAfterUs))
+      {
+        waitDbg.gotNextInAfter = true;
+        waitDbg.nextInAfterUs = nextInAfterUs;
+      }
+    }
   };
+
+  double renderPts = m_dvdClock.GetClock();
+  double diff = (renderPts - m_presentpts);
 
   // Seek may push the diff to a large negative value, make sure it is sensible.
   // TODO: should be better protected elsewhere.
@@ -813,14 +850,27 @@ void CRenderManager::ClockAlign()
 
     renderPts = m_dvdClock.GetClock();
     diff = (renderPts - m_presentpts);
-  }
 
-  CLog::Log(LOGDEBUG,
-            "CRenderManager::ClockAlign - render:[{:.3f}] presenting:[{:02d}] [{:.3f}] diff:[{:.3f}] "
-            "delay:[{:.3f}] queued:[{:02d}] frametime:[{:.3f}] skip:[{:02d}]",
-            (renderPts / DVD_TIME_BASE), m_presentsource, (m_presentpts / DVD_TIME_BASE),
-            (diff / DVD_TIME_BASE), (delay / DVD_TIME_BASE),
-            m_queued.size(), (m_presentframetime / DVD_TIME_BASE), m_QueueSkip);
+    const double initialGapUs = wait;
+    const double finalGapUs = -diff;
+
+    // Emit one consolidated line per alignment attempt.
+    logM(LOGDEBUG, "CRenderManager", "gapInit:[{:.0f}] gapFinal:[{:.0f}] ft:[{:.0f}] wait:[{:.0f}] mode:[{}] nextIn:[{}] guard:[{}] sleep:[{:.0f}] clamped:[{}] nextAfter:[{}] sliceSleep:[{:.0f}] presenting:[{:02d}] queued:[{}] skip:[{:02d}]",
+      initialGapUs, finalGapUs, m_presentframetime,
+      waitDbg.used ? waitDbg.waitUs : wait,
+      waitDbg.used ? (waitDbg.gui ? "gui" : (waitDbg.usedSlice ? "slice" : "video")) : "none",
+      waitDbg.gotNextIn ? waitDbg.nextInUs : -1,
+      waitDbg.guardUs,
+      waitDbg.usedSlice ? 0 : waitDbg.sleepUs,
+      waitDbg.clamped,
+      waitDbg.gotNextInAfter ? waitDbg.nextInAfterUs : -1,
+      waitDbg.usedSlice ? waitDbg.sliceSleepUs : 0.0,
+      m_presentsource, m_queued.size(), m_QueueSkip);
+
+    // Escalate only when we're meaningfully late (gapFinal is negative when late).
+    if (finalGapUs < -2000.0)
+      logM(LOGWARNING, "CRenderManager", "late gapFinal:[{:.0f}] ft:[{:.0f}]", finalGapUs, m_presentframetime);
+  }
 }
 
 void CRenderManager::Render(bool clear, DWORD flags, DWORD alpha, bool gui)

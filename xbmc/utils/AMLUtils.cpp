@@ -21,6 +21,7 @@
 #include <numeric>
 #include <cmath>
 #include <algorithm>
+#include <limits>
 #include <time.h>
 #include <sys/prctl.h>
 
@@ -1578,8 +1579,22 @@ struct fb_vsync_early_request
   int64_t next_vsync_ts;
 };
 
+struct fb_vsync_timing_request
+{
+  int64_t now_ts;
+  int64_t last_vsync_ts;
+  int64_t next_vsync_ts;
+  int64_t period_ns;
+  int32_t reserved0;
+  int32_t reserved1;
+};
+
 #ifndef FBIO_WAITFORVSYNC_EARLY_64
 #define FBIO_WAITFORVSYNC_EARLY_64 _IOWR('F', 0x24, struct fb_vsync_early_request)
+#endif
+
+#ifndef FBIO_GET_VSYNC_TIMING_64
+#define FBIO_GET_VSYNC_TIMING_64 _IOR('F', 0x25, struct fb_vsync_timing_request)
 #endif
 
 std::string GetFramebufferDevicePath()
@@ -1613,15 +1628,21 @@ bool aml_wait_vsync_early(int offsetUs)
     fbFd = open(fbPath.c_str(), O_RDWR | O_CLOEXEC);
     if (fbFd < 0)
     {
-      logM(LOGWARNING, "AMLUtils", "vsync early: failed to open {}: {}", fbPath, strerror(errno));
+      logM(LOGWARNING, "AMLUtils", "failed to open {}: {}", fbPath, strerror(errno));
       return false;
     }
+
+    logM(LOGINFO, "AMLUtils", "opened {} fd:{}", fbPath, fbFd);
   }
 
   fb_vsync_early_request req{};
   req.offset_us = offsetUs;
   req.reserved = 0;
   req.next_vsync_ts = 0;
+
+  logM(LOGINFO, "AMLUtils", "ioctl request offset:{}us on {}", offsetUs, fbPath);
+
+  const auto ioctlStart = std::chrono::steady_clock::now();
 
   if (ioctl(fbFd, FBIO_WAITFORVSYNC_EARLY_64, &req) < 0)
   {
@@ -1631,6 +1652,47 @@ bool aml_wait_vsync_early(int offsetUs)
     fbPath.clear();
     return false;
   }
+
+  const auto ioctlEnd = std::chrono::steady_clock::now();
+  const auto ioctlWaitUs = std::chrono::duration_cast<std::chrono::microseconds>(ioctlEnd - ioctlStart).count();
+
+  logM(LOGINFO, "AMLUtils", "ioctl ok offset:{}us next_vsync_ts:{} waited:{}us", offsetUs,
+       req.next_vsync_ts, static_cast<long long>(ioctlWaitUs));
+
+  return true;
+}
+
+bool aml_get_time_to_next_vsync_us(int& timeToNextVsyncUs)
+{
+  timeToNextVsyncUs = 0;
+
+  static int fbFd{-1};
+  static std::string fbPath;
+  if (fbFd < 0)
+  {
+    fbPath = GetFramebufferDevicePath();
+    fbFd = open(fbPath.c_str(), O_RDWR | O_CLOEXEC);
+    if (fbFd < 0)
+    {
+      logM(LOGWARNING, "AMLUtils", "failed to open {}: {}", fbPath, strerror(errno));
+      return false;
+    }
+
+    logM(LOGINFO, "AMLUtils", "opened {} fd:{}", fbPath, fbFd);
+  }
+
+  fb_vsync_timing_request req{};
+  if (ioctl(fbFd, FBIO_GET_VSYNC_TIMING_64, &req) < 0)
+  {
+    logM(LOGDEBUG, "AMLUtils", "ioctl failed on {}: {}", fbPath, strerror(errno));
+    return false;
+  }
+
+  if (req.now_ts <= 0 || req.next_vsync_ts <= 0 || req.next_vsync_ts < req.now_ts)
+    return false;
+
+  const int64_t deltaNs = req.next_vsync_ts - req.now_ts;
+  timeToNextVsyncUs = static_cast<int>(std::min<int64_t>(deltaNs / 1000, std::numeric_limits<int>::max()));
 
   return true;
 }
