@@ -58,6 +58,7 @@ public:
   bool GetRects(CRect& source, CRect& dest, CRect& view) const;
   unsigned int GetOrientation() const;
   void TriggerUpdateResolution();
+  void TriggerUpdateResolutionHdr(StreamHdrType hdrType);
   bool IsRenderingVideo() const;
   bool IsRenderingGuiLayer() const;
   bool IsRenderingVideoLayer() const;
