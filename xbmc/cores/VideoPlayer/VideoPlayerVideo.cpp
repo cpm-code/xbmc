@@ -661,6 +661,8 @@ void CVideoPlayerVideo::Process()
     else if (pMsg->IsType(CDVDMsg::PLAYER_DISPLAY_RESET))
     {
       CLog::Log(LOGINFO, "CVideoPlayerVideo: display reset occurred, clear skipped frames");
+      m_displayReset = true;
+      m_lastDisplayReset = std::chrono::steady_clock::now();
       m_renderManager.DisplayReset();
     }
   }
@@ -971,9 +973,26 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
                                 m_hints.hdrType,
                                 m_pVideoCodec->GetAllowedReferences()))
   {
-    CLog::Log(LOGERROR, "{} - failed to configure renderer", __FUNCTION__);
+    const auto now = std::chrono::steady_clock::now();
+
+    if (m_rendererConfigureRetryStart == std::chrono::steady_clock::time_point::min())
+      m_rendererConfigureRetryStart = now;
+
+    const auto retryElapsed = now - m_rendererConfigureRetryStart;
+    if (retryElapsed < 5s)
+    {
+      logM(LOGWARNING, "CVideoPlayerVideo", "renderer configure not ready, retrying ({} ms)",
+                                            std::chrono::duration_cast<std::chrono::milliseconds>(retryElapsed).count());
+      return OUTPUT_AGAIN;
+    }
+
+    logM(LOGERROR, "CVideoPlayerVideo", "failed to configure renderer (timeout)");
     return OUTPUT_ABORT;
   }
+
+  // Successful configure clears any previous display-reset retry window.
+  m_displayReset = false;
+  m_rendererConfigureRetryStart = std::chrono::steady_clock::time_point::min();
 
   // try to calculate the framerate
   m_ptsTracker.Add(picture.pts);
