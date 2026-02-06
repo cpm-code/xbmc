@@ -193,7 +193,7 @@ std::vector<uint8_t> create_rpu_nalu_for_hdr10plus(
     last_rpu = create_rpu_nalu(vdr_dm_data);
     last_vdr_dm_data = vdr_dm_data;
 
-    CLog::Log(LOGINFO, "HDR10PlusConvert::create_rpu_nalu_for_hdr10plus min_pq [{}] max_pq [{}] avg_pq [{}] mdml max [{}] mdml min [{}] cll [{}] fall [{}]",
+    CLog::Log(LOGDEBUG, "HDR10PlusConvert::create_rpu_nalu_for_hdr10plus min_pq [{}] max_pq [{}] avg_pq [{}] mdml max [{}] mdml min [{}] cll [{}] fall [{}]",
       vdr_dm_data.min_pq,
       vdr_dm_data.max_pq,
       vdr_dm_data.avg_pq,
