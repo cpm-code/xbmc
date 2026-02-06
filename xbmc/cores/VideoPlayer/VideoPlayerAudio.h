@@ -137,7 +137,7 @@ protected:
   SInfo m_info;
 
   bool m_displayReset = false;
-  unsigned int m_disconAdjustTimeMs = 30; // maximum sync-off before adjusting
+  unsigned int m_disconAdjustTimeMs = 10; // maximum sync-off before adjusting
   int m_disconAdjustCounter = 0;
 
   //============================================================================
