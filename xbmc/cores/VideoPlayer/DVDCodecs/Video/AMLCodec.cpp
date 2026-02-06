@@ -474,20 +474,20 @@ int write_av_packet(am_private_t *para, am_packet_t& pkt)
     while (size > 0 && pkt.isvalid) {
         write_bytes = para->m_dll->codec_write(pkt.codec, buf, size);
         if (write_bytes < 0 || write_bytes > size) {
-            logM(LOGERROR, "AMLCodec", "write codec data failed, write_bytes({:d}), errno({:d}), size({:d})", write_bytes, errno, size);
-            if (-errno != AVERROR(EAGAIN)) {
-                logM(LOGDEBUG, "AMLCodec", "write codec data failed!");
-                return PLAYER_WR_FAILED;
-            } else {
+            if (-errno == AVERROR(EAGAIN)) {
                 // adjust for any data we already wrote into codec.
                 // we sleep a bit then exit as we will get called again
                 // with the same pkt because pkt.isvalid has not been cleared.
                 pkt.data += len;
                 pkt.data_size -= len;
                 usleep(RW_WAIT_TIME);
-                logM(LOGDEBUG, "AMLCodec", "Codec buffer full, try after {:d} ms, len({:d})", RW_WAIT_TIME / 1000, len);
+                logM(LOGDEBUG, "AMLCodec", "Codec buffer full (EAGAIN), try after {:d} ms, size({:d}) len({:d})",
+                                           RW_WAIT_TIME / 1000, size, len);
                 return PLAYER_SUCCESS;
             }
+            logM(LOGERROR, "AMLCodec", "write codec data failed, write_bytes({:d}), errno({:d}), size({:d})",
+                                       write_bytes, errno, size);
+            return PLAYER_WR_FAILED;
         } else {
             dumpfile_write(para, buf, write_bytes);
             // keep track of what we write into codec from this pkt
