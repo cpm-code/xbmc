@@ -156,9 +156,15 @@ bool CRenderManager::Configure(const VideoPicture& picture, float fps, unsigned 
     NotifyPresentWaiters();
   }
 
-  if (!m_stateEvent.Wait(1000ms))
+  // Waiting on m_stateEvent returns immediately once the render thread finishes configuring.
+  // Keep this per-attempt timeout short; higher-level code can retry for a bounded time window
+  // during slow display mode switches (refresh rate / HDR / DV / AVR handshakes).
+  auto configureWaitTimeout = 1000ms;
+
+  if (!m_stateEvent.Wait(configureWaitTimeout))
   {
-    CLog::Log(LOGWARNING, "CRenderManager::Configure - timeout waiting for configure");
+    logM(LOGWARNING, "CRenderManager", "timeout waiting for configure ({} ms)",
+                                       std::chrono::duration_cast<std::chrono::milliseconds>(configureWaitTimeout).count());
     std::unique_lock lock(m_statelock);
 
     return false;
