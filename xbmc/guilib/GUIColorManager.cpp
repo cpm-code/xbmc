@@ -81,7 +81,8 @@ bool CGUIColorManager::LoadXML(CXBMCTinyXML &xmlDoc)
     if (color->FirstChild() && color->Attribute("name"))
     {
       KODI::UTILS::COLOR::Color value = 0xffffffff;
-      sscanf(color->FirstChild()->Value(), "%x", (unsigned int*) &value);
+      if (sscanf(color->FirstChild()->Value(), "%x", (unsigned int*)&value) != 1)
+        value = 0xffffffff;
       std::string name = color->Attribute("name");
       const auto it = m_colors.find(name);
       if (it != m_colors.end())
@@ -106,7 +107,8 @@ KODI::UTILS::COLOR::Color CGUIColorManager::GetColor(const std::string& color) c
 
   // try converting hex directly
   KODI::UTILS::COLOR::Color value = 0;
-  sscanf(trimmed.c_str(), "%x", &value);
+  if (sscanf(trimmed.c_str(), "%x", &value) != 1)
+    value = 0;
   return value;
 }
 
