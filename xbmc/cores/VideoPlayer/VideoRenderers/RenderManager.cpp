@@ -1132,24 +1132,49 @@ void CRenderManager::UpdateResolution(bool force)
       if (m_bTriggerUpdateResolution &&
           CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_ADJUSTREFRESHRATE) != ADJUST_REFRESHRATE_OFF && m_fps > 0.0f)
       {
+        auto& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
 
-        StreamHdrType actual_hdrType = (m_hdrType_override != StreamHdrType::HDR_TYPE_NONE) ? m_hdrType_override : m_picture.hdrType;
+        // Some platforms send a follow-up "reassert" trigger with no params (fps/width/height = 0)
+        // after a mode switch/reset. In that case, prefer keeping the currently applied HDR type
+        // (if any) to avoid an unnecessary second mode switch (e.g. VS10 HDR10->DV mapping).
+        StreamHdrType desiredHdrType = (m_hdrType_override != StreamHdrType::HDR_TYPE_NONE)
+                                           ? m_hdrType_override
+                                           : m_picture.hdrType;
+        if (m_hdrType_override == StreamHdrType::HDR_TYPE_NONE && m_bTriggerUpdateResolutionNoParams)
+        {
+          const auto currentHdrType = gfxContext.GetHDRType();
+          if (currentHdrType != StreamHdrType::HDR_TYPE_NONE)
+            desiredHdrType = currentHdrType;
+        }
 
-        logM(LOGINFO, "CRenderManager", "Before - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
-                       m_fps, m_picture.iWidth, m_picture.iHeight, m_picture.stereoMode.empty(), CStreamDetails::DynamicRangeToString(actual_hdrType));
+        const RESOLUTION desiredRes = CResolutionUtils::ChooseBestResolution(
+            m_fps, m_picture.iWidth, m_picture.iHeight, !m_picture.stereoMode.empty());
 
-        RESOLUTION res = CResolutionUtils::ChooseBestResolution(m_fps, m_picture.iWidth, m_picture.iHeight, !m_picture.stereoMode.empty());
-        CServiceBroker::GetWinSystem()->GetGfxContext().SetHDRType(actual_hdrType);
-        CServiceBroker::GetWinSystem()->GetGfxContext().SetVideoResolution(res, false);
-        UpdateVideoLatencyTweak();
+        const bool needsApply = force || gfxContext.GetHDRType() != desiredHdrType ||
+                                gfxContext.GetVideoResolution() != desiredRes;
 
-        logM(LOGINFO, "CRenderManager", "After - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
-                      m_fps, m_picture.iWidth, m_picture.iHeight, m_picture.stereoMode.empty(), CStreamDetails::DynamicRangeToString(actual_hdrType));
+        if (needsApply)
+        {
+          logM(LOGINFO, "CRenderManager",
+               "Before - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
+               m_fps, m_picture.iWidth, m_picture.iHeight, m_picture.stereoMode.empty(),
+               CStreamDetails::DynamicRangeToString(desiredHdrType));
 
-        if (m_pRenderer)
-          m_pRenderer->Update();
+          gfxContext.SetHDRType(desiredHdrType);
+          gfxContext.SetVideoResolution(desiredRes, false);
+          UpdateVideoLatencyTweak();
+
+          logM(LOGINFO, "CRenderManager",
+               "After - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
+               m_fps, m_picture.iWidth, m_picture.iHeight, m_picture.stereoMode.empty(),
+               CStreamDetails::DynamicRangeToString(desiredHdrType));
+
+          if (m_pRenderer)
+            m_pRenderer->Update();
+        }
       }
       m_bTriggerUpdateResolution = false;
+      m_bTriggerUpdateResolutionNoParams = false;
       m_hdrType_override = StreamHdrType::HDR_TYPE_NONE;
       m_playerPort->VideoParamsChange();
     }
@@ -1170,6 +1195,7 @@ void CRenderManager::TriggerUpdateResolution(float fps, int width, int height, s
   logM(LOGINFO, "CRenderManager", "fps [{}] width [{}] height [{}] stereomode empty [{}] current trigger [{}]",
                 fps, width, height, m_picture.stereoMode.empty(), m_bTriggerUpdateResolution);
 
+  m_bTriggerUpdateResolutionNoParams = (width == 0);
   if (width)
   {
     m_fps = fps;
