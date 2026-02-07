@@ -1019,7 +1019,10 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
   auto timeToDisplay = std::chrono::milliseconds(DVD_TIME_TO_MSEC(picture.pts - iPlayingClock));
 
   // make sure waiting time is not negative
-  std::chrono::milliseconds maxWaitTime = std::min(std::max(timeToDisplay + 500ms, 50ms), 500ms);
+  // For HW decoders, use a lower minimum wait (10ms) since rendering is just
+  // a buffer release — no GPU work needed. This reduces latency for late frames.
+  const auto minWait = m_processInfo.IsVideoHwDecoder() ? 10ms : 50ms;
+  std::chrono::milliseconds maxWaitTime = std::min(std::max(timeToDisplay + 500ms, minWait), 500ms);
   // don't wait when going ff
   if (m_speed > DVD_PLAYSPEED_NORMAL)
     maxWaitTime = std::max(timeToDisplay, 0ms);
@@ -1204,8 +1207,11 @@ int CVideoPlayerVideo::CalcDropRequirement(double pts)
 
   if (iBufferLevel < 0)
     result |= DROP_BUFFER_LEVEL;
-  else if (iBufferLevel < 2)
+  else if (iBufferLevel < 2 && !m_processInfo.IsVideoHwDecoder())
   {
+    // For HW decoders (AML), a render queue of 1 is normal — the HW compositor
+    // pulls frames at vsync. Don't trigger HURRY/DROP for a normally-operating
+    // HW pipeline. Only flag low buffer for SW decoders that can actually hurry.
     result |= DROP_BUFFER_LEVEL;
     CLog::Log(LOGDEBUG, LOGVIDEO, "CVideoPlayerVideo::CalcDropRequirement - hurry: {}",
               iBufferLevel);
