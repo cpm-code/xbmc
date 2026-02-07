@@ -321,10 +321,7 @@ bool CRenderManager::Configure()
 bool CRenderManager::IsConfigured() const
 {
   std::unique_lock lock(m_statelock);
-  if (m_renderState == STATE_CONFIGURED)
-    return true;
-  else
-    return false;
+  return m_renderState == STATE_CONFIGURED;
 }
 
 void CRenderManager::ShowVideo(bool enable)
@@ -353,10 +350,7 @@ bool CRenderManager::IsPresenting()
     return false;
 
   std::unique_lock lock(m_presentlock);
-  if (!m_presentTimer.IsTimePast())
-    return true;
-  else
-    return false;
+  return !m_presentTimer.IsTimePast();
 }
 
 void CRenderManager::FrameMove()
@@ -1059,19 +1053,27 @@ void CRenderManager::Render(bool clear, DWORD flags, DWORD alpha, bool gui)
 
 bool CRenderManager::IsGuiLayer()
 {
+  std::unique_lock<CCriticalSection> lock(m_statelock);
+
+  if (!m_pRenderer)
+    return false;
+
+  // Inline the IsPresenting() check to avoid:
+  //  - recursive re-lock of m_statelock (via IsConfigured())
+  //  - an extra m_presentlock acquisition when we'd return true via overlay/debug paths anyway
+  if (m_pRenderer->IsGuiLayer() && m_renderState == STATE_CONFIGURED)
   {
-    std::unique_lock<CCriticalSection> lock(m_statelock);
-
-    if (!m_pRenderer)
-      return false;
-
-    if ((m_pRenderer->IsGuiLayer() && IsPresenting()) ||
-        m_renderedOverlay || m_overlays.HasOverlay(m_presentsource))
-      return true;
-
-    if (m_renderDebug && m_debugTimer.IsTimePast())
+    std::unique_lock<CCriticalSection> plock(m_presentlock);
+    if (!m_presentTimer.IsTimePast())
       return true;
   }
+
+  if (m_renderedOverlay || m_overlays.HasOverlay(m_presentsource))
+    return true;
+
+  if (m_renderDebug && m_debugTimer.IsTimePast())
+    return true;
+
   return false;
 }
 
