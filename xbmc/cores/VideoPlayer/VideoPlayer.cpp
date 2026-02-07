@@ -2147,14 +2147,25 @@ void CVideoPlayer::HandlePlaySpeed()
         else
         {
           // start caching if audio and video are running dry
-          if ((m_VideoPlayerAudio->GetLevel() <= 20) || (m_VideoPlayerVideo->GetLevel() <= 20))
+          // Use a lower threshold (5%) for video when HW decoding, because AML
+          // consumes packets in bursts and the queue level naturally fluctuates.
+          // The original 20% threshold causes false rebuffering with high bitrate content.
+          int audioThreshold = 20;
+          int videoThreshold = m_processInfo->IsVideoHwDecoder() ? 5 : 20;
+          if ((m_VideoPlayerAudio->GetLevel() <= audioThreshold) ||
+              (m_VideoPlayerVideo->GetLevel() <= videoThreshold))
           {
             SetCaching(CACHESTATE_FULL);
           }
           else if (m_CurrentAudio.id >= 0 && m_CurrentAudio.inited &&
                    m_CurrentAudio.syncState == IDVDStreamPlayer::SYNC_INSYNC &&
-                   m_VideoPlayerAudio->GetLevel() == 0)
+                   m_VideoPlayerAudio->GetLevel() == 0 &&
+                   !m_VideoPlayerAudio->IsPassthrough())
           {
+            // Only trigger re-sync for PCM audio. For passthrough (TrueHD, DTS-HD MA),
+            // the audio queue naturally empties between codec output bursts — a momentary
+            // level of 0 is normal, not a stall. Flushing here causes a destructive
+            // seek loop with HD audio.
             CLog::Log(LOGDEBUG,"CVideoPlayer::HandlePlaySpeed - audio stream stalled, triggering re-sync");
             FlushBuffers(DVD_NOPTS_VALUE, true, true);
             CDVDMsgPlayerSeek::CMode mode;
@@ -2171,13 +2182,32 @@ void CVideoPlayer::HandlePlaySpeed()
       {
         if (m_CurrentAudio.id >= 0)
         {
-          double adjust = -1.0; // a unique value
-          if (m_clock.GetSpeedAdjust() >= 0 && m_VideoPlayerAudio->GetLevel() < 5)
+          // Proportional speed adjustment for live streams instead of binary toggle.
+          // Old logic toggled between -0.05 and 0.0 causing oscillation.
+          // New logic: ramp linearly between the thresholds for smoother playback.
+          int aq = m_VideoPlayerAudio->GetLevel();
+          double currentAdjust = m_clock.GetSpeedAdjust();
+          double adjust = -1.0; // sentinel: no change
+          if (aq < 1 && currentAdjust >= 0)
+          {
             adjust = -0.05;
-
-          if (m_clock.GetSpeedAdjust() < 0 && m_VideoPlayerAudio->GetLevel() > 10)
+            CLog::Log(LOGDEBUG, "VideoPlayer:Speed adjust:{:.3f} aq:{:d}", adjust, aq);
+          }
+          else if (aq >= 1 && aq <= 4 && currentAdjust < 0)
+          {
+            // Proportional ramp: at aq=1 use -0.0375, aq=2 use -0.025,
+            // aq=3 use -0.0125, aq=4 use 0.0
+            adjust = -0.05 * (1.0 - static_cast<double>(aq) / 4.0);
+            // Clamp to avoid tiny negative values from float imprecision
+            if (adjust > -0.001)
+              adjust = 0.0;
+            CLog::Log(LOGDEBUG, "VideoPlayer:Speed adjust:{:.3f} aq:{:d} (ramping)", adjust, aq);
+          }
+          else if (aq > 4 && currentAdjust < 0)
+          {
             adjust = 0.0;
-
+            CLog::Log(LOGDEBUG, "VideoPlayer:Speed adjust:{:.3f} aq:{:d}", adjust, aq);
+          }
           if (adjust != -1.0)
           {
             m_clock.SetSpeedAdjust(adjust);
