@@ -1133,7 +1133,11 @@ unsigned int CActiveAESink::OutputSamples(CSampleBuffer* samples)
       CThread::Sleep(
           std::chrono::milliseconds(500 * m_sinkFormat.m_frames / m_sinkFormat.m_sampleRate));
       retry++;
-      if (retry > 4)
+      // For passthrough, allow more retries before declaring failure.
+      // AML mode switches and HDMI link renegotiation can cause transient
+      // stalls longer than the default 4-retry window (~64ms for PCM).
+      const int maxRetries = (m_requestedFormat.m_dataFormat == AE_FMT_RAW) ? 10 : 4;
+      if (retry > maxRetries)
       {
         m_extError = true;
         CLog::Log(LOGERROR, "CActiveAESink::OutputSamples - failed");
