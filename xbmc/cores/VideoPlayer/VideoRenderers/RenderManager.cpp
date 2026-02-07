@@ -33,10 +33,46 @@
 #include "windowing/WinSystem.h"
 
 #include <algorithm>
+#include <chrono>
 #include <memory>
 #include <mutex>
 
 using namespace std::chrono_literals;
+
+namespace
+{
+const char* RenderStateToString(CRenderManager::ERENDERSTATE state)
+{
+  switch (state)
+  {
+    case CRenderManager::STATE_UNCONFIGURED:
+      return "unconfigured";
+    case CRenderManager::STATE_CONFIGURING:
+      return "configuring";
+    case CRenderManager::STATE_CONFIGURED:
+      return "configured";
+  }
+  return "unknown";
+}
+
+const char* PresentStepToString(CRenderManager::EPRESENTSTEP step)
+{
+  switch (step)
+  {
+    case CRenderManager::PRESENT_IDLE:
+      return "idle";
+    case CRenderManager::PRESENT_FLIP:
+      return "flip";
+    case CRenderManager::PRESENT_FRAME:
+      return "frame";
+    case CRenderManager::PRESENT_FRAME2:
+      return "frame2";
+    case CRenderManager::PRESENT_READY:
+      return "ready";
+  }
+  return "unknown";
+}
+} // namespace
 
 void CRenderManager::CClockSync::Reset()
 {
@@ -159,13 +195,35 @@ bool CRenderManager::Configure(const VideoPicture& picture, float fps, unsigned 
   // Waiting on m_stateEvent returns immediately once the render thread finishes configuring.
   // Keep this per-attempt timeout short; higher-level code can retry for a bounded time window
   // during slow display mode switches (refresh rate / HDR / DV / AVR handshakes).
-  auto configureWaitTimeout = 1000ms;
+  const auto configureWaitTimeout = 1200ms;
+  const auto configureWaitStart = std::chrono::steady_clock::now();
 
   if (!m_stateEvent.Wait(configureWaitTimeout))
   {
-    logM(LOGWARNING, "CRenderManager", "timeout waiting for configure ({} ms)",
-                                       std::chrono::duration_cast<std::chrono::milliseconds>(configureWaitTimeout).count());
-    std::unique_lock lock(m_statelock);
+    const auto waitedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::steady_clock::now() - configureWaitStart)
+                            .count();
+    const auto timeoutMs =
+        std::chrono::duration_cast<std::chrono::milliseconds>(configureWaitTimeout).count();
+
+    // Best-effort state dump without blocking in case the render thread is stuck holding locks.
+    const char* renderStateStr = "(locked)";
+    {
+      std::unique_lock stateLock(m_statelock, std::try_to_lock);
+      if (stateLock.owns_lock())
+        renderStateStr = RenderStateToString(m_renderState);
+    }
+
+    const char* presentStepStr = "(locked)";
+    {
+      std::unique_lock presentLock(m_presentlock, std::try_to_lock);
+      if (presentLock.owns_lock())
+        presentStepStr = PresentStepToString(m_presentstep);
+    }
+
+    logM(LOGWARNING, "CRenderManager",
+         "timeout waiting for configure (timeout={} ms, waited={} ms, renderState={}, presentStep={})",
+         timeoutMs, waitedMs, renderStateStr, presentStepStr);
 
     return false;
   }
