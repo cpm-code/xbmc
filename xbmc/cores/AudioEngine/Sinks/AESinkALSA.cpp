@@ -1036,9 +1036,11 @@ bool CAESinkALSA::InitializeHW(const ALSAConfig &inconfig, ALSAConfig &outconfig
   // consumes data in exact burst multiples. This makes snd_pcm_status_get_delay() step
   // in regular increments rather than irregular ones, stabilizing the reported delay.
   snd_pcm_uframes_t periodCap;
-  if (isAmlPassthrough &&
-      (m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA ||
-       m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD))
+  const bool isDtsHdPassthrough =
+      (isAmlPassthrough &&
+       (m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA ||
+        m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD));
+  if (isDtsHdPassthrough)
   {
     // Use the IEC61937 burst size as the period for DTS-HD MA/HRA.
     // For 48kHz DTS-HD MA: dtsPeriod = 8192 frames at 192kHz = ~42.67ms.
@@ -1054,7 +1056,11 @@ bool CAESinkALSA::InitializeHW(const ALSAConfig &inconfig, ALSAConfig &outconfig
     periodCap = static_cast<snd_pcm_uframes_t>(
         sampleRate / (isAmlPassthrough ? 40 : (m_passthrough ? 10 : 20)));
   }
-  const snd_pcm_uframes_t bufferCap = static_cast<snd_pcm_uframes_t>(sampleRate / (isAmlPassthrough ? 1 : (m_passthrough ? 2 : 5)));
+  // AML passthrough uses a deeper buffer for stability. However, for DTS-HD MA/HRA the
+  // burst-aligned period already improves stability, so cap the buffer to ~500ms to
+  // avoid consistently high (~700ms) buffered delay.
+  const snd_pcm_uframes_t bufferCap = static_cast<snd_pcm_uframes_t>(
+      sampleRate / (isDtsHdPassthrough ? 2 : (isAmlPassthrough ? 1 : (m_passthrough ? 2 : 5))));
   periodSize = std::min(periodSize, periodCap);
   bufferSize = std::min(bufferSize, bufferCap);
 
