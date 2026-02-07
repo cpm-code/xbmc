@@ -80,7 +80,7 @@ public:
   void Flush();
   bool IsEmpty() const;
   void SetHeight(int height);
-  void SetWidth(int height);
+  void SetWidth(int width);
 protected:
   void FreeTexture();
 
