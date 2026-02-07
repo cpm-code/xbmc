@@ -18,38 +18,32 @@
 #include <algorithm>
 #include <stdio.h>
 
-CDirtyRegionTracker::CDirtyRegionTracker()
-{
-  m_solver = NULL;
-}
+CDirtyRegionTracker::CDirtyRegionTracker() = default;
 
-CDirtyRegionTracker::~CDirtyRegionTracker()
-{
-  delete m_solver;
-}
+CDirtyRegionTracker::~CDirtyRegionTracker() = default;
 
 void CDirtyRegionTracker::SelectAlgorithm()
 {
-  delete m_solver;
+  m_solver.reset();
 
   switch (CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiAlgorithmDirtyRegions)
   {
     case DIRTYREGION_SOLVER_FILL_VIEWPORT_ON_CHANGE:
       CLog::Log(LOGDEBUG, "guilib: Fill viewport on change for solving rendering passes");
-      m_solver = new CFillViewportOnChangeRegionSolver();
+      m_solver = std::make_unique<CFillViewportOnChangeRegionSolver>();
       break;
     case DIRTYREGION_SOLVER_COST_REDUCTION:
       CLog::Log(LOGDEBUG, "guilib: Cost reduction as algorithm for solving rendering passes");
-      m_solver = new CGreedyDirtyRegionSolver();
+      m_solver = std::make_unique<CGreedyDirtyRegionSolver>();
       break;
     case DIRTYREGION_SOLVER_UNION:
-      m_solver = new CUnionDirtyRegionSolver();
+      m_solver = std::make_unique<CUnionDirtyRegionSolver>();
       CLog::Log(LOGDEBUG, "guilib: Union as algorithm for solving rendering passes");
       break;
     case DIRTYREGION_SOLVER_FILL_VIEWPORT_ALWAYS:
     default:
       CLog::Log(LOGDEBUG, "guilib: Fill viewport always for solving rendering passes");
-      m_solver = new CFillViewportAlwaysRegionSolver();
+      m_solver = std::make_unique<CFillViewportAlwaysRegionSolver>();
       break;
   }
 }
