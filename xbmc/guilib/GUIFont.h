@@ -120,7 +120,7 @@ public:
            CGUIFontTTF* font);
   virtual ~CGUIFont();
 
-  std::string& GetFontName();
+  const std::string& GetFontName() const;
 
   void DrawText(float x,
                 float y,
