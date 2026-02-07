@@ -44,7 +44,7 @@ CGUIControl::CGUIControl()
   ControlType = GUICONTROL_UNKNOWN;
   m_bInvalidated = true;
   m_bAllocated=false;
-  m_parentControl = NULL;
+  m_parentControl = nullptr;
   m_hasCamera = false;
   m_pushedUpdates = false;
   m_pulseOnSelect = false;
@@ -72,7 +72,7 @@ CGUIControl::CGUIControl(int parentID, int controlID, float posX, float posY, fl
   m_bInvalidated = true;
   m_bAllocated=false;
   m_hasProcessed = false;
-  m_parentControl = NULL;
+  m_parentControl = nullptr;
   m_hasCamera = false;
   m_pushedUpdates = false;
   m_pulseOnSelect = false;
