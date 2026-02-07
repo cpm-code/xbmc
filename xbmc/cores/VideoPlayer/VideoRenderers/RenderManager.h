@@ -58,6 +58,22 @@ protected:
 class CRenderManager
 {
 public:
+  enum EPRESENTSTEP
+  {
+    PRESENT_IDLE     = 0
+  , PRESENT_FLIP
+  , PRESENT_FRAME
+  , PRESENT_FRAME2
+  , PRESENT_READY
+  };
+
+  enum ERENDERSTATE
+  {
+    STATE_UNCONFIGURED = 0,
+    STATE_CONFIGURING,
+    STATE_CONFIGURED,
+  };
+
   CRenderManager(CDVDClock &clock, IRenderMsg *player);
   virtual ~CRenderManager();
 
@@ -198,15 +214,6 @@ protected:
   XbmcThreads::EndTime<> m_debugTimer;
   std::atomic_bool m_showVideo = {false};
 
-  enum EPRESENTSTEP
-  {
-    PRESENT_IDLE     = 0
-  , PRESENT_FLIP
-  , PRESENT_FRAME
-  , PRESENT_FRAME2
-  , PRESENT_READY
-  };
-
   enum EPRESENTMETHOD
   {
     PRESENT_METHOD_SINGLE = 0,
@@ -214,12 +221,6 @@ protected:
     PRESENT_METHOD_BOB,
   };
 
-  enum ERENDERSTATE
-  {
-    STATE_UNCONFIGURED = 0,
-    STATE_CONFIGURING,
-    STATE_CONFIGURED,
-  };
   ERENDERSTATE m_renderState = STATE_UNCONFIGURED;
   CEvent m_stateEvent;
 
@@ -264,6 +265,7 @@ protected:
   bool m_presentstarted = false;
   int m_presentsource = 0;
   double m_presentframetime = 0;
+  double m_previousPauseClock = DVD_NOPTS_VALUE;
   std::atomic_uint m_presentWaiters{0};
   XbmcThreads::ConditionVariable m_presentevent;
   CEvent m_flushEvent;
