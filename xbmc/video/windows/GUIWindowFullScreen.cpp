@@ -450,7 +450,7 @@ void CGUIWindowFullScreen::TriggerOSD()
   }
 }
 
-bool CGUIWindowFullScreen::HasVisibleControls()
+bool CGUIWindowFullScreen::HasVisibleControls() const
 {
   return m_controlStats->nCountVisible > 0;
 }
