@@ -207,7 +207,8 @@ double CAudioSinkAE::GetDelay()
 {
   std::unique_lock lock(m_critSection);
 
-  double delay = 0.3;
+  double delay = 0.05; // Conservative fallback — 50ms instead of 300ms to avoid
+                       // inflating m_playingPts during init/teardown races.
   if(m_pAudioStream)
     delay = m_pAudioStream->GetDelay();
 
