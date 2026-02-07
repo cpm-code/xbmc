@@ -10,6 +10,8 @@
 
 #include "IDirtyRegionSolver.h"
 
+#include <memory>
+
 class CDirtyRegionTracker
 {
 public:
@@ -24,5 +26,5 @@ public:
 
 private:
   CDirtyRegionList m_markedRegions;
-  IDirtyRegionSolver *m_solver;
+  std::unique_ptr<IDirtyRegionSolver> m_solver;
 };

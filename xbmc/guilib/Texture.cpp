@@ -43,7 +43,7 @@
 /************************************************************************/
 CTexture::CTexture(unsigned int width, unsigned int height, XB_FMT format)
 {
-  m_pixels = NULL;
+  m_pixels = nullptr;
   m_loadedToGPU = false;
   Allocate(width, height, format);
 }
@@ -51,7 +51,7 @@ CTexture::CTexture(unsigned int width, unsigned int height, XB_FMT format)
 CTexture::~CTexture()
 {
   KODI::MEMORY::AlignedFree(m_pixels);
-  m_pixels = NULL;
+  m_pixels = nullptr;
 }
 
 void CTexture::Update(unsigned int width,
@@ -200,20 +200,18 @@ bool CTexture::LoadFromFileInternal(const std::string& texturePath,
     }
   }
 
-  IImage* pImage;
+  std::unique_ptr<IImage> pImage;
 
   if(strMimeType.empty())
-    pImage = ImageFactory::CreateLoader(texturePath);
+    pImage.reset(ImageFactory::CreateLoader(texturePath));
   else
-    pImage = ImageFactory::CreateLoaderFromMimeType(strMimeType);
+    pImage.reset(ImageFactory::CreateLoaderFromMimeType(strMimeType));
 
-  if (!LoadIImage(pImage, buf.data(), buf.size(), idealWidth, idealHeight, aspectRatio))
+  if (!LoadIImage(pImage.get(), buf.data(), buf.size(), idealWidth, idealHeight, aspectRatio))
   {
     CLog::Log(LOGDEBUG, "{} - Load of {} failed.", __FUNCTION__, CURL::GetRedacted(texturePath));
-    delete pImage;
     return false;
   }
-  delete pImage;
 
   return true;
 }
@@ -228,13 +226,11 @@ bool CTexture::LoadFromFileInMem(unsigned char* buffer,
   if (!buffer || !size)
     return false;
 
-  IImage* pImage = ImageFactory::CreateLoaderFromMimeType(mimeType);
-  if (!LoadIImage(pImage, buffer, size, idealWidth, idealHeight, aspectRatio))
+  std::unique_ptr<IImage> pImage(ImageFactory::CreateLoaderFromMimeType(mimeType));
+  if (!LoadIImage(pImage.get(), buffer, size, idealWidth, idealHeight, aspectRatio))
   {
-    delete pImage;
     return false;
   }
-  delete pImage;
   return true;
 }
 
