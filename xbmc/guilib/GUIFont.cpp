@@ -82,7 +82,7 @@ CGUIFont::~CGUIFont()
     m_font->RemoveReference();
 }
 
-std::string& CGUIFont::GetFontName()
+const std::string& CGUIFont::GetFontName() const
 {
   return m_strFontName;
 }
