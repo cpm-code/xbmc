@@ -2011,7 +2011,10 @@ bool CActiveAE::RunStages()
   const bool isDtsHdMaPassthrough =
       (m_mode == MODE_RAW &&
        m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
-  const bool isJumpyPassthrough = isTrueHDPassthrough || isDtsHdMaPassthrough;
+  // Only TrueHD is treated as "jumpy" for buffer fill behavior.
+  // DTS-HD MA benefits from error dampening on AML, but forcing continuous fill
+  // can lead to excessive buffered delay and large sync error spam after seeks.
+  const bool isJumpyPassthrough = isTrueHDPassthrough;
 #else
   const bool isTrueHDPassthrough =
       (m_mode == MODE_RAW && m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD);
