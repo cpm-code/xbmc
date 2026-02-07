@@ -475,14 +475,18 @@ int write_av_packet(am_private_t *para, am_packet_t& pkt)
         write_bytes = para->m_dll->codec_write(pkt.codec, buf, size);
         if (write_bytes < 0 || write_bytes > size) {
             if (-errno == AVERROR(EAGAIN)) {
-                // adjust for any data we already wrote into codec.
-                // we sleep a bit then exit as we will get called again
-                // with the same pkt because pkt.isvalid has not been cleared.
+                // Codec buffer full — adjust pointers for any partial write
+                // and return immediately so the caller's loop can re-check.
+                // The caller (Decode) loops with a 100-iteration cap, and each
+                // iteration calls write_av_packet which will hit this path again
+                // if still full. Sleeping 1ms (down from 5ms) reduces worst-case
+                // blocking from 500ms to 100ms, keeping the video thread responsive
+                // to pause/seek commands during buffer pressure.
                 pkt.data += len;
                 pkt.data_size -= len;
-                usleep(RW_WAIT_TIME);
-                logM(LOGDEBUG, "AMLCodec", "Codec buffer full (EAGAIN), try after {:d} ms, size({:d}) len({:d})",
-                                           RW_WAIT_TIME / 1000, size, len);
+                usleep(1000); // 1ms instead of 5ms — let caller loop handle retries
+                logM(LOGDEBUG, "AMLCodec", "Codec buffer full (EAGAIN), try after 1 ms, size({:d}) len({:d})",
+                                           size, len);
                 return PLAYER_SUCCESS;
             }
             logM(LOGERROR, "AMLCodec", "write codec data failed, write_bytes({:d}), errno({:d}), size({:d})",
@@ -2242,8 +2246,10 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
     Reset();
     return false;
   }
-  if (iSize > 50000)
-    usleep(2000); // wait 2ms to process larger packets
+  // Removed unconditional usleep(2000) for packets > 50KB.
+  // The codec has its own buffer management (EAGAIN backpressure above);
+  // this arbitrary delay just slowed down initial fill and seek response
+  // for 4K content with large keyframes.
 
   if (iSize > 0)
     logComponentM(LOGDEBUG, LOGVIDEO, "CAMLCodec", "dl:{:d} fl:{:d} sz:{:d}({:d}) lv:{:.1f}% dts:{:.3f} pts:{:.3f}",
