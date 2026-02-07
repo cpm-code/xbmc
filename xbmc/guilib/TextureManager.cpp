@@ -56,7 +56,7 @@ CTextureArray::CTextureArray(int width, int height, int loops,  bool texCoordsAr
   m_orientation = 0;
   m_texWidth = 0;
   m_texHeight = 0;
-  m_texCoordsArePixels = false;
+  m_texCoordsArePixels = texCoordsArePixels;
 }
 
 CTextureArray::CTextureArray()
@@ -203,9 +203,9 @@ void CTextureMap::SetHeight(int height)
   m_texture.m_height = height;
 }
 
-void CTextureMap::SetWidth(int height)
+void CTextureMap::SetWidth(int width)
 {
-  m_texture.m_width = height;
+  m_texture.m_width = width;
 }
 
 bool CTextureMap::IsEmpty() const
