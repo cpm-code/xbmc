@@ -1357,22 +1357,19 @@ bool CRenderManager::AddVideoPicture(const VideoPicture& picture, volatile std::
   present.pts = picture.pts;
   present.duration = picture.iDuration;
 
-  // Keep the queue sorted by pts (and avoid duplicate indices) so the render tick doesn't
-  // have to scan/sort.
-  if (std::find(m_queued.begin(), m_queued.end(), index) == m_queued.end())
+  // Keep the queue sorted by pts so the render tick doesn't have to scan/sort.
+  // Index uniqueness is guaranteed by the free-list design (m_free -> m_queued -> m_discard -> m_free).
+  const double pts = present.pts;
+  if (m_queued.empty() || m_Queue[m_queued.back()].pts <= pts)
   {
-    const double pts = present.pts;
-    if (m_queued.empty() || m_Queue[m_queued.back()].pts <= pts)
-    {
-      m_queued.push_back(index);
-    }
-    else
-    {
-      auto insertPos = std::upper_bound(
-          m_queued.begin(), m_queued.end(), pts,
-          [this](double ptsValue, int queuedIndex) { return ptsValue < m_Queue[queuedIndex].pts; });
-      m_queued.insert(insertPos, index);
-    }
+    m_queued.push_back(index);
+  }
+  else
+  {
+    auto insertPos = std::upper_bound(
+        m_queued.begin(), m_queued.end(), pts,
+        [this](double ptsValue, int queuedIndex) { return ptsValue < m_Queue[queuedIndex].pts; });
+    m_queued.insert(insertPos, index);
   }
 
   // signal to any waiters to check state
