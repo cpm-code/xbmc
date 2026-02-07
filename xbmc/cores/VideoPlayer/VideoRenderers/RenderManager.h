@@ -190,6 +190,7 @@ protected:
   mutable CCriticalSection m_presentlock;
   CCriticalSection m_datalock;
   bool m_bTriggerUpdateResolution = false;
+  bool m_bTriggerUpdateResolutionNoParams = false;
   bool m_bRenderGUI = true;
   bool m_renderedOverlay = false;
   bool m_renderDebug = false;
