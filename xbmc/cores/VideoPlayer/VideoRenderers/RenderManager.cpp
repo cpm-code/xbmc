@@ -1483,12 +1483,10 @@ void inline CRenderManager::SetPresentSource()
 
 bool inline CRenderManager::Paused(bool paused, double clock)
 {
-  static double previousClock = DVD_NOPTS_VALUE;
-
   // for pause, check for frame advance
-  bool check = paused ? (clock == previousClock) : paused;
+  bool check = paused ? (clock == m_previousPauseClock) : paused;
 
-  previousClock = clock;
+  m_previousPauseClock = clock;
 
   return check;
 }
