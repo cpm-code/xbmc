@@ -824,6 +824,10 @@ bool CAESinkALSA::Initialize(AEAudioFormat &format, std::string &device)
     }
   }
 
+  // Store format early so InitializeHW can access m_format.m_streamInfo
+  // (streamInfo is not modified by HW/SW init, only sampleRate/frames/frameSize/dataFormat are)
+  m_format = format;
+
   if (!InitializeHW(inconfig, outconfig) || !InitializeSW(outconfig))
   {
     free(selectedChmap);
@@ -1027,7 +1031,29 @@ bool CAESinkALSA::InitializeHW(const ALSAConfig &inconfig, ALSAConfig &outconfig
 
   // Run a deeper buffer with more periods reduces IEC61937 burst dropouts.
   // For AML passthrough use a smaller period to reduce delay quantization (steadier reported delay).
-  const snd_pcm_uframes_t periodCap = static_cast<snd_pcm_uframes_t>(sampleRate / (isAmlPassthrough ? 40 : (m_passthrough ? 10 : 20)));
+  //
+  // DTS-HD MA improvement: align period to IEC61937 burst size (dtsPeriod) so that ALSA
+  // consumes data in exact burst multiples. This makes snd_pcm_status_get_delay() step
+  // in regular increments rather than irregular ones, stabilizing the reported delay.
+  snd_pcm_uframes_t periodCap;
+  if (isAmlPassthrough &&
+      (m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA ||
+       m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD))
+  {
+    // Use the IEC61937 burst size as the period for DTS-HD MA/HRA.
+    // For 48kHz DTS-HD MA: dtsPeriod = 8192 frames at 192kHz = ~42.67ms.
+    // This aligns DMA consumption with burst boundaries for much steadier delay reporting.
+    const unsigned int dtsPeriod = m_format.m_streamInfo.m_dtsPeriod;
+    periodCap = (dtsPeriod > 0) ? static_cast<snd_pcm_uframes_t>(dtsPeriod)
+                                : static_cast<snd_pcm_uframes_t>(sampleRate / 40);
+    CLog::Log(LOGDEBUG, "CAESinkALSA::InitializeHW - DTS-HD period aligned to IEC61937 burst: {} frames",
+              periodCap);
+  }
+  else
+  {
+    periodCap = static_cast<snd_pcm_uframes_t>(
+        sampleRate / (isAmlPassthrough ? 40 : (m_passthrough ? 10 : 20)));
+  }
   const snd_pcm_uframes_t bufferCap = static_cast<snd_pcm_uframes_t>(sampleRate / (isAmlPassthrough ? 1 : (m_passthrough ? 2 : 5)));
   periodSize = std::min(periodSize, periodCap);
   bufferSize = std::min(bufferSize, bufferCap);
@@ -1252,6 +1278,17 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
     else // take care as we can come here a second time if the sink does not eat all data
       amount = (unsigned int) data_left;
 
+    // For passthrough on AML: wait for ALSA to have space BEFORE calling snd_pcm_writei.
+    // Without this, snd_pcm_writei blocks inside the kernel for a variable duration
+    // (depends on exactly how full the ring buffer is), causing irregular write timing.
+    // snd_pcm_wait returns when at least avail_min frames are free, giving us deterministic
+    // timing and allowing the write to complete immediately without kernel-side blocking.
+    if (m_passthrough && m_isAmlDevice && snd_pcm_state(m_pcm) == SND_PCM_STATE_RUNNING)
+    {
+      // Wait up to half the buffer time — generous but bounded
+      snd_pcm_wait(m_pcm, std::max(m_timeout / 2, 20));
+    }
+
     int ret = snd_pcm_writei(m_pcm, buffer, amount);
     if (ret < 0)
     {
@@ -1308,7 +1345,13 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
         {
           snd_pcm_sframes_t avail = snd_pcm_avail(m_pcm);
           snd_pcm_uframes_t startThreshold = std::min(bufferSize, periodSize * 2);
-          if (m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD)
+
+          // For HBR formats (TrueHD, DTS-HD MA), use a small prefill threshold
+          // to start playback quickly without waiting for a large buffer fill.
+          // This keeps initial latency low while the rest of the buffer fills
+          // during playback.
+          if (m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD ||
+              m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA)
           {
             const snd_pcm_uframes_t maxPrefill =
                 std::max<snd_pcm_uframes_t>(1, static_cast<snd_pcm_uframes_t>(m_format.m_sampleRate / 50)); // ~20ms

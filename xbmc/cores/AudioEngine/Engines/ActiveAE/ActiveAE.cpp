@@ -2005,13 +2005,18 @@ bool CActiveAE::RunStages()
   // TrueHD can be very "jumpy" (frames don't come in equidistantly) and is only smoothed at the
   // end when IEC packing happens. On AML, DTS-HD MA can show similar pacing sensitivity.
 #if defined(HAS_LIBAMCODEC)
-  const bool isJumpyPassthrough =
+  const bool isTrueHDPassthrough =
       (m_mode == MODE_RAW &&
-       (m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD ||
-        m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA));
+       m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD);
+  const bool isDtsHdMaPassthrough =
+      (m_mode == MODE_RAW &&
+       m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
+  const bool isJumpyPassthrough = isTrueHDPassthrough || isDtsHdMaPassthrough;
 #else
-  const bool isJumpyPassthrough =
+  const bool isTrueHDPassthrough =
       (m_mode == MODE_RAW && m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD);
+  const bool isDtsHdMaPassthrough = false;
+  const bool isJumpyPassthrough = isTrueHDPassthrough;
 #endif
 
   if (m_settings.lowLatencyMode)
@@ -2055,8 +2060,15 @@ bool CActiveAE::RunStages()
 
         // Underestimate error for jumpy passthrough formats to avoid unnecessary a/v sync
         // corrections due to burst timing jitter.
-        if (isJumpyPassthrough)
+        // TrueHD has high jitter from MAT packing (24 frames assembled into one burst),
+        // so use aggressive dampening (0.45).
+        // DTS-HD MA has more regular burst timing but still benefits from dampening due
+        // to ALSA delay reporting jitter on AML. Use lighter dampening (0.6) to maintain
+        // tighter sync while still filtering noise.
+        if (isTrueHDPassthrough)
           error *= 0.45;
+        else if (isDtsHdMaPassthrough)
+          error *= 0.6;
 
         if (error > maxError)
         {
