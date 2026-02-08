@@ -385,20 +385,20 @@ void CRenderSystemGLES::SetViewPort(const CRect& viewPort)
 
 bool CRenderSystemGLES::ScissorsCanEffectClipping()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->HardwareClipIsPossible();
+  if (shader(m_method))
+    return shader(m_method)->HardwareClipIsPossible();
 
   return false;
 }
 
 CRect CRenderSystemGLES::ClipRectToScissorRect(const CRect &rect)
 {
-  if (!m_pShader[m_method])
+  if (!shader(m_method))
     return CRect();
-  float xFactor = m_pShader[m_method]->GetClipXFactor();
-  float xOffset = m_pShader[m_method]->GetClipXOffset();
-  float yFactor = m_pShader[m_method]->GetClipYFactor();
-  float yOffset = m_pShader[m_method]->GetClipYOffset();
+  float xFactor = shader(m_method)->GetClipXFactor();
+  float xOffset = shader(m_method)->GetClipXOffset();
+  float yFactor = shader(m_method)->GetClipYFactor();
+  float yOffset = shader(m_method)->GetClipYOffset();
   return CRect(rect.x1 * xFactor + xOffset,
                rect.y1 * yFactor + yOffset,
                rect.x2 * xFactor + xOffset,
@@ -458,259 +458,259 @@ void CRenderSystemGLES::InitialiseShaders()
     defines += "#define KODI_TRANSFER_PQ 1\n";
   }
 
-  m_pShader[ShaderMethodGLES::SM_DEFAULT] =
+  shaderSlot(ShaderMethodGLES::SM_DEFAULT) =
       std::make_unique<CGLESShader>("gles_shader.vert", "gles_shader_default.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_DEFAULT]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_DEFAULT)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_DEFAULT]->Free();
-    m_pShader[ShaderMethodGLES::SM_DEFAULT].reset();
+    shaderSlot(ShaderMethodGLES::SM_DEFAULT)->Free();
+    shaderSlot(ShaderMethodGLES::SM_DEFAULT).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_default.frag - compile and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_TEXTURE] =
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE) =
       std::make_unique<CGLESShader>("gles_shader_texture.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_TEXTURE]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_TEXTURE]->Free();
-    m_pShader[ShaderMethodGLES::SM_TEXTURE].reset();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE)->Free();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_texture.frag - compile and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_111R] =
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_111R) =
       std::make_unique<CGLESShader>("gles_shader_texture_111r.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_TEXTURE_111R]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_111R)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_111R]->Free();
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_111R].reset();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_111R)->Free();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_111R).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_texture_111r.frag - compile and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_MULTI] =
+  shaderSlot(ShaderMethodGLES::SM_MULTI) =
       std::make_unique<CGLESShader>("gles_shader_multi.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_MULTI]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_MULTI)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_MULTI]->Free();
-    m_pShader[ShaderMethodGLES::SM_MULTI].reset();
+    shaderSlot(ShaderMethodGLES::SM_MULTI)->Free();
+    shaderSlot(ShaderMethodGLES::SM_MULTI).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_multi.frag - compile and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R] =
+  shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R) =
       std::make_unique<CGLESShader>("gles_shader_multi_rgba_111r.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R]->Free();
-    m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R].reset();
+    shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R)->Free();
+    shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_multi_rgba_111r.frag - compile and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_FONTS] =
+  shaderSlot(ShaderMethodGLES::SM_FONTS) =
       std::make_unique<CGLESShader>("gles_shader_simple.vert", "gles_shader_fonts.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_FONTS]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_FONTS)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_FONTS]->Free();
-    m_pShader[ShaderMethodGLES::SM_FONTS].reset();
+    shaderSlot(ShaderMethodGLES::SM_FONTS)->Free();
+    shaderSlot(ShaderMethodGLES::SM_FONTS).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_fonts.frag - compile and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_FONTS_SHADER_CLIP] =
+  shaderSlot(ShaderMethodGLES::SM_FONTS_SHADER_CLIP) =
       std::make_unique<CGLESShader>("gles_shader_clip.vert", "gles_shader_fonts.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_FONTS_SHADER_CLIP]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_FONTS_SHADER_CLIP)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_FONTS_SHADER_CLIP]->Free();
-    m_pShader[ShaderMethodGLES::SM_FONTS_SHADER_CLIP].reset();
+    shaderSlot(ShaderMethodGLES::SM_FONTS_SHADER_CLIP)->Free();
+    shaderSlot(ShaderMethodGLES::SM_FONTS_SHADER_CLIP).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_clip.vert + gles_shader_fonts.frag - compile "
                         "and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND] =
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND) =
       std::make_unique<CGLESShader>("gles_shader_texture_noblend.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND]->Free();
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND].reset();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND)->Free();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_texture_noblend.frag - compile and link failed");
   }
 
   // Same shader, but compiled without KODI_TRANSFER_PQ for HDR-coded overlays (e.g. UHD-BD PGS).
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ] =
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ) =
       std::make_unique<CGLESShader>("gles_shader_texture_noblend.frag", definesNoPQ);
-  if (!m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ]->Free();
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ].reset();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ)->Free();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ).reset();
     CLog::Log(LOGERROR,
               "GUI Shader gles_shader_texture_noblend.frag (no PQ) - compile and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_MULTI_BLENDCOLOR] =
+  shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR) =
       std::make_unique<CGLESShader>("gles_shader_multi_blendcolor.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_MULTI_BLENDCOLOR]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_MULTI_BLENDCOLOR]->Free();
-    m_pShader[ShaderMethodGLES::SM_MULTI_BLENDCOLOR].reset();
+    shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR)->Free();
+    shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_multi_blendcolor.frag - compile and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR] =
+  shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR) =
       std::make_unique<CGLESShader>("gles_shader_multi_rgba_111r_blendcolor.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR]->Free();
-    m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR].reset();
+    shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR)->Free();
+    shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR).reset();
     CLog::Log(LOGERROR,
               "GUI Shader gles_shader_multi_rgba_111r_blendcolor.frag - compile and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR] =
+  shaderSlot(ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR) =
       std::make_unique<CGLESShader>("gles_shader_multi_111r_111r_blendcolor.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR]->Free();
-    m_pShader[ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR].reset();
+    shaderSlot(ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR)->Free();
+    shaderSlot(ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR).reset();
     CLog::Log(LOGERROR,
               "GUI Shader gles_shader_multi_111r_111r_blendcolor.frag - compile and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA] =
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA) =
       std::make_unique<CGLESShader>("gles_shader_rgba.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA]->Free();
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA].reset();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA)->Free();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_rgba.frag - compile and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR] =
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR) =
       std::make_unique<CGLESShader>("gles_shader_rgba_blendcolor.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR]->Free();
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR].reset();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR)->Free();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_rgba_blendcolor.frag - compile and link failed");
   }
 
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB] =
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB) =
       std::make_unique<CGLESShader>("gles_shader_rgba_bob.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB]->Free();
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB].reset();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB)->Free();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_rgba_bob.frag - compile and link failed");
   }
 
   if (CGLExtensions::IsExtensionSupported(CGLExtensions::OES_EGL_image_external))
   {
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_OES] =
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_OES) =
         std::make_unique<CGLESShader>("gles_shader_rgba_oes.frag", defines);
-    if (!m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_OES]->CompileAndLink())
+    if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_OES)->CompileAndLink())
     {
-      m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_OES]->Free();
-      m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_OES].reset();
+      shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_OES)->Free();
+      shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_OES).reset();
       CLog::Log(LOGERROR, "GUI Shader gles_shader_rgba_oes.frag - compile and link failed");
     }
 
 
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES] =
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES) =
         std::make_unique<CGLESShader>("gles_shader_rgba_bob_oes.frag", defines);
-    if (!m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES]->CompileAndLink())
+    if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES)->CompileAndLink())
     {
-      m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES]->Free();
-      m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES].reset();
+      shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES)->Free();
+      shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES).reset();
       CLog::Log(LOGERROR, "GUI Shader gles_shader_rgba_bob_oes.frag - compile and link failed");
     }
   }
 
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_NOALPHA] =
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOALPHA) =
       std::make_unique<CGLESShader>("gles_shader_texture_noalpha.frag", defines);
-  if (!m_pShader[ShaderMethodGLES::SM_TEXTURE_NOALPHA]->CompileAndLink())
+  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOALPHA)->CompileAndLink())
   {
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_NOALPHA]->Free();
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_NOALPHA].reset();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOALPHA)->Free();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOALPHA).reset();
     CLog::Log(LOGERROR, "GUI Shader gles_shader_texture_noalpha.frag - compile and link failed");
   }
 }
 
 void CRenderSystemGLES::ReleaseShaders()
 {
-  if (m_pShader[ShaderMethodGLES::SM_DEFAULT])
-    m_pShader[ShaderMethodGLES::SM_DEFAULT]->Free();
-  m_pShader[ShaderMethodGLES::SM_DEFAULT].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_DEFAULT))
+    shaderSlot(ShaderMethodGLES::SM_DEFAULT)->Free();
+  shaderSlot(ShaderMethodGLES::SM_DEFAULT).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_TEXTURE])
-    m_pShader[ShaderMethodGLES::SM_TEXTURE]->Free();
-  m_pShader[ShaderMethodGLES::SM_TEXTURE].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_TEXTURE_111R])
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_111R]->Free();
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_111R].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_111R))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_111R)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_111R).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_MULTI])
-    m_pShader[ShaderMethodGLES::SM_MULTI]->Free();
-  m_pShader[ShaderMethodGLES::SM_MULTI].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_MULTI))
+    shaderSlot(ShaderMethodGLES::SM_MULTI)->Free();
+  shaderSlot(ShaderMethodGLES::SM_MULTI).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R])
-    m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R]->Free();
-  m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R))
+    shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R)->Free();
+  shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_FONTS])
-    m_pShader[ShaderMethodGLES::SM_FONTS]->Free();
-  m_pShader[ShaderMethodGLES::SM_FONTS].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_FONTS))
+    shaderSlot(ShaderMethodGLES::SM_FONTS)->Free();
+  shaderSlot(ShaderMethodGLES::SM_FONTS).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_FONTS_SHADER_CLIP])
-    m_pShader[ShaderMethodGLES::SM_FONTS_SHADER_CLIP]->Free();
-  m_pShader[ShaderMethodGLES::SM_FONTS_SHADER_CLIP].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_FONTS_SHADER_CLIP))
+    shaderSlot(ShaderMethodGLES::SM_FONTS_SHADER_CLIP)->Free();
+  shaderSlot(ShaderMethodGLES::SM_FONTS_SHADER_CLIP).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND])
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND]->Free();
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ])
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ]->Free();
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_MULTI_BLENDCOLOR])
-    m_pShader[ShaderMethodGLES::SM_MULTI_BLENDCOLOR]->Free();
-  m_pShader[ShaderMethodGLES::SM_MULTI_BLENDCOLOR].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR))
+    shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR)->Free();
+  shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR])
-    m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR]->Free();
-  m_pShader[ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR))
+    shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR)->Free();
+  shaderSlot(ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR])
-    m_pShader[ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR]->Free();
-  m_pShader[ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR))
+    shaderSlot(ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR)->Free();
+  shaderSlot(ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA])
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA]->Free();
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR])
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR]->Free();
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB])
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB]->Free();
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_OES])
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_OES]->Free();
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_OES].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_OES))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_OES)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_OES).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES])
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES]->Free();
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_BOB_OES).reset();
 
-  if (m_pShader[ShaderMethodGLES::SM_TEXTURE_NOALPHA])
-    m_pShader[ShaderMethodGLES::SM_TEXTURE_NOALPHA]->Free();
-  m_pShader[ShaderMethodGLES::SM_TEXTURE_NOALPHA].reset();
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOALPHA))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOALPHA)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOALPHA).reset();
 }
 
 void CRenderSystemGLES::EnableGUIShader(ShaderMethodGLES method)
 {
   m_method = method;
-  if (m_pShader[m_method])
+  if (shader(m_method))
   {
-    m_pShader[m_method]->Enable();
+    shader(m_method)->Enable();
   }
   else
   {
@@ -720,97 +720,97 @@ void CRenderSystemGLES::EnableGUIShader(ShaderMethodGLES method)
 
 void CRenderSystemGLES::DisableGUIShader()
 {
-  if (m_pShader[m_method])
+  if (shader(m_method))
   {
-    m_pShader[m_method]->Disable();
+    shader(m_method)->Disable();
   }
   m_method = ShaderMethodGLES::SM_DEFAULT;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetPos()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetPosLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetPosLoc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetCol()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetColLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetColLoc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetCoord0()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetCord0Loc();
+  if (shader(m_method))
+    return shader(m_method)->GetCord0Loc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetCoord1()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetCord1Loc();
+  if (shader(m_method))
+    return shader(m_method)->GetCord1Loc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetDepth()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetDepthLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetDepthLoc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetUniCol()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetUniColLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetUniColLoc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetCoord0Matrix()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetCoord0MatrixLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetCoord0MatrixLoc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetField()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetFieldLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetFieldLoc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetStep()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetStepLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetStepLoc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetContrast()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetContrastLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetContrastLoc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetBrightness()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetBrightnessLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetBrightnessLoc();
 
   return -1;
 }
@@ -822,32 +822,32 @@ bool CRenderSystemGLES::SupportsStereo(RenderStereoMode mode) const
 
 GLint CRenderSystemGLES::GUIShaderGetModel()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetModelLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetModelLoc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetMatrix()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetMatrixLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetMatrixLoc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetClip()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetShaderClipLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetShaderClipLoc();
 
   return -1;
 }
 
 GLint CRenderSystemGLES::GUIShaderGetCoordStep()
 {
-  if (m_pShader[m_method])
-    return m_pShader[m_method]->GetShaderCoordStepLoc();
+  if (shader(m_method))
+    return shader(m_method)->GetShaderCoordStepLoc();
 
   return -1;
 }
