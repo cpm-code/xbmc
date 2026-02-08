@@ -132,7 +132,7 @@
 				<height>8</height>
 				<texturebg border="3" colordiffuse="00FFFFFF">colors/white50.png</texturebg>
 				<lefttexture>colors/white.png</lefttexture>
-				<midtexture colordiffuse="FFFF0000">colors/white.png</midtexture>
+				<midtexture colordiffuse="FFCC2222">colors/white.png</midtexture>
 				<righttexture>colors/white.png</righttexture>
 				<info>Player.Editlist</info>
 			</control>
