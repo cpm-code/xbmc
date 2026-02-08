@@ -13,7 +13,7 @@
 #include "utils/ColorUtils.h"
 #include "utils/Map.h"
 
-#include <map>
+#include <array>
 
 #include <fmt/format.h>
 
@@ -157,8 +157,13 @@ protected:
 
   std::string m_RenderExtensions;
 
-  std::map<ShaderMethodGLES, std::unique_ptr<CGLESShader>> m_pShader;
+  static constexpr size_t SM_COUNT = static_cast<size_t>(ShaderMethodGLES::SM_MAX);
+  std::array<std::unique_ptr<CGLESShader>, SM_COUNT> m_pShader;
   ShaderMethodGLES m_method = ShaderMethodGLES::SM_DEFAULT;
+
+  // O(1) array accessor for the shader enum — replaces std::map tree lookups.
+  CGLESShader* shader(ShaderMethodGLES m) const { return m_pShader[static_cast<size_t>(m)].get(); }
+  std::unique_ptr<CGLESShader>& shaderSlot(ShaderMethodGLES m) { return m_pShader[static_cast<size_t>(m)]; }
 
   GLint      m_viewPort[4];
 };
