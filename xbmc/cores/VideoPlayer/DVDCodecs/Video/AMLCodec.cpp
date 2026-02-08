@@ -2578,12 +2578,7 @@ void CAMLCodec::SetVideoRect(const CRect &DestRect)
     update = true;
   }
 
-  if (!update)
-  {
-    // mainvideo 'should' be showing already if we get here, make sure.
-    ShowMainVideo(true);
-    return;
-  }
+  if (!update) return;
 
   CRect gui, display;
 
