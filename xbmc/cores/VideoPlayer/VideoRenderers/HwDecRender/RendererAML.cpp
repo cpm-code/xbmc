@@ -103,16 +103,13 @@ void CRendererAML::ReleaseBuffer(int idx)
   BUFFER &buf(m_buffers[idx]);
   if (buf.videoBuffer)
   {
-    CAMLVideoBuffer *amli(dynamic_cast<CAMLVideoBuffer*>(buf.videoBuffer));
-    if (amli)
+    CAMLVideoBuffer *amli(static_cast<CAMLVideoBuffer*>(buf.videoBuffer));
+    if (amli->m_amlCodec)
     {
-      if (amli->m_amlCodec)
-      {
-        amli->m_amlCodec->ReleaseFrame(amli->m_bufferIndex, true);
-        amli->m_amlCodec = nullptr; // Released
-      }
-      amli->Release();
+      amli->m_amlCodec->ReleaseFrame(amli->m_bufferIndex, true);
+      amli->m_amlCodec = nullptr; // Released
     }
+    amli->Release();
     buf.videoBuffer = nullptr;
   }
 }
@@ -142,7 +139,7 @@ void CRendererAML::Reset()
     reset_arr[i][0] = i;
 
     if (m_buffers[i].videoBuffer)
-      reset_arr[i][1] = dynamic_cast<CAMLVideoBuffer *>(m_buffers[i].videoBuffer)->m_bufferIndex;
+      reset_arr[i][1] = static_cast<CAMLVideoBuffer *>(m_buffers[i].videoBuffer)->m_bufferIndex;
     else
       reset_arr[i][1] = 0;
   }
@@ -175,7 +172,7 @@ void CRendererAML::RenderUpdate(int index, int index2, bool clear, unsigned int 
 {
   ManageRenderArea();
 
-  CAMLVideoBuffer *amli = dynamic_cast<CAMLVideoBuffer *>(m_buffers[index].videoBuffer);
+  CAMLVideoBuffer *amli = static_cast<CAMLVideoBuffer *>(m_buffers[index].videoBuffer);
   if(amli && amli->m_amlCodec)
   {
     uint64_t pts = amli->m_omxPts;
