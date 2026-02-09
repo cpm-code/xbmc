@@ -264,8 +264,9 @@ void CWinSystemAmlogicGLESContext::PresentRender(bool rendered, bool videoLayer)
   SetVSync(true);
   if (rendered || (videoLayer && m_amlGBMUtils))
   {
+    bool async = !videoLayer && m_eglFence;
 #if defined(EGL_ANDROID_native_fence_sync) && defined(EGL_KHR_fence_sync)
-    if (m_eglFence)
+    if (async)
     {
       int fd = m_amlDisplay->TakeOutFenceFd();
       if (fd != -1)
@@ -283,7 +284,7 @@ void CWinSystemAmlogicGLESContext::PresentRender(bool rendered, bool videoLayer)
     m_pGLContext->TrySwapBuffers();
 
 #if defined(EGL_ANDROID_native_fence_sync) && defined(EGL_KHR_fence_sync)
-    if (m_eglFence)
+    if (async)
     {
       int fd = m_eglFence->FlushFence();
       m_amlDisplay->SetInFenceFd(fd);
@@ -295,7 +296,7 @@ void CWinSystemAmlogicGLESContext::PresentRender(bool rendered, bool videoLayer)
     if (m_amlGBMUtils)
     {
       m_amlGBMUtils->LockFrontBuffer(m_amlDisplay->aml_get_Device_handle());
-      m_amlDisplay->FlipPage(m_amlGBMUtils->GetFBId());
+      m_amlDisplay->FlipPage(m_amlGBMUtils->GetFBId(), async);
       m_amlGBMUtils->UnlockFrontBuffer();
     }
   }
