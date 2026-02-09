@@ -1195,7 +1195,6 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
        !CompareFormat(m_sinkRequestFormat, oldSinkRequestFormat)) ||
       m_currDevice.compare(dev.name) != 0 || m_settings.driver.compare(dev.driver) != 0)
   {
-    CServiceBroker::GetDataCacheCore().ResetAudioCache();
     FlushEngine();
     if (!InitSink())
       return;
@@ -1455,6 +1454,7 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
       }
     }
     m_sounds_playing.clear();
+    CServiceBroker::GetDataCacheCore().ResetAudioCache();
   }
 
   ClearDiscardedBuffers();
