@@ -797,7 +797,7 @@ bool CAMLDRMUtils::SupportsFormat(drmModePlane *plane, uint32_t format)
   return false;
 }
 
-void CAMLDRMUtils::FlipPage(uint32_t fb_id)
+void CAMLDRMUtils::FlipPage(uint32_t fb_id, bool async)
 {
   if (!aml_get_drmDevice_connected())
     return;
@@ -821,7 +821,7 @@ void CAMLDRMUtils::FlipPage(uint32_t fb_id)
     set_drmProp(m_plane->plane_id, "IN_FENCE_FD", DRM_MODE_OBJECT_PLANE , m_inFenceFd, req);
   }
 
-  if (drmModeAtomicCommit(m_fd, req, DRM_MODE_ATOMIC_NONBLOCK, NULL))
+  if (drmModeAtomicCommit(m_fd, req, async ? DRM_MODE_ATOMIC_NONBLOCK : 0, NULL))
     CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - failed to make drmDevice atomic commit", __FUNCTION__);
 
   if (m_inFenceFd != -1)
