@@ -638,6 +638,8 @@ void CActiveAE::StateMachine(int signal, Protocol *port, Message *msg)
           }
           m_extLastDeviceChange.push(now);
           UnconfigureSink();
+          // make sure we open sink on next configure
+          m_currDevice = "";
           m_controlPort.PurgeOut(CActiveAEControlProtocol::DEVICECHANGE);
           m_sink.EnumerateSinkList(true, "");
           LoadSettings();
@@ -1927,9 +1929,6 @@ void CActiveAE::UnconfigureSink()
     CLog::Log(LOGERROR, "ActiveAE::{} - failed to unconfigure", __FUNCTION__);
     m_extError = true;
   }
-
-  // make sure we open sink on next configure
-  m_currDevice = "";
 
   m_inMsgEvent.Reset();
 }
