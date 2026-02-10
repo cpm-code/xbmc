@@ -63,7 +63,7 @@ public:
   bool aml_set_drmDevice_active(std::string mode, bool active);
   bool aml_set_drmDevice_hotplug_mode(std::string mode);
   bool aml_get_drmDevice_connected() const { return m_connection == DRM_MODE_CONNECTED; }
-  void FlipPage(uint32_t fb_id, bool async);
+  void FlipPage(uint32_t fb_id, bool rendered, bool videoLayer, bool async);
 
   void SetInFenceFd(int fd) { m_inFenceFd = fd; }
   int TakeOutFenceFd()
@@ -121,7 +121,8 @@ public:
   bool aml_probe_resolutions(std::vector<RESOLUTION_INFO> &resolutions);
   int aml_get_drmProperty(std::string name, unsigned int obj_type) const
     { return m_amlDRMUtils->aml_get_drmProperty(name, obj_type); }
-  void FlipPage(uint32_t fb_id, bool async) { m_amlDRMUtils->FlipPage(fb_id, async); }
+  void FlipPage(uint32_t fb_id, bool rendered, bool videoLayer, bool async)
+    { m_amlDRMUtils->FlipPage(fb_id, rendered, videoLayer, async); }
   bool aml_set_drmDevice_active(bool active) const
     { return m_amlDRMUtils->aml_set_drmDevice_active(m_amlDRMUtils->aml_get_drmDevice_mode(), active); }
 

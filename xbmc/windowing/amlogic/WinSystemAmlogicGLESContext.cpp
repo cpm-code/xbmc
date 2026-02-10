@@ -265,38 +265,41 @@ void CWinSystemAmlogicGLESContext::PresentRender(bool rendered, bool videoLayer)
   if (rendered || (videoLayer && m_amlGBMUtils))
   {
     bool async = !videoLayer && m_eglFence;
-#if defined(EGL_ANDROID_native_fence_sync) && defined(EGL_KHR_fence_sync)
-    if (async)
+    if (rendered)
     {
-      int fd = m_amlDisplay->TakeOutFenceFd();
-      if (fd != -1)
+#if defined(EGL_ANDROID_native_fence_sync) && defined(EGL_KHR_fence_sync)
+      if (async)
       {
-        m_eglFence->CreateKMSFence(fd);
-        m_eglFence->WaitSyncGPU();
-      }
+        int fd = m_amlDisplay->TakeOutFenceFd();
+        if (fd != -1)
+        {
+          m_eglFence->CreateKMSFence(fd);
+          m_eglFence->WaitSyncGPU();
+        }
 
-      m_eglFence->CreateGPUFence();
-    }
+        m_eglFence->CreateGPUFence();
+      }
 #endif
 
-    // Ignore errors - eglSwapBuffers() sometimes fails during modeswaps on AML,
-    // there is probably nothing we can do about it
-    m_pGLContext->TrySwapBuffers();
+      // Ignore errors - eglSwapBuffers() sometimes fails during modeswaps on AML,
+      // there is probably nothing we can do about it
+      m_pGLContext->TrySwapBuffers();
 
 #if defined(EGL_ANDROID_native_fence_sync) && defined(EGL_KHR_fence_sync)
-    if (async)
-    {
-      int fd = m_eglFence->FlushFence();
-      m_amlDisplay->SetInFenceFd(fd);
+      if (async)
+      {
+        int fd = m_eglFence->FlushFence();
+        m_amlDisplay->SetInFenceFd(fd);
 
-      m_eglFence->WaitSyncCPU();
-    }
+        m_eglFence->WaitSyncCPU();
+      }
 #endif
+    }
 
     if (m_amlGBMUtils)
     {
       m_amlGBMUtils->LockFrontBuffer(m_amlDisplay->aml_get_Device_handle());
-      m_amlDisplay->FlipPage(m_amlGBMUtils->GetFBId(), async);
+      m_amlDisplay->FlipPage(m_amlGBMUtils->GetFBId(), rendered, videoLayer, async);
       m_amlGBMUtils->UnlockFrontBuffer();
     }
 

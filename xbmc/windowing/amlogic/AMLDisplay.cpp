@@ -11,6 +11,8 @@
 
 #include "AMLDisplay.h"
 #include "filesystem/SpecialProtocol.h"
+#include "guilib/GUIComponent.h"
+#include "guilib/GUIWindowManager.h"
 #include "platform/linux/SysfsPath.h"
 #include "linux/fb.h"
 #include "rendering/RenderSystem.h"
@@ -797,28 +799,37 @@ bool CAMLDRMUtils::SupportsFormat(drmModePlane *plane, uint32_t format)
   return false;
 }
 
-void CAMLDRMUtils::FlipPage(uint32_t fb_id, bool async)
+void CAMLDRMUtils::FlipPage(uint32_t fb_id, bool rendered, bool videoLayer, bool async)
 {
   if (!aml_get_drmDevice_connected())
     return;
 
   drmModeAtomicReqPtr req = drmModeAtomicAlloc();
 
-  set_drmProp(m_plane->plane_id, "FB_ID", DRM_MODE_OBJECT_PLANE , fb_id, req);
-  set_drmProp(m_plane->plane_id, "CRTC_ID", DRM_MODE_OBJECT_PLANE , m_crtc->crtc_id, req);
-  set_drmProp(m_plane->plane_id, "SRC_X", DRM_MODE_OBJECT_PLANE , 0, req);
-  set_drmProp(m_plane->plane_id, "SRC_Y", DRM_MODE_OBJECT_PLANE , 0, req);
-  set_drmProp(m_plane->plane_id, "SRC_W", DRM_MODE_OBJECT_PLANE , m_width << 16, req);
-  set_drmProp(m_plane->plane_id, "SRC_H", DRM_MODE_OBJECT_PLANE , m_height << 16, req);
-  set_drmProp(m_plane->plane_id, "CRTC_X", DRM_MODE_OBJECT_PLANE , 0, req);
-  set_drmProp(m_plane->plane_id, "CRTC_Y", DRM_MODE_OBJECT_PLANE , 0, req);
-  set_drmProp(m_plane->plane_id, "CRTC_W", DRM_MODE_OBJECT_PLANE , m_ScreenWidth, req);
-  set_drmProp(m_plane->plane_id, "CRTC_H", DRM_MODE_OBJECT_PLANE , m_ScreenHeight, req);
-
-  if (m_inFenceFd != -1)
+  if (rendered)
   {
-    set_drmProp(m_crtc->crtc_id, "OUT_FENCE_PTR", DRM_MODE_OBJECT_CRTC , reinterpret_cast<uint64_t>(&m_outFenceFd), req);
-    set_drmProp(m_plane->plane_id, "IN_FENCE_FD", DRM_MODE_OBJECT_PLANE , m_inFenceFd, req);
+    set_drmProp(m_plane->plane_id, "FB_ID", DRM_MODE_OBJECT_PLANE , fb_id, req);
+    set_drmProp(m_plane->plane_id, "CRTC_ID", DRM_MODE_OBJECT_PLANE , m_crtc->crtc_id, req);
+    set_drmProp(m_plane->plane_id, "SRC_X", DRM_MODE_OBJECT_PLANE , 0, req);
+    set_drmProp(m_plane->plane_id, "SRC_Y", DRM_MODE_OBJECT_PLANE , 0, req);
+    set_drmProp(m_plane->plane_id, "SRC_W", DRM_MODE_OBJECT_PLANE , m_width << 16, req);
+    set_drmProp(m_plane->plane_id, "SRC_H", DRM_MODE_OBJECT_PLANE , m_height << 16, req);
+    set_drmProp(m_plane->plane_id, "CRTC_X", DRM_MODE_OBJECT_PLANE , 0, req);
+    set_drmProp(m_plane->plane_id, "CRTC_Y", DRM_MODE_OBJECT_PLANE , 0, req);
+    set_drmProp(m_plane->plane_id, "CRTC_W", DRM_MODE_OBJECT_PLANE , m_ScreenWidth, req);
+    set_drmProp(m_plane->plane_id, "CRTC_H", DRM_MODE_OBJECT_PLANE , m_ScreenHeight, req);
+
+    if (m_inFenceFd != -1)
+    {
+      set_drmProp(m_crtc->crtc_id, "OUT_FENCE_PTR", DRM_MODE_OBJECT_CRTC , reinterpret_cast<uint64_t>(&m_outFenceFd), req);
+      set_drmProp(m_plane->plane_id, "IN_FENCE_FD", DRM_MODE_OBJECT_PLANE , m_inFenceFd, req);
+    }
+  }
+  else if (videoLayer && !CServiceBroker::GetGUI()->GetWindowManager().HasVisibleControls())
+  {
+    // disable gui plane when video layer is active and gui has no visible controls
+    set_drmProp(m_plane->plane_id, "FB_ID", DRM_MODE_OBJECT_PLANE , 0, req);
+    set_drmProp(m_plane->plane_id, "CRTC_ID", DRM_MODE_OBJECT_PLANE , 0, req);
   }
 
   if (drmModeAtomicCommit(m_fd, req, async ? DRM_MODE_ATOMIC_NONBLOCK : 0, NULL))
