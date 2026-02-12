@@ -868,6 +868,44 @@ unsigned int CAEStreamParser::SyncTrueHD(uint8_t* data, unsigned int size)
       if (((data[4 + major_sync_size - 1] << 8) | data[4 + major_sync_size - 2]) != crc)
         continue;
 
+      // Detect Atmos and parse extra_channel_meaning fields (before any patching)
+      // Reference: MediaInfoLib File_Ac3.cpp HD()
+      // Bit layout inside extra_channel_meaning:
+      //   extra_channel_meaning_length: 4 bits = data[30] bits[7:4]
+      //   16ch_dialogue_norm:           5 bits = data[30] bits[3:0] + data[31] bit 7
+      //   16ch_mix_level:               6 bits = data[31] bits[6:1]
+      //   16ch_channel_count:           5 bits = data[31] bit 0   + data[32] bits[7:4]
+      bool hasAtmos = (data[21] & 0x80) != 0;
+      bool hasExtChannelMeaning = hasAtmos && (data[29] & 1);
+      int origDialNorm = 0;
+      int atmosChannels = 0;
+
+      if (hasExtChannelMeaning)
+      {
+        // 5-bit raw value 0-31 maps to -31 to 0 dB (dB = raw - 31)
+        int dialNormRaw = ((data[30] & 0x0F) << 1) | (data[31] >> 7);
+        origDialNorm = dialNormRaw - 31;
+
+        int channelCountRaw = ((data[31] & 0x01) << 4) | (data[32] >> 4);
+        atmosChannels = channelCountRaw + 1;
+      }
+
+      // Defeat 16ch dialog normalization to 0 dB on every major sync frame.
+      // This disables receiver-side dialog normalization for the Atmos presentation.
+      bool dialNormDefeated = false;
+      if (m_defeatTrueHDDialNorm && hasExtChannelMeaning)
+      {
+        data[30] |= 0x0F; // set dialnorm bits [4:1] = 1111
+        data[31] |= 0x80; // set dialnorm bit  [0]   = 1
+        dialNormDefeated = (origDialNorm != 0);
+
+        // Recompute CRC-16 (polynomial 0x002D) after modification
+        uint16_t new_crc = av_crc(m_crcTrueHD, 0, data + 4, major_sync_size - 4);
+        new_crc ^= (data[4 + major_sync_size - 3] << 8) | data[4 + major_sync_size - 4];
+        data[4 + major_sync_size - 2] = new_crc & 0xFF;
+        data[4 + major_sync_size - 1] = (new_crc >> 8) & 0xFF;
+      }
+
       m_substreams = (data[20] & 0xF0) >> 4;
       m_fsize = length;
 
@@ -891,8 +929,24 @@ unsigned int CAEStreamParser::SyncTrueHD(uint8_t* data, unsigned int size)
           channel_map = (data[9] << 1) | (data[10] >> 7);
         m_info.m_channels = CAEStreamParser::GetTrueHDChannels(channel_map);
 
-        CLog::Log(LOGINFO, "CAEStreamParser::SyncTrueHD - TrueHD stream detected {} channels, {}Hz, {}-bit)",
-                  m_info.m_channels, m_info.m_sampleRate, m_info.m_bitDepth);
+        m_info.m_hasAtmos = hasAtmos;
+        m_info.m_dialNorm = dialNormDefeated ? 0 : origDialNorm;
+        m_info.m_atmosChannels = atmosChannels;
+
+        std::string atmosStr;
+        if (hasAtmos)
+        {
+          atmosStr = ", dialNorm: " + std::to_string(m_info.m_dialNorm) + " dB";
+          if (dialNormDefeated)
+            atmosStr += " (defeated from " + std::to_string(origDialNorm) + " dB)";
+          if (atmosChannels)
+            atmosStr += ", atmosChannels: " + std::to_string(atmosChannels);
+        }
+        CLog::Log(LOGINFO,
+                  "CAEStreamParser::SyncTrueHD - TrueHD stream detected ({} channels, {}Hz, "
+                  "{}-bit{}{})",
+                  m_info.m_channels, m_info.m_sampleRate, m_info.m_bitDepth,
+                  hasAtmos ? ", Atmos" : "", atmosStr);
 
         m_hasSync = true;
         m_info.m_type = CAEStreamInfo::STREAM_TYPE_TRUEHD;
