@@ -25653,3 +25653,15 @@ msgstr ""
 msgctxt "#50312"
 msgid "To Profile 8.1"
 msgstr ""
+
+#. Setting label for TrueHD Atmos dialogue normalisation defeat
+#: system/settings/settings.xml
+msgctxt "#55001"
+msgid "TrueHD Atmos dialogue normalisation defeat (0 dB)"
+msgstr ""
+
+#. Setting help for TrueHD Atmos dialogue normalisation defeat
+#: system/settings/settings.xml
+msgctxt "#55002"
+msgid "Force the dialogue normalisation value to (0 dB) in TrueHD Atmos bitstreams. This disables receiver-side dialogue normalisation for the Atmos presentation, preventing unwanted volume reduction during passthrough playback."
+msgstr ""
