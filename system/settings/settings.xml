@@ -3609,6 +3609,18 @@
           </dependencies>
           <control type="toggle" />
         </setting>
+        <setting id="coreelec.audio.ac3.dialnorm" type="boolean" label="55003" help="55004">
+          <level>2</level>
+          <default>false</default>
+          <dependencies>
+            <dependency type="enable">
+              <and>
+                <condition setting="audiooutput.passthrough" operator="is">true</condition>
+              </and>
+            </dependency>
+          </dependencies>
+          <control type="toggle" />
+        </setting>
         <setting id="coreelec.audio.truehd.atmos.dialnorm" type="boolean" label="55001" help="55002">
           <level>2</level>
           <default>false</default>

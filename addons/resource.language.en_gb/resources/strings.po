@@ -25665,3 +25665,15 @@ msgstr ""
 msgctxt "#55002"
 msgid "Force the dialogue normalisation value to (0 dB) in TrueHD Atmos bitstreams. This disables receiver-side dialogue normalisation for the Atmos presentation, preventing unwanted volume reduction during passthrough playback."
 msgstr ""
+
+#. Setting label for AC-3/E-AC-3 dialogue normalisation defeat
+#: system/settings/settings.xml
+msgctxt "#55003"
+msgid "AC-3 / E-AC-3 dialogue normalisation defeat (0 dB)"
+msgstr ""
+
+#. Setting help for AC-3/E-AC-3 dialogue normalisation defeat
+#: system/settings/settings.xml
+msgctxt "#55004"
+msgid "Force the dialogue normalisation value to (0 dB) in AC-3 and E-AC-3 bitstreams. This disables receiver-side dialogue normalisation, preventing unwanted volume reduction during passthrough playback."
+msgstr ""
