@@ -394,6 +394,7 @@ CBitstreamConverter::CBitstreamConverter(CDVDStreamInfo& hints)
   m_sps_pps_context.sps_pps_data = NULL;
   m_start_decode = false;
   m_convert_dovi = DOVIMode::MODE_NONE;
+  m_append_cmv40 = DOVICMv40Mode::CMV40_NONE;
   m_convert_Hdr10Plus = false;
   m_prefer_Hdr10Plus_conversion = false;
   m_dual_priority_Hdr10Plus = false;

@@ -25639,6 +25639,36 @@ msgctxt "#50312"
 msgid "To Profile 8.1"
 msgstr ""
 
+#. Title of Dolby Vision CMv4.0 append setting
+#: system/settings/settings.xml
+msgctxt "#50320"
+msgid "CMv4.0 append"
+msgstr ""
+
+#. Help text for setting "CMv4.0 append setting" of label #50320
+#: system/settings/settings.xml
+msgctxt "#50321"
+msgid "Controls when CMv4.0 is appended to Dolby Vision profile 7 & 8 RPU during playback."
+msgstr ""
+
+#. "CMv4.0 append"
+#: system/settings/settings.xml
+msgctxt "#50322"
+msgid "off"
+msgstr ""
+
+#. "CMv4.0 append"
+#: system/settings/settings.xml
+msgctxt "#50323"
+msgid "CMv2.9 without L2 trims"
+msgstr ""
+
+#. "CMv4.0 append"
+#: system/settings/settings.xml
+msgctxt "#50324"
+msgid "Always"
+msgstr ""
+
 #. Setting label for TrueHD Atmos dialogue normalisation defeat
 #: system/settings/settings.xml
 msgctxt "#55001"
