@@ -34,7 +34,7 @@ set(SOURCES ActorProtocol.cpp
             HDR10.cpp
             HDR10Plus.cpp
             HDR10PlusConvert.cpp
-            HDR10PlusWriter.cpp
+            DoViRpuWriter.cpp
             HevcSei.cpp
             HTMLUtil.cpp
             HttpHeader.cpp
@@ -126,7 +126,7 @@ set(HEADERS ActorProtocol.h
             HDR10.h
             HDR10Plus.h
             HDR10PlusConvert.h
-            HDR10PlusWriter.h
+            DoViRpuWriter.h
             HDRCapabilities.h
             HevcSei.h
             HTMLUtil.h
