@@ -96,6 +96,12 @@ enum DOVIMode : int
   MODE_TO81
 };
 
+enum DOVICMv40Mode : int
+{
+  CMV40_NONE = 0,
+  CMV40_NO_L2,
+  CMV40_ALWAYS,
+};
 class CBitstreamParser
 {
 public:
@@ -126,6 +132,7 @@ public:
   void ResetStartDecode();
   bool CanStartDecode() const;
   void SetConvertDovi(enum DOVIMode value) { m_convert_dovi = value; }
+  void SetAppendCMv40(enum DOVICMv40Mode value) { m_append_cmv40 = value; }
   void SetConvertHdr10Plus(bool value) { m_convert_Hdr10Plus = value; }
   void SetPreferCovertHdr10Plus(bool value) { m_prefer_Hdr10Plus_conversion = value; }
   void SetConvertHdr10PlusPeakBrightnessSource(enum PeakBrightnessSource value) { m_convert_Hdr10Plus_peak_brightness_source = value; };
@@ -173,8 +180,8 @@ protected:
   void ProcessSeiPrefixWrap(uint8_t *buf, int32_t nal_size, uint8_t **poutbuf, uint32_t& poutbuf_size, Hdr10PlusMetadata& meta, bool& convert_hdr10plus_meta);
   void ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8_t **poutbuf, int *poutbuf_size, Hdr10PlusMetadata& meta, bool& convert_hdr10plus_meta);
 
-  void ProcessDoViRpuWrap(uint8_t* buf, int32_t nal_size, uint8_t** poutbuf, uint32_t& poutbuf_size, double pts) const;
-  void ProcessDoViRpu(uint8_t* buf, int32_t nal_size, uint8_t** poutbuf, int* poutbuf_size, double pts) const;
+  void ProcessDoViRpuWrap(uint8_t* buf, int32_t nal_size, uint8_t** poutbuf, uint32_t& poutbuf_size, double pts);
+  void ProcessDoViRpu(uint8_t* buf, int32_t nal_size, uint8_t** poutbuf, int* poutbuf_size, double pts);
 
   typedef struct omx_bitstream_ctx {
       uint8_t  length_size;
@@ -204,6 +211,8 @@ protected:
   StreamHdrType m_initial_hdrType;
   bool m_start_decode;
   enum DOVIMode m_convert_dovi;
+  enum DOVICMv40Mode m_append_cmv40;
+  uint8_t m_cmv40_trim{1};
   bool m_removeDovi;
   bool m_removeHdr10Plus;
   bool m_convert_Hdr10Plus;
