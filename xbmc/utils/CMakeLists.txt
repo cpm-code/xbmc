@@ -6,6 +6,7 @@ set(SOURCES ActorProtocol.cpp
             Base64.cpp
             BitstreamConverter.cpp
             BitstreamConverterDoVi.cpp
+            BitstreamIoReader.cpp
             BitstreamIoWriter.cpp
             BitstreamReader.cpp
             BitstreamStats.cpp
@@ -95,6 +96,7 @@ set(HEADERS ActorProtocol.h
             Artwork.h
             Base64.h
             BitstreamConverter.h
+            BitstreamIoReader.h
             BitstreamIoWriter.h
             BitstreamReader.h
             BitstreamStats.h
