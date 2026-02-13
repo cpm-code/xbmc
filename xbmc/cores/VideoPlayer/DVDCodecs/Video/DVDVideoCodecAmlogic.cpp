@@ -287,6 +287,16 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
 
         if (m_hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
         {
+          auto cmv40Mode = static_cast<DOVICMv40Mode>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_CMV40_APPEND));
+          if (cmv40Mode != DOVICMv40Mode::CMV40_NONE)
+          {
+            if (cmv40Mode == DOVICMv40Mode::CMV40_NO_L2)
+              logM(LOGINFO, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - if CMv2.9 without L2 trims then CMv4.0 metadata block will be appended.");
+            else
+              logM(LOGINFO, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - CMv4.0 metadata block will always be appended.");
+            m_bitstream->SetAppendCMv40(cmv40Mode);
+          }
+
           if (dualPriorityHdr10Plus)
           {
             logM(LOGINFO, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - if stream also contains HDR10+, native HDR10+ has priority.");
