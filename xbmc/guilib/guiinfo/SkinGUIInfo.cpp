@@ -34,6 +34,9 @@ bool CSkinGUIInfo::GetLabel(std::string& value,
                             const CGUIInfo& info,
                             std::string* fallback) const
 {
+  const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+  const auto settings = settingsComponent ? settingsComponent->GetSettings() : nullptr;
+
   switch (info.GetInfo())
   {
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,14 +59,16 @@ bool CSkinGUIInfo::GetLabel(std::string& value,
     }
     case SKIN_THEME:
     {
-      value = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(
-          CSettings::SETTING_LOOKANDFEEL_SKINTHEME);
+      if (!settings)
+        return false;
+      value = settings->GetString(CSettings::SETTING_LOOKANDFEEL_SKINTHEME);
       return true;
     }
     case SKIN_COLOUR_THEME:
     {
-      value = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(
-          CSettings::SETTING_LOOKANDFEEL_SKINCOLORS);
+      if (!settings)
+        return false;
+      value = settings->GetString(CSettings::SETTING_LOOKANDFEEL_SKINCOLORS);
       return true;
     }
     case SKIN_ASPECT_RATIO:
@@ -78,8 +83,9 @@ bool CSkinGUIInfo::GetLabel(std::string& value,
     }
     case SKIN_FONT:
     {
-      value = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(
-          CSettings::SETTING_LOOKANDFEEL_FONT);
+      if (!settings)
+        return false;
+      value = settings->GetString(CSettings::SETTING_LOOKANDFEEL_FONT);
       return true;
     }
     case SKIN_TIMER_ELAPSEDSECS:
@@ -124,6 +130,9 @@ bool CSkinGUIInfo::GetBool(bool& value,
                            int contextWindow,
                            const CGUIInfo& info) const
 {
+  const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+  const auto settings = settingsComponent ? settingsComponent->GetSettings() : nullptr;
+
   switch (info.GetInfo())
   {
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -147,8 +156,9 @@ bool CSkinGUIInfo::GetBool(bool& value,
     }
     case SKIN_HAS_THEME:
     {
-      std::string theme = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(
-          CSettings::SETTING_LOOKANDFEEL_SKINTHEME);
+      if (!settings)
+        return false;
+      std::string theme = settings->GetString(CSettings::SETTING_LOOKANDFEEL_SKINTHEME);
       URIUtils::RemoveExtension(theme);
       value = StringUtils::EqualsNoCase(theme, info.GetData3());
       return true;
