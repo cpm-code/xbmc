@@ -106,6 +106,13 @@ bool CVideoGUIInfo::GetLabel(std::string& value,
                              const CGUIInfo& info,
                              std::string* fallback) const
 {
+  const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+  const auto advancedSettings = settingsComponent ? settingsComponent->GetAdvancedSettings() : nullptr;
+  const auto settings = settingsComponent ? settingsComponent->GetSettings() : nullptr;
+  static const std::string emptySeparator;
+  const std::string& defaultVideoItemSeparator =
+      advancedSettings ? advancedSettings->m_videoItemSeparator : emptySeparator;
+
   // For videoplayer "offset" and "position" info labels check playlist
   if (info.GetData1() && ((info.GetInfo() >= VIDEOPLAYER_OFFSET_POSITION_FIRST &&
                            info.GetInfo() <= VIDEOPLAYER_OFFSET_POSITION_LAST) ||
@@ -149,20 +156,14 @@ bool CVideoGUIInfo::GetLabel(std::string& value,
       case VIDEOPLAYER_GENRE:
       case LISTITEM_GENRE:
       {
-        const std::string sep{info.GetData3().empty() ? CServiceBroker::GetSettingsComponent()
-                                                            ->GetAdvancedSettings()
-                                                            ->m_videoItemSeparator
-                                                      : info.GetData3()};
+        const std::string sep{info.GetData3().empty() ? defaultVideoItemSeparator : info.GetData3()};
         value = StringUtils::Join(tag->m_genre, sep);
         return true;
       }
       case VIDEOPLAYER_DIRECTOR:
       case LISTITEM_DIRECTOR:
       {
-        const std::string sep{info.GetData3().empty() ? CServiceBroker::GetSettingsComponent()
-                                                            ->GetAdvancedSettings()
-                                                            ->m_videoItemSeparator
-                                                      : info.GetData3()};
+        const std::string sep{info.GetData3().empty() ? defaultVideoItemSeparator : info.GetData3()};
         value = StringUtils::Join(tag->m_director, sep);
         return true;
       }
@@ -297,15 +298,11 @@ bool CVideoGUIInfo::GetLabel(std::string& value,
         return true;
       case VIDEOPLAYER_STUDIO:
       case LISTITEM_STUDIO:
-        value = StringUtils::Join(
-            tag->m_studio,
-            CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoItemSeparator);
+        value = StringUtils::Join(tag->m_studio, defaultVideoItemSeparator);
         return true;
       case VIDEOPLAYER_COUNTRY:
       case LISTITEM_COUNTRY:
-        value = StringUtils::Join(
-            tag->m_country,
-            CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoItemSeparator);
+        value = StringUtils::Join(tag->m_country, defaultVideoItemSeparator);
         return true;
       case VIDEOPLAYER_MPAA:
       case LISTITEM_MPAA:
@@ -329,9 +326,7 @@ bool CVideoGUIInfo::GetLabel(std::string& value,
         return true;
       case VIDEOPLAYER_ARTIST:
       case LISTITEM_ARTIST:
-        value = StringUtils::Join(
-            tag->m_artist,
-            CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoItemSeparator);
+        value = StringUtils::Join(tag->m_artist, defaultVideoItemSeparator);
         return true;
       case VIDEOPLAYER_ALBUM:
       case LISTITEM_ALBUM:
@@ -340,10 +335,7 @@ bool CVideoGUIInfo::GetLabel(std::string& value,
       case VIDEOPLAYER_WRITER:
       case LISTITEM_WRITER:
       {
-        const std::string sep{info.GetData3().empty() ? CServiceBroker::GetSettingsComponent()
-                                                            ->GetAdvancedSettings()
-                                                            ->m_videoItemSeparator
-                                                      : info.GetData3()};
+        const std::string sep{info.GetData3().empty() ? defaultVideoItemSeparator : info.GetData3()};
         value = StringUtils::Join(tag->m_writingCredits, sep);
         return true;
       }
@@ -400,9 +392,12 @@ bool CVideoGUIInfo::GetLabel(std::string& value,
         break;
       case LISTITEM_PLOT:
       {
-        std::shared_ptr<CSettingList> setting(std::dynamic_pointer_cast<CSettingList>(
-            CServiceBroker::GetSettingsComponent()->GetSettings()->GetSetting(
-                CSettings::SETTING_VIDEOLIBRARY_SHOWUNWATCHEDPLOTS)));
+        std::shared_ptr<CSettingList> setting;
+        if (settings)
+        {
+          setting = std::dynamic_pointer_cast<CSettingList>(
+              settings->GetSetting(CSettings::SETTING_VIDEOLIBRARY_SHOWUNWATCHEDPLOTS));
+        }
         if (tag->m_type != MediaTypeTvShow && tag->m_type != MediaTypeVideoCollection &&
             tag->GetPlayCount() == 0 && setting &&
             ((tag->m_type == MediaTypeMovie &&
@@ -424,9 +419,7 @@ bool CVideoGUIInfo::GetLabel(std::string& value,
         value = tag->m_strStatus;
         return true;
       case LISTITEM_TAG:
-        value = StringUtils::Join(
-            tag->m_tags,
-            CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoItemSeparator);
+        value = StringUtils::Join(tag->m_tags, defaultVideoItemSeparator);
         return true;
       case LISTITEM_SET:
         value = tag->m_set.GetTitle();
