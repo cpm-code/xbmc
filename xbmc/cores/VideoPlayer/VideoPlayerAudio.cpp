@@ -231,9 +231,11 @@ void CVideoPlayerAudio::OnStartup()
 
 void CVideoPlayerAudio::UpdatePlayerInfo()
 {
+  int level, dataLevel;
+  m_messageQueue.GetLevels(level, dataLevel);
   std::ostringstream s;
-  s << "aq:"     << std::setw(2) << std::min(99, m_messageQueue.GetLevel()) << "% (" << std::setw(2)
-    << std::min(99, m_messageQueue.GetLevel(true)) << "%)";
+  s << "aq:"     << std::setw(2) << std::min(99, level) << "% (" << std::setw(2)
+    << std::min(99, dataLevel) << "%)";
   s << ", Kb/s:" << std::fixed << std::setprecision(2) << m_audioStats.GetBitrate() / 1024.0;
   s << ", ac:"   << m_processInfo.GetAudioDecoderName().c_str();
   if (!m_info.passthrough)
@@ -261,8 +263,8 @@ void CVideoPlayerAudio::UpdatePlayerInfo()
   }
 
   m_dataCacheCore.SetAudioLiveBitRate(m_audioStats.GetBitrate());
-  m_dataCacheCore.SetAudioQueueLevel(std::min(99, m_messageQueue.GetLevel()));
-  m_dataCacheCore.SetAudioQueueDataLevel(std::min(99, m_messageQueue.GetLevel(true)));
+  m_dataCacheCore.SetAudioQueueLevel(std::min(99, level));
+  m_dataCacheCore.SetAudioQueueDataLevel(std::min(99, dataLevel));
 }
 
 void CVideoPlayerAudio::Process()
