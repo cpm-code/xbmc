@@ -102,6 +102,7 @@ CCPUInfoLinux::CCPUInfoLinux()
       "scpi_sensors",
       "imx_thermal_zone",
       "cpu_thermal",
+      "soc_thermal",
   });
 
   for (int i = 0; i < 20; i++)
