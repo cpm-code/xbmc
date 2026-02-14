@@ -130,6 +130,10 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
                               const CGUIInfo& info,
                               std::string* fallback) const
 {
+  const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+  const auto settings = settingsComponent ? settingsComponent->GetSettings() : nullptr;
+  const auto profileManager = settingsComponent ? settingsComponent->GetProfileManager() : nullptr;
+
   switch (info.GetInfo())
   {
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -278,20 +282,19 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
       }
       return true;
     case SYSTEM_PROFILENAME:
-      value = CServiceBroker::GetSettingsComponent()
-                  ->GetProfileManager()
-                  ->GetCurrentProfile()
-                  .getName();
+      if (!profileManager)
+        return false;
+      value = profileManager->GetCurrentProfile().getName();
       return true;
     case SYSTEM_PROFILECOUNT:
-      value = StringUtils::Format(
-          "{0}",
-          CServiceBroker::GetSettingsComponent()->GetProfileManager()->GetNumberOfProfiles());
+      if (!profileManager)
+        return false;
+      value = StringUtils::Format("{0}", profileManager->GetNumberOfProfiles());
       return true;
     case SYSTEM_PROFILEAUTOLOGIN:
     {
-      const std::shared_ptr<CProfileManager> profileManager =
-          CServiceBroker::GetSettingsComponent()->GetProfileManager();
+      if (!profileManager)
+        return false;
       int iProfileId = profileManager->GetAutoLoginProfileId();
       if ((iProfileId < MASTER_PROFILE_ID) || !profileManager->GetProfileName(iProfileId, value))
         value = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
@@ -300,10 +303,9 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
     }
     case SYSTEM_PROFILETHUMB:
     {
-      const std::string& thumb = CServiceBroker::GetSettingsComponent()
-                                     ->GetProfileManager()
-                                     ->GetCurrentProfile()
-                                     .getThumb();
+      if (!profileManager)
+        return false;
+      const std::string& thumb = profileManager->GetCurrentProfile().getThumb();
       value = thumb.empty() ? "DefaultUser.png" : thumb;
       return true;
     }
@@ -318,8 +320,9 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
       return true;
     case SYSTEM_STEREOSCOPIC_MODE:
     {
-      int iStereoMode = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
-          CSettings::SETTING_VIDEOSCREEN_STEREOSCOPICMODE);
+      if (!settings)
+        return false;
+      int iStereoMode = settings->GetInt(CSettings::SETTING_VIDEOSCREEN_STEREOSCOPICMODE);
       value = std::to_string(iStereoMode);
       return true;
     }
@@ -431,6 +434,11 @@ bool CSystemGUIInfo::GetBool(bool& value,
                              int contextWindow,
                              const CGUIInfo& info) const
 {
+  const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+  const auto settings = settingsComponent ? settingsComponent->GetSettings() : nullptr;
+  const auto advancedSettings = settingsComponent ? settingsComponent->GetAdvancedSettings() : nullptr;
+  const auto profileManager = settingsComponent ? settingsComponent->GetProfileManager() : nullptr;
+
   switch (info.GetInfo())
   {
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -588,10 +596,9 @@ bool CSystemGUIInfo::GetBool(bool& value,
       }
     }
     case SYSTEM_HASLOCKS:
-      value = CServiceBroker::GetSettingsComponent()
-                  ->GetProfileManager()
-                  ->GetMasterProfile()
-                  .getLockMode() != LockMode::EVERYONE;
+      if (!profileManager)
+        return false;
+      value = profileManager->GetMasterProfile().getLockMode() != LockMode::EVERYONE;
       return true;
     case SYSTEM_HAS_PVR:
       value = true;
@@ -607,10 +614,9 @@ bool CSystemGUIInfo::GetBool(bool& value,
 #endif
       return true;
     case SYSTEM_ISMASTER:
-      value = CServiceBroker::GetSettingsComponent()
-                      ->GetProfileManager()
-                      ->GetMasterProfile()
-                      .getLockMode() != LockMode::EVERYONE &&
+      if (!profileManager)
+        return false;
+      value = profileManager->GetMasterProfile().getLockMode() != LockMode::EVERYONE &&
               g_passwordManager.bMasterUser;
       return true;
     case SYSTEM_ISFULLSCREEN:
@@ -620,18 +626,21 @@ bool CSystemGUIInfo::GetBool(bool& value,
       value = CServiceBroker::GetAppParams()->IsStandAlone();
       return true;
     case SYSTEM_HAS_SHUTDOWN:
-      value = (CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
-                   CSettings::SETTING_POWERMANAGEMENT_SHUTDOWNTIME) > 0);
+      if (!settings)
+        return false;
+      value = (settings->GetInt(CSettings::SETTING_POWERMANAGEMENT_SHUTDOWNTIME) > 0);
       return true;
     case SYSTEM_LOGGEDON:
       value =
           !(CServiceBroker::GetGUI()->GetWindowManager().GetActiveWindow() == WINDOW_LOGIN_SCREEN);
       return true;
     case SYSTEM_SHOW_EXIT_BUTTON:
-      value = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_showExitButton;
+      value = advancedSettings && advancedSettings->m_showExitButton;
       return true;
     case SYSTEM_HAS_LOGINSCREEN:
-      value = CServiceBroker::GetSettingsComponent()->GetProfileManager()->UsingLoginScreen();
+      if (!profileManager)
+        return false;
+      value = profileManager->UsingLoginScreen();
       return true;
     case SYSTEM_INTERNET_STATE:
     {
@@ -686,7 +695,9 @@ bool CSystemGUIInfo::GetBool(bool& value,
       value = CServiceBroker::GetCPUInfo()->SupportsCPUUsage();
       return true;
     case SYSTEM_GET_BOOL:
-      value = CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(info.GetData3());
+      if (!settings)
+        return false;
+      value = settings->GetBool(info.GetData3());
       return true;
     case SYSTEM_SETTING:
     {
@@ -702,9 +713,10 @@ bool CSystemGUIInfo::GetBool(bool& value,
       }
       else if (StringUtils::EqualsNoCase(info.GetData3(), "hideunwatchedepisodethumbs"))
       {
+        if (!settings)
+          return false;
         const std::shared_ptr<CSettingList> setting(std::dynamic_pointer_cast<CSettingList>(
-            CServiceBroker::GetSettingsComponent()->GetSettings()->GetSetting(
-                CSettings::SETTING_VIDEOLIBRARY_SHOWUNWATCHEDPLOTS)));
+            settings->GetSetting(CSettings::SETTING_VIDEOLIBRARY_SHOWUNWATCHEDPLOTS)));
         value = setting && !CSettingUtils::FindIntInList(
                                setting, CSettings::VIDEOLIBRARY_THUMB_SHOW_UNWATCHED_EPISODE);
         return true;
