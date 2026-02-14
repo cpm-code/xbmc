@@ -24,6 +24,8 @@
 #include "utils/log.h"
 #include "windowing/WinSystem.h"
 
+#include <algorithm>
+#include <cmath>
 #include <memory>
 #include <mutex>
 
@@ -40,6 +42,23 @@ constexpr float MIN_WATER_LEVEL = 0.02f; // min buffer time to prevent underrun
 constexpr float MIN_WATER_LEVEL_RESAMPLE = 0.1f; // min buffer time in resample mode
 constexpr float BUFFER_LEVEL_INCREMENT = 0.0001f; // increment step for ramp-up
 constexpr double MAX_BUFFER_TIME = 0.1; // max time of a buffer in seconds;
+
+// Adaptive dampening for passthrough sync-error jitter filtering.
+// Small errors (< knee) are heavily dampened — they are burst timing noise.
+// Large errors (> knee, e.g. after a seek) pass through nearly 1:1 so
+// correction converges in a single cycle instead of 3-4.
+//
+// knee:      error magnitude (ms) below which dampening is strongest
+// minFactor: dampening at zero error  (e.g. 0.30 = 70% suppression)
+// maxFactor: dampening at large error (e.g. 0.92 = 8% suppression)
+inline double AdaptiveDampen(double error, double knee, double minFactor, double maxFactor)
+{
+  double absErr = std::abs(error);
+  double t = std::min(absErr / knee, 1.0);
+  // Quadratic ramp gives a smooth transition from heavy to light dampening
+  double factor = minFactor + (maxFactor - minFactor) * t * t;
+  return error * factor;
+}
 } // unnamed namespace
 
 void CEngineStats::Reset(unsigned int sampleRate, bool pcm)
@@ -2078,17 +2097,18 @@ bool CActiveAE::RunStages()
         double maxError = ((*it)->m_syncState == CAESyncInfo::SYNC_INSYNC) ? 1000 : 5000;
         double error = playingPts - (*it)->m_pClock->GetClock();
 
-        // Underestimate error for jumpy passthrough formats to avoid unnecessary a/v sync
-        // corrections due to burst timing jitter.
-        // TrueHD has high jitter from MAT packing (24 frames assembled into one burst),
-        // so use aggressive dampening (0.45).
-        // DTS-HD MA has more regular burst timing but still benefits from dampening due
-        // to ALSA delay reporting jitter on AML. Use lighter dampening (0.6) to maintain
-        // tighter sync while still filtering noise.
+        // Adaptive dampening for passthrough burst-timing jitter.
+        // Small errors are heavily suppressed (likely ALSA delay jitter / MAT packing noise).
+        // Large errors pass through nearly 1:1 so post-seek correction converges in one cycle.
+        //
+        // TrueHD: high jitter from MAT packing (24 frames per burst) → stronger dampening
+        //   knee=80ms, range 0.30–0.92  (was fixed 0.45)
+        // DTS-HD MA: lighter jitter from ALSA delay reporting on AML → lighter dampening
+        //   knee=60ms, range 0.45–0.95  (was fixed 0.60)
         if (isTrueHDPassthrough)
-          error *= 0.45;
+          error = AdaptiveDampen(error, 80.0, 0.30, 0.92);
         else if (isDtsHdMaPassthrough)
-          error *= 0.6;
+          error = AdaptiveDampen(error, 60.0, 0.45, 0.95);
 
         if (error > maxError)
         {
