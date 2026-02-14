@@ -16,7 +16,9 @@
 #include "cores/AudioEngine/Utils/AEAudioFormat.h"
 #include "cores/AudioEngine/Utils/AEBitstreamPacker.h"
 #include "cores/AudioEngine/Utils/AEStreamInfo.h"
+#include "settings/lib/ISettingCallback.h"
 
+#include <atomic>
 #include <list>
 #include <memory>
 #include <vector>
@@ -24,7 +26,9 @@
 class CProcessInfo;
 class CPackerMAT;
 
-class CDVDAudioCodecPassthrough : public CDVDAudioCodec
+class CSetting;
+
+class CDVDAudioCodecPassthrough : public CDVDAudioCodec, public ISettingCallback
 {
 public:
   CDVDAudioCodecPassthrough(CProcessInfo &processInfo, CAEStreamInfo::DataType streamType);
@@ -44,7 +48,11 @@ public:
   void ResetLavSyncState();
   void SyncToResyncPts(double pts);
 
+  void OnSettingChanged(const std::shared_ptr<const CSetting>& setting) override;
+
 private:
+  void UpdateDialNormSettings();
+
   int GetData(uint8_t** dst);
   unsigned int PackTrueHD();
   CAEStreamParser m_parser;
@@ -115,4 +123,8 @@ private:
 
   // Runtime jitter threshold - set based on codec in Open()
   double m_jitterThreshold{JITTER_THRESHOLD_DEFAULT};
+
+  // Cached settings (updated via callback, read in hot path)
+  std::atomic<bool> m_defeatAC3DialNorm{false};
+  std::atomic<bool> m_defeatTrueHDDialNorm{false};
 };
