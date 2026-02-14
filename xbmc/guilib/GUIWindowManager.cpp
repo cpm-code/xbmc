@@ -1331,7 +1331,11 @@ void CGUIWindowManager::MarkDirty(const CRect& rect)
 
 void CGUIWindowManager::RenderPass() const
 {
-  if (CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiFrontToBackRendering)
+  const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+  const auto advancedSettings = settingsComponent ? settingsComponent->GetAdvancedSettings() : nullptr;
+  const bool frontToBackRendering = advancedSettings && advancedSettings->m_guiFrontToBackRendering;
+
+  if (frontToBackRendering)
     RenderPassDual();
   else
     RenderPassSingle();
@@ -1411,9 +1415,15 @@ bool CGUIWindowManager::Render()
   assert(CServiceBroker::GetAppMessenger()->IsProcessThread());
   CSingleExit lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
+  const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+  const auto advancedSettings = settingsComponent ? settingsComponent->GetAdvancedSettings() : nullptr;
+  const bool visualizeDirtyRegions =
+      advancedSettings && advancedSettings->m_guiVisualizeDirtyRegions;
+  const int guiAlgorithmDirtyRegions =
+      advancedSettings ? advancedSettings->m_guiAlgorithmDirtyRegions
+                       : DIRTYREGION_SOLVER_FILL_VIEWPORT_ALWAYS;
+
   int bufferAge = CServiceBroker::GetWinSystem()->GetBufferAge();
-  bool visualizeDirtyRegions =
-      CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiVisualizeDirtyRegions;
   if (visualizeDirtyRegions)
     bufferAge = 20;
   if (bufferAge)
@@ -1427,13 +1437,12 @@ bool CGUIWindowManager::Render()
   // If we visualize the regions we will always render the entire viewport
   // If the buffer age is zero, the current content is undefined and has to be rendered
   if (visualizeDirtyRegions || bufferAge == 0 ||
-      CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiAlgorithmDirtyRegions ==
-          DIRTYREGION_SOLVER_FILL_VIEWPORT_ALWAYS)
+      guiAlgorithmDirtyRegions == DIRTYREGION_SOLVER_FILL_VIEWPORT_ALWAYS)
   {
     RenderPass();
     hasRendered = true;
   }
-  else if (CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiAlgorithmDirtyRegions == DIRTYREGION_SOLVER_FILL_VIEWPORT_ON_CHANGE)
+  else if (guiAlgorithmDirtyRegions == DIRTYREGION_SOLVER_FILL_VIEWPORT_ON_CHANGE)
   {
     if (!dirtyRegions.empty())
     {
