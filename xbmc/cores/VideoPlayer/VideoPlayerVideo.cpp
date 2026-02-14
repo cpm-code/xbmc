@@ -1084,11 +1084,14 @@ int CVideoPlayerVideo::GetVideoBitrate()
 
 void CVideoPlayerVideo::ResetFrameRateCalc()
 {
+  const int videoFpsDetect =
+      CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoFpsDetect;
+
   m_fStableFrameRate = 0.0;
   m_iFrameRateCount = 0;
   m_iFrameRateLength = 1;
   m_iFrameRateErr = 0;
-  m_bAllowDrop = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoFpsDetect == 0;
+  m_bAllowDrop = videoFpsDetect == 0;
 }
 
 double CVideoPlayerVideo::GetCurrentPts()
@@ -1112,7 +1115,10 @@ double CVideoPlayerVideo::GetCurrentPts()
 
 void CVideoPlayerVideo::CalcFrameRate()
 {
-  if (m_iFrameRateLength >= 128 || CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoFpsDetect == 0)
+  const int videoFpsDetect =
+      CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoFpsDetect;
+
+  if (m_iFrameRateLength >= 128 || videoFpsDetect == 0)
     return; //don't calculate the fps
 
   if (!m_ptsTracker.HasFullBuffer())
@@ -1125,7 +1131,7 @@ void CVideoPlayerVideo::CalcFrameRate()
     frameduration = m_ptsTracker.GetMinFrameDuration();
 
   if ((frameduration==DVD_NOPTS_VALUE) ||
-      ((CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoFpsDetect == 1) && ((m_ptsTracker.GetPatternLength() > 1) && !m_ptsTracker.VFRDetection())))
+      ((videoFpsDetect == 1) && ((m_ptsTracker.GetPatternLength() > 1) && !m_ptsTracker.VFRDetection())))
   {
     //reset the stored framerates if no good framerate was detected
     m_fStableFrameRate = 0.0;
