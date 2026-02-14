@@ -618,4 +618,18 @@ protected:
   std::atomic<bool> m_displayLost;
 
   double m_messageQueueTimeSize{0.0};
+
+  // GetGeneralInfo moving-average state
+  static constexpr int MA_BUFFER_SIZE = 128;
+  int m_maIndex{0};
+  bool m_maBufferFilled{false};
+  bool m_maResetDone{false};
+  double m_maBufferAudio[MA_BUFFER_SIZE]{};
+  double m_maBufferVideo[MA_BUFFER_SIZE]{};
+  double m_maBufferDelta[MA_BUFFER_SIZE]{};
+  double m_maBufferDelay[MA_BUFFER_SIZE]{};
+  double m_maSumAudio{0};
+  double m_maSumVideo{0};
+  double m_maSumDelta{0};
+  double m_maSumDelay{0};
 };
