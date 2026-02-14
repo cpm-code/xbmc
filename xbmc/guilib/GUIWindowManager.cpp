@@ -1434,6 +1434,25 @@ bool CGUIWindowManager::Render()
   CDirtyRegionList dirtyRegions = m_tracker.GetDirtyRegions();
 
   bool hasRendered = false;
+  const auto renderDirtyRegions = [&]() {
+    bool rendered = false;
+    for (const auto& i : dirtyRegions)
+    {
+      if (i.IsEmpty())
+        continue;
+
+      if (!rendered)
+        CServiceBroker::GetWinSystem()->SetDirtyRegions(dirtyRegions);
+
+      CServiceBroker::GetWinSystem()->GetGfxContext().SetScissors(i);
+      RenderPass();
+      rendered = true;
+    }
+    CServiceBroker::GetWinSystem()->GetGfxContext().ResetScissors();
+
+    return rendered;
+  };
+
   // If we visualize the regions we will always render the entire viewport
   // If the buffer age is zero, the current content is undefined and has to be rendered
   if (visualizeDirtyRegions || bufferAge == 0 ||
@@ -1445,6 +1464,9 @@ bool CGUIWindowManager::Render()
   else if (guiAlgorithmDirtyRegions == DIRTYREGION_SOLVER_FILL_VIEWPORT_ON_CHANGE)
   {
     if (!dirtyRegions.empty())
+      hasRendered = renderDirtyRegions();
+
+    if (!hasRendered && !dirtyRegions.empty())
     {
       RenderPass();
       hasRendered = true;
@@ -1452,19 +1474,13 @@ bool CGUIWindowManager::Render()
   }
   else
   {
-    for (const auto& i : dirtyRegions)
+    hasRendered = renderDirtyRegions();
+
+    if (!hasRendered && !dirtyRegions.empty())
     {
-      if (i.IsEmpty())
-        continue;
-
-      if (!hasRendered)
-        CServiceBroker::GetWinSystem()->SetDirtyRegions(dirtyRegions);
-
-      CServiceBroker::GetWinSystem()->GetGfxContext().SetScissors(i);
       RenderPass();
       hasRendered = true;
     }
-    CServiceBroker::GetWinSystem()->GetGfxContext().ResetScissors();
   }
 
   if (visualizeDirtyRegions)
