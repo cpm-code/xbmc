@@ -3605,26 +3605,9 @@ bool CVideoPlayer::SeekScene(Direction seekDirection)
 
 void CVideoPlayer::GetGeneralInfo(std::string& strGeneralInfo)
 {
-
-  // Moving Average variables.
-  static const int BUFFER_SIZE = 128;
-  static int index = 0;
-  static bool bufferFilled = false;
-  static bool resetDone = false;
-
-  static double bufferAudio[BUFFER_SIZE] = {0};
-  static double bufferVideo[BUFFER_SIZE] = {0};
-  static double bufferDelta[BUFFER_SIZE] = {0};
-  static double bufferDelay[BUFFER_SIZE] = {0};
-
-  static double sumAudio = 0;
-  static double sumVideo = 0;
-  static double sumDelta = 0;
-  static double sumDelay = 0;
-
   if (!m_bStop && (m_playSpeed == DVD_PLAYSPEED_NORMAL))
   {
-    resetDone = false;
+    m_maResetDone = false;
 
     const double clock = m_clock.GetClock();
     const double apts = m_VideoPlayerAudio->GetCurrentPts();
@@ -3639,34 +3622,34 @@ void CVideoPlayer::GetGeneralInfo(std::string& strGeneralInfo)
     const double dDiff = (have_apts && have_vpts) ? (apts - vpts) / DVD_TIME_BASE : 0;
 
     // Moving Average Delta of Audio and Video
-    sumDelta -= bufferDelta[index];  // subtract "oldest" value from sum
-    sumDelta += dDiff;               // add new value to sum
-    bufferDelta[index] = dDiff;      // store new value at the index of "oldest"
+    m_maSumDelta -= m_maBufferDelta[m_maIndex];
+    m_maSumDelta += dDiff;
+    m_maBufferDelta[m_maIndex] = dDiff;
 
     // Moving Average Delta of Audio and Clock
-    sumAudio -= bufferAudio[index];  // subtract "oldest" value from sum
-    sumAudio += dDiffAudio;          // add new value to sum
-    bufferAudio[index] = dDiffAudio; // store new value at the index of "oldest"
+    m_maSumAudio -= m_maBufferAudio[m_maIndex];
+    m_maSumAudio += dDiffAudio;
+    m_maBufferAudio[m_maIndex] = dDiffAudio;
 
     // Moving Average Delta of Video and Clock
-    sumVideo -= bufferVideo[index];  // subtract "oldest" value from sum
-    sumVideo += dDiffVideo;          // add new value to sum
-    bufferVideo[index] = dDiffVideo; // store new value at the index of "oldest"
+    m_maSumVideo -= m_maBufferVideo[m_maIndex];
+    m_maSumVideo += dDiffVideo;
+    m_maBufferVideo[m_maIndex] = dDiffVideo;
 
     // Moving Average Packet Delay of Audio
-    sumDelay -= bufferDelay[index];    // subtract "oldest" value from sum
-    sumDelay += aPacketDelay;          // add new value to sum
-    bufferDelay[index] = aPacketDelay; // store new value at the index of "oldest"
+    m_maSumDelay -= m_maBufferDelay[m_maIndex];
+    m_maSumDelay += aPacketDelay;
+    m_maBufferDelay[m_maIndex] = aPacketDelay;
 
-    index = (index + 1) % BUFFER_SIZE;           // next slot in ring buffers, wraps back to 0 for last index entry @ 127
-    bufferFilled = bufferFilled || (index == 0); // buffer already filled or index wrapped i.e. all buffer slots now have a value so filled
-    const int filled = bufferFilled ? BUFFER_SIZE : index;
+    m_maIndex = (m_maIndex + 1) % MA_BUFFER_SIZE;
+    m_maBufferFilled = m_maBufferFilled || (m_maIndex == 0);
+    const int filled = m_maBufferFilled ? MA_BUFFER_SIZE : m_maIndex;
 
     // calc moving average from sum and how many entries in buffer
-    const double dDiffDeltaMovingAverage = sumDelta / filled;
-    const double dDiffAudioMovingAverage = sumAudio / filled;
-    const double dDiffVideoMovingAverage = sumVideo / filled;
-    const double dPacketDelayMovingAverage = sumDelay / filled;
+    const double dDiffDeltaMovingAverage = m_maSumDelta / filled;
+    const double dDiffAudioMovingAverage = m_maSumAudio / filled;
+    const double dDiffVideoMovingAverage = m_maSumVideo / filled;
+    const double dPacketDelayMovingAverage = m_maSumDelay / filled;
 
     std::string extraBuf;
     extraBuf += StringUtils::Format(", rm-q:{:d}/{:d}",
@@ -3691,23 +3674,22 @@ void CVideoPlayer::GetGeneralInfo(std::string& strGeneralInfo)
                             dDiffDeltaMovingAverage, dDiffAudioMovingAverage,
                             dDiffVideoMovingAverage, dPacketDelayMovingAverage, extraBuf);
   }
-  else if (!resetDone)
+  else if (!m_maResetDone)
   {
-    // Reset the Moving Average variables.
-    index = 0;
-    bufferFilled = false;
+    m_maIndex = 0;
+    m_maBufferFilled = false;
 
-    std::memset(bufferAudio, 0, sizeof(bufferAudio));
-    std::memset(bufferVideo, 0, sizeof(bufferVideo));
-    std::memset(bufferDelta, 0, sizeof(bufferDelta));
-    std::memset(bufferDelay, 0, sizeof(bufferDelay));
+    std::memset(m_maBufferAudio, 0, sizeof(m_maBufferAudio));
+    std::memset(m_maBufferVideo, 0, sizeof(m_maBufferVideo));
+    std::memset(m_maBufferDelta, 0, sizeof(m_maBufferDelta));
+    std::memset(m_maBufferDelay, 0, sizeof(m_maBufferDelay));
 
-    sumAudio = 0;
-    sumVideo = 0;
-    sumDelta = 0;
-    sumDelay = 0;
+    m_maSumAudio = 0;
+    m_maSumVideo = 0;
+    m_maSumDelta = 0;
+    m_maSumDelay = 0;
 
-    resetDone = true;
+    m_maResetDone = true;
   }
 }
 
