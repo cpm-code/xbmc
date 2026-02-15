@@ -334,7 +334,7 @@ bool CDialogGameSaves::Open(const std::string& gamePath)
   if (items.IsEmpty())
     return false;
 
-  items.Sort(SortByDate, SortOrder::DESCENDING);
+  items.Sort(SortBy::DATE, SortOrder::DESCENDING);
 
   SetItems(items);
 

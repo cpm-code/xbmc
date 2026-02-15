@@ -627,19 +627,24 @@ void CGUIMediaWindow::SortItems(CFileItemList &items)
     // We do this as the new SortBy methods are a superset of the SORT_METHOD methods, thus
     // not all are available. This may be removed once SORT_METHOD_* have been replaced by
     // SortBy.
-    if ((sorting.sortBy == SortByPlaylistOrder) && items.HasProperty(PROPERTY_SORT_ORDER))
+    if ((sorting.sortBy == SortBy::PLAYLIST_ORDER) && items.HasProperty(PROPERTY_SORT_ORDER))
     {
       SortBy sortBy = (SortBy)items.GetProperty(PROPERTY_SORT_ORDER).asInteger();
-      if (sortBy != SortByNone && sortBy != SortByPlaylistOrder && sortBy != SortByProgramCount)
+      if (sortBy != SortBy::NONE && sortBy != SortBy::PLAYLIST_ORDER &&
+          sortBy != SortBy::PROGRAM_COUNT)
       {
         sorting.sortBy = sortBy;
         sorting.sortOrder = items.GetProperty(PROPERTY_SORT_ASCENDING).asBoolean()
                                 ? SortOrder::ASCENDING
                                 : SortOrder::DESCENDING;
-        sorting.sortAttributes = CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING) ? SortAttributeIgnoreArticle : SortAttributeNone;
+        const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+        sorting.sortAttributes =
+            settings->GetBool(CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
+                ? SortAttributeIgnoreArticle
+                : SortAttributeNone;
 
         // if the sort order is descending, we need to switch the original sort order, as we assume
-        // in CGUIViewState::AddPlaylistOrder that SortByPlaylistOrder is ascending.
+        // in CGUIViewState::AddPlaylistOrder that SortBy::PLAYLIST_ORDER is ascending.
         if (guiState->GetSortOrder() == SortOrder::DESCENDING)
           sorting.sortOrder = sorting.sortOrder == SortOrder::DESCENDING ? SortOrder::ASCENDING
                                                                          : SortOrder::DESCENDING;
@@ -672,7 +677,7 @@ void CGUIMediaWindow::FormatItemLabels(CFileItemList &items, const LABEL_MASKS &
       fileFormatter.FormatLabels(pItem.get());
   }
 
-  if (items.GetSortMethod() == SortByLabel)
+  if (items.GetSortMethod() == SortBy::LABEL)
     items.ClearSortState();
 }
 

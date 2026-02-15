@@ -8,26 +8,31 @@
 
 #include "GUIViewStatePrograms.h"
 
-#include "FileItem.h"
 #include "FileItemList.h"
 #include "ServiceBroker.h"
-#include "filesystem/Directory.h"
-#include "guilib/TextureManager.h"
 #include "guilib/WindowIDs.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/MediaSourceSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "view/ViewState.h"
 #include "view/ViewStateSettings.h"
 
+#ifdef TARGET_ANDROID
+#include "guilib/TextureManager.h"
+#include "resources/LocalizeStrings.h"
+#include "resources/ResourcesComponent.h"
+#endif
+
 using namespace XFILE;
 
 CGUIViewStateWindowPrograms::CGUIViewStateWindowPrograms(const CFileItemList& items) : CGUIViewState(items)
 {
-  AddSortMethod(SortByLabel, 551, LABEL_MASKS("%K", "%I", "%L", ""),  // Title, Size | Foldername, empty
-    CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING) ? SortAttributeIgnoreArticle : SortAttributeNone);
+  AddSortMethod(SortBy::LABEL, 551,
+                LABEL_MASKS("%K", "%I", "%L", ""), // Title, Size | Foldername, empty
+                CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
+                    CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
+                    ? SortAttributeIgnoreArticle
+                    : SortAttributeNone);
 
   const CViewState *viewState = CViewStateSettings::GetInstance().Get("programs");
   SetSortMethod(viewState->m_sortDescription);

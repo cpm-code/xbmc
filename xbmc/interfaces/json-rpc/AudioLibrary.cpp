@@ -1165,7 +1165,7 @@ bool CAudioLibrary::FillFileItemList(const CVariant &parameterObject, CFileItemL
     // If we retrieved the list of songs by "artistid"
     // we sort by album (and implicitly by track number)
     if (artistID != -1)
-      list.Sort(SortByAlbum, SortOrder::ASCENDING,
+      list.Sort(SortBy::ALBUM, SortOrder::ASCENDING,
                 CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                     CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
                     ? SortAttributeIgnoreArticle
@@ -1173,14 +1173,14 @@ bool CAudioLibrary::FillFileItemList(const CVariant &parameterObject, CFileItemL
     // If we retrieve the list of songs by "genreid"
     // we sort by artist (and implicitly by album and track number)
     else if (genreID != -1)
-      list.Sort(SortByArtist, SortOrder::ASCENDING,
+      list.Sort(SortBy::ARTIST, SortOrder::ASCENDING,
                 CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                     CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
                     ? SortAttributeIgnoreArticle
                     : SortAttributeNone);
     // otherwise we sort by track number
     else
-      list.Sort(SortByTrackNumber, SortOrder::ASCENDING);
+      list.Sort(SortBy::TRACK_NUMBER, SortOrder::ASCENDING);
   }
 
   return success;

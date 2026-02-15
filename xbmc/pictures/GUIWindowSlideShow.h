@@ -77,13 +77,13 @@ public:
                     bool bNotRandom = false,
                     const std::string& beginSlidePath = "",
                     bool startSlideShow = true,
-                    SortBy method = SortByLabel,
+                    SortBy method = SortBy::LABEL,
                     SortOrder order = SortOrder::ASCENDING,
                     SortAttribute sortAttributes = SortAttributeNone,
                     const std::string& strExtensions = "") override;
   void AddFromPath(const std::string& strPath,
                    bool bRecursive,
-                   SortBy method = SortByLabel,
+                   SortBy method = SortBy::LABEL,
                    SortOrder order = SortOrder::ASCENDING,
                    SortAttribute sortAttributes = SortAttributeNone,
                    const std::string& strExtensions = "") override;
@@ -120,7 +120,7 @@ private:
   typedef std::set<std::string> path_set;  // set to track which paths we're adding
   void AddItems(const std::string& strPath,
                 path_set* recursivePaths,
-                SortBy method = SortByLabel,
+                SortBy method = SortBy::LABEL,
                 SortOrder order = SortOrder::ASCENDING,
                 SortAttribute sortAttributes = SortAttributeNone);
   bool PlayVideo();

@@ -89,7 +89,7 @@ SortDescription GetSortDescription(const CGUIViewState& state, const CFileItemLi
   auto sortDescriptions = state.GetSortDescriptions();
   for (auto& sortDescription : sortDescriptions)
   {
-    if (sortDescription.sortBy == SortByEpisodeNumber)
+    if (sortDescription.sortBy == SortBy::EPISODE_NUMBER)
     {
       // check whether at least one item has actually an episode number set
       for (const auto& item : items)
@@ -103,7 +103,7 @@ SortDescription GetSortDescription(const CGUIViewState& state, const CFileItemLi
       }
       continue;
     }
-    else if (sortDescription.sortBy == SortByYear)
+    else if (sortDescription.sortBy == SortBy::YEAR)
     {
       // check whether at least one item has actually a year set
       for (const auto& item : items)
@@ -116,7 +116,7 @@ SortDescription GetSortDescription(const CGUIViewState& state, const CFileItemLi
         }
       }
     }
-    else if (sortDescription.sortBy == SortByDate)
+    else if (sortDescription.sortBy == SortBy::DATE)
     {
       // check whether at least one item has actually a valid date set
       for (const auto& item : items)
@@ -132,7 +132,7 @@ SortDescription GetSortDescription(const CGUIViewState& state, const CFileItemLi
     }
   }
 
-  if (sortDescDate.sortBy != SortByNone)
+  if (sortDescDate.sortBy != SortBy::NONE)
     return sortDescDate;
   else
     return state.GetSortMethod(); // last resort
@@ -201,14 +201,14 @@ void CAsyncGetItemsForPlaylist::GetItemsForPlaylist(const std::shared_ptr<CFileI
         // It makes no sense to play from younger to older, except "play from here"
         // mode where order of listing has to be kept.
         if (m_mode != ContentUtils::PlayMode::PLAY_FROM_HERE &&
-            (sortDesc.sortBy == SortByDate || sortDesc.sortBy == SortByYear ||
-             sortDesc.sortBy == SortByEpisodeNumber))
+            (sortDesc.sortBy == SortBy::DATE || sortDesc.sortBy == SortBy::YEAR ||
+             sortDesc.sortBy == SortBy::EPISODE_NUMBER))
           sortDesc.sortOrder = SortOrder::ASCENDING;
       }
       else
         sortDesc = GetSortDescription(*state, items);
 
-      if (sortDesc.sortBy == SortByLabel)
+      if (sortDesc.sortBy == SortBy::LABEL)
         items.ClearSortState();
 
       items.Sort(sortDesc);

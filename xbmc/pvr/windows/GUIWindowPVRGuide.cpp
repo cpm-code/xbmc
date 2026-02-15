@@ -182,7 +182,7 @@ void CGUIWindowPVRGuideBase::NotifyEvent(const PVREvent& event)
   }
   else if (event == ChannelPlaybackStopped)
   {
-    if (m_guiState && m_guiState->GetSortMethod().sortBy == SortByLastPlayed)
+    if (m_guiState && m_guiState->GetSortMethod().sortBy == SortBy::LAST_PLAYED)
     {
       // set dirty to force sync refresh
       m_bSyncRefreshTimelineItems = true;

@@ -7394,7 +7394,7 @@ bool CVideoDatabase::GetSeasonsByWhere(const std::string& strBaseDir, const Filt
       return false;
 
     // Apply the limiting directly here if there's no special sorting but limiting
-    if (extFilter.limit.empty() && sorting.sortBy == SortByNone &&
+    if (extFilter.limit.empty() && sorting.sortBy == SortBy::NONE &&
         (sorting.limitStart > 0 || sorting.limitEnd > 0 ||
          (sorting.limitStart == 0 && sorting.limitEnd == 0)))
     {
@@ -7528,12 +7528,16 @@ bool CVideoDatabase::GetSortedVideos(const MediaType &mediaType, const std::stri
     sorting.sortAttributes =
         static_cast<SortAttribute>(sorting.sortAttributes & ~SortAttributeIgnoreFolders);
   }
-  else if (sortDescription.sortBy == SortByFile || sortDescription.sortBy == SortByTitle ||
-           sortDescription.sortBy == SortBySortTitle ||
-           sortDescription.sortBy == SortByOriginalTitle || sortDescription.sortBy == SortByLabel ||
-           sortDescription.sortBy == SortByDateAdded || sortDescription.sortBy == SortByRating ||
-           sortDescription.sortBy == SortByUserRating || sortDescription.sortBy == SortByYear ||
-           sortDescription.sortBy == SortByLastPlayed || sortDescription.sortBy == SortByPlaycount)
+  else if (sortDescription.sortBy == SortBy::FILE || sortDescription.sortBy == SortBy::TITLE ||
+           sortDescription.sortBy == SortBy::SORT_TITLE ||
+           sortDescription.sortBy == SortBy::ORIGINAL_TITLE ||
+           sortDescription.sortBy == SortBy::LABEL ||
+           sortDescription.sortBy == SortBy::DATE_ADDED ||
+           sortDescription.sortBy == SortBy::RATING ||
+           sortDescription.sortBy == SortBy::USER_RATING ||
+           sortDescription.sortBy == SortBy::YEAR ||
+           sortDescription.sortBy == SortBy::LAST_PLAYED ||
+           sortDescription.sortBy == SortBy::PLAYCOUNT)
   {
     sorting.sortAttributes =
         static_cast<SortAttribute>(sortDescription.sortAttributes | SortAttributeIgnoreFolders);
@@ -7742,7 +7746,7 @@ bool CVideoDatabase::GetMoviesByWhere(const std::string& strBaseDir, const Filte
       return false;
 
     // Apply the limiting directly here if there's no special sorting but limiting
-    if (extFilter.limit.empty() && sorting.sortBy == SortByNone &&
+    if (extFilter.limit.empty() && sorting.sortBy == SortBy::NONE &&
         (sorting.limitStart > 0 || sorting.limitEnd > 0 ||
          (sorting.limitStart == 0 && sorting.limitEnd == 0)))
     {
@@ -7888,7 +7892,7 @@ bool CVideoDatabase::GetTvShowsByWhere(const std::string& strBaseDir, const Filt
       return false;
 
     // Apply the limiting directly here if there's no special sorting but limiting
-    if (extFilter.limit.empty() && sorting.sortBy == SortByNone &&
+    if (extFilter.limit.empty() && sorting.sortBy == SortBy::NONE &&
         (sorting.limitStart > 0 || sorting.limitEnd > 0 ||
          (sorting.limitStart == 0 && sorting.limitEnd == 0)))
     {
@@ -8017,7 +8021,7 @@ bool CVideoDatabase::GetEpisodesByWhere(const std::string& strBaseDir, const Fil
       return false;
 
     // Apply the limiting directly here if there's no special sorting but limiting
-    if (extFilter.limit.empty() && sorting.sortBy == SortByNone &&
+    if (extFilter.limit.empty() && sorting.sortBy == SortBy::NONE &&
         (sorting.limitStart > 0 || sorting.limitEnd > 0 ||
          (sorting.limitStart == 0 && sorting.limitEnd == 0)))
     {
@@ -8999,7 +9003,7 @@ bool CVideoDatabase::GetMusicVideosByWhere(const std::string &baseDir, const Fil
       return false;
 
     // Apply the limiting directly here if there's no special sorting but limiting
-    if (extFilter.limit.empty() && sorting.sortBy == SortByNone &&
+    if (extFilter.limit.empty() && sorting.sortBy == SortBy::NONE &&
         (sorting.limitStart > 0 || sorting.limitEnd > 0 ||
          (sorting.limitStart == 0 && sorting.limitEnd == 0)))
     {
@@ -11763,7 +11767,7 @@ bool CVideoDatabase::GetFilter(CDbUrl &videoUrl, Filter &filter, SortDescription
 
       if (xsp.GetLimit() > 0)
         sorting.limitEnd = xsp.GetLimit();
-      if (xsp.GetOrder() != SortByNone)
+      if (xsp.GetOrder() != SortBy::NONE)
         sorting.sortBy = xsp.GetOrder();
       if (xsp.GetOrderDirection() != SortOrder::NONE)
         sorting.sortOrder = xsp.GetOrderDirection();

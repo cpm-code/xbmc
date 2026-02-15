@@ -333,7 +333,7 @@ bool CPartyModeManager::AddRandomSongs()
       sqlWhereMusic.back() = ')'; // replace the last comma with closing bracket
       // Apply random sort (and limit) at db query for efficiency
       SortDescription SortDescription;
-      SortDescription.sortBy = SortByRandom;
+      SortDescription.sortBy = SortBy::RANDOM;
       SortDescription.limitEnd = QUEUE_DEPTH;
       CMusicDatabase database;
       if (database.Open())

@@ -131,7 +131,7 @@ bool CLibraryDirectory::GetDirectory(const CURL& url, CFileItemList &items)
       items.Add(item);
     }
   }
-  items.Sort(SortByPlaylistOrder, SortOrder::ASCENDING);
+  items.Sort(SortBy::PLAYLIST_ORDER, SortOrder::ASCENDING);
   return true;
 }
 

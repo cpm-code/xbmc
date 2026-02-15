@@ -301,15 +301,15 @@ namespace XFILE
     // sort grouped list by label unless random was specified for musicvideo artists
     if (items.Size() > 1 && !group.empty())
     {
-      if (playlist.GetOrder() == SortByRandom && group == "actors" &&
+      if (playlist.GetOrder() == SortBy::RANDOM && group == "actors" &&
           playlist.GetType() == "musicvideos")
-        items.Sort(SortByRandom, SortOrder::ASCENDING,
+        items.Sort(SortBy::RANDOM, SortOrder::ASCENDING,
                    CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                        CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
                        ? SortAttributeIgnoreArticle
                        : SortAttributeNone);
       else
-        items.Sort(SortByLabel, SortOrder::ASCENDING,
+        items.Sort(SortBy::LABEL, SortOrder::ASCENDING,
                    CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                        CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
                        ? SortAttributeIgnoreArticle
@@ -374,7 +374,4 @@ namespace XFILE
   {
     return XFILE::CFile::Delete(url);
   }
-}
-
-
-
+  } // namespace XFILE

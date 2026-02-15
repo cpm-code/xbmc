@@ -334,7 +334,7 @@ void CGUIDialogFileBrowser::ClearFileItems()
 void CGUIDialogFileBrowser::OnSort()
 {
   if (!m_singleList)
-    m_vecItems->Sort(SortByLabel, SortOrder::ASCENDING);
+    m_vecItems->Sort(SortBy::LABEL, SortOrder::ASCENDING);
 }
 
 void CGUIDialogFileBrowser::Update(const std::string &strDirectory)

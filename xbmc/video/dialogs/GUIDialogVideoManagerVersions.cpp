@@ -554,7 +554,7 @@ bool CGUIDialogVideoManagerVersions::GetAllOtherMovies(const std::shared_ptr<CFi
   if (list.Size() < 2)
     return false;
 
-  list.Sort(SortByLabel, SortOrder::ASCENDING,
+  list.Sort(SortBy::LABEL, SortOrder::ASCENDING,
             CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                 CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
                 ? SortAttributeIgnoreArticle

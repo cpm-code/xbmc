@@ -56,8 +56,8 @@ std::string CGUIDialogSelectGameClient::ShowAndGetGameClient(const std::string& 
       CFileItemPtr item(XFILE::CAddonsDirectory::FileItemFromAddon(addon, addon->ID()));
       installableItems.Add(std::move(item));
     }
-    items.Sort(SortByLabel, SortOrder::ASCENDING);
-    installableItems.Sort(SortByLabel, SortOrder::ASCENDING);
+    items.Sort(SortBy::LABEL, SortOrder::ASCENDING);
+    installableItems.Sort(SortBy::LABEL, SortOrder::ASCENDING);
 
     items.Append(installableItems);
 

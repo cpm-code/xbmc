@@ -550,144 +550,144 @@ std::vector<Field> CSmartPlaylistRule::GetFields(const std::string &type)
 std::vector<SortBy> CSmartPlaylistRule::GetOrders(const std::string &type)
 {
   std::vector<SortBy> orders;
-  orders.push_back(SortByNone);
+  orders.push_back(SortBy::NONE);
   if (type == "mixed")
   {
-    orders.push_back(SortByGenre);
-    orders.push_back(SortByAlbum);
-    orders.push_back(SortByArtist);
-    orders.push_back(SortByTitle);
-    orders.push_back(SortByYear);
-    orders.push_back(SortByTime);
-    orders.push_back(SortByTrackNumber);
-    orders.push_back(SortByFile);
-    orders.push_back(SortByPath);
-    orders.push_back(SortByPlaycount);
-    orders.push_back(SortByLastPlayed);
+    orders.push_back(SortBy::GENRE);
+    orders.push_back(SortBy::ALBUM);
+    orders.push_back(SortBy::ARTIST);
+    orders.push_back(SortBy::TITLE);
+    orders.push_back(SortBy::YEAR);
+    orders.push_back(SortBy::TIME);
+    orders.push_back(SortBy::TRACK_NUMBER);
+    orders.push_back(SortBy::FILE);
+    orders.push_back(SortBy::PATH);
+    orders.push_back(SortBy::PLAYCOUNT);
+    orders.push_back(SortBy::LAST_PLAYED);
   }
   else if (type == "songs")
   {
-    orders.push_back(SortByGenre);
-    orders.push_back(SortByAlbum);
-    orders.push_back(SortByArtist);
-    orders.push_back(SortByTitle);
-    orders.push_back(SortByYear);
+    orders.push_back(SortBy::GENRE);
+    orders.push_back(SortBy::ALBUM);
+    orders.push_back(SortBy::ARTIST);
+    orders.push_back(SortBy::TITLE);
+    orders.push_back(SortBy::YEAR);
     if (!CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
       CSettings::SETTING_MUSICLIBRARY_USEORIGINALDATE))
-      orders.push_back(SortByOrigDate);
-    orders.push_back(SortByTime);
-    orders.push_back(SortByTrackNumber);
-    orders.push_back(SortByFile);
-    orders.push_back(SortByPath);
-    orders.push_back(SortByPlaycount);
-    orders.push_back(SortByLastPlayed);
-    orders.push_back(SortByDateAdded);
-    orders.push_back(SortByRating);
-    orders.push_back(SortByUserRating);
-    orders.push_back(SortByBPM);
+      orders.push_back(SortBy::ORIG_DATE);
+    orders.push_back(SortBy::TIME);
+    orders.push_back(SortBy::TRACK_NUMBER);
+    orders.push_back(SortBy::FILE);
+    orders.push_back(SortBy::PATH);
+    orders.push_back(SortBy::PLAYCOUNT);
+    orders.push_back(SortBy::LAST_PLAYED);
+    orders.push_back(SortBy::DATE_ADDED);
+    orders.push_back(SortBy::RATING);
+    orders.push_back(SortBy::USER_RATING);
+    orders.push_back(SortBy::BPM);
   }
   else if (type == "albums")
   {
-    orders.push_back(SortByGenre);
-    orders.push_back(SortByAlbum);
-    orders.push_back(SortByTotalDiscs);
-    orders.push_back(SortByArtist);        // any artist
-    orders.push_back(SortByYear);
+    orders.push_back(SortBy::GENRE);
+    orders.push_back(SortBy::ALBUM);
+    orders.push_back(SortBy::TOTAL_DISCS);
+    orders.push_back(SortBy::ARTIST); // any artist
+    orders.push_back(SortBy::YEAR);
     if (!CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
         CSettings::SETTING_MUSICLIBRARY_USEORIGINALDATE))
-      orders.push_back(SortByOrigDate);
+      orders.push_back(SortBy::ORIG_DATE);
     //orders.push_back(SortByThemes);
     //orders.push_back(SortByMoods);
     //orders.push_back(SortByStyles);
-    orders.push_back(SortByAlbumType);
+    orders.push_back(SortBy::ALBUM_TYPE);
     //orders.push_back(SortByMusicLabel);
-    orders.push_back(SortByRating);
-    orders.push_back(SortByUserRating);
-    orders.push_back(SortByPlaycount);
-    orders.push_back(SortByLastPlayed);
-    orders.push_back(SortByDateAdded);
+    orders.push_back(SortBy::RATING);
+    orders.push_back(SortBy::USER_RATING);
+    orders.push_back(SortBy::PLAYCOUNT);
+    orders.push_back(SortBy::LAST_PLAYED);
+    orders.push_back(SortBy::DATE_ADDED);
   }
   else if (type == "artists")
   {
-    orders.push_back(SortByArtist);
+    orders.push_back(SortBy::ARTIST);
   }
   else if (type == "tvshows")
   {
-    orders.push_back(SortBySortTitle);
-    orders.push_back(SortByOriginalTitle);
-    orders.push_back(SortByTvShowStatus);
-    orders.push_back(SortByVotes);
-    orders.push_back(SortByRating);
-    orders.push_back(SortByUserRating);
-    orders.push_back(SortByYear);
-    orders.push_back(SortByGenre);
-    orders.push_back(SortByNumberOfEpisodes);
-    orders.push_back(SortByNumberOfWatchedEpisodes);
+    orders.push_back(SortBy::SORT_TITLE);
+    orders.push_back(SortBy::ORIGINAL_TITLE);
+    orders.push_back(SortBy::TVSHOW_STATUS);
+    orders.push_back(SortBy::VOTES);
+    orders.push_back(SortBy::RATING);
+    orders.push_back(SortBy::USER_RATING);
+    orders.push_back(SortBy::YEAR);
+    orders.push_back(SortBy::GENRE);
+    orders.push_back(SortBy::NUMBER_OF_EPISODES);
+    orders.push_back(SortBy::NUMBER_OF_WATCHED_EPISODES);
     //orders.push_back(SortByPlaycount);
-    orders.push_back(SortByPath);
-    orders.push_back(SortByStudio);
-    orders.push_back(SortByMPAA);
-    orders.push_back(SortByDateAdded);
-    orders.push_back(SortByLastPlayed);
+    orders.push_back(SortBy::PATH);
+    orders.push_back(SortBy::STUDIO);
+    orders.push_back(SortBy::MPAA);
+    orders.push_back(SortBy::DATE_ADDED);
+    orders.push_back(SortBy::LAST_PLAYED);
   }
   else if (type == "episodes")
   {
-    orders.push_back(SortByTitle);
-    orders.push_back(SortByOriginalTitle);
-    orders.push_back(SortByTvShowTitle);
-    orders.push_back(SortByVotes);
-    orders.push_back(SortByRating);
-    orders.push_back(SortByUserRating);
-    orders.push_back(SortByTime);
-    orders.push_back(SortByPlaycount);
-    orders.push_back(SortByLastPlayed);
-    orders.push_back(SortByYear); // premiered/dateaired
-    orders.push_back(SortByEpisodeNumber);
-    orders.push_back(SortBySeason);
-    orders.push_back(SortByFile);
-    orders.push_back(SortByPath);
-    orders.push_back(SortByStudio);
-    orders.push_back(SortByMPAA);
-    orders.push_back(SortByDateAdded);
+    orders.push_back(SortBy::TITLE);
+    orders.push_back(SortBy::ORIGINAL_TITLE);
+    orders.push_back(SortBy::TVSHOW_TITLE);
+    orders.push_back(SortBy::VOTES);
+    orders.push_back(SortBy::RATING);
+    orders.push_back(SortBy::USER_RATING);
+    orders.push_back(SortBy::TIME);
+    orders.push_back(SortBy::PLAYCOUNT);
+    orders.push_back(SortBy::LAST_PLAYED);
+    orders.push_back(SortBy::YEAR); // premiered/dateaired
+    orders.push_back(SortBy::EPISODE_NUMBER);
+    orders.push_back(SortBy::SEASON);
+    orders.push_back(SortBy::FILE);
+    orders.push_back(SortBy::PATH);
+    orders.push_back(SortBy::STUDIO);
+    orders.push_back(SortBy::MPAA);
+    orders.push_back(SortBy::DATE_ADDED);
   }
   else if (type == "movies")
   {
-    orders.push_back(SortBySortTitle);
-    orders.push_back(SortByOriginalTitle);
-    orders.push_back(SortByVotes);
-    orders.push_back(SortByRating);
-    orders.push_back(SortByUserRating);
-    orders.push_back(SortByTime);
-    orders.push_back(SortByPlaycount);
-    orders.push_back(SortByLastPlayed);
-    orders.push_back(SortByGenre);
-    orders.push_back(SortByCountry);
-    orders.push_back(SortByYear); // premiered
-    orders.push_back(SortByMPAA);
-    orders.push_back(SortByTop250);
-    orders.push_back(SortByStudio);
-    orders.push_back(SortByFile);
-    orders.push_back(SortByPath);
-    orders.push_back(SortByDateAdded);
+    orders.push_back(SortBy::SORT_TITLE);
+    orders.push_back(SortBy::ORIGINAL_TITLE);
+    orders.push_back(SortBy::VOTES);
+    orders.push_back(SortBy::RATING);
+    orders.push_back(SortBy::USER_RATING);
+    orders.push_back(SortBy::TIME);
+    orders.push_back(SortBy::PLAYCOUNT);
+    orders.push_back(SortBy::LAST_PLAYED);
+    orders.push_back(SortBy::GENRE);
+    orders.push_back(SortBy::COUNTRY);
+    orders.push_back(SortBy::YEAR); // premiered
+    orders.push_back(SortBy::MPAA);
+    orders.push_back(SortBy::TOP250);
+    orders.push_back(SortBy::STUDIO);
+    orders.push_back(SortBy::FILE);
+    orders.push_back(SortBy::PATH);
+    orders.push_back(SortBy::DATE_ADDED);
   }
   else if (type == "musicvideos")
   {
-    orders.push_back(SortByTitle);
-    orders.push_back(SortByGenre);
-    orders.push_back(SortByAlbum);
-    orders.push_back(SortByYear);
-    orders.push_back(SortByArtist);
-    orders.push_back(SortByFile);
-    orders.push_back(SortByPath);
-    orders.push_back(SortByPlaycount);
-    orders.push_back(SortByLastPlayed);
-    orders.push_back(SortByTime);
-    orders.push_back(SortByRating);
-    orders.push_back(SortByUserRating);
-    orders.push_back(SortByStudio);
-    orders.push_back(SortByDateAdded);
+    orders.push_back(SortBy::TITLE);
+    orders.push_back(SortBy::GENRE);
+    orders.push_back(SortBy::ALBUM);
+    orders.push_back(SortBy::YEAR);
+    orders.push_back(SortBy::ARTIST);
+    orders.push_back(SortBy::FILE);
+    orders.push_back(SortBy::PATH);
+    orders.push_back(SortBy::PLAYCOUNT);
+    orders.push_back(SortBy::LAST_PLAYED);
+    orders.push_back(SortBy::TIME);
+    orders.push_back(SortBy::RATING);
+    orders.push_back(SortBy::USER_RATING);
+    orders.push_back(SortBy::STUDIO);
+    orders.push_back(SortBy::DATE_ADDED);
   }
-  orders.push_back(SortByRandom);
+  orders.push_back(SortBy::RANDOM);
 
   return orders;
 }
@@ -1508,7 +1508,7 @@ bool CSmartPlaylist::Save(const std::string &path) const
     XMLUtils::SetInt(pRoot, "limit", m_limit);
 
   // add <order> tag
-  if (m_orderField != SortByNone)
+  if (m_orderField != SortBy::NONE)
   {
     TiXmlText order(CSmartPlaylistRule::TranslateOrder(m_orderField).c_str());
     TiXmlElement nodeOrder("order");
@@ -1548,7 +1548,7 @@ bool CSmartPlaylist::Save(CVariant &obj, bool full /* = true */) const
     obj["limit"] = m_limit;
 
   // add "order"
-  if (full && m_orderField != SortByNone)
+  if (full && m_orderField != SortBy::NONE)
   {
     obj["order"] = CVariant(CVariant::VariantTypeObject);
     obj["order"]["method"] = CSmartPlaylistRule::TranslateOrder(m_orderField);
@@ -1573,7 +1573,7 @@ void CSmartPlaylist::Reset()
 {
   m_ruleCombination.clear();
   m_limit = 0;
-  m_orderField = SortByNone;
+  m_orderField = SortBy::NONE;
   m_orderDirection = SortOrder::NONE;
   m_orderAttributes = SortAttributeNone;
   m_playlistType = "songs"; // sane default
@@ -1651,7 +1651,7 @@ bool CSmartPlaylist::IsEmpty(bool ignoreSortAndLimit /* = true */) const
 {
   bool empty = m_ruleCombination.empty();
   if (empty && !ignoreSortAndLimit)
-    empty = m_limit == 0 && m_orderField == SortByNone && m_orderDirection == SortOrder::NONE;
+    empty = m_limit == 0 && m_orderField == SortBy::NONE && m_orderDirection == SortOrder::NONE;
 
   return empty;
 }

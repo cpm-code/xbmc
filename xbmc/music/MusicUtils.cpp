@@ -467,7 +467,7 @@ SortDescription GetSortDescription(const CGUIViewState& state, const CFileItemLi
   auto sortDescriptions = state.GetSortDescriptions();
   for (auto& sortDescription : sortDescriptions)
   {
-    if (sortDescription.sortBy == SortByTrackNumber)
+    if (sortDescription.sortBy == SortBy::TRACK_NUMBER)
     {
       // check whether at least one item has actually a track number set
       for (const auto& item : items)
@@ -481,7 +481,7 @@ SortDescription GetSortDescription(const CGUIViewState& state, const CFileItemLi
         }
       }
     }
-    else if (sortDescription.sortBy == SortByArtistThenYear)
+    else if (sortDescription.sortBy == SortBy::ARTIST_THEN_YEAR)
     {
       // check whether songs from at least two different albums are in the list
       int lastAlbumId = -1;
@@ -502,7 +502,7 @@ SortDescription GetSortDescription(const CGUIViewState& state, const CFileItemLi
     }
   }
 
-  if (sortDescTrackNumber.sortBy != SortByNone)
+  if (sortDescTrackNumber.sortBy != SortBy::NONE)
     return sortDescTrackNumber;
   else
     return state.GetSortMethod(); // last resort
@@ -575,7 +575,7 @@ void CAsyncGetItemsForPlaylist::GetItemsForPlaylist(const std::shared_ptr<CFileI
       else
         sortDesc = GetSortDescription(*state, items);
 
-      if (sortDesc.sortBy == SortByLabel)
+      if (sortDesc.sortBy == SortBy::LABEL)
         items.ClearSortState();
 
       items.Sort(sortDesc);

@@ -495,7 +495,7 @@ void CAdvancedSettings::Initialize()
   m_iPVRNumericChannelSwitchTimeout = 2000;
   m_iPVRTimeshiftThreshold = 10;
   m_bPVRTimeshiftSimpleOSD = true;
-  m_PVRDefaultSortOrder.sortBy = SortByDate;
+  m_PVRDefaultSortOrder.sortBy = SortBy::DATE;
   m_PVRDefaultSortOrder.sortOrder = SortOrder::DESCENDING;
 
   m_addonPackageFolderSize = 200;
@@ -1248,11 +1248,12 @@ void CAdvancedSettings::ParseSettingsFile(const std::string &file)
     {
       const char* XML_SORTMETHOD = "sortmethod";
       const char* XML_SORTORDER = "sortorder";
-      auto sortMethod = static_cast<int>(SortByNone);
-      static constexpr CSet validSortMethods{SortByLabel, SortByDate,          SortBySize,
-                                             SortByFile,  SortByEpisodeNumber, SortByProvider};
-      XMLUtils::GetInt(pSortDecription, XML_SORTMETHOD, sortMethod, static_cast<int>(SortByNone),
-                       static_cast<int>(SortByUserPreference));
+      auto sortMethod = static_cast<int>(SortBy::NONE);
+      static constexpr CSet validSortMethods{SortBy::LABEL,          SortBy::DATE,
+                                             SortBy::SIZE,           SortBy::FILE,
+                                             SortBy::EPISODE_NUMBER, SortBy::PROVIDER};
+      XMLUtils::GetInt(pSortDecription, XML_SORTMETHOD, sortMethod, static_cast<int>(SortBy::NONE),
+                       static_cast<int>(SortBy::USER_PREFERENCE));
       if (validSortMethods.contains(static_cast<SortBy>(sortMethod)))
       {
         int sortOrder;

@@ -343,10 +343,11 @@ CUPnPDirectory::GetDirectory(const CURL& url, CFileItemList &items)
         items.SetContent(content);
         if (content == "unknown")
         {
-          items.AddSortMethod(SortByNone, 571, LABEL_MASKS("%L", "%I", "%L", ""));
-          items.AddSortMethod(SortByLabel, SortAttributeIgnoreFolders, 551, LABEL_MASKS("%L", "%I", "%L", ""));
-          items.AddSortMethod(SortBySize, 553, LABEL_MASKS("%L", "%I", "%L", "%I"));
-          items.AddSortMethod(SortByDate, 552, LABEL_MASKS("%L", "%J", "%L", "%J"));
+          items.AddSortMethod(SortBy::NONE, 571, LABEL_MASKS("%L", "%I", "%L", ""));
+          items.AddSortMethod(SortBy::LABEL, SortAttributeIgnoreFolders, 551,
+                              LABEL_MASKS("%L", "%I", "%L", ""));
+          items.AddSortMethod(SortBy::SIZE, 553, LABEL_MASKS("%L", "%I", "%L", "%I"));
+          items.AddSortMethod(SortBy::DATE, 552, LABEL_MASKS("%L", "%J", "%L", "%J"));
         }
     }
 

@@ -63,9 +63,9 @@ void AddOptionsAndSort(const CURL& url, CFileItemList& items, bool blurayMenuSup
   CDiscDirectoryHelper::AddRootOptions(
       url, items, blurayMenuSupport ? AddMenuOption::ADD_MENU : AddMenuOption::NO_MENU);
 
-  items.AddSortMethod(SortByTrackNumber, 554,
+  items.AddSortMethod(SortBy::TRACK_NUMBER, 554,
                       LABEL_MASKS("%L", "%D", "%L", "")); // FileName, Duration | Foldername, empty
-  items.AddSortMethod(SortBySize, 553,
+  items.AddSortMethod(SortBy::SIZE, 553,
                       LABEL_MASKS("%L", "%I", "%L", "%I")); // FileName, Size | Foldername, Size
 }
 

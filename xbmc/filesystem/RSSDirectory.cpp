@@ -635,10 +635,14 @@ bool CRSSDirectory::GetDirectory(const CURL& url, CFileItemList &items)
       items.Add(item);
   }
 
-  items.AddSortMethod(SortByNone   , 231, LABEL_MASKS("%L", "%D", "%L", ""));    // FileName, Duration | Foldername, empty
-  items.AddSortMethod(SortByLabel  , 551, LABEL_MASKS("%L", "%D", "%L", ""));    // FileName, Duration | Foldername, empty
-  items.AddSortMethod(SortBySize   , 553, LABEL_MASKS("%L", "%I", "%L", "%I"));  // FileName, Size | Foldername, Size
-  items.AddSortMethod(SortByDate   , 552, LABEL_MASKS("%L", "%J", "%L", "%J"));  // FileName, Date | Foldername, Date
+  items.AddSortMethod(SortBy::NONE, 231,
+                      LABEL_MASKS("%L", "%D", "%L", "")); // FileName, Duration | Foldername, empty
+  items.AddSortMethod(SortBy::LABEL, 551,
+                      LABEL_MASKS("%L", "%D", "%L", "")); // FileName, Duration | Foldername, empty
+  items.AddSortMethod(SortBy::SIZE, 553,
+                      LABEL_MASKS("%L", "%I", "%L", "%I")); // FileName, Size | Foldername, Size
+  items.AddSortMethod(SortBy::DATE, 552,
+                      LABEL_MASKS("%L", "%J", "%L", "%J")); // FileName, Date | Foldername, Date
 
   CDateTime time = CDateTime::GetCurrentDateTime();
   int mins = 60;

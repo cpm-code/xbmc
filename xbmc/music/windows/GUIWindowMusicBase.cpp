@@ -337,9 +337,8 @@ void CGUIWindowMusicBase::OnItemInfo(int iItem)
 
 void CGUIWindowMusicBase::RefreshContent(const std::string& strContent)
 {
-  if ( CServiceBroker::GetGUI()->GetWindowManager().GetActiveWindow() == WINDOW_MUSIC_NAV &&
-    m_vecItems->GetContent() == strContent &&
-    m_vecItems->GetSortMethod() == SortByUserRating)
+  if (CServiceBroker::GetGUI()->GetWindowManager().GetActiveWindow() == WINDOW_MUSIC_NAV &&
+      m_vecItems->GetContent() == strContent && m_vecItems->GetSortMethod() == SortBy::USER_RATING)
     // When music library window is active and showing songs or albums sorted
     // by userrating refresh the list to resort items and show new userrating
     Refresh(true);

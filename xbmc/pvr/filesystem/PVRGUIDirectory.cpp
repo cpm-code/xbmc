@@ -254,7 +254,7 @@ bool CPVRGUIDirectory::GetDirectory(CFileItemList& results) const
       results.Add(item);
 
       // Sort by name only. Labels are preformatted.
-      results.AddSortMethod(SortByLabel, 551 /* Name */, LABEL_MASKS("%L", "", "%L", ""));
+      results.AddSortMethod(SortBy::LABEL, 551 /* Name */, LABEL_MASKS("%L", "", "%L", ""));
     }
     return true;
   }

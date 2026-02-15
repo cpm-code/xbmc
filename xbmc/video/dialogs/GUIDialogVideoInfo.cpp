@@ -412,7 +412,7 @@ void CGUIDialogVideoInfo::SetMovie(const CFileItem *item)
     database.GetMoviesNav(m_movieItem->GetPath(), *m_castList, -1, -1, -1, -1, -1, -1,
                           m_movieItem->GetVideoInfoTag()->m_set.GetID(), -1, SortDescription(),
                           VideoDbDetailsAll);
-    m_castList->Sort(SortBySortTitle, SortOrder::DESCENDING);
+    m_castList->Sort(SortBy::SORT_TITLE, SortOrder::DESCENDING);
     CVideoThumbLoader loader;
     for (auto& item : *m_castList)
       loader.LoadItem(item.get());
@@ -1523,7 +1523,7 @@ bool CGUIDialogVideoInfo::GetMoviesForSet(const CFileItem *setItem, CFileItemLis
   if (dialog == nullptr)
     return false;
 
-  listItems.Sort(SortByLabel, SortOrder::ASCENDING,
+  listItems.Sort(SortBy::LABEL, SortOrder::ASCENDING,
                  CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                      CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
                      ? SortAttributeIgnoreArticle
@@ -1580,7 +1580,7 @@ bool CGUIDialogVideoInfo::GetSetForMovie(const CFileItem* movieItem,
 
   if (!CDirectory::GetDirectory(baseDir, listItems, "", DIR_FLAG_DEFAULTS))
     return false;
-  listItems.Sort(SortByLabel, SortOrder::ASCENDING,
+  listItems.Sort(SortBy::LABEL, SortOrder::ASCENDING,
                  CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                      CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
                      ? SortAttributeIgnoreArticle
@@ -1736,7 +1736,7 @@ bool CGUIDialogVideoInfo::GetItemsForTag(const std::string &strHeading, const st
   if (dialog == nullptr)
     return false;
 
-  listItems.Sort(SortByLabel, SortOrder::ASCENDING,
+  listItems.Sort(SortBy::LABEL, SortOrder::ASCENDING,
                  CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                      CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
                      ? SortAttributeIgnoreArticle
@@ -2110,7 +2110,7 @@ bool CGUIDialogVideoInfo::LinkMovieToTvShow(const std::shared_ptr<CFileItem>& it
   int iSelectedLabel = 0;
   if (list.Size() > 1 || (!bRemove && !list.IsEmpty()))
   {
-    list.Sort(SortByLabel, SortOrder::ASCENDING,
+    list.Sort(SortBy::LABEL, SortOrder::ASCENDING,
               CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                   CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
                   ? SortAttributeIgnoreArticle

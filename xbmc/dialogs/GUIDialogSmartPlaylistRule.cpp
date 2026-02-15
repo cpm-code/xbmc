@@ -362,7 +362,7 @@ void CGUIDialogSmartPlaylistRule::OnBrowse()
   }
 
   // sort the items
-  items.Sort(SortByLabel, SortOrder::ASCENDING,
+  items.Sort(SortBy::LABEL, SortOrder::ASCENDING,
              CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                  CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
                  ? SortAttributeIgnoreArticle

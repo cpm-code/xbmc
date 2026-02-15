@@ -110,7 +110,7 @@ void CDialogInGameSaves::InitSavedGames()
   db.GetSavestatesNav(m_savestateItems, gameSettings->GetPlayingGame(),
                       gameSettings->GameClientID());
 
-  m_savestateItems.Sort(SortByDate, SortOrder::DESCENDING);
+  m_savestateItems.Sort(SortBy::DATE, SortOrder::DESCENDING);
 }
 
 void CDialogInGameSaves::GetItems(CFileItemList& items)

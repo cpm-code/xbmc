@@ -1389,7 +1389,7 @@ void CGUIWindowVideoBase::AppendAndClearSearchItems(CFileItemList &searchItems, 
   if (!searchItems.Size())
     return;
 
-  searchItems.Sort(SortByLabel, SortOrder::ASCENDING,
+  searchItems.Sort(SortBy::LABEL, SortOrder::ASCENDING,
                    CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                        CSettings::SETTING_FILELISTS_IGNORETHEWHENSORTING)
                        ? SortAttributeIgnoreArticle

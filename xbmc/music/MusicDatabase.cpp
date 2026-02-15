@@ -6031,7 +6031,7 @@ bool CMusicDatabase::GetDiscsByWhere(CMusicDbUrl& musicUrl,
     // Apply any limiting directly in SQL if there is either no special sorting or random sort
     // When limited, random sort is also applied in SQL
     bool limitedInSQL = extFilter.limit.empty() &&
-                        (sorting.sortBy == SortByNone || sorting.sortBy == SortByRandom) &&
+                        (sorting.sortBy == SortBy::NONE || sorting.sortBy == SortBy::RANDOM) &&
                         (sorting.limitStart > 0 || sorting.limitEnd > 0);
 
     if (countOnly || limitedInSQL)
@@ -6053,7 +6053,7 @@ bool CMusicDatabase::GetDiscsByWhere(CMusicDbUrl& musicUrl,
     // Apply limits and random sort order directly in SQL
     if (limitedInSQL)
     {
-      if (sorting.sortBy == SortByRandom)
+      if (sorting.sortBy == SortBy::RANDOM)
         strSQLExtra += PrepareSQL(" ORDER BY RANDOM()");
       strSQLExtra += DatabaseUtils::BuildLimitClause(sorting.limitEnd, sorting.limitStart);
     }
@@ -6089,10 +6089,10 @@ bool CMusicDatabase::GetDiscsByWhere(CMusicDbUrl& musicUrl,
     results.reserve(iRowsFound);
 
     // Avoid sorting with limits, just fetch results from dataset
-    // Limit when SortByNone already applied in SQL,
+    // Limit when SortBy::NONE already applied in SQL,
     // Need guaranteed ordering for dataset processing to group by disc title
     // so apply sort later to fileitems list rather than dataset
-    sorting.sortBy = SortByNone;
+    sorting.sortBy = SortBy::NONE;
     if (!SortUtils::SortFromDataset(sorting, MediaTypeAlbum, *m_pDS, results))
       return false;
 
@@ -6162,7 +6162,7 @@ bool CMusicDatabase::GetDiscsByWhere(CMusicDbUrl& musicUrl,
 
     // Finally do any sorting in items list we have not been able to do before in SQL or dataset,
     // that is when have join with songartistview and sorting other than random with limit
-    if (sorting.sortBy != SortByNone && !(limitedInSQL && sorting.sortBy == SortByRandom))
+    if (sorting.sortBy != SortBy::NONE && !(limitedInSQL && sorting.sortBy == SortBy::RANDOM))
       items.Sort(sorting);
 
     auto end = std::chrono::steady_clock::now();
@@ -6287,7 +6287,7 @@ bool CMusicDatabase::GetSongsFullByWhere(const std::string& baseDir,
       Filter joinFilter;
       std::string strSQLJoin;
       joinFilter.AppendJoin("JOIN songartistview ON songartistview.idSong = songview.idSong");
-      if (sortDescription.sortBy == SortByRandom)
+      if (sortDescription.sortBy == SortBy::RANDOM)
         joinFilter.AppendOrder("songartistview.idSong");
       else
         joinFilter.order = extFilter.order;
@@ -6417,7 +6417,7 @@ bool CMusicDatabase::GetSongsFullByWhere(const std::string& baseDir,
     // CGUIMediaWindow::Update in both cases.
     // So sorting here is currently redundant, but the consistent place to do it.
     // !@ todo: do sorting once, preferably in SQL
-    if (sorting.sortBy == SortByRandom && artistData)
+    if (sorting.sortBy == SortBy::RANDOM && artistData)
       items.Sort(sorting);
 
     auto end = std::chrono::steady_clock::now();
@@ -6684,7 +6684,7 @@ bool CMusicDatabase::GetArtistsByWhereJSON(const std::set<std::string, std::less
     // Setup multivalue JOINs, GROUP BY and ORDER BY
     bool bJoinAlbumArtist(false);
     bool bJoinSongArtist(false);
-    if (sortDescription.sortBy != SortByRandom)
+    if (sortDescription.sortBy != SortBy::RANDOM)
     {
       // Repeat inline view order (that always includes idArtist) on join query
       std::string order = extFilter.order;
@@ -7199,7 +7199,7 @@ bool CMusicDatabase::GetArtistsByWhereJSON(const std::set<std::string, std::less
     m_pDS->close(); // cleanup recordset data
 
     // Ensure random order of output when results set is sorted to process multi-value joins
-    if (sortDescription.sortBy == SortByRandom && joinLayout.HasFilterFields())
+    if (sortDescription.sortBy == SortBy::RANDOM && joinLayout.HasFilterFields())
       KODI::UTILS::RandomShuffle(result["artists"].begin_array(), result["artists"].end_array());
 
     return true;
@@ -7403,7 +7403,7 @@ bool CMusicDatabase::GetAlbumsByWhereJSON(const std::set<std::string, std::less<
 
     // Setup multivalue JOINs, GROUP BY and ORDER BY
     bool bJoinAlbumArtist(false);
-    if (sortDescription.sortBy != SortByRandom)
+    if (sortDescription.sortBy != SortBy::RANDOM)
     {
       // Repeat inline view order (that always includes idAlbum) on join query
       std::string order = extFilter.order;
@@ -7600,7 +7600,7 @@ bool CMusicDatabase::GetAlbumsByWhereJSON(const std::set<std::string, std::less<
     m_pDS->close(); // cleanup recordset data
 
     // Ensure random order of output when results set is sorted to process multi-value joins
-    if (sortDescription.sortBy == SortByRandom && joinLayout.HasFilterFields())
+    if (sortDescription.sortBy == SortBy::RANDOM && joinLayout.HasFilterFields())
       KODI::UTILS::RandomShuffle(result["albums"].begin_array(), result["albums"].end_array());
 
     return true;
@@ -7891,7 +7891,7 @@ bool CMusicDatabase::GetSongsByWhereJSON(
     bool bJoinSongArtist(false);
     bool bJoinAlbumArtist(false);
     bool bJoinRole(false);
-    if (sortDescription.sortBy != SortByRandom)
+    if (sortDescription.sortBy != SortBy::RANDOM)
     {
       // Repeat inline view order (that always includes idSong) on join query
       std::string order = extFilter.order;
@@ -8275,7 +8275,7 @@ bool CMusicDatabase::GetSongsByWhereJSON(
     m_pDS->close(); // cleanup recordset data
 
     // Ensure random order of output when results set is sorted to process multi-value joins
-    if (sortDescription.sortBy == SortByRandom && joinLayout.HasFilterFields())
+    if (sortDescription.sortBy == SortBy::RANDOM && joinLayout.HasFilterFields())
       KODI::UTILS::RandomShuffle(result["songs"].begin_array(), result["songs"].end_array());
 
     return true;
@@ -13164,7 +13164,7 @@ int CMusicDatabase::GetOrderFilter(const std::string& type,
   if (sorting.sortOrder == SortOrder::DESCENDING)
     DESC = " DESC";
 
-  if (sorting.sortBy == SortByRandom)
+  if (sorting.sortBy == SortBy::RANDOM)
     orderfields.emplace_back(PrepareSQL("RANDOM()")); //Adjusts styntax for MySQL
   else
   {
@@ -13264,7 +13264,7 @@ bool CMusicDatabase::GetFilter(CDbUrl& musicUrl, Filter& filter, SortDescription
 
       if (xsp.GetLimit() > 0)
         sorting.limitEnd = xsp.GetLimit();
-      if (xsp.GetOrder() != SortByNone)
+      if (xsp.GetOrder() != SortBy::NONE)
         sorting.sortBy = xsp.GetOrder();
       sorting.sortOrder = xsp.GetOrderAscending() ? SortOrder::ASCENDING : SortOrder::DESCENDING;
       if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(

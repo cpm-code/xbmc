@@ -254,7 +254,7 @@ public:
     if (CDirectory::GetDirectory(m_url, items, "", DIR_FLAG_DEFAULTS))
     {
       // sort the items if necessary
-      if (m_sort.sortBy != SortByNone)
+      if (m_sort.sortBy != SortBy::NONE)
         items.Sort(m_sort);
 
       // limit must not exceed the number of items
@@ -514,7 +514,7 @@ void CDirectoryProvider::Reset()
     m_currentTarget.clear();
     m_currentUrl.clear();
     m_itemTypes.clear();
-    m_currentSort.sortBy = SortByNone;
+    m_currentSort.sortBy = SortBy::NONE;
     m_currentSort.sortOrder = SortOrder::ASCENDING;
     m_currentLimit = 0;
     m_currentBrowse = BrowseMode::AUTO;
@@ -605,9 +605,9 @@ bool CDirectoryProvider::OnEventPublished(Topic topic /*= Topic::UNSPECIFIED*/)
       break;
     case Topic::PLAYER:
       // We don't need to do anything if there is no matching sort method.
-      if (m_currentSort.sortBy != SortByNone && m_currentSort.sortBy != SortByLastPlayed &&
-          m_currentSort.sortBy != SortByDateAdded && m_currentSort.sortBy != SortByPlaycount &&
-          m_currentSort.sortBy != SortByLastUsed)
+      if (m_currentSort.sortBy != SortBy::NONE && m_currentSort.sortBy != SortBy::LAST_PLAYED &&
+          m_currentSort.sortBy != SortBy::DATE_ADDED && m_currentSort.sortBy != SortBy::PLAYCOUNT &&
+          m_currentSort.sortBy != SortBy::LAST_USED)
         return false;
       break;
     case Topic::VIDEO_LIBRARY:

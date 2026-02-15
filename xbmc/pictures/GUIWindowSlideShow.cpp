@@ -1326,7 +1326,7 @@ void CGUIWindowSlideShow::RunSlideShow(const std::string& strPath,
                                        bool bNotRandom /* = false */,
                                        const std::string& beginSlidePath /* = "" */,
                                        bool startSlideShow /* = true */,
-                                       SortBy method /* = SortByLabel */,
+                                       SortBy method /* = SortBy::LABEL */,
                                        SortOrder order /* = SortOrder::ASCENDING */,
                                        SortAttribute sortAttributes /* = SortAttributeNone */,
                                        const std::string& strExtensions)

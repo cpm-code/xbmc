@@ -488,7 +488,7 @@ CVideoInfoScanner::~CVideoInfoScanner()
 
         // force sorting consistency to avoid hash mismatch between platforms
         // sort by filename as always present for any files, but keep case sensitivity
-        items.Sort(SortByFile, SortOrder::ASCENDING, SortAttributeNone);
+        items.Sort(SortBy::FILE, SortOrder::ASCENDING, SortAttributeNone);
 
         // check whether to re-use previously computed fast hash
         if (!CanFastHash(items, regexps) || fastHash.empty())
@@ -538,7 +538,7 @@ CVideoInfoScanner::~CVideoInfoScanner()
 
         // force sorting consistency to avoid hash mismatch between platforms
         // sort by filename as always present for any files, but keep case sensitivity
-        items.Sort(SortByFile, SortOrder::ASCENDING, SortAttributeNone);
+        items.Sort(SortBy::FILE, SortOrder::ASCENDING, SortAttributeNone);
 
         GetPathHash(items, hash);
         bSkip = true;
@@ -1336,7 +1336,7 @@ CVideoInfoScanner::~CVideoInfoScanner()
         {
           // force sorting consistency to avoid hash mismatch between platforms
           // sort by filename as always present for any files, but keep case sensitivity
-          items.Sort(SortByFile, SortOrder::ASCENDING, SortAttributeNone);
+          items.Sort(SortBy::FILE, SortOrder::ASCENDING, SortAttributeNone);
           GetPathHash(items, hash);
           if (StringUtils::EqualsNoCase(dbHash, hash))
           {
@@ -1387,7 +1387,7 @@ CVideoInfoScanner::~CVideoInfoScanner()
     */
 
     // since we're doing this now anyway, should other items be stacked?
-    items.Sort(SortByPath, SortOrder::ASCENDING);
+    items.Sort(SortBy::PATH, SortOrder::ASCENDING);
 
     // If found VIDEO_TS.IFO or INDEX.BDMV then we are dealing with Blu-ray or DVD files on disc
     // somewhere in the directory tree. Assume that all other files/folders in the same folder

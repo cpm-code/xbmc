@@ -317,13 +317,13 @@ void CGUIViewState::AddSortMethod(SortBy sortBy,
       return;
 
   // handle unspecified sort order
-  if (sortBy != SortByNone && sortOrder == SortOrder::NONE)
+  if (sortBy != SortBy::NONE && sortOrder == SortOrder::NONE)
   {
     // the following sort methods are sorted in descending order by default
-    if (sortBy == SortByDate || sortBy == SortBySize || sortBy == SortByPlaycount ||
-        sortBy == SortByRating || sortBy == SortByProgramCount ||
-        sortBy == SortByBitrate || sortBy == SortByListeners ||
-        sortBy == SortByUserRating || sortBy == SortByLastPlayed)
+    if (sortBy == SortBy::DATE || sortBy == SortBy::SIZE || sortBy == SortBy::PLAYCOUNT ||
+        sortBy == SortBy::RATING || sortBy == SortBy::PROGRAM_COUNT || sortBy == SortBy::BITRATE ||
+        sortBy == SortBy::LISTENERS || sortBy == SortBy::USER_RATING ||
+        sortBy == SortBy::LAST_PLAYED)
       sortOrder = SortOrder::DESCENDING;
     else
       sortOrder = SortOrder::ASCENDING;
@@ -347,11 +347,10 @@ void CGUIViewState::AddSortMethod(const SortDescription& sortDescription,
 
 void CGUIViewState::SetCurrentSortMethod(int method)
 {
-  SortBy sortBy = (SortBy)method;
-  if (sortBy < SortByNone || sortBy > SortByLastUsed)
+  if (method < static_cast<int>(SortBy::NONE) || method > static_cast<int>(SortBy::LAST_USED))
     return; // invalid
 
-  SetSortMethod(sortBy);
+  SetSortMethod(static_cast<SortBy>(method));
   SaveViewState();
 }
 
@@ -552,13 +551,13 @@ void CGUIViewState::SaveViewToDb(const std::string &path, int windowID, CViewSta
 
 void CGUIViewState::AddPlaylistOrder(const CFileItemList& items, const LABEL_MASKS& label_masks)
 {
-  SortBy sortBy = SortByPlaylistOrder;
+  SortBy sortBy = SortBy::PLAYLIST_ORDER;
   int sortLabel = 559;
   SortOrder sortOrder = SortOrder::ASCENDING;
   if (items.HasProperty(PROPERTY_SORT_ORDER))
   {
-    sortBy = (SortBy)items.GetProperty(PROPERTY_SORT_ORDER).asInteger();
-    if (sortBy != SortByNone)
+    sortBy = static_cast<SortBy>(items.GetProperty(PROPERTY_SORT_ORDER).asInteger());
+    if (sortBy != SortBy::NONE)
     {
       sortLabel = SortUtils::GetSortLabel(sortBy);
       sortOrder = items.GetProperty(PROPERTY_SORT_ASCENDING).asBoolean() ? SortOrder::ASCENDING
@@ -572,8 +571,9 @@ void CGUIViewState::AddPlaylistOrder(const CFileItemList& items, const LABEL_MAS
 
 CGUIViewStateGeneral::CGUIViewStateGeneral(const CFileItemList& items) : CGUIViewState(items)
 {
-  AddSortMethod(SortByLabel, 551, LABEL_MASKS("%F", "%I", "%L", ""));  // Filename, size | Foldername, empty
-  SetSortMethod(SortByLabel);
+  AddSortMethod(SortBy::LABEL, 551,
+                LABEL_MASKS("%F", "%I", "%L", "")); // Filename, size | Foldername, empty
+  SetSortMethod(SortBy::LABEL);
 
   SetViewAsControl(DEFAULT_VIEW_LIST);
 }
@@ -621,8 +621,9 @@ void CGUIViewStateFromItems::SaveViewState()
 
 CGUIViewStateLibrary::CGUIViewStateLibrary(const CFileItemList &items) : CGUIViewState(items)
 {
-  AddSortMethod(SortByNone, 551, LABEL_MASKS("%F", "%I", "%L", ""));  // Filename, Size | Foldername, empty
-  SetSortMethod(SortByNone);
+  AddSortMethod(SortBy::NONE, 551,
+                LABEL_MASKS("%F", "%I", "%L", "")); // Filename, Size | Foldername, empty
+  SetSortMethod(SortBy::NONE);
 
   SetViewAsControl(DEFAULT_VIEW_LIST);
 

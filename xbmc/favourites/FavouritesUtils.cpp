@@ -128,7 +128,7 @@ bool ShouldEnableMoveItems()
   if (window && window->IsActive())
   {
     const CGUIViewState* state = window->GetViewState();
-    if (state && state->GetSortMethod().sortBy != SortByUserPreference)
+    if (state && state->GetSortMethod().sortBy != SortBy::USER_PREFERENCE)
       return false; // in favs window, allow move only if current sort method is by user preference
   }
   return true;

@@ -45,7 +45,7 @@ TEST(TestSortUtils, Sort_SortBy)
   items.push_back(item6);
   items.push_back(item7);
 
-  SortUtils::Sort(SortByArtist, SortOrder::ASCENDING, SortAttributeNone, items);
+  SortUtils::Sort(SortBy::ARTIST, SortOrder::ASCENDING, SortAttributeNone, items);
 
   EXPECT_STREQ("A Artist", (*items.at(0))[FieldArtist].asString().c_str());
   EXPECT_STREQ("B Artist", (*items.at(1))[FieldArtist].asString().c_str());
@@ -91,7 +91,7 @@ TEST(TestSortUtils, Sort_SortDescription)
   items.push_back(item7);
 
   SortDescription desc;
-  desc.sortBy = SortByArtist;
+  desc.sortBy = SortBy::ARTIST;
   SortUtils::Sort(desc, items);
 
   EXPECT_STREQ("A Artist", (*items.at(0))[FieldArtist].asString().c_str());
@@ -107,7 +107,7 @@ TEST(TestSortUtils, GetFieldsForSorting)
 {
   Fields fields;
 
-  fields = SortUtils::GetFieldsForSorting(SortByArtist);
+  fields = SortUtils::GetFieldsForSorting(SortBy::ARTIST);
   Fields::iterator it;
   it = fields.find(FieldAlbum);
   EXPECT_EQ(FieldAlbum, *it);

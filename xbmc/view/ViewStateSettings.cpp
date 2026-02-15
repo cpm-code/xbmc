@@ -33,13 +33,13 @@ CViewStateSettings::CViewStateSettings()
 {
   AddViewState("musicnavartists");
   AddViewState("musicnavalbums");
-  AddViewState("musicnavsongs", DEFAULT_VIEW_LIST, SortByTrackNumber);
+  AddViewState("musicnavsongs", DEFAULT_VIEW_LIST, SortBy::TRACK_NUMBER);
   AddViewState("musiclastfm");
   AddViewState("videonavactors");
   AddViewState("videonavyears");
   AddViewState("videonavgenres");
   AddViewState("videonavtitles");
-  AddViewState("videonavepisodes", DEFAULT_VIEW_AUTO, SortByEpisodeNumber);
+  AddViewState("videonavepisodes", DEFAULT_VIEW_AUTO, SortBy::EPISODE_NUMBER);
   AddViewState("videonavtvshows");
   AddViewState("videonavseasons");
   AddViewState("videonavmusicvideos");
@@ -103,7 +103,8 @@ bool CViewStateSettings::Load(const TiXmlNode *settings)
     else
     {
       int sortMethod;
-      if (XMLUtils::GetInt(pViewState, XML_SORTMETHOD, sortMethod, SortByNone, SortByLastUsed))
+      if (XMLUtils::GetInt(pViewState, XML_SORTMETHOD, sortMethod, static_cast<int>(SortBy::NONE),
+                           static_cast<int>(SortBy::LAST_USED)))
         viewState->second->m_sortDescription.sortBy = (SortBy)sortMethod;
       if (XMLUtils::GetInt(pViewState, XML_SORTATTRIBUTES, sortMethod, SortAttributeNone, SortAttributeIgnoreFolders))
         viewState->second->m_sortDescription.sortAttributes = (SortAttribute)sortMethod;
@@ -266,7 +267,9 @@ EventLevel CViewStateSettings::GetNextEventLevel() const
   return level;
 }
 
-void CViewStateSettings::AddViewState(const std::string& strTagName, int defaultView /* = DEFAULT_VIEW_LIST */, SortBy defaultSort /* = SortByLabel */)
+void CViewStateSettings::AddViewState(const std::string& strTagName,
+                                      int defaultView /* = DEFAULT_VIEW_LIST */,
+                                      SortBy defaultSort /* = SortBy::LABEL */)
 {
   if (strTagName.empty() || m_viewStates.contains(strTagName))
     return;
