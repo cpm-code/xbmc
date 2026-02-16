@@ -117,12 +117,15 @@ unsigned int CAudioSinkAE::AddPackets(const DVDAudioFrame &audioframe)
     m_syncError = 0.0;
   }
 
-  // Calculate a timeout when this definitely should be done
-  double timeout;
-  timeout  = DVD_SEC_TO_TIME(m_pAudioStream->GetDelay()) + audioframe.duration;
-  timeout += DVD_SEC_TO_TIME(1.0);
-  timeout += m_pClock->GetAbsoluteClock();
-  timeout *= m_pClock->GetClockSpeed();
+  // Use wall-clock deadline independent of playback speed (fixes dimensional error
+  // where multiplying an absolute timestamp by ClockSpeed caused immediate false
+  // timeouts when speed dropped below 1.0 during sync adjustments or buffering).
+  // Safety margin accounts for I/O latency and audio engine processing on slow hardware.
+  constexpr double SAFETY_MARGIN_SECS = 2.0;
+  auto deadline =
+      std::chrono::steady_clock::now() +
+      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(
+          m_pAudioStream->GetDelay() + audioframe.duration / DVD_TIME_BASE + SAFETY_MARGIN_SECS));
 
   unsigned int total = audioframe.nb_frames - audioframe.framesOut;
   unsigned int frames = total;
@@ -145,7 +148,7 @@ unsigned int CAudioSinkAE::AddPackets(const DVDAudioFrame &audioframe)
     if (frames <= 0)
       break;
 
-    if (copied == 0 && timeout < m_pClock->GetAbsoluteClock())
+    if (copied == 0 && std::chrono::steady_clock::now() >= deadline)
     {
       CLog::Log(LOGERROR, "CDVDAudio::AddPacketsRenderer - timeout adding data to renderer");
       break;
