@@ -1557,6 +1557,11 @@ void CActiveAE::SFlushStream(CActiveAEStream *stream)
   stream->m_syncError.Flush();
   stream->ResetFreeBuffers();
 
+  // Reset Logic State Variables to revive Servo
+  stream->m_lastPts = 0.0;
+  stream->m_lastPtsJump = 0.0;
+  stream->m_errorInterval = std::chrono::milliseconds(1000);
+
   // flush the engine if we only have a single stream
   if (m_streams.size() == 1)
   {
