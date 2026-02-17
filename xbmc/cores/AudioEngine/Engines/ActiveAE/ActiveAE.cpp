@@ -163,7 +163,7 @@ void CEngineStats::GetDelay(AEDelayStatus& status, CActiveAEStream *stream)
     {
       std::unique_lock lock(stream->m_statsLock);
       float buffertime = static_cast<float>(str.m_bufferedTime) + stream->m_bufferedTime;
-      status.delay += static_cast<double>(buffertime) / str.m_resampleRatio;
+      status.delay += static_cast<double>(buffertime) * str.m_resampleRatio;
       return;
     }
   }
@@ -189,7 +189,7 @@ void CEngineStats::GetSyncInfo(CAESyncInfo& info, CActiveAEStream *stream)
     {
       std::unique_lock lock(stream->m_statsLock);
       float buffertime = static_cast<float>(str.m_bufferedTime) + stream->m_bufferedTime;
-      status.delay += static_cast<double>(buffertime) / str.m_resampleRatio;
+      status.delay += static_cast<double>(buffertime) * str.m_resampleRatio;
       info.delay = status.GetDelay();
       info.error = str.m_syncError;
       info.errortime = str.m_errorTime;
@@ -211,7 +211,7 @@ float CEngineStats::GetCacheTime(CActiveAEStream *stream)
     {
       std::unique_lock lock(stream->m_statsLock);
       float buffertime = static_cast<float>(str.m_bufferedTime) + stream->m_bufferedTime;
-      delay += buffertime / static_cast<float>(str.m_resampleRatio);
+      delay += buffertime * static_cast<float>(str.m_resampleRatio);
       break;
     }
   }
