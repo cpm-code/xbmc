@@ -1562,6 +1562,14 @@ void CActiveAE::SFlushStream(CActiveAEStream *stream)
   stream->m_lastPtsJump = 0.0;
   stream->m_errorInterval = std::chrono::milliseconds(1000);
 
+  // Synchronously reset servo state to prevent stale cache interaction.
+  // This MUST be done before m_stats.UpdateStream(stream) is called.
+  stream->m_resampleIntegral = 0.0;
+  if (stream->m_processingBuffers)
+  {
+    stream->m_processingBuffers->SetRR(1.0, m_settings.atempoThreshold);
+  }
+
   // flush the engine if we only have a single stream
   if (m_streams.size() == 1)
   {
