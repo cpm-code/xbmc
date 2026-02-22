@@ -23,6 +23,13 @@
 namespace
 {
 
+static constexpr uint32_t STRIDE_ALIGN = 256;
+
+static constexpr uint64_t AlignUpU64(uint64_t value, uint64_t alignment)
+{
+  return (value + alignment - 1) & ~(alignment - 1);
+}
+
 int RoundUp(int num, int factor)
 {
   return num + factor - 1 - (num - 1) % factor;
@@ -73,6 +80,7 @@ bool CUDMABufferObject::CreateBufferObject(uint32_t format, uint32_t width, uint
   switch (format)
   {
     case DRM_FORMAT_ARGB8888:
+    case DRM_FORMAT_XRGB8888:
       bpp = 4;
       break;
     case DRM_FORMAT_ARGB1555:
@@ -83,9 +91,27 @@ bool CUDMABufferObject::CreateBufferObject(uint32_t format, uint32_t width, uint
       throw std::runtime_error("CUDMABufferObject: pixel format not implemented");
   }
 
-  m_stride = width * bpp;
+  const uint64_t rawStride = static_cast<uint64_t>(width) * bpp;
+  const uint64_t stride = AlignUpU64(rawStride, STRIDE_ALIGN);
 
-  return CreateBufferObject(width * height * bpp);
+  if (stride > std::numeric_limits<uint32_t>::max())
+  {
+    CLog::Log(LOGERROR, "CUDMABufferObject::{} - stride overflow ({}x{} fmt={})", __FUNCTION__,
+              width, height, format);
+    return false;
+  }
+
+  m_stride = static_cast<uint32_t>(stride);
+
+  if (rawStride != static_cast<uint64_t>(m_stride))
+  {
+    CLog::Log(LOGDEBUG,
+              "CUDMABufferObject::{} - aligned stride for format={} size={}x{} from {} to {}",
+              __FUNCTION__, format, width, height, rawStride, m_stride);
+  }
+
+  const uint64_t bufferSize = stride * height;
+  return CreateBufferObject(bufferSize);
 }
 
 bool CUDMABufferObject::CreateBufferObject(uint64_t size)
