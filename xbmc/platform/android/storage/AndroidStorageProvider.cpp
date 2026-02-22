@@ -9,7 +9,6 @@
 #include "AndroidStorageProvider.h"
 
 #include "ServiceBroker.h"
-#include "Util.h"
 #include "filesystem/Directory.h"
 #include "filesystem/File.h"
 #include "resources/LocalizeStrings.h"
@@ -25,7 +24,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <map>
 
 #include <androidjni/Context.h>
 #include <androidjni/Environment.h>
