@@ -587,10 +587,11 @@ bool CActiveAEBufferPoolAtempo::ProcessBuffers()
         }
 
         // check if draining is finished
-        if (m_drain && m_procSample->pkt->nb_samples == 0)
+        if (m_procSample->pkt->nb_samples == 0)
         {
           m_procSample->Return();
-          busy = false;
+          if (m_drain)
+            busy = false;
         }
         else
           m_outputSamples.push_back(m_procSample);
