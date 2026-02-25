@@ -44,8 +44,9 @@ void CGUIVideoControl::Process(unsigned int currentTime, CDirtyRegionList &dirty
 
 void CGUIVideoControl::Render()
 {
-  if (CServiceBroker::GetWinSystem()->GetGfxContext().GetRenderOrder() ==
-      RENDER_ORDER_FRONT_TO_BACK)
+  auto& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
+
+  if (gfxContext.GetRenderOrder() == RENDER_ORDER_FRONT_TO_BACK)
     return;
   auto& components = CServiceBroker::GetAppComponents();
   const auto appPlayer = components.GetComponent<CApplicationPlayer>();
@@ -58,32 +59,29 @@ void CGUIVideoControl::Render()
       appPower->ResetScreenSaver();
     }
 
-    CServiceBroker::GetWinSystem()->GetGfxContext().SetViewWindow(m_posX, m_posY, m_posX + m_width, m_posY + m_height);
+    gfxContext.SetViewWindow(m_posX, m_posY, m_posX + m_width, m_posY + m_height);
     TransformMatrix mat;
-    CServiceBroker::GetWinSystem()->GetGfxContext().SetTransform(mat, 1.0, 1.0);
+    gfxContext.SetTransform(mat, 1.0, 1.0);
 
-    KODI::UTILS::COLOR::Color alpha =
-        CServiceBroker::GetWinSystem()->GetGfxContext().MergeAlpha(0xFF000000) >> 24;
+    KODI::UTILS::COLOR::Color alpha = gfxContext.MergeAlpha(0xFF000000) >> 24;
     if (appPlayer->IsRenderingVideoLayer())
     {
-      CRect old = CServiceBroker::GetWinSystem()->GetGfxContext().GetScissors();
+      CRect old = gfxContext.GetScissors();
       CRect region = GetRenderRegion();
       region.Intersect(old);
-      CServiceBroker::GetWinSystem()->GetGfxContext().SetScissors(region);
+      gfxContext.SetScissors(region);
 
       // with dual pass rendering, we need to "clear" with a quad, as we need to conserve the already rendered layers
-      if (CServiceBroker::GetWinSystem()->GetGfxContext().GetRenderOrder() ==
-          RENDER_ORDER_BACK_TO_FRONT)
+      if (gfxContext.GetRenderOrder() == RENDER_ORDER_BACK_TO_FRONT)
         CGUITexture::DrawQuad(region, 0x00000000, nullptr, nullptr, -1.0f, false);
-      else if (CServiceBroker::GetWinSystem()->GetGfxContext().GetRenderOrder() ==
-               RENDER_ORDER_ALL_BACK_TO_FRONT)
-        CServiceBroker::GetWinSystem()->GetGfxContext().Clear(0);
-      CServiceBroker::GetWinSystem()->GetGfxContext().SetScissors(old);
+      else if (gfxContext.GetRenderOrder() == RENDER_ORDER_ALL_BACK_TO_FRONT)
+        gfxContext.Clear(0);
+      gfxContext.SetScissors(old);
     }
     else
       appPlayer->Render(false, alpha);
 
-    CServiceBroker::GetWinSystem()->GetGfxContext().RemoveTransform();
+    gfxContext.RemoveTransform();
   }
   CGUIControl::Render();
 }
