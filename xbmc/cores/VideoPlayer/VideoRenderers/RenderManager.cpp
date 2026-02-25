@@ -282,7 +282,7 @@ bool CRenderManager::Configure()
     {
       m_QueueSize = 2;
       CLog::Log(LOGWARNING, "CRenderManager::Configure - queue size too small ({}, {}, {})",
-                m_QueueSize, renderbuffers, m_NumberBuffers);
+                m_QueueSize.load(), renderbuffers, m_NumberBuffers);
     }
 
     m_pRenderer->SetBufferSize(m_QueueSize);
@@ -317,7 +317,7 @@ bool CRenderManager::Configure()
 
     UpdateResolution(true);
 
-    CLog::Log(LOGDEBUG, "CRenderManager::Configure - {}", m_QueueSize);
+    CLog::Log(LOGDEBUG, "CRenderManager::Configure - {}", m_QueueSize.load());
   }
   else
     m_renderState = STATE_UNCONFIGURED;
@@ -331,8 +331,7 @@ bool CRenderManager::Configure()
 
 bool CRenderManager::IsConfigured() const
 {
-  std::unique_lock lock(m_statelock);
-  return m_renderState == STATE_CONFIGURED;
+  return m_renderState.load(std::memory_order_relaxed) == STATE_CONFIGURED;
 }
 
 void CRenderManager::ShowVideo(bool enable)
@@ -1064,6 +1063,8 @@ void CRenderManager::Render(bool clear, DWORD flags, DWORD alpha, bool gui)
 
 bool CRenderManager::IsGuiLayer()
 {
+  if (!IsConfigured()) return false;
+
   std::unique_lock<CCriticalSection> lock(m_statelock);
 
   if (!m_pRenderer)
@@ -1089,6 +1090,8 @@ bool CRenderManager::IsGuiLayer()
 }
 
 bool CRenderManager::IsVideoLayer() {
+  if (!IsConfigured()) return false;
+
   {
     std::unique_lock<CCriticalSection> lock(m_statelock);
 
@@ -1610,22 +1613,12 @@ int CRenderManager::GetQueuedFrames() const
 
 int CRenderManager::GetQueueSize() const
 {
-  std::unique_lock<CCriticalSection> lock(m_presentlock);
-  return m_QueueSize;
+  return m_QueueSize.load(std::memory_order_relaxed);
 }
 
 double CRenderManager::GetRenderPts()
 {
-  std::unique_lock<CCriticalSection> lock(m_presentlock);
-
-  return m_presentpts;
-}
-
-double CRenderManager::GetFramePts()
-{
-  std::unique_lock<CCriticalSection> lock(m_presentlock);
-
-  return m_presentpts;
+  return m_presentpts.load(std::memory_order_relaxed);
 }
 
 void CRenderManager::CheckEnableClockSync()
