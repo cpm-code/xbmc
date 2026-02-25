@@ -142,7 +142,6 @@ public:
   int GetQueueSize() const;
 
   double GetRenderPts();
-  double GetFramePts();
 
   /**
    * Video player call this on flush in oder to discard any queued frames
@@ -221,7 +220,7 @@ protected:
     PRESENT_METHOD_BOB,
   };
 
-  ERENDERSTATE m_renderState = STATE_UNCONFIGURED;
+  std::atomic<ERENDERSTATE> m_renderState{STATE_UNCONFIGURED};
   CEvent m_stateEvent;
 
   // Display latency tweak from AdvancedSettings for the current refresh rate and resolution in milliseconds
@@ -233,7 +232,7 @@ protected:
   // User set latency
   std::atomic_int m_videoDelay = {};
 
-  int m_QueueSize = 2;
+  std::atomic_int m_QueueSize{2};
   int m_QueueSkip = 0;
 
   struct SPresent
@@ -257,8 +256,11 @@ protected:
   StreamHdrType m_hdrType = StreamHdrType::HDR_TYPE_NONE;
   StreamHdrType m_hdrType_override = StreamHdrType::HDR_TYPE_NONE;
   int m_NumberBuffers = 0;
-  int m_lateframes = -1;
-  double m_presentpts = 0.0;
+  std::atomic<int> m_lateframes{-1};
+  // Written under m_presentlock; read lock-free from render thread (ClockAlign,
+  // RenderUpdate) and from decode thread (GetRenderPts). std::atomic fixes the
+  // cross-thread data race and removes contended lock acquisition per frame.
+  std::atomic<double> m_presentpts{0.0};
   EPRESENTSTEP m_presentstep = PRESENT_IDLE;
   XbmcThreads::EndTime<> m_presentTimer;
   bool m_forceNext = false;
