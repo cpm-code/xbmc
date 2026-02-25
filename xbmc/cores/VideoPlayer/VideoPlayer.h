@@ -545,10 +545,14 @@ protected:
     int64_t lasttime{0};
     double lastseekpts{0.0};
     double lastabstime{0.0};
+    double rewindTargetPts{DVD_NOPTS_VALUE};
 
     void Reset(double pts)
     {
+      double tempRewindTargetPts = rewindTargetPts;
       *this = {};
+      rewindTargetPts = tempRewindTargetPts;
+
       if (pts != DVD_NOPTS_VALUE)
       {
         lastseekpts = pts;
