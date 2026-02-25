@@ -402,6 +402,8 @@ void CVideoPlayerVideo::Process()
         }
         if (m_outputSate == OUTPUT_AGAIN)
         {
+          if (m_speed < DVD_PLAYSPEED_PAUSE)
+            m_rewindStalled = true;
           onlyPrioMsgs = true;
           continue;
         }
@@ -1034,6 +1036,9 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
     timeToDisplay.count(), picture.pts / DVD_TIME_BASE, static_cast<double>(iPlayingClock) / DVD_TIME_BASE, buffer);
   if (buffer < 0)
   {
+    if (m_speed < DVD_PLAYSPEED_PAUSE)
+      m_rewindStalled = true;
+
     if (m_speed != DVD_PLAYSPEED_PAUSE)
       CLog::Log(LOGWARNING, "{} - timeout waiting for buffer", __FUNCTION__);
     return OUTPUT_AGAIN;
@@ -1048,9 +1053,14 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
 
   if (!m_renderManager.AddVideoPicture(picture, m_bAbortOutput, deintMethod, (m_syncState == ESyncState::SYNC_STARTING)))
   {
+    if (m_speed < DVD_PLAYSPEED_PAUSE)
+      m_rewindStalled = true;
     m_droppingStats.AddOutputDropGain(picture.pts, 1);
     return OUTPUT_DROPPED;
   }
+
+  if (m_speed < DVD_PLAYSPEED_PAUSE)
+    m_rewindStalled = false;
 
   return OUTPUT_NORMAL;
 }

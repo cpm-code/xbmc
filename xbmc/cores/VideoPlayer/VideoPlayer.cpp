@@ -2374,6 +2374,7 @@ void CVideoPlayer::HandlePlaySpeed()
     else
     {
       bool check = true;
+      const double currentPts = m_VideoPlayerVideo->GetCurrentPts();
 
       // only check if we have video
       if (m_CurrentVideo.id < 0 || m_CurrentVideo.syncState != IDVDStreamPlayer::SYNC_INSYNC)
@@ -2385,16 +2386,19 @@ void CVideoPlayer::HandlePlaySpeed()
       else if (m_SpeedState.lasttime == GetTime())
         check = false;
       // skip if frame at screen has no valid timestamp
-      else if (m_VideoPlayerVideo->GetCurrentPts() == DVD_NOPTS_VALUE)
+      else if (currentPts == DVD_NOPTS_VALUE)
         check = false;
-      // skip if frame on screen has not changed
-      else if (m_SpeedState.lastpts == m_VideoPlayerVideo->GetCurrentPts() &&
-               (m_SpeedState.lastpts > m_State.dts || m_playSpeed > 0))
+      // skip if frame on screen has not changed while fast-forwarding.
+      // For rewind, we intentionally keep checking so stalled reverse playback
+      // can trigger catch-up seeks promptly.
+      else if ((m_playSpeed > 0) &&
+               (m_SpeedState.lastpts == currentPts) &&
+               (m_SpeedState.lastpts > m_State.dts))
         check = false;
 
       if (check)
       {
-        m_SpeedState.lastpts  = m_VideoPlayerVideo->GetCurrentPts();
+        m_SpeedState.lastpts  = currentPts;
         m_SpeedState.lasttime = GetTime();
         m_SpeedState.lastabstime = m_clock.GetAbsoluteClock();
 
@@ -2421,9 +2425,24 @@ void CVideoPlayer::HandlePlaySpeed()
           if (std::abs(error) > 1000 || (m_VideoPlayerVideo->IsRewindStalled() && std::abs(error) > 100))
           {
             m_SpeedState.lastseekpts = m_clock.GetClock();
-            int direction = (m_playSpeed > 0) ? 1 : -1;
-            double iTime = (m_clock.GetClock() + m_State.time_offset + 1000000.0 * direction) / 1000;
-            CLog::Log(LOGDEBUG, LOGVIDEO, "CVideoPlayer::Process - Seeking to catch up, error was: {:.3f} time:{:.3f}", error / 1000.0, iTime/1000.0);
+
+            double iTime = 0.0;
+            if (m_playSpeed < 0)
+            {
+              double anchorPts = (currentPts != DVD_NOPTS_VALUE) ? currentPts : m_clock.GetClock();
+              if (m_SpeedState.rewindTargetPts != DVD_NOPTS_VALUE)
+                anchorPts = std::min(anchorPts, m_SpeedState.rewindTargetPts);
+
+              const double rewindStep = DVD_SEC_TO_TIME(1.0);
+              const double nextTargetPts = std::max(0.0, anchorPts - rewindStep);
+              m_SpeedState.rewindTargetPts = nextTargetPts;
+              iTime = (nextTargetPts + m_State.time_offset) / 1000;
+            }
+            else
+            {
+              iTime = (m_clock.GetClock() + m_State.time_offset + DVD_SEC_TO_TIME(1.0)) / 1000;
+            }
+
             CDVDMsgPlayerSeek::CMode mode;
             mode.time = iTime;
             mode.backward = (m_playSpeed < 0);
@@ -3311,6 +3330,21 @@ void CVideoPlayer::HandleMessages()
         m_processInfo->SetSpeed(static_cast<float>(speed) / DVD_PLAYSPEED_NORMAL);
 
       m_processInfo->SetFrameAdvance(false);
+
+      if (speed < DVD_PLAYSPEED_PAUSE)
+      {
+        if (m_playSpeed >= DVD_PLAYSPEED_PAUSE)
+        {
+          double seedPts = m_VideoPlayerVideo->GetCurrentPts();
+          if (seedPts == DVD_NOPTS_VALUE)
+            seedPts = m_clock.GetClock();
+          m_SpeedState.rewindTargetPts = seedPts;
+        }
+      }
+      else
+      {
+        m_SpeedState.rewindTargetPts = DVD_NOPTS_VALUE;
+      }
 
       m_playSpeed = speed;
 
