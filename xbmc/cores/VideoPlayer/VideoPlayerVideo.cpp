@@ -672,6 +672,11 @@ void CVideoPlayerVideo::Process()
 
 void CVideoPlayerVideo::UpdatePlayerInfo()
 {
+  // Rate-limit DataCache updates: lock + bitrate stats + atomic writes
+  // at decode rate (25-60fps) is wasteful; 10Hz is sufficient for UI.
+  if (!m_playerInfoTimer.IsTimePast()) return;
+  m_playerInfoTimer.Set(100ms);
+
   int level, dataLevel;
   m_messageQueue.GetLevels(level, dataLevel);
   m_dataCacheCore.SetVideoLiveBitRate(GetVideoBitrate());
