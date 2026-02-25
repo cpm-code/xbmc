@@ -17,6 +17,7 @@
 #include "PTSTracker.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderManager.h"
 #include "threads/Thread.h"
+#include "threads/SystemClock.h"
 #include "utils/BitstreamStats.h"
 
 #include <atomic>
@@ -156,4 +157,6 @@ protected:
   std::chrono::steady_clock::time_point m_lastDisplayReset{std::chrono::steady_clock::time_point::min()};
 
   std::chrono::steady_clock::time_point m_rendererConfigureRetryStart{std::chrono::steady_clock::time_point::min()};
+
+  XbmcThreads::EndTime<> m_playerInfoTimer;
 };
