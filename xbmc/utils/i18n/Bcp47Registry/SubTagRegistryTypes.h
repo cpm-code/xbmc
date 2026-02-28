@@ -19,7 +19,7 @@ struct RegistryFileRecord;
 /*!
  * \brief Registry record scopes defined in RFC5646 + special value Unknown
  */
-enum SubTagScope
+enum class SubTagScope
 {
   Unknown,
   Individual, //!< Scope not defined for the record.
