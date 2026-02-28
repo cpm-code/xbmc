@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#include <fmt/format.h> //! \todo remove after upgrade to libfmt >= 10.0
+
 namespace KODI::UTILS::I18N
 {
 struct RegistryFileField
@@ -49,7 +51,7 @@ struct RegistryFileRecord
 };
 
 /*!
- * \brief fmt/std::format formatter for RegistryFileRecord
+ * \brief RegistryFileRecord formatter for libfmt / future std
  */
 std::string format_as(const RegistryFileRecord& record);
 
@@ -61,3 +63,16 @@ public:
   virtual ~IRegistryRecordProvider() {}
 };
 } // namespace KODI::UTILS::I18N
+
+#if FMT_VERSION < 100000
+// user-type formatters for libfmt < 10.0
+//! \todo remove after libfmt upgrade
+template<>
+struct fmt::formatter<KODI::UTILS::I18N::RegistryFileRecord> : fmt::formatter<std::string>
+{
+  auto format(const KODI::UTILS::I18N::RegistryFileRecord& p, format_context& ctx) const
+  {
+    return fmt::formatter<std::string>::format(KODI::UTILS::I18N::format_as(p), ctx);
+  }
+};
+#endif

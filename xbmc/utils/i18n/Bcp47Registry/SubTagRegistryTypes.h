@@ -12,6 +12,8 @@
 #include <string_view>
 #include <vector>
 
+#include <fmt/format.h> //! \todo remove after upgrade to libfmt >= 10.0
+
 namespace KODI::UTILS::I18N
 {
 struct RegistryFileRecord;
@@ -31,7 +33,7 @@ enum class SubTagScope
 
 SubTagScope FindSubTagScope(std::string_view str);
 /*!
- * \brief fmt/std::format formatter for SubTagScope
+ * \brief SubTagScope formatter for libfmt / future std
  */
 std::string_view format_as(SubTagScope scope);
 
@@ -52,7 +54,7 @@ enum class SubTagType
 
 SubTagType FindSubTagType(std::string_view str);
 /*!
- * \brief fmt/std::format formatter for SubTagType
+ * \brief SubTagType formatter for libfmt / future std
  */
 std::string_view format_as(SubTagType type);
 
@@ -135,3 +137,25 @@ struct RedundantTag : BaseSubTag
 {
 };
 } // namespace KODI::UTILS::I18N
+
+#if FMT_VERSION < 100000
+// user-type formatters for libfmt < 10.0
+//! \todo remove after libfmt upgrade
+template<>
+struct fmt::formatter<KODI::UTILS::I18N::SubTagScope> : fmt::formatter<std::string_view>
+{
+  auto format(const KODI::UTILS::I18N::SubTagScope& p, format_context& ctx) const
+  {
+    return fmt::formatter<std::string_view>::format(KODI::UTILS::I18N::format_as(p), ctx);
+  }
+};
+
+template<>
+struct fmt::formatter<KODI::UTILS::I18N::SubTagType> : fmt::formatter<std::string_view>
+{
+  auto format(const KODI::UTILS::I18N::SubTagType& p, format_context& ctx) const
+  {
+    return fmt::formatter<std::string_view>::format(KODI::UTILS::I18N::format_as(p), ctx);
+  }
+};
+#endif
