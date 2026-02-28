@@ -110,10 +110,14 @@ static void aml_dv_wait_dv_std_vsif_packet()
 
 void aml_dv_set_vs10_mode(unsigned int mode)
 {
-  if (mode != DOLBY_VISION_OUTPUT_MODE_BYPASS)
+  if (mode != DOLBY_VISION_OUTPUT_MODE_BYPASS) {
+    aml_set_osd_pq_bypass(StreamHdrType::HDR_TYPE_NONE);
     aml_dv_on(mode);
-  else if (aml_is_dv_enable()) // DV BYPASS, and it is on - then switch it off.
-    aml_dv_off();
+  }
+  else if (aml_is_dv_enable()) {
+    aml_set_osd_pq_bypass(CServiceBroker::GetDataCacheCore().GetVideoHdrType());
+    aml_dv_off(); // DV BYPASS, and it is on - then switch it off.
+  }
 }
 
 void aml_dv_wait_video_off(int timeout)
