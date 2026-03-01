@@ -594,6 +594,7 @@ void CBitstreamConverter::Close()
   m_convertSize = 0;
 
   m_extraData = {};
+  InvalidateDoViCache();
 
   m_inputSize = 0;
   m_inputBuffer = NULL;
