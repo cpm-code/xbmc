@@ -131,8 +131,14 @@ public:
   int GetExtraSize() const;
   void ResetStartDecode();
   bool CanStartDecode() const;
-  void SetConvertDovi(enum DOVIMode value) { m_convert_dovi = value; }
-  void SetAppendCMv40(enum DOVICMv40Mode value) { m_append_cmv40 = value; }
+  void SetConvertDovi(enum DOVIMode value) { 
+    if (m_convert_dovi != value) InvalidateDoViCache();
+    m_convert_dovi = value; 
+  }
+  void SetAppendCMv40(enum DOVICMv40Mode value) { 
+    if (m_append_cmv40 != value) InvalidateDoViCache();
+    m_append_cmv40 = value; 
+  }
   void SetConvertHdr10Plus(bool value) { m_convert_Hdr10Plus = value; }
   void SetPreferCovertHdr10Plus(bool value) { m_prefer_Hdr10Plus_conversion = value; }
   void SetConvertHdr10PlusPeakBrightnessSource(enum PeakBrightnessSource value) { m_convert_Hdr10Plus_peak_brightness_source = value; };
@@ -148,6 +154,11 @@ public:
                                    h264_sequence *sequence);
 
 protected:
+  void InvalidateDoViCache() {
+    m_cached_dovi_rpu_in_nal.clear();
+    m_cached_dovi_rpu_out_nal.clear();
+  }
+
   static int avc_parse_nal_units(AVIOContext* pb, const uint8_t* buf_in, int size);
   static int avc_parse_nal_units_buf(const uint8_t* buf_in, uint8_t** buf, int* size);
   int isom_write_avcc(AVIOContext* pb, const uint8_t* data, int len);
@@ -221,4 +232,8 @@ protected:
   enum PeakBrightnessSource m_convert_Hdr10Plus_peak_brightness_source;
   bool m_first_frame;
   HDRStaticMetadataInfo m_hdrStaticMetadataInfo;
+
+  std::vector<uint8_t> m_cached_dovi_rpu_in_nal;
+  std::vector<uint8_t> m_cached_dovi_rpu_out_nal;
+  DOVIFrameMetadata m_cached_dovi_frame_metadata{};
 };
