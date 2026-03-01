@@ -79,7 +79,8 @@ inline void PopulateDoviRpuInfo(DoviRpuOpaque* opaque,
                                 DOVIELType& doviElType,
                                 AVDOVIDecoderConfigurationRecord& dovi,
                                 double pts,
-                                CDataCacheCore& dataCacheCore)
+                                CDataCacheCore& dataCacheCore,
+                                DOVIFrameMetadata* outDoViFrameMetadata = nullptr)
 {
   const DoviVdrDmData* vdrDmData = dovi_rpu_get_vdr_dm_data(opaque);
 
@@ -109,6 +110,8 @@ inline void PopulateDoviRpuInfo(DoviRpuOpaque* opaque,
     }
 
     dataCacheCore.SetVideoDoViFrameMetadata(doviFrameMetadata);
+    if (outDoViFrameMetadata)
+      *outDoViFrameMetadata = doviFrameMetadata;
   }
 
   if (firstFrame)
@@ -523,49 +526,73 @@ void CBitstreamConverter::ProcessDoViRpu(
   DoviRpuOpaque* appendOpaque = nullptr;
   std::vector<uint8_t> nalu;
 
-  DoviRpuOpaque* opaque = dovi_parse_unspec62_nalu(nalBuf, nalSize);
-  const DoviRpuDataHeader* header = dovi_rpu_get_header(opaque);
-  const DoviVdrDmData* vdrDmData = dovi_rpu_get_vdr_dm_data(opaque);
-
-  if (m_convert_dovi != DOVIMode::MODE_NONE)
-    ConvertDoVi(m_convert_dovi,
-                m_first_frame,
-                opaque,
-                header,
-                vdrDmData,
-                m_hints,
-                m_dataCacheCore,
-                nalBuf,
-                nalSize,
-                rpuData);
-
-  if (m_append_cmv40 != DOVICMv40Mode::CMV40_NONE)
-    AppendCMv40(m_append_cmv40,
-                header,
-                vdrDmData,
-                nalBuf,
-                nalSize,
-                nalu,
-                appendOpaque,
-                m_cmv40_trim);
-
-  // Use the appendOpaque from the append CMv4.0 if available
-  DoviRpuOpaque* metadataOpaque = appendOpaque ? appendOpaque : opaque;
-  PopulateDoviRpuInfo(metadataOpaque,
-                      m_first_frame,
-                      m_hints.dovi_el_type,
-                      m_hints.dovi,
-                      pts,
-                      m_dataCacheCore);
-
-  dovi_rpu_free_header(header);
-  dovi_rpu_free_vdr_dm_data(vdrDmData);
-  dovi_rpu_free(opaque);
-  if (appendOpaque)
+  // Optimization: If the input RPU NAL is exactly identical to the previous frame's RPU NAL,
+  // AND we are not processing the first frame (which parses stream metadata),
+  // we can completely skip `dovi_parse_unspec62_nalu` and avoid all allocations & format processing.
+  if (!m_first_frame &&
+      m_cached_dovi_rpu_in_nal.size() == static_cast<size_t>(nalSize) &&
+      std::equal(m_cached_dovi_rpu_in_nal.begin(), m_cached_dovi_rpu_in_nal.end(), nalBuf))
   {
-    dovi_rpu_free(appendOpaque);
-    if (m_first_frame)
-      logM(LOGINFO, "CBitstreamConverterDoVi", "CMv4.0 extension appended to RPU");
+    m_cached_dovi_frame_metadata.pts = pts;
+    m_dataCacheCore.SetVideoDoViFrameMetadata(m_cached_dovi_frame_metadata);
+
+    // Skip all processing and restore the fully configured/converted output NAL
+    nalBuf = m_cached_dovi_rpu_out_nal.data();
+    nalSize = static_cast<int32_t>(m_cached_dovi_rpu_out_nal.size());
+  }
+  else
+  {
+    // Save the original input stream bits before processing modifications
+    m_cached_dovi_rpu_in_nal.assign(nalBuf, nalBuf + nalSize);
+
+    DoviRpuOpaque* opaque = dovi_parse_unspec62_nalu(nalBuf, nalSize);
+    const DoviRpuDataHeader* header = dovi_rpu_get_header(opaque);
+    const DoviVdrDmData* vdrDmData = dovi_rpu_get_vdr_dm_data(opaque);
+
+    if (m_convert_dovi != DOVIMode::MODE_NONE)
+      ConvertDoVi(m_convert_dovi,
+                  m_first_frame,
+                  opaque,
+                  header,
+                  vdrDmData,
+                  m_hints,
+                  m_dataCacheCore,
+                  nalBuf,
+                  nalSize,
+                  rpuData);
+
+    if (m_append_cmv40 != DOVICMv40Mode::CMV40_NONE)
+      AppendCMv40(m_append_cmv40,
+                  header,
+                  vdrDmData,
+                  nalBuf,
+                  nalSize,
+                  nalu,
+                  appendOpaque,
+                  m_cmv40_trim);
+
+    // Use the appendOpaque from the append CMv4.0 if available
+    DoviRpuOpaque* metadataOpaque = appendOpaque ? appendOpaque : opaque;
+    PopulateDoviRpuInfo(metadataOpaque,
+                        m_first_frame,
+                        m_hints.dovi_el_type,
+                        m_hints.dovi,
+                        pts,
+                        m_dataCacheCore,
+                        &m_cached_dovi_frame_metadata);
+
+    dovi_rpu_free_header(header);
+    dovi_rpu_free_vdr_dm_data(vdrDmData);
+    dovi_rpu_free(opaque);
+    if (appendOpaque)
+    {
+      dovi_rpu_free(appendOpaque);
+      if (m_first_frame)
+        logM(LOGINFO, "CBitstreamConverterDoVi", "CMv4.0 extension appended to RPU");
+    }
+
+    // Update cache with the newly calculated modified NAL out for the next frame
+    m_cached_dovi_rpu_out_nal.assign(nalBuf, nalBuf + nalSize);
   }
 
   InjectPtsForFel(m_convert_dovi,
