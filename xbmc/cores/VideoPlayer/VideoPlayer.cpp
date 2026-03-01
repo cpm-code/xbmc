@@ -2385,10 +2385,10 @@ void CVideoPlayer::HandlePlaySpeed()
       // skip if frame at screen has no valid timestamp
       else if (currentPts == DVD_NOPTS_VALUE)
         check = false;
-      // skip if frame on screen has not changed while fast-forwarding.
-      // For rewind, we intentionally keep checking so stalled reverse playback
-      // can trigger catch-up seeks promptly.
+      // skip if frame on screen has not changed while fast-forwarding,
+      // EXCEPT when we know output has stalled (so catch-up seeks can trigger).
       else if ((m_playSpeed > 0) &&
+               !m_VideoPlayerVideo->IsPlaybackStalled() &&
                (m_SpeedState.lastpts == currentPts) &&
                (m_SpeedState.lastpts > m_State.dts))
         check = false;
@@ -2417,7 +2417,7 @@ void CVideoPlayer::HandlePlaySpeed()
         {
           error  = (m_clock.GetClock() - m_SpeedState.lastseekpts) / 1000;
 
-          if (std::abs(error) > 1000 || (m_VideoPlayerVideo->IsRewindStalled() && std::abs(error) > 100))
+          if (std::abs(error) > 1000 || (m_VideoPlayerVideo->IsPlaybackStalled() && std::abs(error) > 100))
           {
             CLog::Log(LOGDEBUG, "CVideoPlayer::Process - Seeking to catch up, error was: {:f}",
                       error);

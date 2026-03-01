@@ -263,7 +263,7 @@ void CVideoPlayerVideo::OpenStream(CDVDStreamInfo& hint, std::unique_ptr<CDVDVid
   m_pVideoCodec = std::move(codec);
   m_hints = hint;
   m_stalled = m_messageQueue.GetPacketCount(CDVDMsg::DEMUXER_PACKET) == 0;
-  m_rewindStalled = false;
+  m_playbackStalled = false;
   m_packets.clear();
   m_syncState = IDVDStreamPlayer::SYNC_STARTING;
   m_renderManager.ShowVideo(false);
@@ -356,7 +356,7 @@ void CVideoPlayerVideo::Process()
   m_videoStats.Start();
   m_droppingStats.Reset();
   m_iDroppedFrames = 0;
-  m_rewindStalled = false;
+  m_playbackStalled = false;
   m_outputSate = OUTPUT_NORMAL;
 
   while (!m_bStop)
@@ -402,8 +402,8 @@ void CVideoPlayerVideo::Process()
         }
         if (m_outputSate == OUTPUT_AGAIN)
         {
-          if (m_speed < DVD_PLAYSPEED_PAUSE)
-            m_rewindStalled = true;
+          
+            m_playbackStalled = true;
           onlyPrioMsgs = true;
           continue;
         }
@@ -468,7 +468,7 @@ void CVideoPlayerVideo::Process()
 
       m_syncState = IDVDStreamPlayer::SYNC_INSYNC;
       m_droppingStats.Reset();
-      m_rewindStalled = false;
+      m_playbackStalled = false;
       m_renderManager.ShowVideo(true);
 
       CLog::Log(LOGDEBUG, "CVideoPlayerVideo - CDVDMsg::GENERAL_RESYNC({:f})", pts);
@@ -497,7 +497,7 @@ void CVideoPlayerVideo::Process()
       m_droppingStats.Reset();
       m_syncState = IDVDStreamPlayer::SYNC_STARTING;
       m_renderManager.ShowVideo(false);
-      m_rewindStalled = false;
+      m_playbackStalled = false;
     }
     else if (pMsg->IsType(CDVDMsg::GENERAL_FLUSH)) // private message sent by (CVideoPlayerVideo::Flush())
     {
@@ -512,7 +512,7 @@ void CVideoPlayerVideo::Process()
       }
       m_packets.clear();
       pts = 0;
-      m_rewindStalled = false;
+      m_playbackStalled = false;
 
       m_ptsTracker.Flush();
       //we need to recalculate the framerate
@@ -1041,8 +1041,8 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
     timeToDisplay.count(), picture.pts / DVD_TIME_BASE, static_cast<double>(iPlayingClock) / DVD_TIME_BASE, buffer);
   if (buffer < 0)
   {
-    if (m_speed < DVD_PLAYSPEED_PAUSE)
-      m_rewindStalled = true;
+    
+      m_playbackStalled = true;
 
     if (m_speed != DVD_PLAYSPEED_PAUSE)
       CLog::Log(LOGWARNING, "{} - timeout waiting for buffer", __FUNCTION__);
@@ -1058,14 +1058,14 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
 
   if (!m_renderManager.AddVideoPicture(picture, m_bAbortOutput, deintMethod, (m_syncState == ESyncState::SYNC_STARTING)))
   {
-    if (m_speed < DVD_PLAYSPEED_PAUSE)
-      m_rewindStalled = true;
+    
+      m_playbackStalled = true;
     m_droppingStats.AddOutputDropGain(picture.pts, 1);
     return OUTPUT_DROPPED;
   }
 
-  if (m_speed < DVD_PLAYSPEED_PAUSE)
-    m_rewindStalled = false;
+  
+    m_playbackStalled = false;
 
   return OUTPUT_NORMAL;
 }
