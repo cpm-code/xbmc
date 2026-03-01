@@ -221,34 +221,43 @@ void AppendCMv40ExtensionBlock(BitstreamIoWriter& writer)
   writer.write_ue(4);                         // (00101) num_ext_blocks
   writer.byte_align();                        // dm_alignment_zero_bit
 
-  // L3 ------------ (53 bits)
-  writer.write_ue(5);                         // (00110)          length_bytes (payload only)
-  writer.write_n<uint8_t>(3, 8);              // (00000011)       level
-  writer.write_n<uint16_t>(2048, 12);         // (100000000000)   min_pq_offset
-  writer.write_n<uint16_t>(2048, 12);         // (100000000000)   max_pq_offset
-  writer.write_n<uint16_t>(2048, 12);         // (100000000000)   avg_pq_offset
-  writer.write_n<uint8_t>(0, 4);              // (0000)           alignment of 4 bits. (40)
+  // Currently the extension block content is fixed, if we need for dynamic values in the future
+  // then need to gate and check changes and recreate for each change, see HDR10+ dynamic metadata handling for example.
+  static const std::vector<uint8_t> cached_ext_blocks = []() {
+    BitstreamIoWriter cacheWriter;
 
-  // L9 ------------ (19 bits)
-  writer.write_ue(1);                         // (010)            length_bytes (payload only)
-  writer.write_n<uint8_t>(9, 8);              // (00001001)       level
-  writer.write_n<uint8_t>(0, 8);              // (00000000)       source_primary_index
+    // L3 ------------ (53 bits)
+    cacheWriter.write_ue(5);                         // (00110)          length_bytes (payload only)
+    cacheWriter.write_n<uint8_t>(3, 8);              // (00000011)       level
+    cacheWriter.write_n<uint16_t>(2048, 12);         // (100000000000)   min_pq_offset
+    cacheWriter.write_n<uint16_t>(2048, 12);         // (100000000000)   max_pq_offset
+    cacheWriter.write_n<uint16_t>(2048, 12);         // (100000000000)   avg_pq_offset
+    cacheWriter.write_n<uint8_t>(0, 4);              // (0000)           alignment of 4 bits. (40)
 
-  // L11 ----------- (45 bits)
-  writer.write_ue(4);                         // (00101)          length_bytes (payload only)
-  writer.write_n<uint8_t>(11, 8);             // (00001011)       level
-  writer.write_n<uint8_t>(1, 8);              // (00000001)       content_type
-  writer.write_n<uint8_t>(0, 8);              // (00000000)       whitepoint
-  writer.write_n<uint8_t>(0, 8);              // (00000000)       reserved_byte2
-  writer.write_n<uint8_t>(0, 8);              // (00000000)       reserved_byte3
+    // L9 ------------ (19 bits)
+    cacheWriter.write_ue(1);                         // (010)            length_bytes (payload only)
+    cacheWriter.write_n<uint8_t>(9, 8);              // (00001001)       level
+    cacheWriter.write_n<uint8_t>(0, 8);              // (00000000)       source_primary_index
 
-  // L254 ---------- (27 bits)
-  writer.write_ue(2);                         // (011)            length_bytes (payload only)
-  writer.write_n<uint8_t>(254, 8);            // (11111110)       level
-  writer.write_n<uint8_t>(0, 8);              // (00000000)       dm_mode
-  writer.write_n<uint8_t>(2, 8);              // (00000010)       dm_version_index
+    // L11 ----------- (45 bits)
+    cacheWriter.write_ue(4);                         // (00101)          length_bytes (payload only)
+    cacheWriter.write_n<uint8_t>(11, 8);             // (00001011)       level
+    cacheWriter.write_n<uint8_t>(1, 8);              // (00000001)       content_type
+    cacheWriter.write_n<uint8_t>(0, 8);              // (00000000)       whitepoint
+    cacheWriter.write_n<uint8_t>(0, 8);              // (00000000)       reserved_byte2
+    cacheWriter.write_n<uint8_t>(0, 8);              // (00000000)       reserved_byte3
 
-  writer.byte_align();                        // ext_dm_alignment_zero_bit
+    // L254 ---------- (27 bits)
+    cacheWriter.write_ue(2);                         // (011)            length_bytes (payload only)
+    cacheWriter.write_n<uint8_t>(254, 8);            // (11111110)       level
+    cacheWriter.write_n<uint8_t>(0, 8);              // (00000000)       dm_mode
+    cacheWriter.write_n<uint8_t>(2, 8);              // (00000010)       dm_version_index
+
+    cacheWriter.byte_align();                        // ext_dm_alignment_zero_bit
+    return cacheWriter.into_inner();
+  }();
+
+  writer.write_bytes(cached_ext_blocks.data(), cached_ext_blocks.size());
 }
 
 bool PayloadSize(const std::vector<uint8_t>& rbsp, size_t& payloadSize)
