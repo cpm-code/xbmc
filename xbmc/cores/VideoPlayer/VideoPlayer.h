@@ -548,6 +548,7 @@ protected:
   {
     double lastpts{0.0}; // holds last display pts during ff/rw operations
     int64_t lasttime{0};
+    int64_t lastseektime{0};
     double lastseekpts{0.0};
     double lastabstime{0.0};
     double rewindTargetPts{DVD_NOPTS_VALUE};
@@ -555,8 +556,10 @@ protected:
     void Reset(double pts)
     {
       double tempRewindTargetPts = rewindTargetPts;
+      int64_t tempLastSeekTime = (pts != DVD_NOPTS_VALUE) ? lastseektime : 0;
       *this = {};
       rewindTargetPts = tempRewindTargetPts;
+      lastseektime = tempLastSeekTime;
 
       if (pts != DVD_NOPTS_VALUE)
       {

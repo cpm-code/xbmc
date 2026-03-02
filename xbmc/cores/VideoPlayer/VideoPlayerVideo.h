@@ -70,7 +70,7 @@ public:
   double GetSubtitleDelay() override { return m_iSubtitleDelay; }
   void SetSubtitleDelay(double delay) override { m_iSubtitleDelay = delay; }
   bool IsStalled() const override { return m_stalled; }
-  bool IsRewindStalled() const override { return m_rewindStalled; }
+  bool IsPlaybackStalled() const override { return m_playbackStalled; }
   double GetCurrentPts() override;
   double GetOutputDelay() override; /* returns the expected delay, from that a packet is put in queue */
   std::string GetPlayerInfo() override;
@@ -133,7 +133,7 @@ protected:
   float m_fForcedAspectRatio;
   int m_speed;
   std::atomic_bool m_stalled = false;
-  std::atomic_bool m_rewindStalled;
+  std::atomic_bool m_playbackStalled;
   bool m_paused;
   IDVDStreamPlayer::ESyncState m_syncState;
   std::atomic_bool m_bAbortOutput;
