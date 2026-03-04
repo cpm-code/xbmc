@@ -33,8 +33,6 @@ void CRenderSystemBase::OnAdvancedSettingsLoaded()
 {
   const auto advSettings{CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()};
 
-  std::unique_lock lock(m_settingsSection);
-
   m_showSplashImage = advSettings->m_splashImage;
   m_guiFrontToBackRendering = advSettings->m_guiFrontToBackRendering;
   m_guiGeometryClear =
@@ -136,18 +134,15 @@ void CRenderSystemBase::ShowSplash(const std::string& message)
 
 bool CRenderSystemBase::GetShowSplashImage()
 {
-  std::unique_lock lock(m_settingsSection);
   return m_showSplashImage;
 }
 
 bool CRenderSystemBase::GetEnabledFrontToBackRendering()
 {
-  std::unique_lock lock(m_settingsSection);
   return m_guiFrontToBackRendering;
 }
 
 ClearFunction CRenderSystemBase::GetClearFunction()
 {
-  std::unique_lock lock(m_settingsSection);
   return m_guiGeometryClear;
 }

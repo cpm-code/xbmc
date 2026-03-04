@@ -15,6 +15,7 @@
 
 #include <memory>
 #include <optional>
+#include <atomic>
 #include <string>
 
 /*
@@ -124,9 +125,8 @@ protected:
   std::unique_ptr<CGUITextLayout> m_splashMessageLayout;
 
   // Advanced settings handling
-  CCriticalSection m_settingsSection;
   std::optional<int> m_settingsCallbackHandle;
-  bool m_guiFrontToBackRendering{false};
-  ClearFunction m_guiGeometryClear{ClearFunction::FIXED_FUNCTION};
-  bool m_showSplashImage{true};
+  std::atomic<bool> m_guiFrontToBackRendering{false};
+  std::atomic<ClearFunction> m_guiGeometryClear{ClearFunction::FIXED_FUNCTION};
+  std::atomic<bool> m_showSplashImage{true};
 };
