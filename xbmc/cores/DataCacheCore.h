@@ -209,6 +209,8 @@ public:
 
   void SetSpeed(float tempo, float speed);
   float GetSpeed();
+  bool IsNormalPlayback();
+  bool IsPausedPlayback();
   float GetTempo();
   void SetFrameAdvance(bool fa);
   bool IsFrameAdvance();
