@@ -25,6 +25,43 @@ namespace
 {
 constexpr uint64_t SPEED_TEMPO_SEQ_ODD_BIT{1ULL};
 constexpr unsigned int SPEED_TEMPO_READ_YIELD_FREQUENCY{64};
+
+class CScopedSequenceWrite
+{
+public:
+  explicit CScopedSequenceWrite(std::atomic<uint64_t>& sequence) : m_sequence(sequence)
+  {
+    m_sequence.fetch_add(1, std::memory_order_acq_rel);
+  }
+
+  ~CScopedSequenceWrite() { m_sequence.fetch_add(1, std::memory_order_release); }
+
+private:
+  std::atomic<uint64_t>& m_sequence;
+};
+
+template<typename ValueType, typename ReaderFunc>
+ValueType ReadStableSequenceValue(const std::atomic<uint64_t>& sequence, ReaderFunc&& readValue)
+{
+  unsigned int retries{0};
+  while (true)
+  {
+    const auto before = sequence.load(std::memory_order_acquire);
+    if (!(before & SPEED_TEMPO_SEQ_ODD_BIT))
+    {
+      const ValueType value = readValue();
+      const auto after = sequence.load(std::memory_order_acquire);
+      if (before == after)
+        return value;
+    }
+
+    if (++retries == SPEED_TEMPO_READ_YIELD_FREQUENCY)
+    {
+      retries = 0;
+      std::this_thread::yield();
+    }
+  }
+}
 }
 
 CDataCacheCore::CDataCacheCore() :
@@ -50,10 +87,11 @@ void CDataCacheCore::Reset()
     m_stateInfo.m_stateSeeking.store(false, std::memory_order_relaxed);
     m_stateInfo.m_renderGuiLayer.store(false, std::memory_order_relaxed);
     m_stateInfo.m_renderVideoLayer.store(false, std::memory_order_relaxed);
-    m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_acq_rel);
-    m_stateInfo.m_tempo.store(1.0f, std::memory_order_relaxed);
-    m_stateInfo.m_speed.store(1.0f, std::memory_order_relaxed);
-    m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_release);
+    {
+      CScopedSequenceWrite speedTempoWriteGuard(m_stateInfo.m_speedTempoWriteSeq);
+      m_stateInfo.m_tempo.store(1.0f, std::memory_order_relaxed);
+      m_stateInfo.m_speed.store(1.0f, std::memory_order_relaxed);
+    }
     m_stateInfo.m_frameAdvance.store(false, std::memory_order_relaxed);
     m_stateInfo.m_lastSeekTime = std::chrono::time_point<std::chrono::system_clock>{};
     m_stateInfo.m_lastSeekOffset = 0;
@@ -828,56 +866,37 @@ void CDataCacheCore::SetSpeed(float tempo, float speed)
 {
   std::unique_lock lock(m_stateSection);
 
-  m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_acq_rel);
+  CScopedSequenceWrite speedTempoWriteGuard(m_stateInfo.m_speedTempoWriteSeq);
   m_stateInfo.m_tempo.store(tempo, std::memory_order_relaxed);
   m_stateInfo.m_speed.store(speed, std::memory_order_relaxed);
-  m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_release);
 }
 
 float CDataCacheCore::GetSpeed()
 {
-  unsigned int retries{0};
-  while (true)
-  {
-    const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-    if (!(before & SPEED_TEMPO_SEQ_ODD_BIT))
-    {
-      const float speed = m_stateInfo.m_speed.load(std::memory_order_relaxed);
-      const auto after = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-      if (before == after)
-        return speed;
-    }
-    if (++retries % SPEED_TEMPO_READ_YIELD_FREQUENCY == 0)
-      std::this_thread::yield();
-  }
+  return ReadStableSequenceValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
+    return m_stateInfo.m_speed.load(std::memory_order_relaxed);
+  });
 }
 
 bool CDataCacheCore::IsNormalPlayback()
 {
-  return m_stateInfo.m_speed.load(std::memory_order_relaxed) == 1.0f;
+  return ReadStableSequenceValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
+           return m_stateInfo.m_speed.load(std::memory_order_relaxed);
+         }) == 1.0f;
 }
 
 bool CDataCacheCore::IsPausedPlayback()
 {
-  return m_stateInfo.m_speed.load(std::memory_order_relaxed) == 0.0f;
+  return ReadStableSequenceValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
+           return m_stateInfo.m_speed.load(std::memory_order_relaxed);
+         }) == 0.0f;
 }
 
 float CDataCacheCore::GetTempo()
 {
-  unsigned int retries{0};
-  while (true)
-  {
-    const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-    if (!(before & SPEED_TEMPO_SEQ_ODD_BIT))
-    {
-      const float tempo = m_stateInfo.m_tempo.load(std::memory_order_relaxed);
-      const auto after = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-      if (before == after)
-        return tempo;
-    }
-    if (++retries % SPEED_TEMPO_READ_YIELD_FREQUENCY == 0)
-      std::this_thread::yield();
-  }
+  return ReadStableSequenceValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
+    return m_stateInfo.m_tempo.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetFrameAdvance(bool fa)
