@@ -37,8 +37,11 @@ public:
     m_sequence.fetch_add(1, std::memory_order_seq_cst);
   }
 
-  // release ensures protected writes become visible before write-complete marker is observed.
-  ~CScopedSequenceWrite() noexcept { m_sequence.fetch_add(1, std::memory_order_release); }
+  ~CScopedSequenceWrite() noexcept
+  {
+    // release ensures protected writes become visible before write-complete marker is observed.
+    m_sequence.fetch_add(1, std::memory_order_release);
+  }
   CScopedSequenceWrite(const CScopedSequenceWrite&) = delete;
   CScopedSequenceWrite& operator=(const CScopedSequenceWrite&) = delete;
   CScopedSequenceWrite(CScopedSequenceWrite&&) = delete;
@@ -51,6 +54,10 @@ private:
 template<typename ValueType, typename ReaderFunc>
 ValueType ReadSequenceGuardedValue(const std::atomic<uint64_t>& sequence, ReaderFunc&& readValue)
 {
+  // Read value with seqlock-style validation:
+  // - sample sequence before and after callback read
+  // - accept value only when sequence is stable and not write-in-progress (odd)
+  // - periodically yield under contention
   static_assert(std::is_trivially_copyable_v<ValueType>,
                 "ValueType must be trivially copyable for sequence-guarded reads");
 
@@ -897,7 +904,6 @@ bool CDataCacheCore::IsNormalPlayback()
 
 bool CDataCacheCore::IsPausedPlayback()
 {
-  // Exact comparison is intentional: playback speed uses canonical constants (0.0f / 1.0f).
   return ReadSequenceGuardedValue<float>(m_stateInfo.m_speedTempoWriteSeq,
                                          [this]() {
                                            return m_stateInfo.m_speed.load(std::memory_order_relaxed);
