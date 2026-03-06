@@ -1614,6 +1614,11 @@ std::string CAMLCodec::GetDoViCodecFourCC(unsigned int codec_tag) const
   return fourCC;
 }
 
+void CAMLCodec::ResetFrameTimeoutClock()
+{
+  m_tp_last_frame = std::chrono::system_clock::now();
+}
+
 void CAMLCodec::SetProcessInfoVideoDetails()
 {
   m_dataCacheCore.SetVideoHdrType(m_hints.hdrType);
@@ -1646,7 +1651,7 @@ bool CAMLCodec::OpenDecoder(bool restart)
   m_cur_pts = DVD_NOPTS_VALUE;
   m_dst_rect.SetRect(0, 0, 0, 0);
   m_state = 0;
-  m_tp_last_frame = std::chrono::system_clock::now();
+  ResetFrameTimeoutClock();
 
   auto advancedSettings = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings();
 
@@ -2116,6 +2121,7 @@ void CAMLCodec::Reset()
   m_cur_pts = DVD_NOPTS_VALUE;
   m_last_pts = DVD_NOPTS_VALUE;
   m_state = 0;
+  ResetFrameTimeoutClock();
   m_buffer_level_ready = false;
 
   SetSpeed(m_speed);
@@ -2412,7 +2418,7 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture& videoPicture)
     if (((m_buffer_level_ready && (buffer_level > m_minimum_buffer_level)) || m_drain) &&
       GetNextDequeuedBuffer())
   {
-     m_tp_last_frame = std::chrono::system_clock::now();
+     ResetFrameTimeoutClock();
 
     videoPicture.iFlags = 0;
 
@@ -2454,7 +2460,7 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture& videoPicture)
   if (elapsed_since_last_frame > std::chrono::seconds(m_decoder_timeout))
   {
     logM(LOGERROR, "CAMLCodec", "decoder timeout - elf:[{:d}ms]", elapsed_since_last_frame.count());
-    m_tp_last_frame = std::chrono::system_clock::now();
+    ResetFrameTimeoutClock();
     return CDVDVideoCodec::VC_FLUSHED;
   }
 
@@ -2482,7 +2488,7 @@ void CAMLCodec::SetSpeed(int speed)
       break;
     case DVD_PLAYSPEED_NORMAL:
       m_dll->codec_set_cntl_mode(&am_private->vcodec, TRICKMODE_NONE);
-      m_tp_last_frame = std::chrono::system_clock::now();
+      ResetFrameTimeoutClock();
       break;
     default:
       if (IsH264() || (am_private->video_format == VFORMAT_H264_4K2K))

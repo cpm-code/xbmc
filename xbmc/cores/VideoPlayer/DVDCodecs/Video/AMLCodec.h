@@ -306,6 +306,7 @@ private:
   std::string   IntToFourCCString(unsigned int value) const;
   std::string   GetDoViCodecFourCC(unsigned int codec_tag) const;
   void          SetProcessInfoVideoDetails();
+  void          ResetFrameTimeoutClock();
 
 
   DllLibAmCodec   *m_dll;
