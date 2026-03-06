@@ -32,9 +32,11 @@ public:
   explicit CScopedSequenceWrite(std::atomic<uint64_t>& sequence) : m_sequence(sequence)
   {
     // acquire+release keeps following stores from being reordered before write-start marker.
+    // This marks the sequence as odd before protected writes become externally visible.
     m_sequence.fetch_add(1, std::memory_order_acq_rel);
   }
 
+  // release ensures protected writes become visible before write-complete marker is observed.
   ~CScopedSequenceWrite() { m_sequence.fetch_add(1, std::memory_order_release); }
   CScopedSequenceWrite(const CScopedSequenceWrite&) = delete;
   CScopedSequenceWrite& operator=(const CScopedSequenceWrite&) = delete;
@@ -882,6 +884,7 @@ float CDataCacheCore::GetSpeed()
 
 bool CDataCacheCore::IsNormalPlayback()
 {
+  // Exact comparison is intentional: playback speed uses canonical constants (0.0f / 1.0f).
   return ReadSequenceGuardedValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
            return m_stateInfo.m_speed.load(std::memory_order_relaxed);
          }) == 1.0f;
@@ -889,6 +892,7 @@ bool CDataCacheCore::IsNormalPlayback()
 
 bool CDataCacheCore::IsPausedPlayback()
 {
+  // Exact comparison is intentional: playback speed uses canonical constants (0.0f / 1.0f).
   return ReadSequenceGuardedValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
            return m_stateInfo.m_speed.load(std::memory_order_relaxed);
          }) == 0.0f;
