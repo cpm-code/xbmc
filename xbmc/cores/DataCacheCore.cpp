@@ -18,6 +18,7 @@
 #include "utils/log.h"
 
 #include <mutex>
+#include <thread>
 #include <utility>
 
 namespace
@@ -834,16 +835,24 @@ void CDataCacheCore::SetSpeed(float tempo, float speed)
 
 float CDataCacheCore::GetSpeed()
 {
+  unsigned int retries{0};
   while (true)
   {
     const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
     if (before & SPEED_TEMPO_WRITE_ODD_BIT)
+    {
+      if (++retries % 64 == 0)
+        std::this_thread::yield();
       continue;
+    }
 
     const float speed = m_stateInfo.m_speed.load(std::memory_order_relaxed);
     const auto after = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
     if (before == after)
       return speed;
+
+    if (++retries % 64 == 0)
+      std::this_thread::yield();
   }
 }
 
@@ -859,16 +868,24 @@ bool CDataCacheCore::IsPausedPlayback()
 
 float CDataCacheCore::GetTempo()
 {
+  unsigned int retries{0};
   while (true)
   {
     const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
     if (before & SPEED_TEMPO_WRITE_ODD_BIT)
+    {
+      if (++retries % 64 == 0)
+        std::this_thread::yield();
       continue;
+    }
 
     const float tempo = m_stateInfo.m_tempo.load(std::memory_order_relaxed);
     const auto after = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
     if (before == after)
       return tempo;
+
+    if (++retries % 64 == 0)
+      std::this_thread::yield();
   }
 }
 
