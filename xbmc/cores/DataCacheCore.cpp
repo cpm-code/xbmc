@@ -40,11 +40,13 @@ void CDataCacheCore::Reset()
 {
   {
     std::unique_lock lock(m_stateSection);
+    m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_release);
     m_stateInfo.m_stateSeeking.store(false, std::memory_order_relaxed);
     m_stateInfo.m_renderGuiLayer.store(false, std::memory_order_relaxed);
     m_stateInfo.m_renderVideoLayer.store(false, std::memory_order_relaxed);
     m_stateInfo.m_tempo.store(1.0f, std::memory_order_relaxed);
     m_stateInfo.m_speed.store(1.0f, std::memory_order_relaxed);
+    m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_release);
     m_stateInfo.m_frameAdvance.store(false, std::memory_order_relaxed);
     m_stateInfo.m_lastSeekTime = std::chrono::time_point<std::chrono::system_clock>{};
     m_stateInfo.m_lastSeekOffset = 0;
@@ -819,13 +821,25 @@ void CDataCacheCore::SetSpeed(float tempo, float speed)
 {
   std::unique_lock lock(m_stateSection);
 
+  m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_release);
   m_stateInfo.m_tempo.store(tempo, std::memory_order_relaxed);
   m_stateInfo.m_speed.store(speed, std::memory_order_relaxed);
+  m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_release);
 }
 
 float CDataCacheCore::GetSpeed()
 {
-  return m_stateInfo.m_speed.load(std::memory_order_relaxed);
+  while (true)
+  {
+    const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
+    if (before & 1U)
+      continue;
+
+    const float speed = m_stateInfo.m_speed.load(std::memory_order_relaxed);
+    const auto after = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
+    if (before == after)
+      return speed;
+  }
 }
 
 bool CDataCacheCore::IsNormalPlayback()
@@ -840,7 +854,17 @@ bool CDataCacheCore::IsPausedPlayback()
 
 float CDataCacheCore::GetTempo()
 {
-  return m_stateInfo.m_tempo.load(std::memory_order_relaxed);
+  while (true)
+  {
+    const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
+    if (before & 1U)
+      continue;
+
+    const float tempo = m_stateInfo.m_tempo.load(std::memory_order_relaxed);
+    const auto after = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
+    if (before == after)
+      return tempo;
+  }
 }
 
 void CDataCacheCore::SetFrameAdvance(bool fa)

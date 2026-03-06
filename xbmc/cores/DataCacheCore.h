@@ -409,6 +409,7 @@ protected:
   bool m_playerStateChanged = false;
   struct SStateInfo
   {
+    std::atomic<uint64_t> m_speedTempoWriteSeq{0};
     std::atomic<bool> m_stateSeeking{false};
     std::atomic<bool> m_renderGuiLayer{false};
     std::atomic<bool> m_renderVideoLayer{false};
