@@ -124,7 +124,7 @@ void CDataCacheCore::Reset()
     m_stateInfo.m_renderGuiLayer.store(false, std::memory_order_relaxed);
     m_stateInfo.m_renderVideoLayer.store(false, std::memory_order_relaxed);
     {
-      CScopedSequenceWrite speedTempoWriteGuard(m_stateInfo.m_speedTempoWriteSeq);
+      CScopedSequenceWrite speedTempoWriteGuard(m_stateInfo.m_speedTempoSeq);
       m_stateInfo.m_tempo.store(1.0f, std::memory_order_relaxed);
       m_stateInfo.m_speed.store(1.0f, std::memory_order_relaxed);
     }
@@ -137,7 +137,7 @@ void CDataCacheCore::Reset()
     std::unique_lock lock(m_videoPlayerSection);
     m_playerVideoInfo = {};
     {
-      CScopedSequenceWrite videoWriteGuard(m_videoWriteSeq);
+      CScopedSequenceWrite videoWriteGuard(m_videoSeq);
       m_videoWidth.store(0, std::memory_order_relaxed);
       m_videoHeight.store(0, std::memory_order_relaxed);
       m_videoFps.store(0.0f, std::memory_order_relaxed);
@@ -161,7 +161,7 @@ void CDataCacheCore::Reset()
     std::unique_lock lock(m_renderSection);
     m_renderInfo = {};
     {
-      CScopedSequenceWrite renderWriteGuard(m_renderWriteSeq);
+      CScopedSequenceWrite renderWriteGuard(m_renderSeq);
       m_renderClockSync.store(false, std::memory_order_relaxed);
       m_renderPts.store(0.0, std::memory_order_relaxed);
     }
@@ -179,7 +179,7 @@ void CDataCacheCore::ResetAudioCache()
     std::unique_lock lock(m_audioPlayerSection);
     m_playerAudioInfo = {};
     {
-      CScopedSequenceWrite audioWriteGuard(m_audioWriteSeq);
+      CScopedSequenceWrite audioWriteGuard(m_audioSeq);
       m_audioSampleRate.store(0, std::memory_order_relaxed);
       m_audioBitsPerSample.store(0, std::memory_order_relaxed);
       m_audioSpeakerMask.store(0, std::memory_order_relaxed);
@@ -300,7 +300,7 @@ std::string CDataCacheCore::GetVideoStereoMode()
 
 void CDataCacheCore::SetVideoDimensions(int width, int height)
 {
-  CScopedSequenceWrite videoWriteGuard(m_videoWriteSeq);
+  CScopedSequenceWrite videoWriteGuard(m_videoSeq);
 
   m_videoWidth.store(width, std::memory_order_relaxed);
   m_videoHeight.store(height, std::memory_order_relaxed);
@@ -308,93 +308,93 @@ void CDataCacheCore::SetVideoDimensions(int width, int height)
 
 int CDataCacheCore::GetVideoWidth()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoWidth);
+  return ReadSeqAtomic(m_videoSeq, m_videoWidth);
 }
 
 int CDataCacheCore::GetVideoHeight()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoHeight);
+  return ReadSeqAtomic(m_videoSeq, m_videoHeight);
 }
 
 void CDataCacheCore::SetVideoBitDepth(int bitDepth)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoBitDepth, bitDepth);
+  WriteSeqAtomic(m_videoSeq, m_videoBitDepth, bitDepth);
 }
 
 int CDataCacheCore::GetVideoBitDepth()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoBitDepth);
+  return ReadSeqAtomic(m_videoSeq, m_videoBitDepth);
 }
 
 void CDataCacheCore::SetVideoHdrType(StreamHdrType hdrType)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoHdrType, hdrType);
+  WriteSeqAtomic(m_videoSeq, m_videoHdrType, hdrType);
 }
 
 StreamHdrType CDataCacheCore::GetVideoHdrType()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoHdrType);
+  return ReadSeqAtomic(m_videoSeq, m_videoHdrType);
 }
 
 void CDataCacheCore::SetVideoSourceHdrType(StreamHdrType hdrType)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoSourceHdrType, hdrType);
+  WriteSeqAtomic(m_videoSeq, m_videoSourceHdrType, hdrType);
 }
 
 StreamHdrType CDataCacheCore::GetVideoSourceHdrType()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoSourceHdrType);
+  return ReadSeqAtomic(m_videoSeq, m_videoSourceHdrType);
 }
 
 void CDataCacheCore::SetVideoSourceAdditionalHdrType(StreamHdrType hdrType)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoSourceAdditionalHdrType, hdrType);
+  WriteSeqAtomic(m_videoSeq, m_videoSourceAdditionalHdrType, hdrType);
 }
 
 StreamHdrType CDataCacheCore::GetVideoSourceAdditionalHdrType()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoSourceAdditionalHdrType);
+  return ReadSeqAtomic(m_videoSeq, m_videoSourceAdditionalHdrType);
 }
 
 void CDataCacheCore::SetVideoColorSpace(AVColorSpace colorSpace)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoColorSpace, colorSpace);
+  WriteSeqAtomic(m_videoSeq, m_videoColorSpace, colorSpace);
 }
 
 AVColorSpace CDataCacheCore::GetVideoColorSpace()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoColorSpace);
+  return ReadSeqAtomic(m_videoSeq, m_videoColorSpace);
 }
 
 void CDataCacheCore::SetVideoColorRange(AVColorRange colorRange)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoColorRange, colorRange);
+  WriteSeqAtomic(m_videoSeq, m_videoColorRange, colorRange);
 }
 
 AVColorRange CDataCacheCore::GetVideoColorRange()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoColorRange);
+  return ReadSeqAtomic(m_videoSeq, m_videoColorRange);
 }
 
 void CDataCacheCore::SetVideoColorPrimaries(AVColorPrimaries colorPrimaries)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoColorPrimaries, colorPrimaries);
+  WriteSeqAtomic(m_videoSeq, m_videoColorPrimaries, colorPrimaries);
 }
 
 AVColorPrimaries CDataCacheCore::GetVideoColorPrimaries()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoColorPrimaries);
+  return ReadSeqAtomic(m_videoSeq, m_videoColorPrimaries);
 }
 
 void CDataCacheCore::SetVideoColorTransferCharacteristic(AVColorTransferCharacteristic colorTransferCharacteristic)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoColorTransferCharacteristic,
+  WriteSeqAtomic(m_videoSeq, m_videoColorTransferCharacteristic,
                              colorTransferCharacteristic);
 }
 
 AVColorTransferCharacteristic CDataCacheCore::GetVideoColorTransferCharacteristic()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoColorTransferCharacteristic);
+  return ReadSeqAtomic(m_videoSeq, m_videoColorTransferCharacteristic);
 }
 
 void CDataCacheCore::SetVideoDoViFrameMetadata(DOVIFrameMetadata value)
@@ -493,62 +493,62 @@ HDRStaticMetadataInfo CDataCacheCore::GetVideoHDRStaticMetadataInfo()
 
 void CDataCacheCore::SetVideoLiveBitRate(double bitRate)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoLiveBitRate, bitRate);
+  WriteSeqAtomic(m_videoSeq, m_videoLiveBitRate, bitRate);
 }
 
 double CDataCacheCore::GetVideoLiveBitRate()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoLiveBitRate);
+  return ReadSeqAtomic(m_videoSeq, m_videoLiveBitRate);
 }
 
 void CDataCacheCore::SetVideoQueueLevel(int level)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoQueueLevel, level);
+  WriteSeqAtomic(m_videoSeq, m_videoQueueLevel, level);
 }
 
 int CDataCacheCore::GetVideoQueueLevel()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoQueueLevel);
+  return ReadSeqAtomic(m_videoSeq, m_videoQueueLevel);
 }
 
 void CDataCacheCore::SetVideoQueueDataLevel(int level)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoQueueDataLevel, level);
+  WriteSeqAtomic(m_videoSeq, m_videoQueueDataLevel, level);
 }
 
 int CDataCacheCore::GetVideoQueueDataLevel()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoQueueDataLevel);
+  return ReadSeqAtomic(m_videoSeq, m_videoQueueDataLevel);
 }
 
 void CDataCacheCore::SetVideoFps(float fps)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoFps, fps);
+  WriteSeqAtomic(m_videoSeq, m_videoFps, fps);
 }
 
 float CDataCacheCore::GetVideoFps()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoFps);
+  return ReadSeqAtomic(m_videoSeq, m_videoFps);
 }
 
 void CDataCacheCore::SetVideoDAR(float dar)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoDar, dar);
+  WriteSeqAtomic(m_videoSeq, m_videoDar, dar);
 }
 
 float CDataCacheCore::GetVideoDAR()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoDar);
+  return ReadSeqAtomic(m_videoSeq, m_videoDar);
 }
 
 void CDataCacheCore::SetVideoInterlaced(bool isInterlaced)
 {
-  WriteSeqAtomic(m_videoWriteSeq, m_videoIsInterlaced, isInterlaced);
+  WriteSeqAtomic(m_videoSeq, m_videoIsInterlaced, isInterlaced);
 }
 
 bool CDataCacheCore::IsVideoInterlaced()
 {
-  return ReadSeqAtomic(m_videoWriteSeq, m_videoIsInterlaced);
+  return ReadSeqAtomic(m_videoSeq, m_videoIsInterlaced);
 }
 
 // player audio info
@@ -596,22 +596,22 @@ std::string CDataCacheCore::GetAudioChannelsSink()
 
 void CDataCacheCore::SetAudioSampleRate(int sampleRate)
 {
-  WriteSeqAtomic(m_audioWriteSeq, m_audioSampleRate, sampleRate);
+  WriteSeqAtomic(m_audioSeq, m_audioSampleRate, sampleRate);
 }
 
 int CDataCacheCore::GetAudioSampleRate()
 {
-  return ReadSeqAtomic(m_audioWriteSeq, m_audioSampleRate);
+  return ReadSeqAtomic(m_audioSeq, m_audioSampleRate);
 }
 
 void CDataCacheCore::SetAudioBitsPerSample(int bitsPerSample)
 {
-  WriteSeqAtomic(m_audioWriteSeq, m_audioBitsPerSample, bitsPerSample);
+  WriteSeqAtomic(m_audioSeq, m_audioBitsPerSample, bitsPerSample);
 }
 
 int CDataCacheCore::GetAudioBitsPerSample()
 {
-  return ReadSeqAtomic(m_audioWriteSeq, m_audioBitsPerSample);
+  return ReadSeqAtomic(m_audioSeq, m_audioBitsPerSample);
 }
 
 uint64_t CDataCacheCore::MakeSpeakerMask(const CAEChannelInfo& channels)
@@ -688,52 +688,52 @@ uint64_t CDataCacheCore::MakeSpeakerMask(const CAEChannelInfo& channels)
 
 void CDataCacheCore::SetAudioSpeakerMask(uint64_t mask)
 {
-  WriteSeqAtomic(m_audioWriteSeq, m_audioSpeakerMask, mask);
+  WriteSeqAtomic(m_audioSeq, m_audioSpeakerMask, mask);
 }
 
 uint64_t CDataCacheCore::GetAudioSpeakerMask()
 {
-  return ReadSeqAtomic(m_audioWriteSeq, m_audioSpeakerMask);
+  return ReadSeqAtomic(m_audioSeq, m_audioSpeakerMask);
 }
 
 void CDataCacheCore::SetAudioSpeakerMaskSink(uint64_t mask)
 {
-  WriteSeqAtomic(m_audioWriteSeq, m_audioSpeakerMaskSink, mask);
+  WriteSeqAtomic(m_audioSeq, m_audioSpeakerMaskSink, mask);
 }
 
 uint64_t CDataCacheCore::GetAudioSpeakerMaskSink()
 {
-  return ReadSeqAtomic(m_audioWriteSeq, m_audioSpeakerMaskSink);
+  return ReadSeqAtomic(m_audioSeq, m_audioSpeakerMaskSink);
 }
 
 void CDataCacheCore::SetAudioLiveBitRate(double bitRate)
 {
-  WriteSeqAtomic(m_audioWriteSeq, m_audioLiveBitRate, bitRate);
+  WriteSeqAtomic(m_audioSeq, m_audioLiveBitRate, bitRate);
 }
 
 double CDataCacheCore::GetAudioLiveBitRate()
 {
-  return ReadSeqAtomic(m_audioWriteSeq, m_audioLiveBitRate);
+  return ReadSeqAtomic(m_audioSeq, m_audioLiveBitRate);
 }
 
 void CDataCacheCore::SetAudioQueueLevel(int level)
 {
-  WriteSeqAtomic(m_audioWriteSeq, m_audioQueueLevel, level);
+  WriteSeqAtomic(m_audioSeq, m_audioQueueLevel, level);
 }
 
 int CDataCacheCore::GetAudioQueueLevel()
 {
-  return ReadSeqAtomic(m_audioWriteSeq, m_audioQueueLevel);
+  return ReadSeqAtomic(m_audioSeq, m_audioQueueLevel);
 }
 
 void CDataCacheCore::SetAudioQueueDataLevel(int level)
 {
-  WriteSeqAtomic(m_audioWriteSeq, m_audioQueueDataLevel, level);
+  WriteSeqAtomic(m_audioSeq, m_audioQueueDataLevel, level);
 }
 
 int CDataCacheCore::GetAudioQueueDataLevel()
 {
-  return ReadSeqAtomic(m_audioWriteSeq, m_audioQueueDataLevel);
+  return ReadSeqAtomic(m_audioSeq, m_audioQueueDataLevel);
 }
 
 void CDataCacheCore::SetEditList(const std::vector<EDL::Edit>& editList)
@@ -786,22 +786,22 @@ const std::vector<std::pair<std::string, int64_t>>& CDataCacheCore::GetChapters(
 
 void CDataCacheCore::SetRenderClockSync(bool enable)
 {
-  WriteSeqAtomic(m_renderWriteSeq, m_renderClockSync, enable);
+  WriteSeqAtomic(m_renderSeq, m_renderClockSync, enable);
 }
 
 bool CDataCacheCore::IsRenderClockSync()
 {
-  return ReadSeqAtomic(m_renderWriteSeq, m_renderClockSync);
+  return ReadSeqAtomic(m_renderSeq, m_renderClockSync);
 }
 
 void CDataCacheCore::SetRenderPts(double pts)
 {
-  WriteSeqAtomic(m_renderWriteSeq, m_renderPts, pts);
+  WriteSeqAtomic(m_renderSeq, m_renderPts, pts);
 }
 
 double CDataCacheCore::GetRenderPts()
 {
-  return ReadSeqAtomic(m_renderWriteSeq, m_renderPts);
+  return ReadSeqAtomic(m_renderSeq, m_renderPts);
 }
 
 // player states
@@ -847,30 +847,30 @@ void CDataCacheCore::SetSpeed(float tempo, float speed)
 {
   std::unique_lock lock(m_stateSection);
 
-  CScopedSequenceWrite speedTempoWriteGuard(m_stateInfo.m_speedTempoWriteSeq);
+  CScopedSequenceWrite speedTempoWriteGuard(m_stateInfo.m_speedTempoSeq);
   m_stateInfo.m_tempo.store(tempo, std::memory_order_relaxed);
   m_stateInfo.m_speed.store(speed, std::memory_order_relaxed);
 }
 
 float CDataCacheCore::GetSpeed()
 {
-  return ReadSeqAtomic(m_stateInfo.m_speedTempoWriteSeq, m_stateInfo.m_speed);
+  return ReadSeqAtomic(m_stateInfo.m_speedTempoSeq, m_stateInfo.m_speed);
 }
 
 bool CDataCacheCore::IsNormalPlayback()
 {
   // Exact comparison is intentional: playback speed uses canonical constants (0.0f / 1.0f).
-  return ReadSeqAtomic(m_stateInfo.m_speedTempoWriteSeq, m_stateInfo.m_speed) == 1.0f;
+  return ReadSeqAtomic(m_stateInfo.m_speedTempoSeq, m_stateInfo.m_speed) == 1.0f;
 }
 
 bool CDataCacheCore::IsPausedPlayback()
 {
-  return ReadSeqAtomic(m_stateInfo.m_speedTempoWriteSeq, m_stateInfo.m_speed) == 0.0f;
+  return ReadSeqAtomic(m_stateInfo.m_speedTempoSeq, m_stateInfo.m_speed) == 0.0f;
 }
 
 float CDataCacheCore::GetTempo()
 {
-  return ReadSeqAtomic(m_stateInfo.m_speedTempoWriteSeq, m_stateInfo.m_tempo);
+  return ReadSeqAtomic(m_stateInfo.m_speedTempoSeq, m_stateInfo.m_tempo);
 }
 
 void CDataCacheCore::SetFrameAdvance(bool fa)

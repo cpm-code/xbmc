@@ -302,7 +302,7 @@ protected:
     int queueLevel = 0;
     int queueDataLevel = 0;
   } m_playerVideoInfo;
-  std::atomic<uint64_t> m_videoWriteSeq{0};
+  std::atomic<uint64_t> m_videoSeq{0};
   std::atomic<int> m_videoWidth{0};
   std::atomic<int> m_videoHeight{0};
   std::atomic<float> m_videoFps{0.0f};
@@ -335,7 +335,7 @@ protected:
     int queueLevel = 0;
     int queueDataLevel = 0;
   } m_playerAudioInfo;
-  std::atomic<uint64_t> m_audioWriteSeq{0};
+  std::atomic<uint64_t> m_audioSeq{0};
   std::atomic<int> m_audioSampleRate{0};
   std::atomic<int> m_audioBitsPerSample{0};
   std::atomic<uint64_t> m_audioSpeakerMask{0};
@@ -430,7 +430,7 @@ protected:
     bool m_isClockSync;
     double pts = 0;
   } m_renderInfo{};
-  std::atomic<uint64_t> m_renderWriteSeq{0};
+  std::atomic<uint64_t> m_renderSeq{0};
   std::atomic<bool> m_renderClockSync{false};
   std::atomic<double> m_renderPts{0.0};
 
@@ -438,7 +438,7 @@ protected:
   bool m_playerStateChanged = false;
   struct SStateInfo
   {
-    std::atomic<uint64_t> m_speedTempoWriteSeq{0};
+    std::atomic<uint64_t> m_speedTempoSeq{0};
     std::atomic<bool> m_stateSeeking{false};
     std::atomic<bool> m_renderGuiLayer{false};
     std::atomic<bool> m_renderVideoLayer{false};
