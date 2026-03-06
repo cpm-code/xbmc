@@ -20,6 +20,11 @@
 #include <mutex>
 #include <utility>
 
+namespace
+{
+constexpr uint64_t SPEED_TEMPO_WRITE_IN_PROGRESS_MASK{1ULL};
+}
+
 CDataCacheCore::CDataCacheCore() :
   m_playerVideoInfo {},
   m_playerAudioInfo {},
@@ -832,7 +837,7 @@ float CDataCacheCore::GetSpeed()
   while (true)
   {
     const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-    if (before & 1U)
+    if (before & SPEED_TEMPO_WRITE_IN_PROGRESS_MASK)
       continue;
 
     const float speed = m_stateInfo.m_speed.load(std::memory_order_relaxed);
@@ -857,7 +862,7 @@ float CDataCacheCore::GetTempo()
   while (true)
   {
     const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-    if (before & 1U)
+    if (before & SPEED_TEMPO_WRITE_IN_PROGRESS_MASK)
       continue;
 
     const float tempo = m_stateInfo.m_tempo.load(std::memory_order_relaxed);
