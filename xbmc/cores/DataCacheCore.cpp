@@ -19,6 +19,7 @@
 
 #include <mutex>
 #include <thread>
+#include <type_traits>
 #include <utility>
 
 namespace
@@ -29,7 +30,7 @@ constexpr unsigned int SPEED_TEMPO_READ_YIELD_FREQUENCY{64};
 class CScopedSequenceWrite
 {
 public:
-  explicit CScopedSequenceWrite(std::atomic<uint64_t>& sequence) : m_sequence(sequence)
+  explicit CScopedSequenceWrite(std::atomic<uint64_t>& sequence) noexcept : m_sequence(sequence)
   {
     // acquire+release keeps following stores from being reordered before write-start marker.
     // This marks the sequence as odd before protected writes become externally visible.
@@ -37,7 +38,7 @@ public:
   }
 
   // release ensures protected writes become visible before write-complete marker is observed.
-  ~CScopedSequenceWrite() { m_sequence.fetch_add(1, std::memory_order_release); }
+  ~CScopedSequenceWrite() noexcept { m_sequence.fetch_add(1, std::memory_order_release); }
   CScopedSequenceWrite(const CScopedSequenceWrite&) = delete;
   CScopedSequenceWrite& operator=(const CScopedSequenceWrite&) = delete;
   CScopedSequenceWrite(CScopedSequenceWrite&&) = delete;
@@ -50,6 +51,8 @@ private:
 template<typename ValueType, typename ReaderFunc>
 ValueType ReadSequenceGuardedValue(const std::atomic<uint64_t>& sequence, ReaderFunc&& readValue)
 {
+  static_assert(std::is_trivially_copyable_v<ValueType>);
+
   unsigned int retries{0};
   while (true)
   {
