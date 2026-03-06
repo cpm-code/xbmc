@@ -23,7 +23,8 @@
 
 namespace
 {
-constexpr uint64_t SPEED_TEMPO_WRITE_ODD_BIT{1ULL};
+constexpr uint64_t SPEED_TEMPO_WRITE_IN_PROGRESS_MASK{1ULL};
+constexpr unsigned int SPEED_TEMPO_READ_YIELD_FREQUENCY{64};
 }
 
 CDataCacheCore::CDataCacheCore() :
@@ -839,9 +840,9 @@ float CDataCacheCore::GetSpeed()
   while (true)
   {
     const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-    if (before & SPEED_TEMPO_WRITE_ODD_BIT)
+    if (before & SPEED_TEMPO_WRITE_IN_PROGRESS_MASK)
     {
-      if (++retries % 64 == 0)
+      if (++retries % SPEED_TEMPO_READ_YIELD_FREQUENCY == 0)
         std::this_thread::yield();
       continue;
     }
@@ -851,7 +852,7 @@ float CDataCacheCore::GetSpeed()
     if (before == after)
       return speed;
 
-    if (++retries % 64 == 0)
+    if (++retries % SPEED_TEMPO_READ_YIELD_FREQUENCY == 0)
       std::this_thread::yield();
   }
 }
@@ -872,9 +873,9 @@ float CDataCacheCore::GetTempo()
   while (true)
   {
     const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-    if (before & SPEED_TEMPO_WRITE_ODD_BIT)
+    if (before & SPEED_TEMPO_WRITE_IN_PROGRESS_MASK)
     {
-      if (++retries % 64 == 0)
+      if (++retries % SPEED_TEMPO_READ_YIELD_FREQUENCY == 0)
         std::this_thread::yield();
       continue;
     }
@@ -884,7 +885,7 @@ float CDataCacheCore::GetTempo()
     if (before == after)
       return tempo;
 
-    if (++retries % 64 == 0)
+    if (++retries % SPEED_TEMPO_READ_YIELD_FREQUENCY == 0)
       std::this_thread::yield();
   }
 }
