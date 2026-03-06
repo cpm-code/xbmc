@@ -308,16 +308,12 @@ void CDataCacheCore::SetVideoDimensions(int width, int height)
 
 int CDataCacheCore::GetVideoWidth()
 {
-  return ReadSequenceGuardedValue<int>(m_videoScalarWriteSeq, [this]() {
-    return m_videoWidth.load(std::memory_order_relaxed);
-  });
+  return ReadSequenceGuardedAtomic(m_videoScalarWriteSeq, m_videoWidth);
 }
 
 int CDataCacheCore::GetVideoHeight()
 {
-  return ReadSequenceGuardedValue<int>(m_videoScalarWriteSeq, [this]() {
-    return m_videoHeight.load(std::memory_order_relaxed);
-  });
+  return ReadSequenceGuardedAtomic(m_videoScalarWriteSeq, m_videoHeight);
 }
 
 void CDataCacheCore::SetVideoBitDepth(int bitDepth)
