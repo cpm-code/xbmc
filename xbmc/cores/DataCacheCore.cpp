@@ -31,6 +31,7 @@ class CScopedSequenceWrite
 public:
   explicit CScopedSequenceWrite(std::atomic<uint64_t>& sequence) : m_sequence(sequence)
   {
+    // acquire+release keeps following stores from being reordered before write-start marker.
     m_sequence.fetch_add(1, std::memory_order_acq_rel);
   }
 
@@ -45,7 +46,7 @@ private:
 };
 
 template<typename ValueType, typename ReaderFunc>
-ValueType ReadStableSequenceValue(const std::atomic<uint64_t>& sequence, ReaderFunc&& readValue)
+ValueType ReadSequenceGuardedValue(const std::atomic<uint64_t>& sequence, ReaderFunc&& readValue)
 {
   unsigned int retries{0};
   while (true)
@@ -874,28 +875,28 @@ void CDataCacheCore::SetSpeed(float tempo, float speed)
 
 float CDataCacheCore::GetSpeed()
 {
-  return ReadStableSequenceValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
+  return ReadSequenceGuardedValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
     return m_stateInfo.m_speed.load(std::memory_order_relaxed);
   });
 }
 
 bool CDataCacheCore::IsNormalPlayback()
 {
-  return ReadStableSequenceValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
+  return ReadSequenceGuardedValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
            return m_stateInfo.m_speed.load(std::memory_order_relaxed);
          }) == 1.0f;
 }
 
 bool CDataCacheCore::IsPausedPlayback()
 {
-  return ReadStableSequenceValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
+  return ReadSequenceGuardedValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
            return m_stateInfo.m_speed.load(std::memory_order_relaxed);
          }) == 0.0f;
 }
 
 float CDataCacheCore::GetTempo()
 {
-  return ReadStableSequenceValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
+  return ReadSequenceGuardedValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
     return m_stateInfo.m_tempo.load(std::memory_order_relaxed);
   });
 }
