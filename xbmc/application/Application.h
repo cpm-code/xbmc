@@ -167,7 +167,7 @@ public:
 
   void UpdateCurrentPlayArt();
 
-  bool ExecuteXBMCAction(std::string action, const std::shared_ptr<CGUIListItem>& item = NULL);
+  bool ExecuteXBMCAction(const std::string& action, const std::shared_ptr<CGUIListItem>& item = NULL);
 
   bool WasPlaybackCancelled() const { return m_cancelPlayback; }
 
