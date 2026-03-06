@@ -22,7 +22,7 @@
 
 namespace
 {
-constexpr uint64_t SPEED_TEMPO_WRITE_IN_PROGRESS_MASK{1ULL};
+constexpr uint64_t SPEED_TEMPO_WRITE_ODD_BIT{1ULL};
 }
 
 CDataCacheCore::CDataCacheCore() :
@@ -837,7 +837,7 @@ float CDataCacheCore::GetSpeed()
   while (true)
   {
     const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-    if (before & SPEED_TEMPO_WRITE_IN_PROGRESS_MASK)
+    if (before & SPEED_TEMPO_WRITE_ODD_BIT)
       continue;
 
     const float speed = m_stateInfo.m_speed.load(std::memory_order_relaxed);
@@ -862,7 +862,7 @@ float CDataCacheCore::GetTempo()
   while (true)
   {
     const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-    if (before & SPEED_TEMPO_WRITE_IN_PROGRESS_MASK)
+    if (before & SPEED_TEMPO_WRITE_ODD_BIT)
       continue;
 
     const float tempo = m_stateInfo.m_tempo.load(std::memory_order_relaxed);
