@@ -412,7 +412,7 @@ protected:
     std::atomic<bool> m_stateSeeking{false};
     std::atomic<bool> m_renderGuiLayer{false};
     std::atomic<bool> m_renderVideoLayer{false};
-    float m_tempo{1.0f};
+    std::atomic<float> m_tempo{1.0f};
     std::atomic<float> m_speed{1.0f};
     std::atomic<bool> m_frameAdvance{false};
     /*! Time point of the last seek operation */
