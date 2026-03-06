@@ -302,6 +302,11 @@ protected:
     int queueLevel = 0;
     int queueDataLevel = 0;
   } m_playerVideoInfo;
+  std::atomic<uint64_t> m_videoScalarWriteSeq{0};
+  std::atomic<int> m_videoWidth{0};
+  std::atomic<int> m_videoHeight{0};
+  std::atomic<float> m_videoFps{0.0f};
+  std::atomic<float> m_videoDar{0.0f};
 
   CCriticalSection m_audioPlayerSection;
   struct SPlayerAudioInfo
@@ -317,6 +322,14 @@ protected:
     int queueLevel = 0;
     int queueDataLevel = 0;
   } m_playerAudioInfo;
+  std::atomic<uint64_t> m_audioScalarWriteSeq{0};
+  std::atomic<int> m_audioSampleRate{0};
+  std::atomic<int> m_audioBitsPerSample{0};
+  std::atomic<uint64_t> m_audioSpeakerMask{0};
+  std::atomic<uint64_t> m_audioSpeakerMaskSink{0};
+  std::atomic<double> m_audioLiveBitRate{0.0};
+  std::atomic<int> m_audioQueueLevel{0};
+  std::atomic<int> m_audioQueueDataLevel{0};
 
   mutable CCriticalSection m_contentSection;
   struct SContentInfo
@@ -404,6 +417,9 @@ protected:
     bool m_isClockSync;
     double pts = 0;
   } m_renderInfo{};
+  std::atomic<uint64_t> m_renderScalarWriteSeq{0};
+  std::atomic<bool> m_renderClockSync{false};
+  std::atomic<double> m_renderPts{0.0};
 
   mutable CCriticalSection m_stateSection;
   bool m_playerStateChanged = false;

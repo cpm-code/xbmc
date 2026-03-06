@@ -115,11 +115,23 @@ void CDataCacheCore::Reset()
   {
     std::unique_lock lock(m_videoPlayerSection);
     m_playerVideoInfo = {};
+    {
+      CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
+      m_videoWidth.store(0, std::memory_order_relaxed);
+      m_videoHeight.store(0, std::memory_order_relaxed);
+      m_videoFps.store(0.0f, std::memory_order_relaxed);
+      m_videoDar.store(0.0f, std::memory_order_relaxed);
+    }
   }
   m_hasAVInfoChanges = false;
   {
     std::unique_lock lock(m_renderSection);
     m_renderInfo = {};
+    {
+      CScopedSequenceWrite renderWriteGuard(m_renderScalarWriteSeq);
+      m_renderClockSync.store(false, std::memory_order_relaxed);
+      m_renderPts.store(0.0, std::memory_order_relaxed);
+    }
   }
   {
     std::unique_lock lock(m_contentSection);
@@ -133,6 +145,16 @@ void CDataCacheCore::ResetAudioCache()
   {
     std::unique_lock lock(m_audioPlayerSection);
     m_playerAudioInfo = {};
+    {
+      CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
+      m_audioSampleRate.store(0, std::memory_order_relaxed);
+      m_audioBitsPerSample.store(0, std::memory_order_relaxed);
+      m_audioSpeakerMask.store(0, std::memory_order_relaxed);
+      m_audioSpeakerMaskSink.store(0, std::memory_order_relaxed);
+      m_audioLiveBitRate.store(0.0, std::memory_order_relaxed);
+      m_audioQueueLevel.store(0, std::memory_order_relaxed);
+      m_audioQueueDataLevel.store(0, std::memory_order_relaxed);
+    }
   }
 }
 
@@ -246,23 +268,26 @@ std::string CDataCacheCore::GetVideoStereoMode()
 void CDataCacheCore::SetVideoDimensions(int width, int height)
 {
   std::unique_lock lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.width = width;
   m_playerVideoInfo.height = height;
+  m_videoWidth.store(width, std::memory_order_relaxed);
+  m_videoHeight.store(height, std::memory_order_relaxed);
 }
 
 int CDataCacheCore::GetVideoWidth()
 {
-  std::unique_lock lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.width;
+  return ReadSequenceGuardedValue<int>(m_videoScalarWriteSeq, [this]() {
+    return m_videoWidth.load(std::memory_order_relaxed);
+  });
 }
 
 int CDataCacheCore::GetVideoHeight()
 {
-  std::unique_lock lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.height;
+  return ReadSequenceGuardedValue<int>(m_videoScalarWriteSeq, [this]() {
+    return m_videoHeight.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoBitDepth(int bitDepth)
@@ -516,29 +541,33 @@ int CDataCacheCore::GetVideoQueueDataLevel()
 void CDataCacheCore::SetVideoFps(float fps)
 {
   std::unique_lock lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.fps = fps;
+  m_videoFps.store(fps, std::memory_order_relaxed);
 }
 
 float CDataCacheCore::GetVideoFps()
 {
-  std::unique_lock lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.fps;
+  return ReadSequenceGuardedValue<float>(m_videoScalarWriteSeq, [this]() {
+    return m_videoFps.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoDAR(float dar)
 {
   std::unique_lock lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.dar = dar;
+  m_videoDar.store(dar, std::memory_order_relaxed);
 }
 
 float CDataCacheCore::GetVideoDAR()
 {
-  std::unique_lock lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.dar;
+  return ReadSequenceGuardedValue<float>(m_videoScalarWriteSeq, [this]() {
+    return m_videoDar.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoInterlaced(bool isInterlaced)
@@ -599,29 +628,33 @@ std::string CDataCacheCore::GetAudioChannelsSink()
 void CDataCacheCore::SetAudioSampleRate(int sampleRate)
 {
   std::unique_lock lock(m_audioPlayerSection);
+  CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
 
   m_playerAudioInfo.sampleRate = sampleRate;
+  m_audioSampleRate.store(sampleRate, std::memory_order_relaxed);
 }
 
 int CDataCacheCore::GetAudioSampleRate()
 {
-  std::unique_lock lock(m_audioPlayerSection);
-
-  return m_playerAudioInfo.sampleRate;
+  return ReadSequenceGuardedValue<int>(m_audioScalarWriteSeq, [this]() {
+    return m_audioSampleRate.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetAudioBitsPerSample(int bitsPerSample)
 {
   std::unique_lock lock(m_audioPlayerSection);
+  CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
 
   m_playerAudioInfo.bitsPerSample = bitsPerSample;
+  m_audioBitsPerSample.store(bitsPerSample, std::memory_order_relaxed);
 }
 
 int CDataCacheCore::GetAudioBitsPerSample()
 {
-  std::unique_lock lock(m_audioPlayerSection);
-
-  return m_playerAudioInfo.bitsPerSample;
+  return ReadSequenceGuardedValue<int>(m_audioScalarWriteSeq, [this]() {
+    return m_audioBitsPerSample.load(std::memory_order_relaxed);
+  });
 }
 
 uint64_t CDataCacheCore::MakeSpeakerMask(const CAEChannelInfo& channels)
@@ -699,67 +732,79 @@ uint64_t CDataCacheCore::MakeSpeakerMask(const CAEChannelInfo& channels)
 void CDataCacheCore::SetAudioSpeakerMask(uint64_t mask)
 {
   std::unique_lock lock(m_audioPlayerSection);
+  CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
   m_playerAudioInfo.speakerMask = mask;
+  m_audioSpeakerMask.store(mask, std::memory_order_relaxed);
 }
 
 uint64_t CDataCacheCore::GetAudioSpeakerMask()
 {
-  std::unique_lock lock(m_audioPlayerSection);
-  return m_playerAudioInfo.speakerMask;
+  return ReadSequenceGuardedValue<uint64_t>(m_audioScalarWriteSeq, [this]() {
+    return m_audioSpeakerMask.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetAudioSpeakerMaskSink(uint64_t mask)
 {
   std::unique_lock lock(m_audioPlayerSection);
+  CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
   m_playerAudioInfo.speakerMaskSink = mask;
+  m_audioSpeakerMaskSink.store(mask, std::memory_order_relaxed);
 }
 
 uint64_t CDataCacheCore::GetAudioSpeakerMaskSink()
 {
-  std::unique_lock lock(m_audioPlayerSection);
-  return m_playerAudioInfo.speakerMaskSink;
+  return ReadSequenceGuardedValue<uint64_t>(m_audioScalarWriteSeq, [this]() {
+    return m_audioSpeakerMaskSink.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetAudioLiveBitRate(double bitRate)
 {
   std::lock_guard lock(m_audioPlayerSection);
+  CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
 
   m_playerAudioInfo.liveBitRate = bitRate;
+  m_audioLiveBitRate.store(bitRate, std::memory_order_relaxed);
 }
 
 double CDataCacheCore::GetAudioLiveBitRate()
 {
-  std::lock_guard lock(m_audioPlayerSection);
-
-  return m_playerAudioInfo.liveBitRate;
+  return ReadSequenceGuardedValue<double>(m_audioScalarWriteSeq, [this]() {
+    return m_audioLiveBitRate.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetAudioQueueLevel(int level)
 {
   std::lock_guard lock(m_audioPlayerSection);
+  CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
 
   m_playerAudioInfo.queueLevel = level;
+  m_audioQueueLevel.store(level, std::memory_order_relaxed);
 }
 
 int CDataCacheCore::GetAudioQueueLevel()
 {
-  std::lock_guard lock(m_audioPlayerSection);
-
-  return m_playerAudioInfo.queueLevel;
+  return ReadSequenceGuardedValue<int>(m_audioScalarWriteSeq, [this]() {
+    return m_audioQueueLevel.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetAudioQueueDataLevel(int level)
 {
   std::lock_guard lock(m_audioPlayerSection);
+  CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
 
   m_playerAudioInfo.queueDataLevel = level;
+  m_audioQueueDataLevel.store(level, std::memory_order_relaxed);
 }
 
 int CDataCacheCore::GetAudioQueueDataLevel()
 {
-  std::lock_guard lock(m_audioPlayerSection);
-
-  return m_playerAudioInfo.queueDataLevel;
+  return ReadSequenceGuardedValue<int>(m_audioScalarWriteSeq, [this]() {
+    return m_audioQueueDataLevel.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetEditList(const std::vector<EDL::Edit>& editList)
@@ -813,29 +858,33 @@ const std::vector<std::pair<std::string, int64_t>>& CDataCacheCore::GetChapters(
 void CDataCacheCore::SetRenderClockSync(bool enable)
 {
   std::unique_lock lock(m_renderSection);
+  CScopedSequenceWrite renderWriteGuard(m_renderScalarWriteSeq);
 
   m_renderInfo.m_isClockSync = enable;
+  m_renderClockSync.store(enable, std::memory_order_relaxed);
 }
 
 bool CDataCacheCore::IsRenderClockSync()
 {
-  std::unique_lock lock(m_renderSection);
-
-  return m_renderInfo.m_isClockSync;
+  return ReadSequenceGuardedValue<bool>(m_renderScalarWriteSeq, [this]() {
+    return m_renderClockSync.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetRenderPts(double pts)
 {
   std::lock_guard lock(m_renderSection);
+  CScopedSequenceWrite renderWriteGuard(m_renderScalarWriteSeq);
 
   m_renderInfo.pts = pts;
+  m_renderPts.store(pts, std::memory_order_relaxed);
 }
 
 double CDataCacheCore::GetRenderPts()
 {
-  std::lock_guard lock(m_renderSection);
-
-  return m_renderInfo.pts;
+  return ReadSequenceGuardedValue<double>(m_renderScalarWriteSeq, [this]() {
+    return m_renderPts.load(std::memory_order_relaxed);
+  });
 }
 
 // player states
