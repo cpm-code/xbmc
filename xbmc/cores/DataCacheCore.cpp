@@ -32,9 +32,9 @@ class CScopedSequenceWrite
 public:
   explicit CScopedSequenceWrite(std::atomic<uint64_t>& sequence) noexcept : m_sequence(sequence)
   {
-    // acquire+release keeps following stores from being reordered before write-start marker.
+    // seq_cst keeps following stores from being reordered before write-start marker.
     // This marks the sequence as odd before protected writes become externally visible.
-    m_sequence.fetch_add(1, std::memory_order_acq_rel);
+    m_sequence.fetch_add(1, std::memory_order_seq_cst);
   }
 
   // release ensures protected writes become visible before write-complete marker is observed.
@@ -51,7 +51,8 @@ private:
 template<typename ValueType, typename ReaderFunc>
 ValueType ReadSequenceGuardedValue(const std::atomic<uint64_t>& sequence, ReaderFunc&& readValue)
 {
-  static_assert(std::is_trivially_copyable_v<ValueType>);
+  static_assert(std::is_trivially_copyable_v<ValueType>,
+                "ValueType must be trivially copyable for sequence-guarded reads");
 
   unsigned int retries{0};
   while (true)
