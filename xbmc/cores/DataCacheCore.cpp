@@ -35,6 +35,10 @@ public:
   }
 
   ~CScopedSequenceWrite() { m_sequence.fetch_add(1, std::memory_order_release); }
+  CScopedSequenceWrite(const CScopedSequenceWrite&) = delete;
+  CScopedSequenceWrite& operator=(const CScopedSequenceWrite&) = delete;
+  CScopedSequenceWrite(CScopedSequenceWrite&&) = delete;
+  CScopedSequenceWrite& operator=(CScopedSequenceWrite&&) = delete;
 
 private:
   std::atomic<uint64_t>& m_sequence;
@@ -55,11 +59,8 @@ ValueType ReadStableSequenceValue(const std::atomic<uint64_t>& sequence, ReaderF
         return value;
     }
 
-    if (++retries == SPEED_TEMPO_READ_YIELD_FREQUENCY)
-    {
-      retries = 0;
+    if (++retries % SPEED_TEMPO_READ_YIELD_FREQUENCY == 0)
       std::this_thread::yield();
-    }
   }
 }
 }
