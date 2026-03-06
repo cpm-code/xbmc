@@ -40,7 +40,14 @@ void CDataCacheCore::Reset()
 {
   {
     std::unique_lock lock(m_stateSection);
-    m_stateInfo = {};
+    m_stateInfo.m_stateSeeking = false;
+    m_stateInfo.m_renderGuiLayer = false;
+    m_stateInfo.m_renderVideoLayer = false;
+    m_stateInfo.m_tempo = 1.0f;
+    m_stateInfo.m_speed.store(1.0f, std::memory_order_relaxed);
+    m_stateInfo.m_frameAdvance = false;
+    m_stateInfo.m_lastSeekTime = std::chrono::time_point<std::chrono::system_clock>{};
+    m_stateInfo.m_lastSeekOffset = 0;
     m_playerStateChanged = false;
   }
   {
@@ -815,28 +822,22 @@ void CDataCacheCore::SetSpeed(float tempo, float speed)
   std::unique_lock lock(m_stateSection);
 
   m_stateInfo.m_tempo = tempo;
-  m_stateInfo.m_speed = speed;
+  m_stateInfo.m_speed.store(speed, std::memory_order_relaxed);
 }
 
 float CDataCacheCore::GetSpeed()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_speed;
+  return m_stateInfo.m_speed.load(std::memory_order_relaxed);
 }
 
 bool CDataCacheCore::IsNormalPlayback()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_speed == 1.0f;
+  return m_stateInfo.m_speed.load(std::memory_order_relaxed) == 1.0f;
 }
 
 bool CDataCacheCore::IsPausedPlayback()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_speed == 0.0f;
+  return m_stateInfo.m_speed.load(std::memory_order_relaxed) == 0.0f;
 }
 
 float CDataCacheCore::GetTempo()
