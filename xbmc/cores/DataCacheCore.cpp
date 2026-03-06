@@ -50,7 +50,7 @@ void CDataCacheCore::Reset()
     m_stateInfo.m_stateSeeking.store(false, std::memory_order_relaxed);
     m_stateInfo.m_renderGuiLayer.store(false, std::memory_order_relaxed);
     m_stateInfo.m_renderVideoLayer.store(false, std::memory_order_relaxed);
-    m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_relaxed);
+    m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_acq_rel);
     m_stateInfo.m_tempo.store(1.0f, std::memory_order_relaxed);
     m_stateInfo.m_speed.store(1.0f, std::memory_order_relaxed);
     m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_release);
@@ -828,7 +828,7 @@ void CDataCacheCore::SetSpeed(float tempo, float speed)
 {
   std::unique_lock lock(m_stateSection);
 
-  m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_relaxed);
+  m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_acq_rel);
   m_stateInfo.m_tempo.store(tempo, std::memory_order_relaxed);
   m_stateInfo.m_speed.store(speed, std::memory_order_relaxed);
   m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_release);
