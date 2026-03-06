@@ -791,6 +791,10 @@ bool CRenderManager::CalcOverlayActiveArea(CRect& src, CRect& dst) const {
 
 void CRenderManager::ClockAlign()
 {
+  if (m_dataCacheCore.IsPausedPlayback()) return;
+
+  double speed = static_cast<double>(std::abs(m_dataCacheCore.GetSpeed()));
+
   struct WaitDebugInfo
   {
     bool used = false;
@@ -812,8 +816,8 @@ void CRenderManager::ClockAlign()
   {
     // Sleep a bounded slice of the remaining gap.
     // i.e. home in on the pts, ramping perceived frame rate until matching
-    const double remainingWaitUs = std::max(0.0, m_presentpts - m_dvdClock.GetClock());
-    const double frameTimeUs = m_presentframetime;
+    const double remainingWaitUs = std::max(0.0, (m_presentpts - m_dvdClock.GetClock()) / speed);
+    const double frameTimeUs = m_presentframetime / speed;
     double sleepUs = (remainingWaitUs > 1000000)
       ? (frameTimeUs * 4)
       : (frameTimeUs * (((remainingWaitUs / frameTimeUs) / 10) + 1));
@@ -835,7 +839,7 @@ void CRenderManager::ClockAlign()
     // GUI-layer renderers are paced by the normal swap/present path.
     if (!m_pRenderer || m_pRenderer->IsGuiLayer())
     {
-      const double remainingWaitUs = std::max(0.0, m_presentpts - m_dvdClock.GetClock());
+      const double remainingWaitUs = std::max(0.0, (m_presentpts - m_dvdClock.GetClock()) / speed);
       waitDbg.used = true;
       waitDbg.gui = true;
       waitDbg.waitUs = remainingWaitUs;
@@ -845,14 +849,14 @@ void CRenderManager::ClockAlign()
     int nextInUs{0};
     if (!aml_get_time_to_next_vsync_us(nextInUs))
     {
-      const double remainingWaitUs = std::max(0.0, m_presentpts - m_dvdClock.GetClock());
+      const double remainingWaitUs = std::max(0.0, (m_presentpts - m_dvdClock.GetClock()) / speed);
       waitDbg.used = true;
       waitDbg.waitUs = remainingWaitUs;
       aml_wait(remainingWaitUs);
       return;
     }
 
-    const double remainingWaitUs = std::max(0.0, m_presentpts - m_dvdClock.GetClock());
+    const double remainingWaitUs = std::max(0.0, (m_presentpts - m_dvdClock.GetClock()) / speed);
     waitDbg.used = true;
     waitDbg.waitUs = remainingWaitUs;
     waitDbg.gotNextIn = true;
@@ -888,7 +892,7 @@ void CRenderManager::ClockAlign()
   };
 
   double renderPts = m_dvdClock.GetClock();
-  double diff = (renderPts - m_presentpts);
+  double diff = (renderPts - m_presentpts) / speed;
 
   // Seek may push the diff to a large negative value, make sure it is sensible.
   // TODO: should be better protected elsewhere.
