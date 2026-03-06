@@ -121,6 +121,18 @@ void CDataCacheCore::Reset()
       m_videoHeight.store(0, std::memory_order_relaxed);
       m_videoFps.store(0.0f, std::memory_order_relaxed);
       m_videoDar.store(0.0f, std::memory_order_relaxed);
+      m_videoIsInterlaced.store(false, std::memory_order_relaxed);
+      m_videoBitDepth.store(0, std::memory_order_relaxed);
+      m_videoHdrType.store(StreamHdrType::HDR_TYPE_NONE, std::memory_order_relaxed);
+      m_videoSourceHdrType.store(StreamHdrType::HDR_TYPE_NONE, std::memory_order_relaxed);
+      m_videoSourceAdditionalHdrType.store(StreamHdrType::HDR_TYPE_NONE, std::memory_order_relaxed);
+      m_videoColorSpace.store(AVCOL_SPC_UNSPECIFIED, std::memory_order_relaxed);
+      m_videoColorRange.store(AVCOL_RANGE_UNSPECIFIED, std::memory_order_relaxed);
+      m_videoColorPrimaries.store(AVCOL_PRI_UNSPECIFIED, std::memory_order_relaxed);
+      m_videoColorTransferCharacteristic.store(AVCOL_TRC_UNSPECIFIED, std::memory_order_relaxed);
+      m_videoLiveBitRate.store(0.0, std::memory_order_relaxed);
+      m_videoQueueLevel.store(0, std::memory_order_relaxed);
+      m_videoQueueDataLevel.store(0, std::memory_order_relaxed);
     }
   }
   m_hasAVInfoChanges = false;
@@ -293,113 +305,129 @@ int CDataCacheCore::GetVideoHeight()
 void CDataCacheCore::SetVideoBitDepth(int bitDepth)
 {
   std::lock_guard lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.bitDepth = bitDepth;
+  m_videoBitDepth.store(bitDepth, std::memory_order_relaxed);
 }
 
 int CDataCacheCore::GetVideoBitDepth()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.bitDepth;
+  return ReadSequenceGuardedValue<int>(m_videoScalarWriteSeq, [this]() {
+    return m_videoBitDepth.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoHdrType(StreamHdrType hdrType)
 {
   std::lock_guard lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.hdrType = hdrType;
+  m_videoHdrType.store(hdrType, std::memory_order_relaxed);
 }
 
 StreamHdrType CDataCacheCore::GetVideoHdrType()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.hdrType;
+  return ReadSequenceGuardedValue<StreamHdrType>(m_videoScalarWriteSeq, [this]() {
+    return m_videoHdrType.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoSourceHdrType(StreamHdrType hdrType)
 {
   std::lock_guard lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.sourceHdrType = hdrType;
+  m_videoSourceHdrType.store(hdrType, std::memory_order_relaxed);
 }
 
 StreamHdrType CDataCacheCore::GetVideoSourceHdrType()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.sourceHdrType;
+  return ReadSequenceGuardedValue<StreamHdrType>(m_videoScalarWriteSeq, [this]() {
+    return m_videoSourceHdrType.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoSourceAdditionalHdrType(StreamHdrType hdrType)
 {
   std::lock_guard lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.sourceAdditionalHdrType = hdrType;
+  m_videoSourceAdditionalHdrType.store(hdrType, std::memory_order_relaxed);
 }
 
 StreamHdrType CDataCacheCore::GetVideoSourceAdditionalHdrType()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.sourceAdditionalHdrType;
+  return ReadSequenceGuardedValue<StreamHdrType>(m_videoScalarWriteSeq, [this]() {
+    return m_videoSourceAdditionalHdrType.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoColorSpace(AVColorSpace colorSpace)
 {
   std::lock_guard lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.colorSpace = colorSpace;
+  m_videoColorSpace.store(colorSpace, std::memory_order_relaxed);
 }
 
 AVColorSpace CDataCacheCore::GetVideoColorSpace()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.colorSpace;
+  return ReadSequenceGuardedValue<AVColorSpace>(m_videoScalarWriteSeq, [this]() {
+    return m_videoColorSpace.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoColorRange(AVColorRange colorRange)
 {
   std::lock_guard lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.colorRange = colorRange;
+  m_videoColorRange.store(colorRange, std::memory_order_relaxed);
 }
 
 AVColorRange CDataCacheCore::GetVideoColorRange()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.colorRange;
+  return ReadSequenceGuardedValue<AVColorRange>(m_videoScalarWriteSeq, [this]() {
+    return m_videoColorRange.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoColorPrimaries(AVColorPrimaries colorPrimaries)
 {
   std::lock_guard lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.colorPrimaries = colorPrimaries;
+  m_videoColorPrimaries.store(colorPrimaries, std::memory_order_relaxed);
 }
 
 AVColorPrimaries CDataCacheCore::GetVideoColorPrimaries()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.colorPrimaries;
+  return ReadSequenceGuardedValue<AVColorPrimaries>(m_videoScalarWriteSeq, [this]() {
+    return m_videoColorPrimaries.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoColorTransferCharacteristic(AVColorTransferCharacteristic colorTransferCharacteristic)
 {
   std::lock_guard lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.colorTransferCharacteristic = colorTransferCharacteristic;
+  m_videoColorTransferCharacteristic.store(colorTransferCharacteristic, std::memory_order_relaxed);
 }
 
 AVColorTransferCharacteristic CDataCacheCore::GetVideoColorTransferCharacteristic()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.colorTransferCharacteristic;
+  return ReadSequenceGuardedValue<AVColorTransferCharacteristic>(m_videoScalarWriteSeq, [this]() {
+    return m_videoColorTransferCharacteristic.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoDoViFrameMetadata(DOVIFrameMetadata value)
@@ -499,43 +527,49 @@ HDRStaticMetadataInfo CDataCacheCore::GetVideoHDRStaticMetadataInfo()
 void CDataCacheCore::SetVideoLiveBitRate(double bitRate)
 {
   std::lock_guard lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.liveBitRate = bitRate;
+  m_videoLiveBitRate.store(bitRate, std::memory_order_relaxed);
 }
 
 double CDataCacheCore::GetVideoLiveBitRate()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.liveBitRate;
+  return ReadSequenceGuardedValue<double>(m_videoScalarWriteSeq, [this]() {
+    return m_videoLiveBitRate.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoQueueLevel(int level)
 {
   std::lock_guard lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.queueLevel = level;
+  m_videoQueueLevel.store(level, std::memory_order_relaxed);
 }
 
 int CDataCacheCore::GetVideoQueueLevel()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.queueLevel;
+  return ReadSequenceGuardedValue<int>(m_videoScalarWriteSeq, [this]() {
+    return m_videoQueueLevel.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoQueueDataLevel(int level)
 {
   std::lock_guard lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
   m_playerVideoInfo.queueDataLevel = level;
+  m_videoQueueDataLevel.store(level, std::memory_order_relaxed);
 }
 
 int CDataCacheCore::GetVideoQueueDataLevel()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.queueDataLevel;
+  return ReadSequenceGuardedValue<int>(m_videoScalarWriteSeq, [this]() {
+    return m_videoQueueDataLevel.load(std::memory_order_relaxed);
+  });
 }
 
 void CDataCacheCore::SetVideoFps(float fps)
@@ -573,13 +607,16 @@ float CDataCacheCore::GetVideoDAR()
 void CDataCacheCore::SetVideoInterlaced(bool isInterlaced)
 {
   std::unique_lock lock(m_videoPlayerSection);
+  CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
   m_playerVideoInfo.m_isInterlaced = isInterlaced;
+  m_videoIsInterlaced.store(isInterlaced, std::memory_order_relaxed);
 }
 
 bool CDataCacheCore::IsVideoInterlaced()
 {
-  std::unique_lock lock(m_videoPlayerSection);
-  return m_playerVideoInfo.m_isInterlaced;
+  return ReadSequenceGuardedValue<bool>(m_videoScalarWriteSeq, [this]() {
+    return m_videoIsInterlaced.load(std::memory_order_relaxed);
+  });
 }
 
 // player audio info

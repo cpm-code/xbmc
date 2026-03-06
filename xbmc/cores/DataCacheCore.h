@@ -307,6 +307,19 @@ protected:
   std::atomic<int> m_videoHeight{0};
   std::atomic<float> m_videoFps{0.0f};
   std::atomic<float> m_videoDar{0.0f};
+  std::atomic<bool> m_videoIsInterlaced{false};
+  std::atomic<int> m_videoBitDepth{0};
+  std::atomic<StreamHdrType> m_videoHdrType{StreamHdrType::HDR_TYPE_NONE};
+  std::atomic<StreamHdrType> m_videoSourceHdrType{StreamHdrType::HDR_TYPE_NONE};
+  std::atomic<StreamHdrType> m_videoSourceAdditionalHdrType{StreamHdrType::HDR_TYPE_NONE};
+  std::atomic<AVColorSpace> m_videoColorSpace{AVCOL_SPC_UNSPECIFIED};
+  std::atomic<AVColorRange> m_videoColorRange{AVCOL_RANGE_UNSPECIFIED};
+  std::atomic<AVColorPrimaries> m_videoColorPrimaries{AVCOL_PRI_UNSPECIFIED};
+  std::atomic<AVColorTransferCharacteristic> m_videoColorTransferCharacteristic{
+      AVCOL_TRC_UNSPECIFIED};
+  std::atomic<double> m_videoLiveBitRate{0.0};
+  std::atomic<int> m_videoQueueLevel{0};
+  std::atomic<int> m_videoQueueDataLevel{0};
 
   CCriticalSection m_audioPlayerSection;
   struct SPlayerAudioInfo
