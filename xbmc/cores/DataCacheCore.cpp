@@ -40,12 +40,12 @@ void CDataCacheCore::Reset()
 {
   {
     std::unique_lock lock(m_stateSection);
-    m_stateInfo.m_stateSeeking = false;
-    m_stateInfo.m_renderGuiLayer = false;
-    m_stateInfo.m_renderVideoLayer = false;
+    m_stateInfo.m_stateSeeking.store(false, std::memory_order_relaxed);
+    m_stateInfo.m_renderGuiLayer.store(false, std::memory_order_relaxed);
+    m_stateInfo.m_renderVideoLayer.store(false, std::memory_order_relaxed);
     m_stateInfo.m_tempo = 1.0f;
     m_stateInfo.m_speed.store(1.0f, std::memory_order_relaxed);
-    m_stateInfo.m_frameAdvance = false;
+    m_stateInfo.m_frameAdvance.store(false, std::memory_order_relaxed);
     m_stateInfo.m_lastSeekTime = std::chrono::time_point<std::chrono::system_clock>{};
     m_stateInfo.m_lastSeekOffset = 0;
     m_playerStateChanged = false;
@@ -806,15 +806,13 @@ void CDataCacheCore::SetStateSeeking(bool active)
 {
   std::unique_lock lock(m_stateSection);
 
-  m_stateInfo.m_stateSeeking = active;
+  m_stateInfo.m_stateSeeking.store(active, std::memory_order_relaxed);
   m_playerStateChanged = true;
 }
 
 bool CDataCacheCore::IsSeeking()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_stateSeeking;
+  return m_stateInfo.m_stateSeeking.load(std::memory_order_relaxed);
 }
 
 void CDataCacheCore::SetSpeed(float tempo, float speed)
@@ -849,16 +847,12 @@ float CDataCacheCore::GetTempo()
 
 void CDataCacheCore::SetFrameAdvance(bool fa)
 {
-  std::unique_lock lock(m_stateSection);
-
-  m_stateInfo.m_frameAdvance = fa;
+  m_stateInfo.m_frameAdvance.store(fa, std::memory_order_relaxed);
 }
 
 bool CDataCacheCore::IsFrameAdvance()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_frameAdvance;
+  return m_stateInfo.m_frameAdvance.load(std::memory_order_relaxed);
 }
 
 bool CDataCacheCore::IsPlayerStateChanged()
@@ -875,30 +869,26 @@ void CDataCacheCore::SetGuiRender(bool gui)
 {
   std::unique_lock lock(m_stateSection);
 
-  m_stateInfo.m_renderGuiLayer = gui;
+  m_stateInfo.m_renderGuiLayer.store(gui, std::memory_order_relaxed);
   m_playerStateChanged = true;
 }
 
 bool CDataCacheCore::GetGuiRender()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_renderGuiLayer;
+  return m_stateInfo.m_renderGuiLayer.load(std::memory_order_relaxed);
 }
 
 void CDataCacheCore::SetVideoRender(bool video)
 {
   std::unique_lock lock(m_stateSection);
 
-  m_stateInfo.m_renderVideoLayer = video;
+  m_stateInfo.m_renderVideoLayer.store(video, std::memory_order_relaxed);
   m_playerStateChanged = true;
 }
 
 bool CDataCacheCore::GetVideoRender()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_renderVideoLayer;
+  return m_stateInfo.m_renderVideoLayer.load(std::memory_order_relaxed);
 }
 
 void CDataCacheCore::SetPlayTimes(time_t start, int64_t current, int64_t min, int64_t max)
