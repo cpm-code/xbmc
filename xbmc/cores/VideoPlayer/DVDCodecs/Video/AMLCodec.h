@@ -264,7 +264,7 @@ public:
   CDVDVideoCodec::VCReturn GetPicture(VideoPicture& videoPicture);
 
   void          SetSpeed(int speed);
-  void          SetDrain(bool drain) { m_drain = drain; };
+  void          SetDrain(bool drain);
   void          SetVideoRect(const CRect &DestRect);
   uint64_t      GetOMXPts() const { return m_cur_pts; }
   uint32_t      GetBufferIndex() const { return m_bufferIndex; };
@@ -345,6 +345,7 @@ private:
   CDataCacheCore  &m_dataCacheCore;
 
   int              m_decoder_timeout;
+  int              m_decoder_drain_timeout;
   float            m_decoder_buffer;
   float            m_decoder_stream_buffer;
   float            m_decoder_minimum_buffer;
@@ -352,9 +353,10 @@ private:
   int64_t          m_decoder_h264_offset;
 
   std::chrono::time_point<std::chrono::system_clock> m_tp_last_frame;
+  std::chrono::time_point<std::chrono::system_clock> m_tp_drain_start;
 
   bool             m_buffer_level_ready;
-  float            m_minimum_buffer_level;
+  float            m_minimum_buffer_level{0.0f};
 
   std::mutex       m_ioControlMutex;
 };
