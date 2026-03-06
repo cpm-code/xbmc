@@ -23,7 +23,7 @@
 
 namespace
 {
-constexpr uint64_t SPEED_TEMPO_WRITE_IN_PROGRESS_MASK{1ULL};
+constexpr uint64_t SPEED_TEMPO_SEQ_ODD_BIT{1ULL};
 constexpr unsigned int SPEED_TEMPO_READ_YIELD_FREQUENCY{64};
 }
 
@@ -47,10 +47,10 @@ void CDataCacheCore::Reset()
 {
   {
     std::unique_lock lock(m_stateSection);
-    m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_release);
     m_stateInfo.m_stateSeeking.store(false, std::memory_order_relaxed);
     m_stateInfo.m_renderGuiLayer.store(false, std::memory_order_relaxed);
     m_stateInfo.m_renderVideoLayer.store(false, std::memory_order_relaxed);
+    m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_release);
     m_stateInfo.m_tempo.store(1.0f, std::memory_order_relaxed);
     m_stateInfo.m_speed.store(1.0f, std::memory_order_relaxed);
     m_stateInfo.m_speedTempoWriteSeq.fetch_add(1, std::memory_order_release);
@@ -840,18 +840,13 @@ float CDataCacheCore::GetSpeed()
   while (true)
   {
     const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-    if (before & SPEED_TEMPO_WRITE_IN_PROGRESS_MASK)
+    if (!(before & SPEED_TEMPO_SEQ_ODD_BIT))
     {
-      if (++retries % SPEED_TEMPO_READ_YIELD_FREQUENCY == 0)
-        std::this_thread::yield();
-      continue;
+      const float speed = m_stateInfo.m_speed.load(std::memory_order_relaxed);
+      const auto after = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
+      if (before == after)
+        return speed;
     }
-
-    const float speed = m_stateInfo.m_speed.load(std::memory_order_relaxed);
-    const auto after = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-    if (before == after)
-      return speed;
-
     if (++retries % SPEED_TEMPO_READ_YIELD_FREQUENCY == 0)
       std::this_thread::yield();
   }
@@ -873,18 +868,13 @@ float CDataCacheCore::GetTempo()
   while (true)
   {
     const auto before = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-    if (before & SPEED_TEMPO_WRITE_IN_PROGRESS_MASK)
+    if (!(before & SPEED_TEMPO_SEQ_ODD_BIT))
     {
-      if (++retries % SPEED_TEMPO_READ_YIELD_FREQUENCY == 0)
-        std::this_thread::yield();
-      continue;
+      const float tempo = m_stateInfo.m_tempo.load(std::memory_order_relaxed);
+      const auto after = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
+      if (before == after)
+        return tempo;
     }
-
-    const float tempo = m_stateInfo.m_tempo.load(std::memory_order_relaxed);
-    const auto after = m_stateInfo.m_speedTempoWriteSeq.load(std::memory_order_acquire);
-    if (before == after)
-      return tempo;
-
     if (++retries % SPEED_TEMPO_READ_YIELD_FREQUENCY == 0)
       std::this_thread::yield();
   }
