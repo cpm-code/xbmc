@@ -885,17 +885,19 @@ float CDataCacheCore::GetSpeed()
 bool CDataCacheCore::IsNormalPlayback()
 {
   // Exact comparison is intentional: playback speed uses canonical constants (0.0f / 1.0f).
-  return ReadSequenceGuardedValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
-           return m_stateInfo.m_speed.load(std::memory_order_relaxed);
-         }) == 1.0f;
+  return ReadSequenceGuardedValue<float>(m_stateInfo.m_speedTempoWriteSeq,
+                                         [this]() {
+                                           return m_stateInfo.m_speed.load(std::memory_order_relaxed);
+                                         }) == 1.0f;
 }
 
 bool CDataCacheCore::IsPausedPlayback()
 {
   // Exact comparison is intentional: playback speed uses canonical constants (0.0f / 1.0f).
-  return ReadSequenceGuardedValue<float>(m_stateInfo.m_speedTempoWriteSeq, [this]() {
-           return m_stateInfo.m_speed.load(std::memory_order_relaxed);
-         }) == 0.0f;
+  return ReadSequenceGuardedValue<float>(m_stateInfo.m_speedTempoWriteSeq,
+                                         [this]() {
+                                           return m_stateInfo.m_speed.load(std::memory_order_relaxed);
+                                         }) == 0.0f;
 }
 
 float CDataCacheCore::GetTempo()
