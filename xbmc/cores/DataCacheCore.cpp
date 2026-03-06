@@ -279,11 +279,8 @@ std::string CDataCacheCore::GetVideoStereoMode()
 
 void CDataCacheCore::SetVideoDimensions(int width, int height)
 {
-  std::unique_lock lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.width = width;
-  m_playerVideoInfo.height = height;
   m_videoWidth.store(width, std::memory_order_relaxed);
   m_videoHeight.store(height, std::memory_order_relaxed);
 }
@@ -304,10 +301,8 @@ int CDataCacheCore::GetVideoHeight()
 
 void CDataCacheCore::SetVideoBitDepth(int bitDepth)
 {
-  std::lock_guard lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.bitDepth = bitDepth;
   m_videoBitDepth.store(bitDepth, std::memory_order_relaxed);
 }
 
@@ -320,10 +315,8 @@ int CDataCacheCore::GetVideoBitDepth()
 
 void CDataCacheCore::SetVideoHdrType(StreamHdrType hdrType)
 {
-  std::lock_guard lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.hdrType = hdrType;
   m_videoHdrType.store(hdrType, std::memory_order_relaxed);
 }
 
@@ -336,10 +329,8 @@ StreamHdrType CDataCacheCore::GetVideoHdrType()
 
 void CDataCacheCore::SetVideoSourceHdrType(StreamHdrType hdrType)
 {
-  std::lock_guard lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.sourceHdrType = hdrType;
   m_videoSourceHdrType.store(hdrType, std::memory_order_relaxed);
 }
 
@@ -352,10 +343,8 @@ StreamHdrType CDataCacheCore::GetVideoSourceHdrType()
 
 void CDataCacheCore::SetVideoSourceAdditionalHdrType(StreamHdrType hdrType)
 {
-  std::lock_guard lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.sourceAdditionalHdrType = hdrType;
   m_videoSourceAdditionalHdrType.store(hdrType, std::memory_order_relaxed);
 }
 
@@ -368,10 +357,8 @@ StreamHdrType CDataCacheCore::GetVideoSourceAdditionalHdrType()
 
 void CDataCacheCore::SetVideoColorSpace(AVColorSpace colorSpace)
 {
-  std::lock_guard lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.colorSpace = colorSpace;
   m_videoColorSpace.store(colorSpace, std::memory_order_relaxed);
 }
 
@@ -384,10 +371,8 @@ AVColorSpace CDataCacheCore::GetVideoColorSpace()
 
 void CDataCacheCore::SetVideoColorRange(AVColorRange colorRange)
 {
-  std::lock_guard lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.colorRange = colorRange;
   m_videoColorRange.store(colorRange, std::memory_order_relaxed);
 }
 
@@ -400,10 +385,8 @@ AVColorRange CDataCacheCore::GetVideoColorRange()
 
 void CDataCacheCore::SetVideoColorPrimaries(AVColorPrimaries colorPrimaries)
 {
-  std::lock_guard lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.colorPrimaries = colorPrimaries;
   m_videoColorPrimaries.store(colorPrimaries, std::memory_order_relaxed);
 }
 
@@ -416,10 +399,8 @@ AVColorPrimaries CDataCacheCore::GetVideoColorPrimaries()
 
 void CDataCacheCore::SetVideoColorTransferCharacteristic(AVColorTransferCharacteristic colorTransferCharacteristic)
 {
-  std::lock_guard lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.colorTransferCharacteristic = colorTransferCharacteristic;
   m_videoColorTransferCharacteristic.store(colorTransferCharacteristic, std::memory_order_relaxed);
 }
 
@@ -526,10 +507,8 @@ HDRStaticMetadataInfo CDataCacheCore::GetVideoHDRStaticMetadataInfo()
 
 void CDataCacheCore::SetVideoLiveBitRate(double bitRate)
 {
-  std::lock_guard lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.liveBitRate = bitRate;
   m_videoLiveBitRate.store(bitRate, std::memory_order_relaxed);
 }
 
@@ -542,10 +521,8 @@ double CDataCacheCore::GetVideoLiveBitRate()
 
 void CDataCacheCore::SetVideoQueueLevel(int level)
 {
-  std::lock_guard lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.queueLevel = level;
   m_videoQueueLevel.store(level, std::memory_order_relaxed);
 }
 
@@ -558,10 +535,8 @@ int CDataCacheCore::GetVideoQueueLevel()
 
 void CDataCacheCore::SetVideoQueueDataLevel(int level)
 {
-  std::lock_guard lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.queueDataLevel = level;
   m_videoQueueDataLevel.store(level, std::memory_order_relaxed);
 }
 
@@ -574,10 +549,8 @@ int CDataCacheCore::GetVideoQueueDataLevel()
 
 void CDataCacheCore::SetVideoFps(float fps)
 {
-  std::unique_lock lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.fps = fps;
   m_videoFps.store(fps, std::memory_order_relaxed);
 }
 
@@ -590,10 +563,8 @@ float CDataCacheCore::GetVideoFps()
 
 void CDataCacheCore::SetVideoDAR(float dar)
 {
-  std::unique_lock lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
 
-  m_playerVideoInfo.dar = dar;
   m_videoDar.store(dar, std::memory_order_relaxed);
 }
 
@@ -606,9 +577,7 @@ float CDataCacheCore::GetVideoDAR()
 
 void CDataCacheCore::SetVideoInterlaced(bool isInterlaced)
 {
-  std::unique_lock lock(m_videoPlayerSection);
   CScopedSequenceWrite videoWriteGuard(m_videoScalarWriteSeq);
-  m_playerVideoInfo.m_isInterlaced = isInterlaced;
   m_videoIsInterlaced.store(isInterlaced, std::memory_order_relaxed);
 }
 
@@ -664,10 +633,8 @@ std::string CDataCacheCore::GetAudioChannelsSink()
 
 void CDataCacheCore::SetAudioSampleRate(int sampleRate)
 {
-  std::unique_lock lock(m_audioPlayerSection);
   CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
 
-  m_playerAudioInfo.sampleRate = sampleRate;
   m_audioSampleRate.store(sampleRate, std::memory_order_relaxed);
 }
 
@@ -680,10 +647,8 @@ int CDataCacheCore::GetAudioSampleRate()
 
 void CDataCacheCore::SetAudioBitsPerSample(int bitsPerSample)
 {
-  std::unique_lock lock(m_audioPlayerSection);
   CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
 
-  m_playerAudioInfo.bitsPerSample = bitsPerSample;
   m_audioBitsPerSample.store(bitsPerSample, std::memory_order_relaxed);
 }
 
@@ -768,9 +733,7 @@ uint64_t CDataCacheCore::MakeSpeakerMask(const CAEChannelInfo& channels)
 
 void CDataCacheCore::SetAudioSpeakerMask(uint64_t mask)
 {
-  std::unique_lock lock(m_audioPlayerSection);
   CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
-  m_playerAudioInfo.speakerMask = mask;
   m_audioSpeakerMask.store(mask, std::memory_order_relaxed);
 }
 
@@ -783,9 +746,7 @@ uint64_t CDataCacheCore::GetAudioSpeakerMask()
 
 void CDataCacheCore::SetAudioSpeakerMaskSink(uint64_t mask)
 {
-  std::unique_lock lock(m_audioPlayerSection);
   CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
-  m_playerAudioInfo.speakerMaskSink = mask;
   m_audioSpeakerMaskSink.store(mask, std::memory_order_relaxed);
 }
 
@@ -798,10 +759,8 @@ uint64_t CDataCacheCore::GetAudioSpeakerMaskSink()
 
 void CDataCacheCore::SetAudioLiveBitRate(double bitRate)
 {
-  std::lock_guard lock(m_audioPlayerSection);
   CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
 
-  m_playerAudioInfo.liveBitRate = bitRate;
   m_audioLiveBitRate.store(bitRate, std::memory_order_relaxed);
 }
 
@@ -814,10 +773,8 @@ double CDataCacheCore::GetAudioLiveBitRate()
 
 void CDataCacheCore::SetAudioQueueLevel(int level)
 {
-  std::lock_guard lock(m_audioPlayerSection);
   CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
 
-  m_playerAudioInfo.queueLevel = level;
   m_audioQueueLevel.store(level, std::memory_order_relaxed);
 }
 
@@ -830,10 +787,8 @@ int CDataCacheCore::GetAudioQueueLevel()
 
 void CDataCacheCore::SetAudioQueueDataLevel(int level)
 {
-  std::lock_guard lock(m_audioPlayerSection);
   CScopedSequenceWrite audioWriteGuard(m_audioScalarWriteSeq);
 
-  m_playerAudioInfo.queueDataLevel = level;
   m_audioQueueDataLevel.store(level, std::memory_order_relaxed);
 }
 
@@ -894,10 +849,8 @@ const std::vector<std::pair<std::string, int64_t>>& CDataCacheCore::GetChapters(
 
 void CDataCacheCore::SetRenderClockSync(bool enable)
 {
-  std::unique_lock lock(m_renderSection);
   CScopedSequenceWrite renderWriteGuard(m_renderScalarWriteSeq);
 
-  m_renderInfo.m_isClockSync = enable;
   m_renderClockSync.store(enable, std::memory_order_relaxed);
 }
 
@@ -910,10 +863,8 @@ bool CDataCacheCore::IsRenderClockSync()
 
 void CDataCacheCore::SetRenderPts(double pts)
 {
-  std::lock_guard lock(m_renderSection);
   CScopedSequenceWrite renderWriteGuard(m_renderScalarWriteSeq);
 
-  m_renderInfo.pts = pts;
   m_renderPts.store(pts, std::memory_order_relaxed);
 }
 
