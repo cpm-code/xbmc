@@ -62,6 +62,31 @@ bool AppendPtsToDoviRpuNalu(std::vector<uint8_t>& nalu, uint64_t ptsUs64)
   return true;
 }
 
+bool CachedRpuInputMatches(const std::vector<uint8_t>& cachedNalu,
+                           const uint8_t* nalBuf,
+                           int32_t nalSize)
+{
+  if (!nalBuf || nalSize <= 0) return false;
+
+  const size_t size = static_cast<size_t>(nalSize);
+
+  if (cachedNalu.size() != size) return false;
+
+  // DoVi RPU RBSPs end with a CRC32 followed by rbsp_trailing_bits (0x80).
+  // On the encoded NAL bytes, start-code emulation prevention can insert up to
+  // two 0x03 bytes inside that 5-byte tail, so compare the last 7 bytes first
+  // for a cheap early reject, then fall back to a full compare on a match.
+  constexpr size_t crcAndTrailingSize = 7;
+  if (size <= crcAndTrailingSize)
+    return std::equal(cachedNalu.begin(), cachedNalu.end(), nalBuf);
+
+  const auto cachedSuffixBegin = cachedNalu.end() - crcAndTrailingSize;
+  if (!std::equal(cachedSuffixBegin, cachedNalu.end(), nalBuf + (size - crcAndTrailingSize)))
+    return false;
+
+  return std::equal(cachedNalu.begin(), cachedSuffixBegin, nalBuf);
+}
+
 bool IsCMv29NoL2(const DoviRpuDataHeader* header,
                  const DoviVdrDmData* vdrDmData)
 {
@@ -529,9 +554,9 @@ void CBitstreamConverter::ProcessDoViRpu(
   // Optimization: If the input RPU NAL is exactly identical to the previous frame's RPU NAL,
   // AND we are not processing the first frame (which parses stream metadata),
   // we can completely skip `dovi_parse_unspec62_nalu` and avoid all allocations & format processing.
-  if (!m_first_frame &&
-      m_cached_dovi_rpu_in_nal.size() == static_cast<size_t>(nalSize) &&
-      std::equal(m_cached_dovi_rpu_in_nal.begin(), m_cached_dovi_rpu_in_nal.end(), nalBuf))
+  // This cache deliberately tracks the original input RPU, before any FEL PTS trailer is injected,
+  // so a per-frame PTS never invalidates reuse.
+  if (!m_first_frame && CachedRpuInputMatches(m_cached_dovi_rpu_in_nal, nalBuf, nalSize))
   {
     m_cached_dovi_frame_metadata.pts = pts;
     m_dataCacheCore.SetVideoDoViFrameMetadata(m_cached_dovi_frame_metadata);
