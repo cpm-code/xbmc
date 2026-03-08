@@ -31,6 +31,8 @@
 #include "utils/EGLUtils.h"
 #endif
 
+#include <cmath>
+
 using namespace std::chrono_literals;
 
 CRenderSystemGLES::CRenderSystemGLES()
@@ -409,10 +411,10 @@ void CRenderSystemGLES::SetScissors(const CRect &rect)
 {
   if (!m_bRenderCreated)
     return;
-  GLint x1 = MathUtils::round_int(static_cast<double>(rect.x1));
-  GLint y1 = MathUtils::round_int(static_cast<double>(rect.y1));
-  GLint x2 = MathUtils::round_int(static_cast<double>(rect.x2));
-  GLint y2 = MathUtils::round_int(static_cast<double>(rect.y2));
+  GLint x1 = static_cast<GLint>(std::floor(rect.x1));
+  GLint y1 = static_cast<GLint>(std::floor(rect.y1));
+  GLint x2 = static_cast<GLint>(std::ceil(rect.x2));
+  GLint y2 = static_cast<GLint>(std::ceil(rect.y2));
   glScissor(x1, m_height - y2, x2-x1, y2-y1);
 }
 
