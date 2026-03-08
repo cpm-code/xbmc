@@ -524,7 +524,7 @@ void CAdvancedSettings::Initialize()
 
   m_canWindowed = true;
   m_guiVisualizeDirtyRegions = false;
-  m_guiAlgorithmDirtyRegions = 3;
+  m_guiAlgorithmDirtyRegions = 2;
   m_guiSmartRedraw = false;
   m_guiAVChangeFlagTimeout = 8;
   m_airTunesPort = 36666;
