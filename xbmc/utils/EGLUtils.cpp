@@ -17,6 +17,7 @@
 #include "utils/Geometry.h"
 #include "utils/Map.h"
 
+#include <cmath>
 #include <string_view>
 
 #include <EGL/egl.h>
@@ -666,10 +667,12 @@ void CEGLContextUtils::SetDamagedRegions(const CDirtyRegionList& dirtyRegions)
     rects.reserve(dirtyRegions.size());
     for (const auto& region : dirtyRegions)
     {
-      rects.push_back({static_cast<EGLint>(std::round(region.x1)),
-                       static_cast<EGLint>(std::round(height - region.y2)),
-                       static_cast<EGLint>(std::round(region.Width())),
-                       static_cast<EGLint>(std::round(region.Height()))});
+      const EGLint x1 = static_cast<EGLint>(std::floor(region.x1));
+      const EGLint y1 = static_cast<EGLint>(std::floor(region.y1));
+      const EGLint x2 = static_cast<EGLint>(std::ceil(region.x2));
+      const EGLint y2 = static_cast<EGLint>(std::ceil(region.y2));
+
+      rects.push_back({x1, height - y2, x2 - x1, y2 - y1});
     }
     damageRegionsResult = m_eglSetDamageRegionKHR(
         m_eglDisplay, m_eglSurface, reinterpret_cast<EGLint*>(rects.data()), rects.size());
