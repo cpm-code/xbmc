@@ -1432,6 +1432,20 @@ bool CGUIWindowManager::Render()
     m_tracker.CleanMarkedRegions(10);
 
   CDirtyRegionList dirtyRegions = m_tracker.GetDirtyRegions();
+  if (!dirtyRegions.empty())
+  {
+    const CRect viewWindow = CServiceBroker::GetWinSystem()->GetGfxContext().GetViewWindow();
+    constexpr float dirtyRegionPadding = 1.0f;
+
+    for (auto& region : dirtyRegions)
+    {
+      region.x1 -= dirtyRegionPadding;
+      region.y1 -= dirtyRegionPadding;
+      region.x2 += dirtyRegionPadding;
+      region.y2 += dirtyRegionPadding;
+      region.Intersect(viewWindow);
+    }
+  }
 
   bool hasRendered = false;
   const auto renderDirtyRegions = [&]() {
