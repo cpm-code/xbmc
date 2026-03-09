@@ -31,10 +31,10 @@ varying vec4 m_cord0;
 uniform float m_sdrPeak;
 uniform float m_sdrSaturation;
 
-highp float rand(highp vec2 co)
+highp float interleavedGradientNoise(highp vec2 co)
 {
-  // Simple stable hash for dithering.
-  return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+  // Stable screen-space noise for dithering with lower ALU cost than sin-based hashing.
+  return fract(52.9829189 * fract(0.06711056 * co.x + 0.00583715 * co.y));
 }
 
 vec3 transferPQ(vec3 x)
@@ -74,7 +74,7 @@ vec3 transferPQ(vec3 x)
   x = pow(x, vec3(ST2084_m2));
 
   // Dither PQ output to reduce visible banding/stepping in gradients.
-  float dither = (rand(gl_FragCoord.xy) - 0.5) / 1024.0;
+  float dither = (interleavedGradientNoise(gl_FragCoord.xy) - 0.5) / 1024.0;
   x = clamp(x + vec3(dither), vec3(0.0), vec3(1.0));
 
   return x;
