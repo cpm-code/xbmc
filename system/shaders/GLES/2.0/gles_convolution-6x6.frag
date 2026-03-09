@@ -63,14 +63,6 @@ void main()
   vec3 columntaps1 = weight((1.0 - f.y) / 2.0);
   vec3 columntaps2 = weight((1.0 - f.y) / 2.0 + 0.5);
 
-  // make sure all taps added together is exactly 1.0, otherwise some (very small) distortion can occur
-  float sum = linetaps1.r + linetaps1.g + linetaps1.b + linetaps2.r + linetaps2.g + linetaps2.b;
-  linetaps1 /= sum;
-  linetaps2 /= sum;
-  sum = columntaps1.r + columntaps1.g + columntaps1.b + columntaps2.r + columntaps2.g + columntaps2.b;
-  columntaps1 /= sum;
-  columntaps2 /= sum;
-
   vec2 xystart = (-2.5 - f) * stepxy + pos;
   vec3 xpos1 = vec3(xystart.x, xystart.x + stepxy.x, xystart.x + stepxy.x * 2.0);
   vec3 xpos2 = vec3(xystart.x + stepxy.x * 3.0, xystart.x + stepxy.x * 4.0, xystart.x + stepxy.x * 5.0);
