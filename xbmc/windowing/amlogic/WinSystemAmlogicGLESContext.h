@@ -43,7 +43,15 @@ public:
   {
     m_pGLContext.SetDamagedRegions(dirtyRegions);
   }
-  int GetBufferAge() override { return m_pGLContext.GetBufferAge(); }
+  int GetBufferAge() override
+  {
+    // Workaround: disable preserved-buffer reuse on AML.
+    // Partial update / buffer-age preservation can leave visible seams at
+    // dirty-region boundaries during GUI animation. Revisit this if the AML
+    // damaged-region path is fixed and dirty-region performance can be safely
+    // restored.
+    return 0;
+  }
 
   bool ResizeWindow(int newWidth, int newHeight, int newLeft, int newTop) override;
   bool SetFullScreen(bool fullScreen, RESOLUTION_INFO& res, bool blankOtherDisplays) override;
