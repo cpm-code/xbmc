@@ -126,3 +126,28 @@ void CFrameBufferObject::EndRender() const
   if (IsValid())
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+
+void CFrameBufferObject::Invalidate() const
+{
+#if defined(HAS_GLES) && HAS_GLES == 3
+  if (!IsValid() || !IsBound())
+    return;
+
+  const auto renderSystem = CServiceBroker::GetRenderSystem();
+  if (!renderSystem)
+    return;
+
+  unsigned int major{0};
+  unsigned int minor{0};
+  renderSystem->GetRenderVersion(major, minor);
+  if (major < 3)
+    return;
+
+  GLint previousFbo{0};
+  glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+  const GLenum attachments[] = {GL_COLOR_ATTACHMENT0};
+  glInvalidateFramebuffer(GL_FRAMEBUFFER, 1, attachments);
+  glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previousFbo));
+#endif
+}
