@@ -54,8 +54,6 @@ float filter_0(sampler2D sampler, vec2 coord)
 
   vec4 linetaps = texture(m_kernelTex, vec2(1.0 - f.x, 0.));
   vec4 coltaps = texture(m_kernelTex, vec2(1.0 - f.y, 0.));
-  linetaps /= linetaps.r + linetaps.g + linetaps.b + linetaps.a;
-  coltaps /= coltaps.r + coltaps.g + coltaps.b + coltaps.a;
   mat4 conv;
   conv[0] = linetaps * coltaps.x;
   conv[1] = linetaps * coltaps.y;
@@ -64,15 +62,11 @@ float filter_0(sampler2D sampler, vec2 coord)
 
   vec2 startPos = (-1.0 - f) * m_step + pos;
   vec4[4] tex4x4 = load4x4_0(sampler, startPos);
-  vec4 imageLine0 = tex4x4[0];
-  vec4 imageLine1 = tex4x4[1];
-  vec4 imageLine2 = tex4x4[2];
-  vec4 imageLine3 = tex4x4[3];
 
-  return dot(imageLine0, conv[0]) +
-         dot(imageLine1, conv[1]) +
-         dot(imageLine2, conv[2]) +
-         dot(imageLine3, conv[3]);
+    return dot(tex4x4[0], conv[0]) +
+      dot(tex4x4[1], conv[1]) +
+      dot(tex4x4[2], conv[2]) +
+      dot(tex4x4[3], conv[3]);
 }
 
 void main()
@@ -83,15 +77,15 @@ void main()
 #if defined(XBMC_YV12) || defined(XBMC_NV12)
 
   yuv = vec4(filter_0(m_sampY, m_cordY),
-             texture2D(m_sampU, m_cordU).g,
-             texture2D(m_sampV, m_cordV).a,
+             texture(m_sampU, m_cordU).g,
+             texture(m_sampV, m_cordV).a,
              1.0);
 
 #elif defined(XBMC_NV12_RRG)
 
   yuv = vec4(filter_0(m_sampY, m_cordY),
-             texture2D(m_sampU, m_cordU).r,
-             texture2D(m_sampV, m_cordV).g,
+             texture(m_sampU, m_cordU).r,
+             texture(m_sampV, m_cordV).g,
              1.0);
 
 #endif
