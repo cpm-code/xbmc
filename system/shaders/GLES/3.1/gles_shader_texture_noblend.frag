@@ -18,7 +18,7 @@
  *
  */
 
-#version 100
+#version 310 es
 
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
@@ -26,17 +26,17 @@ precision highp float;
 precision mediump float;
 #endif
 uniform sampler2D m_samp0;
-varying vec4 m_cord0;
+in vec4 m_cord0;
 uniform float m_sdrPeak;
 uniform float m_sdrSaturation;
 #if defined(KODI_HDR_PGS_ADJUST)
 uniform float m_hdrPgsPeak;
 uniform float m_hdrPgsSaturation;
 #endif
+out vec4 fragColor;
 
 highp float interleavedGradientNoise(highp vec2 co)
 {
-  // Stable screen-space noise for dithering with lower ALU cost than sin-based hashing.
   return fract(52.9829189 * fract(0.06711056 * co.x + 0.00583715 * co.y));
 }
 
@@ -54,33 +54,21 @@ vec3 transferPQ(vec3 x)
       0.043306, 0.011360, 0.895578);
 
   x = max(x, vec3(0.0));
-
-  // REC.709 to linear (approximation)
   x = pow(x, vec3(1.0 / 0.45));
-
-  // REC.709 to BT.2020
   x = matx * x;
   x = max(x, vec3(0.0));
 
-  // Optional saturation adjustment for SDR GUI when rendering into HDR PQ output.
-  // Apply in linear BT.2020 and clamp to avoid out-of-gamut hue shifts.
   vec3 luma = vec3(dot(x, vec3(0.2627, 0.6780, 0.0593)));
   x = mix(luma, x, m_sdrSaturation);
   x = max(x, vec3(0.0));
 
-  // Scale SDR peak (m_sdrPeak is nits/100)
   float peakNits = 100.0 * m_sdrPeak;
-
-  // Linear (nits) normalized to 10,000 nits, then PQ encode
   x = pow(x * (peakNits / 10000.0), vec3(ST2084_m1));
   x = (ST2084_c1 + ST2084_c2 * x) / (1.0 + ST2084_c3 * x);
   x = pow(x, vec3(ST2084_m2));
 
-  // Dither PQ output to reduce visible banding/stepping in gradients.
   float dither = (interleavedGradientNoise(gl_FragCoord.xy) - 0.5) / 1024.0;
-  x = clamp(x + vec3(dither), vec3(0.0), vec3(1.0));
-
-  return x;
+  return clamp(x + vec3(dither), vec3(0.0), vec3(1.0));
 }
 
 #if defined(KODI_HDR_PGS_ADJUST)
@@ -117,22 +105,17 @@ vec3 encodePQ(vec3 x)
 vec3 adjustHdrPgsPQ(vec3 pq)
 {
   vec3 linear = decodePQ(pq);
-
   vec3 luma = vec3(dot(linear, vec3(0.2627, 0.6780, 0.0593)));
   linear = mix(luma, linear, m_hdrPgsSaturation);
-
   linear = max(linear, vec3(0.0));
   linear *= m_hdrPgsPeak;
-
   return encodePQ(linear);
 }
 #endif
 
-void main ()
+void main()
 {
-  vec4 rgb;
-
-  rgb = texture2D(m_samp0, m_cord0.xy);
+  vec4 rgb = texture(m_samp0, m_cord0.xy);
 
 #if defined(KODI_TRANSFER_PQ)
   rgb.rgb = transferPQ(rgb.rgb);
@@ -145,5 +128,5 @@ void main ()
   rgb.rgb += 16.0 / 255.0;
 #endif
 
-  gl_FragColor = rgb;
+  fragColor = rgb;
 }
