@@ -30,6 +30,7 @@
 #include "utils/log.h"
 #include "windowing/WinSystem.h"
 
+#include <algorithm>
 #include <mutex>
 
 using namespace Shaders;
@@ -57,9 +58,266 @@ CLinuxRendererGLES::~CLinuxRendererGLES()
 
   ReleaseShaders();
 
+#if defined(HAS_GLES) && HAS_GLES == 3
+  DestroyGpuTimerQuery(m_renderToFboTimer);
+  DestroyGpuTimerQuery(m_renderFromFboTimer);
+#endif
+
   free(m_planeBuffer);
   m_planeBuffer = nullptr;
 }
+
+void CLinuxRendererGLES::UpdateGpuTimerSupport()
+{
+  if (m_gpuTimersInitialized)
+    return;
+
+  m_gpuTimersInitialized = true;
+  m_gpuTimersEnabled = false;
+
+#if defined(HAS_GLES) && HAS_GLES == 3 && defined(GL_TIME_ELAPSED_EXT) && defined(GL_GPU_DISJOINT_EXT)
+  if (!m_renderSystem)
+    return;
+
+  const auto advancedSettings = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings();
+  unsigned int major{0};
+  unsigned int minor{0};
+  m_renderSystem->GetRenderVersion(major, minor);
+  if (major < 3)
+    return;
+
+  m_gpuTimersEnabled = m_renderSystem->IsExtSupported("GL_EXT_disjoint_timer_query");
+  if (m_gpuTimersEnabled && advancedSettings && advancedSettings->m_openGlDebugging)
+    CLog::Log(LOGDEBUG, "GLES: GPU timer queries enabled for multipass video rendering");
+#endif
+}
+
+void CLinuxRendererGLES::PumpGpuTimerQueries()
+{
+  UpdateGpuTimerSupport();
+
+#if defined(HAS_GLES) && HAS_GLES == 3 && defined(GL_TIME_ELAPSED_EXT) && defined(GL_GPU_DISJOINT_EXT)
+  if (!m_gpuTimersEnabled)
+    return;
+
+  const auto advancedSettings = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings();
+  const bool debugLogging = advancedSettings && advancedSettings->m_openGlDebugging;
+
+  const auto pump = [debugLogging](GpuTimerQuery& query) {
+    if (!query.pending || query.id == 0)
+      return false;
+
+    GLuint available{0};
+    glGetQueryObjectuiv(query.id, GL_QUERY_RESULT_AVAILABLE, &available);
+    if (!available)
+      return false;
+
+    GLuint elapsedNs{0};
+    glGetQueryObjectuiv(query.id, GL_QUERY_RESULT, &elapsedNs);
+
+    GLboolean disjoint{GL_FALSE};
+    glGetBooleanv(GL_GPU_DISJOINT_EXT, &disjoint);
+    query.pending = false;
+    if (disjoint == GL_TRUE)
+      return false;
+
+    const double elapsedMs = static_cast<double>(elapsedNs) / 1000000.0;
+    query.accumulatedMs += elapsedMs;
+    query.samples++;
+    if (!query.hasValue)
+    {
+      query.smoothedMs = elapsedMs;
+      query.hasValue = true;
+    }
+    else
+    {
+      query.smoothedMs = query.smoothedMs * 0.85 + elapsedMs * 0.15;
+    }
+
+    if (debugLogging && query.samples >= 120)
+    {
+      CLog::Log(LOGDEBUG, "GLES GPU timer [{}]: avg {:.3f} ms over {} samples", query.label,
+                query.accumulatedMs / query.samples, query.samples);
+      query.accumulatedMs = 0.0;
+      query.samples = 0;
+    }
+
+    return true;
+  };
+
+  const bool updatedToFbo = pump(m_renderToFboTimer);
+  const bool updatedFromFbo = pump(m_renderFromFboTimer);
+  if (updatedToFbo || updatedFromFbo)
+    EvaluateScalerPerformance();
+#endif
+}
+
+ESCALINGMETHOD CLinuxRendererGLES::ResolveAutoScalingMethod() const
+{
+  const auto advancedSettings = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings();
+  const bool scaleSD = m_sourceHeight < 720 && m_sourceWidth < 1280;
+  const bool scaleUp = static_cast<int>(m_sourceHeight) < m_viewRect.Height() &&
+                       static_cast<int>(m_sourceWidth) < m_viewRect.Width();
+  const float maxAutoScaleFps = advancedSettings ? advancedSettings->m_videoAutoScaleMaxFps : 30.0f;
+  const bool scaleFps = m_fps < maxAutoScaleFps + 0.01f || m_fps <= 0.0f;
+
+  if (Supports(VS_SCALINGMETHOD_LANCZOS3_FAST) && scaleSD && scaleUp && scaleFps)
+    return VS_SCALINGMETHOD_LANCZOS3_FAST;
+
+  return VS_SCALINGMETHOD_LINEAR;
+}
+
+ESCALINGMETHOD CLinuxRendererGLES::GetPerformanceFallbackScalingMethod(ESCALINGMETHOD method) const
+{
+  switch (method)
+  {
+    case VS_SCALINGMETHOD_LANCZOS3:
+      if (Supports(VS_SCALINGMETHOD_LANCZOS3_FAST))
+        return VS_SCALINGMETHOD_LANCZOS3_FAST;
+      break;
+    case VS_SCALINGMETHOD_SPLINE36:
+      if (Supports(VS_SCALINGMETHOD_SPLINE36_FAST))
+        return VS_SCALINGMETHOD_SPLINE36_FAST;
+      if (Supports(VS_SCALINGMETHOD_LANCZOS3_FAST))
+        return VS_SCALINGMETHOD_LANCZOS3_FAST;
+      break;
+    case VS_SCALINGMETHOD_CUBIC_B_SPLINE:
+    case VS_SCALINGMETHOD_CUBIC_MITCHELL:
+    case VS_SCALINGMETHOD_CUBIC_CATMULL:
+    case VS_SCALINGMETHOD_CUBIC_0_075:
+    case VS_SCALINGMETHOD_CUBIC_0_1:
+    case VS_SCALINGMETHOD_LANCZOS2:
+      if (Supports(VS_SCALINGMETHOD_LANCZOS3_FAST))
+        return VS_SCALINGMETHOD_LANCZOS3_FAST;
+      if (Supports(VS_SCALINGMETHOD_SPLINE36_FAST))
+        return VS_SCALINGMETHOD_SPLINE36_FAST;
+      break;
+    default:
+      break;
+  }
+
+  return VS_SCALINGMETHOD_LINEAR;
+}
+
+bool CLinuxRendererGLES::IsHighQualityScalingMethod(ESCALINGMETHOD method) const
+{
+  switch (method)
+  {
+    case VS_SCALINGMETHOD_CUBIC_B_SPLINE:
+    case VS_SCALINGMETHOD_CUBIC_MITCHELL:
+    case VS_SCALINGMETHOD_CUBIC_CATMULL:
+    case VS_SCALINGMETHOD_CUBIC_0_075:
+    case VS_SCALINGMETHOD_CUBIC_0_1:
+    case VS_SCALINGMETHOD_LANCZOS2:
+    case VS_SCALINGMETHOD_SPLINE36:
+    case VS_SCALINGMETHOD_LANCZOS3:
+      return true;
+    default:
+      return false;
+  }
+}
+
+ESCALINGMETHOD CLinuxRendererGLES::ResolveScalingMethod() const
+{
+  ESCALINGMETHOD method = m_scalingMethodGui;
+
+  if (method == VS_SCALINGMETHOD_AUTO)
+    method = ResolveAutoScalingMethod();
+
+  if (m_dynamicScalingFallbackActive && IsHighQualityScalingMethod(method))
+    return m_dynamicScalingMethod;
+
+  return method;
+}
+
+void CLinuxRendererGLES::EvaluateScalerPerformance()
+{
+#if defined(HAS_GLES) && HAS_GLES == 3
+  ESCALINGMETHOD requestedMethod = m_scalingMethodGui;
+  if (requestedMethod == VS_SCALINGMETHOD_AUTO)
+    requestedMethod = ResolveAutoScalingMethod();
+
+  if (!IsHighQualityScalingMethod(requestedMethod) || !m_renderToFboTimer.hasValue ||
+      !m_renderFromFboTimer.hasValue)
+  {
+    m_scalerOverBudgetCount = 0;
+    m_scalerUnderBudgetCount = 0;
+    return;
+  }
+
+  const double totalMs = m_renderToFboTimer.smoothedMs + m_renderFromFboTimer.smoothedMs;
+  const double frameBudgetMs = m_fps > 1.0f ? 1000.0 / static_cast<double>(m_fps) : 16.667;
+  const double degradeThresholdMs = std::clamp(frameBudgetMs * 0.35, 4.0, 9.0);
+
+  if (!m_dynamicScalingFallbackActive)
+  {
+    if (totalMs > degradeThresholdMs)
+    {
+      if (++m_scalerOverBudgetCount >= 45)
+      {
+        m_dynamicScalingMethod = GetPerformanceFallbackScalingMethod(requestedMethod);
+        if (m_dynamicScalingMethod != requestedMethod)
+        {
+          m_dynamicScalingFallbackActive = true;
+          m_scalerOverBudgetCount = 0;
+          m_scalerUnderBudgetCount = 0;
+          CLog::Log(LOGINFO,
+                    "GLES: Adaptive scaler fallback {} -> {} after multipass GPU cost {:.3f} ms "
+                    "(budget {:.3f} ms)",
+                    requestedMethod, m_dynamicScalingMethod, totalMs, degradeThresholdMs);
+          UpdateVideoFilter();
+          m_reloadShaders = true;
+        }
+      }
+    }
+    else
+    {
+      m_scalerOverBudgetCount = 0;
+    }
+  }
+#endif
+}
+
+#if defined(HAS_GLES) && HAS_GLES == 3
+bool CLinuxRendererGLES::BeginGpuTimerQuery(GpuTimerQuery& query, const char* label)
+{
+#if defined(GL_TIME_ELAPSED_EXT) && defined(GL_GPU_DISJOINT_EXT)
+  if (!m_gpuTimersEnabled || query.pending)
+    return false;
+
+  if (query.id == 0)
+    glGenQueries(1, &query.id);
+
+  if (query.id == 0)
+    return false;
+
+  query.label = label;
+  glBeginQuery(GL_TIME_ELAPSED_EXT, query.id);
+  return true;
+#else
+  return false;
+#endif
+}
+
+void CLinuxRendererGLES::EndGpuTimerQuery(GpuTimerQuery& query)
+{
+#if defined(GL_TIME_ELAPSED_EXT) && defined(GL_GPU_DISJOINT_EXT)
+  if (!m_gpuTimersEnabled || query.id == 0 || query.pending)
+    return;
+
+  glEndQuery(GL_TIME_ELAPSED_EXT);
+  query.pending = true;
+#endif
+}
+
+void CLinuxRendererGLES::DestroyGpuTimerQuery(GpuTimerQuery& query)
+{
+  if (query.id != 0)
+    glDeleteQueries(1, &query.id);
+
+  query = {};
+}
+#endif
 
 CBaseRenderer* CLinuxRendererGLES::Create(CVideoBuffer *buffer)
 {
@@ -110,6 +368,7 @@ bool CLinuxRendererGLES::ValidateRenderTarget()
 bool CLinuxRendererGLES::Configure(const VideoPicture &picture, float fps, unsigned int orientation)
 {
   CLog::Log(LOGDEBUG, "LinuxRendererGLES::Configure: fps: {:0.3f}", fps);
+  m_fps = fps;
   m_format = picture.videoBuffer->GetFormat();
   m_sourceWidth = picture.iWidth;
   m_sourceHeight = picture.iHeight;
@@ -117,6 +376,10 @@ bool CLinuxRendererGLES::Configure(const VideoPicture &picture, float fps, unsig
 
   m_srcPrimaries = picture.color_primaries;
   m_toneMap = false;
+  m_dynamicScalingFallbackActive = false;
+  m_dynamicScalingMethod = VS_SCALINGMETHOD_MAX;
+  m_scalerOverBudgetCount = 0;
+  m_scalerUnderBudgetCount = 0;
 
   // Calculate the input frame aspect ratio.
   CalculateFrameAspectRatio(picture.iDisplayWidth, picture.iDisplayHeight);
@@ -579,17 +842,28 @@ void CLinuxRendererGLES::UpdateVideoFilter()
   CRect viewRect;
   GetVideoRect(srcRect, dstRect, viewRect);
 
-  if (m_scalingMethodGui == m_videoSettings.m_ScalingMethod &&
+  const ESCALINGMETHOD requestedScalingMethod = m_videoSettings.m_ScalingMethod;
+  if (m_scalingMethodGui != VS_SCALINGMETHOD_MAX && m_scalingMethodGui != requestedScalingMethod)
+  {
+    m_dynamicScalingFallbackActive = false;
+    m_dynamicScalingMethod = VS_SCALINGMETHOD_MAX;
+    m_scalerOverBudgetCount = 0;
+    m_scalerUnderBudgetCount = 0;
+  }
+
+  m_scalingMethodGui = requestedScalingMethod;
+  const ESCALINGMETHOD activeScalingMethod = ResolveScalingMethod();
+
+  if (m_scalingMethodGui == requestedScalingMethod && m_scalingMethod == activeScalingMethod &&
       viewRect.Height() == m_viewRect.Height() &&
       viewRect.Width() == m_viewRect.Width())
   {
     return;
   }
 
-  m_scalingMethodGui = m_videoSettings.m_ScalingMethod;
-  if (m_scalingMethod != m_scalingMethodGui)
+  if (m_scalingMethod != activeScalingMethod)
     m_reloadShaders = true;
-  m_scalingMethod = m_scalingMethodGui;
+  m_scalingMethod = activeScalingMethod;
   m_viewRect = viewRect;
 
   if(!Supports(m_scalingMethod))
@@ -790,6 +1064,16 @@ void CLinuxRendererGLES::UnInit()
 
   // cleanup framebuffer object if it was in use
   m_fbo.fbo.Cleanup();
+#if defined(HAS_GLES) && HAS_GLES == 3
+  DestroyGpuTimerQuery(m_renderToFboTimer);
+  DestroyGpuTimerQuery(m_renderFromFboTimer);
+#endif
+  m_gpuTimersInitialized = false;
+  m_gpuTimersEnabled = false;
+  m_dynamicScalingFallbackActive = false;
+  m_dynamicScalingMethod = VS_SCALINGMETHOD_MAX;
+  m_scalerOverBudgetCount = 0;
+  m_scalerUnderBudgetCount = 0;
   m_bValidated = false;
   m_bConfigured = false;
 
@@ -861,6 +1145,8 @@ bool CLinuxRendererGLES::UploadTexture(int index)
 
 bool CLinuxRendererGLES::Render(unsigned int flags, int index)
 {
+  PumpGpuTimerQueries();
+
   // obtain current field, if interlaced
   if( flags & RENDER_FLAG_TOP)
   {
@@ -1080,6 +1366,10 @@ void CLinuxRendererGLES::RenderToFBO(int index, int field)
     return;
   }
 
+#if defined(HAS_GLES) && HAS_GLES == 3
+  const bool gpuTimerActive = BeginGpuTimerQuery(m_renderToFboTimer, "RenderToFBO");
+#endif
+
   m_fbo.fbo.BeginRender();
   VerifyGLState();
 
@@ -1194,10 +1484,19 @@ void CLinuxRendererGLES::RenderToFBO(int index, int field)
   m_fbo.fbo.EndRender();
 
   VerifyGLState();
+
+#if defined(HAS_GLES) && HAS_GLES == 3
+  if (gpuTimerActive)
+    EndGpuTimerQuery(m_renderToFboTimer);
+#endif
 }
 
 void CLinuxRendererGLES::RenderFromFBO()
 {
+#if defined(HAS_GLES) && HAS_GLES == 3
+  const bool gpuTimerActive = BeginGpuTimerQuery(m_renderFromFboTimer, "RenderFromFBO");
+#endif
+
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, m_fbo.fbo.Texture());
   VerifyGLState();
@@ -1276,6 +1575,13 @@ void CLinuxRendererGLES::RenderFromFBO()
 
   glBindTexture(GL_TEXTURE_2D, 0);
   VerifyGLState();
+
+  m_fbo.fbo.Invalidate();
+
+#if defined(HAS_GLES) && HAS_GLES == 3
+  if (gpuTimerActive)
+    EndGpuTimerQuery(m_renderFromFboTimer);
+#endif
 }
 
 bool CLinuxRendererGLES::RenderCapture(int index, CRenderCapture* capture)

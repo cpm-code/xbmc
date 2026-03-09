@@ -64,6 +64,8 @@ public:
   bool BeginRender();
   // Finish rendering to FBO
   void EndRender() const;
+  // Invalidate attachment contents after they are no longer needed.
+  void Invalidate() const;
 
 private:
   GLuint m_fbo = 0;
