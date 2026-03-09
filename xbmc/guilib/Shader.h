@@ -33,6 +33,7 @@ namespace Shaders {
     bool OK() const { return m_compiled; }
 
     const std::string& GetName() const { return m_filenames; }
+    const std::string& GetSource() const { return m_source; }
     std::string GetSourceWithLineNumbers() const;
 
   protected:
