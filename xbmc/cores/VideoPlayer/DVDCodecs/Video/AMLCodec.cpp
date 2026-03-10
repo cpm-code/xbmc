@@ -2454,8 +2454,9 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture& videoPicture)
 
   if (m_drain)
   {
+    constexpr int min_drain_poll_ms = 250;
     const int poll_ms = static_cast<int>((am_private->video_rate * 1000 + UNIT_FREQ - 1) / UNIT_FREQ);
-    const auto drain_poll_wait = std::chrono::milliseconds(std::max(poll_ms * 2, 250));
+    const auto drain_poll_wait = std::chrono::milliseconds(std::max(poll_ms * 2, min_drain_poll_ms));
 
     if (buffer_level > 0.0f)
     {
