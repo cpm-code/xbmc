@@ -783,6 +783,25 @@ int64_t CDataCacheCore::GetSeekOffSet() const
   return m_stateInfo.m_lastSeekOffset;
 }
 
+void CDataCacheCore::SetSeekTarget(int64_t time, int64_t offset)
+{
+  std::unique_lock lock(m_stateSection);
+  m_stateInfo.m_lastSeekTarget = time;
+  m_stateInfo.m_lastSeekTargetOffset = offset;
+}
+
+int64_t CDataCacheCore::GetSeekTarget() const
+{
+  std::unique_lock lock(m_stateSection);
+  return m_stateInfo.m_lastSeekTarget;
+}
+
+int64_t CDataCacheCore::GetSeekTargetOffset() const
+{
+  std::unique_lock lock(m_stateSection);
+  return m_stateInfo.m_lastSeekTargetOffset;
+}
+
 bool CDataCacheCore::HasPerformedSeek(int64_t lastSecondInterval) const
 {
   std::unique_lock lock(m_stateSection);

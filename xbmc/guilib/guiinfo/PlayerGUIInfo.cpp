@@ -39,6 +39,7 @@
 #include <charconv>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <fmt/format.h>
 #include <memory>
 #include <iostream>
@@ -129,16 +130,38 @@ int CPlayerGUIInfo::GetPlayTimeRemaining() const
   return iReverse > 0 ? iReverse : 0;
 }
 
+int CPlayerGUIInfo::GetDisplayedSeekTime() const
+{
+  const int playTime = GetPlayTime();
+  const int seekSize = m_appPlayer->GetSeekHandler().GetSeekSize();
+  if (seekSize != 0)
+    return playTime + seekSize;
+
+  const auto& dataCache = CServiceBroker::GetDataCacheCore();
+  if (!dataCache.HasPerformedSeek(3))
+    return playTime;
+
+  const int64_t seekTarget = dataCache.GetSeekTarget();
+  const int64_t seekOffset = dataCache.GetSeekTargetOffset();
+  const int64_t playTimeMs = static_cast<int64_t>(playTime) * 1000;
+
+  if (seekOffset != 0 &&
+      ((playTime == 0 && seekTarget > 0) ||
+       std::llabs(playTimeMs - seekTarget) >= std::llabs(seekOffset)))
+  {
+    return std::max(0, static_cast<int>(std::llround(static_cast<double>(seekTarget) / 1000.0)));
+  }
+
+  return playTime;
+}
+
 float CPlayerGUIInfo::GetSeekPercent() const
 {
   int iTotal = GetTotalPlayTime();
   if (iTotal == 0)
     return 0.0f;
 
-  float fPercentPlayTime = static_cast<float>(GetPlayTime() * 1000) / iTotal * 0.1f;
-  float fPercentPerSecond = 100.0f / static_cast<float>(iTotal);
-  float fPercent =
-      fPercentPlayTime + fPercentPerSecond * m_appPlayer->GetSeekHandler().GetSeekSize();
+  float fPercent = static_cast<float>(GetDisplayedSeekTime()) * 100.0f / static_cast<float>(iTotal);
   fPercent = std::max(0.0f, std::min(fPercent, 100.0f));
   return fPercent;
 }
@@ -180,8 +203,7 @@ std::string CPlayerGUIInfo::GetCurrentSeekTime(TIME_FORMAT format) const
   if (format == TIME_FORMAT_GUESS && GetTotalPlayTime() >= 3600)
     format = TIME_FORMAT_HH_MM_SS;
 
-  return StringUtils::SecondsToTimeString(
-      g_application.GetTime() + m_appPlayer->GetSeekHandler().GetSeekSize(), format);
+  return StringUtils::SecondsToTimeString(GetDisplayedSeekTime(), format);
 }
 
 std::string CPlayerGUIInfo::GetSeekTime(TIME_FORMAT format) const
@@ -343,7 +365,9 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     ///////////////////////////////////////////////////////////////////////////////////////////////
     case PLAYER_SEEKOFFSET:
     {
-      int lastSeekOffset = CServiceBroker::GetDataCacheCore().GetSeekOffSet();
+      const auto& dataCache = CServiceBroker::GetDataCacheCore();
+      int lastSeekOffset = dataCache.HasPerformedSeek(3) ? dataCache.GetSeekTargetOffset()
+                                                         : dataCache.GetSeekOffSet();
       std::string seekOffset = StringUtils::SecondsToTimeString(
           std::abs(lastSeekOffset / 1000), static_cast<TIME_FORMAT>(info.GetData1()));
       if (lastSeekOffset < 0)
