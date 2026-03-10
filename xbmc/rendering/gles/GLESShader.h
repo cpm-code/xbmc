@@ -66,6 +66,10 @@ protected:
   GLint m_hContrast = 0;
   GLint m_hBrightness = 0;
   GLint m_hDepth = 0;
+  GLint m_hVertexBlock = -1;
+  GLint m_hFragmentBlock = -1;
+  GLuint m_vertexUBO = 0;
+  GLuint m_fragmentUBO = 0;
 
   const GLfloat *m_proj;
   const GLfloat *m_model;

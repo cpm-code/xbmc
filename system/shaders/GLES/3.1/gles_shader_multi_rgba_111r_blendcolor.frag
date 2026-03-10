@@ -18,8 +18,13 @@ uniform sampler2D m_samp1;
 in vec4 m_cord0;
 in vec4 m_cord1;
 uniform lowp vec4 m_unicol;
-uniform float m_sdrPeak;
-uniform float m_sdrSaturation;
+
+layout(std140) uniform KodiGuiFragmentBlock
+{
+  vec4 uGuiParams0;
+  vec4 uGuiParams1;
+};
+
 out vec4 fragColor;
 
 highp float interleavedGradientNoise(highp vec2 co)
@@ -46,10 +51,10 @@ vec3 transferPQ(vec3 x)
   x = max(x, vec3(0.0));
 
   vec3 luma = vec3(dot(x, vec3(0.2627, 0.6780, 0.0593)));
-  x = mix(luma, x, m_sdrSaturation);
+  x = mix(luma, x, uGuiParams0.w);
   x = max(x, vec3(0.0));
 
-  float peakNits = 100.0 * m_sdrPeak;
+  float peakNits = 100.0 * uGuiParams0.z;
   x = pow(x * (peakNits / 10000.0), vec3(ST2084_m1));
   x = (ST2084_c1 + ST2084_c2 * x) / (1.0 + ST2084_c3 * x);
   x = pow(x, vec3(ST2084_m2));
