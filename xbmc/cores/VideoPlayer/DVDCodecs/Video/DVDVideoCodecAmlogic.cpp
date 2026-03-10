@@ -494,6 +494,8 @@ void CDVDVideoCodecAmlogic::ClearBitstreamCommon(void)
   m_last_added = true;
   m_last_pData = nullptr;
   m_last_iSize = 0;
+  m_drainRequested = false;
+  m_tpDrainRequested = {};
 
   if (m_bitstream) m_bitstream->ResetStartDecode();
 }
@@ -677,6 +679,13 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecAmlogic::GetPicture(VideoPicture* pVideoP
 
   VCReturn retVal = m_Codec->GetPicture(m_videobuffer);
 
+  if (retVal == VC_EOF && m_drainRequested && !m_last_added)
+  {
+    constexpr auto upstream_drain_grace = std::chrono::milliseconds(250);
+    if (std::chrono::steady_clock::now() - m_tpDrainRequested < upstream_drain_grace)
+      return VC_NONE;
+  }
+
   if (retVal == VC_PICTURE)
   {
     pVideoPicture->videoBuffer = nullptr;
@@ -712,6 +721,8 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecAmlogic::GetPicture(VideoPicture* pVideoP
 
 void CDVDVideoCodecAmlogic::SetCodecControl(int flags)
 {
+  const bool drainRequested = (flags & DVD_CODEC_CTRL_DRAIN) != 0;
+
   if (m_codecControlFlags != flags)
   {
     CLog::Log(LOGDEBUG, LOGVIDEO, "{} {:x}->{:x}",  __func__, m_codecControlFlags, flags);
@@ -722,9 +733,17 @@ void CDVDVideoCodecAmlogic::SetCodecControl(int flags)
     else
       m_videobuffer.iFlags &= ~DVP_FLAG_DROPPED;
 
-    if (m_Codec)
-      m_Codec->SetDrain((flags & DVD_CODEC_CTRL_DRAIN) != 0);
   }
+
+  if (drainRequested)
+  {
+    if (!m_drainRequested)
+      m_tpDrainRequested = std::chrono::steady_clock::now();
+  }
+  m_drainRequested = drainRequested;
+
+  if (m_Codec)
+    m_Codec->SetDrain(drainRequested);
 }
 
 void CDVDVideoCodecAmlogic::SetSpeed(int iSpeed)

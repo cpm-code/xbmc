@@ -15,6 +15,7 @@
 #include "cores/VideoPlayer/Buffers/VideoBuffer.h"
 #include "utils/BitstreamConverter.h"
 
+#include <chrono>
 #include <set>
 #include <atomic>
 #include <memory>
@@ -131,5 +132,7 @@ private:
   std::atomic<int> m_appendCMv40ModeSetting{static_cast<int>(DOVICMv40Mode::CMV40_NONE)};
   DOVICMv40Mode m_appendCMv40ModeApplied{DOVICMv40Mode::CMV40_NONE};
   bool m_settingsCallbackRegistered{false};
+  bool m_drainRequested{false};
+  std::chrono::steady_clock::time_point m_tpDrainRequested{};
 
 };
