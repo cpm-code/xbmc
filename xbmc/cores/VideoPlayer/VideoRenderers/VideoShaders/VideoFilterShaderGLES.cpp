@@ -10,7 +10,6 @@
 #include "VideoFilterShaderGLES.h"
 
 #include "ConvolutionKernels.h"
-#include "ServiceBroker.h"
 #include "rendering/GLExtensions.h"
 #include "rendering/gles/RenderSystemGLES.h"
 #include "utils/GLUtils.h"
@@ -42,8 +41,16 @@ BaseVideoFilterShader::BaseVideoFilterShader()
 
 void BaseVideoFilterShader::OnCompiledAndLinked()
 {
-  m_hVertex = glGetAttribLocation(ProgramHandle(),  "m_attrpos");
-  m_hcoord = glGetAttribLocation(ProgramHandle(),  "m_attrcord");
+  if (KODI::GLES::UsesFixedAttributeLocationsForShader(VertexShader()->GetName()))
+  {
+    m_hVertex = 0;
+    m_hcoord = 1;
+  }
+  else
+  {
+    m_hVertex = glGetAttribLocation(ProgramHandle(), "m_attrpos");
+    m_hcoord = glGetAttribLocation(ProgramHandle(), "m_attrcord");
+  }
   m_hAlpha  = glGetUniformLocation(ProgramHandle(), "m_alpha");
   m_hProj  = glGetUniformLocation(ProgramHandle(), "m_proj");
   m_hModel = glGetUniformLocation(ProgramHandle(), "m_model");

@@ -861,7 +861,7 @@ std::string CRenderSystemGLES::GetShaderPath(const std::string& filename)
 {
   std::string path = "GLES/2.0/";
 
-  if (m_RenderVersionMajor >= 3 && m_RenderVersionMinor >= 1)
+  if (m_RenderVersionMajor > 3 || (m_RenderVersionMajor == 3 && m_RenderVersionMinor >= 1))
   {
     std::string file = "special://xbmc/system/shaders/GLES/3.1/" + filename;
     const CURL pathToUrl(file);
@@ -870,4 +870,16 @@ std::string CRenderSystemGLES::GetShaderPath(const std::string& filename)
   }
 
   return path;
+}
+
+namespace KODI::GLES
+{
+bool UsesFixedAttributeLocationsForShader(const std::string& vertexShaderName)
+{
+  const auto renderSystem = dynamic_cast<CRenderSystemGLES*>(CServiceBroker::GetRenderSystem());
+  if (!renderSystem || vertexShaderName.empty())
+    return false;
+
+  return renderSystem->GetShaderPath(vertexShaderName) == "GLES/3.1/";
+}
 }
