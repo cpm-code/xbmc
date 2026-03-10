@@ -3368,10 +3368,11 @@ void CVideoPlayer::HandleMessages()
         if (iTime == DVD_NOPTS_VALUE)
         {
           // When high-speed trickplay stalls the renderer, GetCurrentPts() intentionally reports
-          // no valid PTS. Resume from the current display time instead of the raw clock so the
-          // transition seek stays anchored to the tracked playback position. GetUpdatedTime()
-          // already returns display time in milliseconds with the current display-time offset
-          // applied, so no extra time_offset adjustment is needed here.
+          // no valid PTS. GetUpdatedTime() is a better fallback than using the raw clock or a
+          // previously cached m_State.time value because it first refreshes play state via
+          // UpdatePlayState(0), which prefers the current display time and applies the latest
+          // display-time offset before returning milliseconds. That keeps the transition seek
+          // anchored to the tracked playback position, with no extra time_offset adjustment here.
           iTime = static_cast<double>(GetUpdatedTime());
         }
         else
