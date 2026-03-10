@@ -19,6 +19,8 @@
 #include "utils/log.h"
 
 #include <cstring>
+#include <mutex>
+#include <unordered_map>
 
 #ifdef HAS_GLES
 #define GLchar char
@@ -31,6 +33,70 @@ using namespace XFILE;
 
 namespace
 {
+using ShaderSourceCache = std::unordered_map<std::string, std::string>;
+
+void NormalizeShaderVersionDirective(std::string& source)
+{
+  const size_t versionPos = source.find("#version");
+  if (versionPos == std::string::npos || versionPos == 0)
+    return;
+
+  const size_t versionEnd = source.find('\n', versionPos);
+  const std::string versionLine =
+      versionEnd == std::string::npos ? source.substr(versionPos) : source.substr(versionPos, versionEnd - versionPos + 1);
+
+  source.erase(versionPos, versionEnd == std::string::npos ? std::string::npos : versionEnd - versionPos + 1);
+  source.insert(0, versionLine);
+}
+
+struct ShaderSourceCacheState
+{
+  std::mutex mutex;
+  ShaderSourceCache cache;
+};
+
+ShaderSourceCacheState& GetShaderSourceCacheState()
+{
+  static ShaderSourceCacheState state;
+  return state;
+}
+
+bool GetCachedShaderSource(const std::string& filename, std::string& path, std::string& source)
+{
+  const auto renderSystem = CServiceBroker::GetRenderSystem();
+  if (!renderSystem)
+    return false;
+
+  path = "special://xbmc/system/shaders/";
+  path += renderSystem->GetShaderPath(filename);
+  path += filename;
+
+  {
+    auto& cacheState = GetShaderSourceCacheState();
+    std::scoped_lock lock(cacheState.mutex);
+    const auto it = cacheState.cache.find(path);
+    if (it != cacheState.cache.cend())
+    {
+      source = it->second;
+      return true;
+    }
+  }
+
+  CFileStream file;
+  if (!file.Open(path))
+    return false;
+
+  getline(file, source, '\0');
+
+  {
+    auto& cacheState = GetShaderSourceCacheState();
+    std::scoped_lock lock(cacheState.mutex);
+    cacheState.cache.emplace(path, source);
+  }
+
+  return true;
+}
+
 #if defined(HAS_GLES) && HAS_GLES == 3
 constexpr uint32_t SHADER_BINARY_CACHE_MAGIC = 0x4B534233;
 constexpr uint32_t SHADER_BINARY_CACHE_VERSION = 1;
@@ -171,17 +237,14 @@ bool CShader::LoadSource(const std::string& filename, const std::string& prefix)
   if(filename.empty())
     return true;
 
-  CFileStream file;
-
-  std::string path = "special://xbmc/system/shaders/";
-  path += CServiceBroker::GetRenderSystem()->GetShaderPath(filename);
-  path += filename;
-  if(!file.Open(path))
+  std::string path;
+  if (!GetCachedShaderSource(filename, path, m_source))
   {
     CLog::Log(LOGERROR, "CYUVShaderGLSL::CYUVShaderGLSL - failed to open file {}", filename);
     return false;
   }
-  getline(file, m_source, '\0');
+
+  NormalizeShaderVersionDirective(m_source);
 
   size_t pos = 0;
   size_t versionPos = m_source.find("#version");
@@ -203,18 +266,13 @@ bool CShader::AppendSource(const std::string& filename)
   if(filename.empty())
     return true;
 
-  CFileStream file;
   std::string temp;
-
-  std::string path = "special://xbmc/system/shaders/";
-  path += CServiceBroker::GetRenderSystem()->GetShaderPath(filename);
-  path += filename;
-  if(!file.Open(path))
+  std::string path;
+  if (!GetCachedShaderSource(filename, path, temp))
   {
     CLog::Log(LOGERROR, "CShader::AppendSource - failed to open file {}", filename);
     return false;
   }
-  getline(file, temp, '\0');
   m_source.append(temp);
 
   m_filenames.append(" " + filename);
@@ -227,18 +285,13 @@ bool CShader::InsertSource(const std::string& filename, const std::string& loc)
   if(filename.empty())
     return true;
 
-  CFileStream file;
   std::string temp;
-
-  std::string path = "special://xbmc/system/shaders/";
-  path += CServiceBroker::GetRenderSystem()->GetShaderPath(filename);
-  path += filename;
-  if(!file.Open(path))
+  std::string path;
+  if (!GetCachedShaderSource(filename, path, temp))
   {
     CLog::Log(LOGERROR, "CShader::InsertSource - failed to open file {}", filename);
     return false;
   }
-  getline(file, temp, '\0');
 
   size_t locPos = m_source.find(loc);
   if (locPos == std::string::npos)
@@ -561,4 +614,3 @@ void CGLSLShaderProgram::Disable()
     OnDisabled();
   }
 }
-
