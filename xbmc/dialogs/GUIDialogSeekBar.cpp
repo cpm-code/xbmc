@@ -81,7 +81,14 @@ int CGUIDialogSeekBar::GetProgress() const
   const CGUIInfoManager& infoMgr = CServiceBroker::GetGUI()->GetInfoManager();
 
   int progress = 0;
-  infoMgr.GetInt(progress, PLAYER_SEEKBAR, INFO::DEFAULT_CONTEXT);
+
+  const auto& components = CServiceBroker::GetAppComponents();
+  const auto appPlayer = components.GetComponent<CApplicationPlayer>();
+  if (appPlayer->GetSeekHandler().GetSeekSize() != 0)
+    infoMgr.GetInt(progress, PLAYER_SEEKBAR, INFO::DEFAULT_CONTEXT);
+  else
+    infoMgr.GetInt(progress, PLAYER_PROGRESS, INFO::DEFAULT_CONTEXT);
+
   return progress;
 }
 

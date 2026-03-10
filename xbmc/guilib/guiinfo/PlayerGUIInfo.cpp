@@ -129,43 +129,23 @@ int CPlayerGUIInfo::GetPlayTimeRemaining() const
   return iReverse > 0 ? iReverse : 0;
 }
 
-int CPlayerGUIInfo::GetDisplayedSeekTime() const
-{
-  const int playTime = GetPlayTime();
-  const int seekSize = m_appPlayer->GetSeekHandler().GetSeekSize();
-  if (seekSize != 0)
-    return playTime + seekSize;
-
-  const auto& dataCache = CServiceBroker::GetDataCacheCore();
-  if (!dataCache.HasPerformedSeek(3))
-    return playTime;
-
-  const int64_t seekTarget = dataCache.GetSeekTarget();
-  const int64_t seekOffset = dataCache.GetSeekTargetOffset();
-  const int64_t playTimeMs = static_cast<int64_t>(playTime) * 1000;
-  constexpr int64_t milliSecondsPerSecond = 1000;
-
-  if (seekOffset != 0)
-  {
-    // Some seeks briefly report the playback position as zero before the player state catches up.
-    const bool playTimeReset = playTime == 0 && seekTarget > 0;
-    if (playTimeReset || std::abs(playTimeMs - seekTarget) >= std::abs(seekOffset))
-    {
-      return static_cast<int>(
-          std::max<int64_t>(0, (seekTarget + milliSecondsPerSecond / 2) / milliSecondsPerSecond));
-    }
-  }
-
-  return playTime;
-}
-
 float CPlayerGUIInfo::GetSeekPercent() const
 {
   int iTotal = GetTotalPlayTime();
   if (iTotal == 0)
     return 0.0f;
 
-  float fPercent = static_cast<float>(GetDisplayedSeekTime()) * 100.0f / static_cast<float>(iTotal);
+  int seekTime = GetPlayTime() + m_appPlayer->GetSeekHandler().GetSeekSize();
+
+  // Some seeks briefly report the playback position as zero before the player state catches up.
+  if (seekTime == 0)
+  {
+    const auto& dataCache = CServiceBroker::GetDataCacheCore();
+    if (dataCache.HasPerformedSeek(3) && dataCache.GetSeekTarget() > 0)
+      seekTime = static_cast<int>((dataCache.GetSeekTarget() + 500) / 1000);
+  }
+
+  float fPercent = static_cast<float>(seekTime) * 100.0f / static_cast<float>(iTotal);
   fPercent = std::max(0.0f, std::min(fPercent, 100.0f));
   return fPercent;
 }
@@ -207,7 +187,8 @@ std::string CPlayerGUIInfo::GetCurrentSeekTime(TIME_FORMAT format) const
   if (format == TIME_FORMAT_GUESS && GetTotalPlayTime() >= 3600)
     format = TIME_FORMAT_HH_MM_SS;
 
-  return StringUtils::SecondsToTimeString(GetDisplayedSeekTime(), format);
+  return StringUtils::SecondsToTimeString(
+      g_application.GetTime() + m_appPlayer->GetSeekHandler().GetSeekSize(), format);
 }
 
 std::string CPlayerGUIInfo::GetSeekTime(TIME_FORMAT format) const
@@ -369,9 +350,7 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     ///////////////////////////////////////////////////////////////////////////////////////////////
     case PLAYER_SEEKOFFSET:
     {
-      const auto& dataCache = CServiceBroker::GetDataCacheCore();
-      int lastSeekOffset = dataCache.HasPerformedSeek(3) ? dataCache.GetSeekTargetOffset()
-                                                         : dataCache.GetSeekOffSet();
+      int lastSeekOffset = CServiceBroker::GetDataCacheCore().GetSeekOffSet();
       std::string seekOffset = StringUtils::SecondsToTimeString(
           std::abs(lastSeekOffset / 1000), static_cast<TIME_FORMAT>(info.GetData1()));
       if (lastSeekOffset < 0)
@@ -907,7 +886,8 @@ bool CPlayerGUIInfo::GetInt(int& value,
       value = static_cast<int>(m_appVolume->GetVolumePercent());
       return true;
     case PLAYER_PROGRESS:
-      value = std::lrintf(g_application.GetPercentage());
+      value = std::lrintf(CServiceBroker::GetDataCacheCore().HasPerformedSeek(3) ? GetSeekPercent()
+                                                                                 : g_application.GetPercentage());
       return true;
     case PLAYER_PROGRESS_CACHE:
       value = std::lrintf(g_application.GetCachePercentage());

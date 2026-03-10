@@ -69,7 +69,6 @@ private:
   int GetTotalPlayTime() const;
   int GetPlayTime() const;
   int GetPlayTimeRemaining() const;
-  int GetDisplayedSeekTime() const;
   float GetSeekPercent() const;
 
   std::string GetCurrentPlayTime(TIME_FORMAT format) const;
