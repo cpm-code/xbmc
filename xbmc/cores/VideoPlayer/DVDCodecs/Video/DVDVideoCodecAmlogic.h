@@ -16,9 +16,10 @@
 #include "utils/BitstreamConverter.h"
 
 #include <chrono>
-#include <set>
 #include <atomic>
 #include <memory>
+#include <optional>
+#include <set>
 
 class CAMLCodec;
 struct mpeg2_sequence;
@@ -133,6 +134,6 @@ private:
   DOVICMv40Mode m_appendCMv40ModeApplied{DOVICMv40Mode::CMV40_NONE};
   bool m_settingsCallbackRegistered{false};
   bool m_drainRequested{false};
-  std::chrono::steady_clock::time_point m_tpDrainRequested{};
+  std::optional<std::chrono::steady_clock::time_point> m_tpDrainRequested;
 
 };

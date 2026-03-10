@@ -26,6 +26,11 @@
 
 #define __MODULE_NAME__ "DVDVideoCodecAmlogic"
 
+namespace
+{
+constexpr auto SINGLE_LAYER_RETRY_DRAIN_GRACE = std::chrono::milliseconds(250);
+}
+
 CAMLVideoBufferPool::~CAMLVideoBufferPool()
 {
   CLog::Log(LOGDEBUG, "CAMLVideoBufferPool::~CAMLVideoBufferPool: Deleting {:d} buffers", static_cast<unsigned int>(m_videoBuffers.size()) );
@@ -495,7 +500,7 @@ void CDVDVideoCodecAmlogic::ClearBitstreamCommon(void)
   m_last_pData = nullptr;
   m_last_iSize = 0;
   m_drainRequested = false;
-  m_tpDrainRequested = {};
+  m_tpDrainRequested.reset();
 
   if (m_bitstream) m_bitstream->ResetStartDecode();
 }
@@ -681,8 +686,10 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecAmlogic::GetPicture(VideoPicture* pVideoP
 
   if (retVal == VC_EOF && m_drainRequested && !m_last_added)
   {
-    constexpr auto upstream_drain_grace = std::chrono::milliseconds(250);
-    if (std::chrono::steady_clock::now() - m_tpDrainRequested < upstream_drain_grace)
+    // Give the single-layer bitstream conversion retry a brief chance to feed AML
+    // before treating decoder drain as complete.
+    if (m_tpDrainRequested.has_value() &&
+        std::chrono::steady_clock::now() - *m_tpDrainRequested < SINGLE_LAYER_RETRY_DRAIN_GRACE)
       return VC_NONE;
   }
 
@@ -722,8 +729,9 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecAmlogic::GetPicture(VideoPicture* pVideoP
 void CDVDVideoCodecAmlogic::SetCodecControl(int flags)
 {
   const bool drainRequested = (flags & DVD_CODEC_CTRL_DRAIN) != 0;
+  const bool flagsChanged = m_codecControlFlags != flags;
 
-  if (m_codecControlFlags != flags)
+  if (flagsChanged)
   {
     CLog::Log(LOGDEBUG, LOGVIDEO, "{} {:x}->{:x}",  __func__, m_codecControlFlags, flags);
     m_codecControlFlags = flags;
@@ -733,17 +741,18 @@ void CDVDVideoCodecAmlogic::SetCodecControl(int flags)
     else
       m_videobuffer.iFlags &= ~DVP_FLAG_DROPPED;
 
-  }
+    if (m_drainRequested != drainRequested)
+    {
+      m_drainRequested = drainRequested;
+      if (drainRequested)
+        m_tpDrainRequested = std::chrono::steady_clock::now();
+      else
+        m_tpDrainRequested.reset();
+    }
 
-  if (drainRequested)
-  {
-    if (!m_drainRequested)
-      m_tpDrainRequested = std::chrono::steady_clock::now();
+    if (m_Codec)
+      m_Codec->SetDrain(drainRequested);
   }
-  m_drainRequested = drainRequested;
-
-  if (m_Codec)
-    m_Codec->SetDrain(drainRequested);
 }
 
 void CDVDVideoCodecAmlogic::SetSpeed(int iSpeed)
