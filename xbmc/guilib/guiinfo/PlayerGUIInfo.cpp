@@ -120,7 +120,25 @@ std::string CPlayerGUIInfo::GetAMLConfigInfo(std::string item) const
 
 int CPlayerGUIInfo::GetPlayTime() const
 {
-  return std::lrint(g_application.GetTime());
+  int playTime = std::lrint(g_application.GetTime());
+
+  const auto& dataCache = CServiceBroker::GetDataCacheCore();
+  if (dataCache.HasPerformedSeek(3))
+  {
+    const int64_t seekTarget = dataCache.GetSeekTarget();
+    if (seekTarget >= 0)
+    {
+      const int64_t playTimeMs = static_cast<int64_t>(playTime) * 1000;
+
+      // Keep the timeline pinned to the last requested seek target until the
+      // player state catches up, otherwise the UI briefly snaps back to the
+      // pre-seek position before jumping to the new location.
+      if (std::llabs(playTimeMs - seekTarget) > 1000)
+        playTime = static_cast<int>((seekTarget + 500) / 1000);
+    }
+  }
+
+  return playTime;
 }
 
 int CPlayerGUIInfo::GetPlayTimeRemaining() const
@@ -135,10 +153,9 @@ float CPlayerGUIInfo::GetSeekPercent() const
   if (iTotal == 0)
     return 0.0f;
 
-  float fPercentPlayTime = static_cast<float>(GetPlayTime() * 1000) / iTotal * 0.1f;
-  float fPercentPerSecond = 100.0f / static_cast<float>(iTotal);
-  float fPercent =
-      fPercentPlayTime + fPercentPerSecond * m_appPlayer->GetSeekHandler().GetSeekSize();
+  int seekTime = GetPlayTime() + m_appPlayer->GetSeekHandler().GetSeekSize();
+
+  float fPercent = static_cast<float>(seekTime) * 100.0f / static_cast<float>(iTotal);
   fPercent = std::max(0.0f, std::min(fPercent, 100.0f));
   return fPercent;
 }
@@ -879,7 +896,8 @@ bool CPlayerGUIInfo::GetInt(int& value,
       value = static_cast<int>(m_appVolume->GetVolumePercent());
       return true;
     case PLAYER_PROGRESS:
-      value = std::lrintf(g_application.GetPercentage());
+      value = std::lrintf(CServiceBroker::GetDataCacheCore().HasPerformedSeek(3) ? GetSeekPercent()
+                                                                                 : g_application.GetPercentage());
       return true;
     case PLAYER_PROGRESS_CACHE:
       value = std::lrintf(g_application.GetCachePercentage());
