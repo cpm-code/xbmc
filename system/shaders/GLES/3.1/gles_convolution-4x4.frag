@@ -25,8 +25,15 @@ precision highp float;
 uniform sampler2D img;
 uniform vec2 stepxy;
 in vec2 cord;
-uniform float m_alpha;
 uniform sampler2D kernelTex;
+
+layout(std140) uniform KodiVideoFilterVertexBlock
+{
+  mat4 uProj;
+  mat4 uModel;
+  vec4 uAlpha;
+};
+
 out vec4 fragColor;
 
 vec4 weight(float pos)
@@ -51,9 +58,9 @@ vec3 sampleLine(int ypos, int xpos, vec4 taps, ivec2 texSize)
   vec4 s3 = texelFetch(img, clampCoord(ivec2(xpos + 3, ypos), texSize), 0);
 
   return s0.rgb * taps.x +
-         s1.rgb * taps.y +
-         s2.rgb * taps.z +
-         s3.rgb * taps.w;
+      s1.rgb * taps.y +
+      s2.rgb * taps.z +
+      s3.rgb * taps.w;
 }
 
 void main()
@@ -70,9 +77,9 @@ void main()
   int startY = base.y - 2;
 
   vec3 rgb = sampleLine(startY, startX, linetaps, texSize) * columntaps.x +
-             sampleLine(startY + 1, startX, linetaps, texSize) * columntaps.y +
-             sampleLine(startY + 2, startX, linetaps, texSize) * columntaps.z +
-             sampleLine(startY + 3, startX, linetaps, texSize) * columntaps.w;
+      sampleLine(startY + 1, startX, linetaps, texSize) * columntaps.y +
+      sampleLine(startY + 2, startX, linetaps, texSize) * columntaps.z +
+      sampleLine(startY + 3, startX, linetaps, texSize) * columntaps.w;
 
-  fragColor = vec4(rgb, m_alpha);
+  fragColor = vec4(rgb, uAlpha.x);
 }

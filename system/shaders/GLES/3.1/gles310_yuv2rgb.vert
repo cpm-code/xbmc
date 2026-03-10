@@ -15,12 +15,16 @@ layout(location = 3) in vec2 m_attrcordV;
 out vec2 m_cordY;
 out vec2 m_cordU;
 out vec2 m_cordV;
-uniform mat4 m_proj;
-uniform mat4 m_model;
+
+layout(std140) uniform KodiYuvVertexBlock
+{
+  mat4 uProj;
+  mat4 uModel;
+};
 
 void main()
 {
-  mat4 mvp = m_proj * m_model;
+  mat4 mvp = uProj * uModel;
   gl_Position = mvp * m_attrpos;
   m_cordY = m_attrcordY;
   m_cordU = m_attrcordU;

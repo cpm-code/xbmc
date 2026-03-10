@@ -17,10 +17,47 @@
 #include "utils/GLUtils.h"
 #include "utils/log.h"
 
+#include <algorithm>
+#include <array>
 #include <sstream>
 #include <string>
 
 using namespace Shaders::GLES;
+
+namespace
+{
+constexpr GLuint YUV_VERTEX_BINDING_POINT = 0;
+constexpr GLuint YUV_FRAGMENT_BINDING_POINT = 1;
+
+struct YuvVertexBlockData
+{
+  std::array<GLfloat, 16> proj{};
+  std::array<GLfloat, 16> model{};
+};
+
+struct YuvFragmentBlockData
+{
+  std::array<GLfloat, 4> stepAlphaField{};
+  std::array<GLfloat, 4> gamma{};
+  std::array<GLfloat, 4> coefsDst{};
+  std::array<GLfloat, 16> yuvMat{};
+  std::array<GLfloat, 16> primMat{};
+};
+
+void EnsureUniformBuffer(GLuint& buffer, GLsizeiptr size)
+{
+  if (buffer == 0)
+  {
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_UNIFORM_BUFFER, buffer);
+    glBufferData(GL_UNIFORM_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
+  }
+  else
+  {
+    glBindBuffer(GL_UNIFORM_BUFFER, buffer);
+  }
+}
+} // namespace
 
 //////////////////////////////////////////////////////////////////////
 // BaseYUV2RGBGLSLShader - base class for GLSL YUV2RGB shaders
@@ -112,6 +149,17 @@ void BaseYUV2RGBGLSLShader::OnCompiledAndLinked()
   m_hCoefsDst = glGetUniformLocation(ProgramHandle(), "m_coefsDst");
   m_hToneP1 = glGetUniformLocation(ProgramHandle(), "m_toneP1");
   m_hLuminance = glGetUniformLocation(ProgramHandle(), "m_luminance");
+
+  m_hVertexBlock = glGetUniformBlockIndex(ProgramHandle(), "KodiYuvVertexBlock");
+  if (m_hVertexBlock >= 0)
+    glUniformBlockBinding(ProgramHandle(), static_cast<GLuint>(m_hVertexBlock),
+                          YUV_VERTEX_BINDING_POINT);
+
+  m_hFragmentBlock = glGetUniformBlockIndex(ProgramHandle(), "KodiYuvParamsBlock");
+  if (m_hFragmentBlock >= 0)
+    glUniformBlockBinding(ProgramHandle(), static_cast<GLuint>(m_hFragmentBlock),
+                          YUV_FRAGMENT_BINDING_POINT);
+
   VerifyGLState();
 }
 
@@ -121,25 +169,20 @@ bool BaseYUV2RGBGLSLShader::OnEnabled()
   glUniform1i(m_hYTex, 0);
   glUniform1i(m_hUTex, 1);
   glUniform1i(m_hVTex, 2);
-  glUniform2f(m_hStep, 1.0 / m_width, 1.0 / m_height);
 
   m_convMatrix.SetDestinationContrast(m_contrast)
       .SetDestinationBlack(m_black)
       .SetDestinationLimitedRange(!m_convertFullRange);
 
   Matrix4 yuvMat = m_convMatrix.GetYuvMat();
-  glUniformMatrix4fv(m_hYuvMat, 1, GL_FALSE, yuvMat.ToRaw());
-  glUniformMatrix4fv(m_hProj,  1, GL_FALSE, m_proj);
-  glUniformMatrix4fv(m_hModel, 1, GL_FALSE, m_model);
-  glUniform1f(m_hAlpha, m_alpha);
+  Matrix3 primMat = m_convMatrix.GetPrimMat();
+  const GLfloat stepX = m_width > 0 ? 1.0f / static_cast<GLfloat>(m_width) : 0.0f;
+  const GLfloat stepY = m_height > 0 ? 1.0f / static_cast<GLfloat>(m_height) : 0.0f;
+  const GLfloat gammaSrc = m_convMatrix.GetGammaSrc();
+  const GLfloat gammaDstInv = 1.0f / m_convMatrix.GetGammaDst();
 
-  if (m_colorConversion)
-  {
-    Matrix3 primMat = m_convMatrix.GetPrimMat();
-    glUniformMatrix3fv(m_hPrimMat, 1, GL_FALSE, primMat.ToRaw());
-    glUniform1f(m_hGammaSrc, m_convMatrix.GetGammaSrc());
-    glUniform1f(m_hGammaDstInv, 1 / m_convMatrix.GetGammaDst());
-  }
+  float toneP1 = 0.0f;
+  float luminance = 0.0f;
 
   if (m_toneMapping)
   {
@@ -159,30 +202,79 @@ bool BaseYUV2RGBGLSLShader::OnEnabled()
 
       // Sanity check
       if (param < 0.1f || param > 5.0f)
-      {
         param = 0.7f;
-      }
 
-      param *= m_toneMappingParam;
-
-      Matrix3x1 coefs = m_convMatrix.GetRGBYuvCoefs(AVColorSpace::AVCOL_SPC_BT709);
-      glUniform3f(m_hCoefsDst, coefs[0], coefs[1], coefs[2]);
-      glUniform1f(m_hToneP1, param);
+      toneP1 = param * m_toneMappingParam;
     }
     else if (m_toneMappingMethod == VS_TONEMAPMETHOD_ACES)
     {
-      const float lumin = CToneMappers::GetLuminanceValue(m_hasDisplayMetadata, m_displayMetadata,
-                                                          m_hasLightMetadata, m_lightMetadata);
-      glUniform1f(m_hLuminance, lumin);
-      glUniform1f(m_hToneP1, m_toneMappingParam);
+      luminance = CToneMappers::GetLuminanceValue(m_hasDisplayMetadata, m_displayMetadata,
+                                                  m_hasLightMetadata, m_lightMetadata);
+      toneP1 = m_toneMappingParam;
     }
     else if (m_toneMappingMethod == VS_TONEMAPMETHOD_HABLE)
     {
-      const float lumin = CToneMappers::GetLuminanceValue(m_hasDisplayMetadata, m_displayMetadata,
-                                                          m_hasLightMetadata, m_lightMetadata);
-      const float param = (10000.0f / lumin) * (2.0f / m_toneMappingParam);
-      glUniform1f(m_hLuminance, lumin);
-      glUniform1f(m_hToneP1, param);
+      luminance = CToneMappers::GetLuminanceValue(m_hasDisplayMetadata, m_displayMetadata,
+                                                  m_hasLightMetadata, m_lightMetadata);
+      toneP1 = (10000.0f / luminance) * (2.0f / m_toneMappingParam);
+    }
+  }
+
+  Matrix3x1 coefs = m_convMatrix.GetRGBYuvCoefs(AVColorSpace::AVCOL_SPC_BT709);
+
+  if (m_hVertexBlock >= 0 && m_hFragmentBlock >= 0)
+  {
+    YuvVertexBlockData vertexBlock;
+    std::copy_n(m_proj, 16, vertexBlock.proj.begin());
+    std::copy_n(m_model, 16, vertexBlock.model.begin());
+
+    YuvFragmentBlockData fragmentBlock;
+    fragmentBlock.stepAlphaField = {stepX, stepY, m_alpha, static_cast<GLfloat>(m_field)};
+    fragmentBlock.gamma = {gammaSrc, gammaDstInv, toneP1, luminance};
+    fragmentBlock.coefsDst = {coefs[0], coefs[1], coefs[2], 0.0f};
+    std::copy_n(yuvMat.ToRaw(), 16, fragmentBlock.yuvMat.begin());
+    const float* primMatRaw = primMat.ToRaw();
+    fragmentBlock.primMat = {primMatRaw[0], primMatRaw[1], primMatRaw[2], 0.0f,
+                 primMatRaw[3], primMatRaw[4], primMatRaw[5], 0.0f,
+                 primMatRaw[6], primMatRaw[7], primMatRaw[8], 0.0f,
+                 0.0f,         0.0f,         0.0f,         1.0f};
+
+    EnsureUniformBuffer(m_vertexUBO, sizeof(YuvVertexBlockData));
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(YuvVertexBlockData), &vertexBlock);
+    glBindBufferBase(GL_UNIFORM_BUFFER, YUV_VERTEX_BINDING_POINT, m_vertexUBO);
+
+    EnsureUniformBuffer(m_fragmentUBO, sizeof(YuvFragmentBlockData));
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(YuvFragmentBlockData), &fragmentBlock);
+    glBindBufferBase(GL_UNIFORM_BUFFER, YUV_FRAGMENT_BINDING_POINT, m_fragmentUBO);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+  }
+  else
+  {
+    glUniform2f(m_hStep, stepX, stepY);
+    glUniformMatrix4fv(m_hYuvMat, 1, GL_FALSE, yuvMat.ToRaw());
+    glUniformMatrix4fv(m_hProj, 1, GL_FALSE, m_proj);
+    glUniformMatrix4fv(m_hModel, 1, GL_FALSE, m_model);
+    glUniform1f(m_hAlpha, m_alpha);
+
+    if (m_colorConversion)
+    {
+      glUniformMatrix3fv(m_hPrimMat, 1, GL_FALSE, primMat.ToRaw());
+      glUniform1f(m_hGammaSrc, gammaSrc);
+      glUniform1f(m_hGammaDstInv, gammaDstInv);
+    }
+
+    if (m_toneMapping)
+    {
+      if (m_toneMappingMethod == VS_TONEMAPMETHOD_REINHARD)
+      {
+        glUniform3f(m_hCoefsDst, coefs[0], coefs[1], coefs[2]);
+        glUniform1f(m_hToneP1, toneP1);
+      }
+      else
+      {
+        glUniform1f(m_hLuminance, luminance);
+        glUniform1f(m_hToneP1, toneP1);
+      }
     }
   }
 
@@ -197,6 +289,20 @@ void BaseYUV2RGBGLSLShader::OnDisabled()
 
 void BaseYUV2RGBGLSLShader::Free()
 {
+  if (m_vertexUBO != 0)
+  {
+    glDeleteBuffers(1, &m_vertexUBO);
+    m_vertexUBO = 0;
+  }
+
+  if (m_fragmentUBO != 0)
+  {
+    glDeleteBuffers(1, &m_fragmentUBO);
+    m_fragmentUBO = 0;
+  }
+
+  m_hVertexBlock = -1;
+  m_hFragmentBlock = -1;
 }
 
 void BaseYUV2RGBGLSLShader::SetColParams(AVColorSpace colSpace, int bits, bool limited,
@@ -262,9 +368,12 @@ YUV2RGBBobShader::YUV2RGBBobShader(EShaderFormat format,
 void YUV2RGBBobShader::OnCompiledAndLinked()
 {
   BaseYUV2RGBGLSLShader::OnCompiledAndLinked();
-  m_hStepX = glGetUniformLocation(ProgramHandle(), "m_stepX");
-  m_hStepY = glGetUniformLocation(ProgramHandle(), "m_stepY");
-  m_hField = glGetUniformLocation(ProgramHandle(), "m_field");
+  if (m_hFragmentBlock < 0)
+  {
+    m_hStepX = glGetUniformLocation(ProgramHandle(), "m_stepX");
+    m_hStepY = glGetUniformLocation(ProgramHandle(), "m_stepY");
+    m_hField = glGetUniformLocation(ProgramHandle(), "m_field");
+  }
   VerifyGLState();
 }
 
@@ -273,9 +382,13 @@ bool YUV2RGBBobShader::OnEnabled()
   if(!BaseYUV2RGBGLSLShader::OnEnabled())
     return false;
 
-  glUniform1i(m_hField, m_field);
-  glUniform1f(m_hStepX, 1.0f / (float)m_width);
-  glUniform1f(m_hStepY, 1.0f / (float)m_height);
+  if (m_hFragmentBlock < 0)
+  {
+    glUniform1i(m_hField, m_field);
+    glUniform1f(m_hStepX, 1.0f / static_cast<float>(m_width));
+    glUniform1f(m_hStepY, 1.0f / static_cast<float>(m_height));
+  }
+
   VerifyGLState();
   return true;
 }

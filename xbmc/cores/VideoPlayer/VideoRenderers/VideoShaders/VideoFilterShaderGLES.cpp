@@ -15,10 +15,38 @@
 #include "utils/GLUtils.h"
 #include "utils/log.h"
 
+#include <algorithm>
+#include <array>
 #include <math.h>
 #include <string>
 
 using namespace Shaders::GLES;
+
+namespace
+{
+constexpr GLuint VIDEO_FILTER_VERTEX_BINDING_POINT = 2;
+
+struct VideoFilterVertexBlockData
+{
+  std::array<GLfloat, 16> proj{};
+  std::array<GLfloat, 16> model{};
+  std::array<GLfloat, 4> alpha{};
+};
+
+void EnsureVideoFilterUniformBuffer(GLuint& buffer, GLsizeiptr size)
+{
+  if (buffer == 0)
+  {
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_UNIFORM_BUFFER, buffer);
+    glBufferData(GL_UNIFORM_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
+  }
+  else
+  {
+    glBindBuffer(GL_UNIFORM_BUFFER, buffer);
+  }
+}
+} // namespace
 
 //////////////////////////////////////////////////////////////////////
 // BaseVideoFilterShader - base class for video filter shaders
@@ -54,14 +82,43 @@ void BaseVideoFilterShader::OnCompiledAndLinked()
   m_hAlpha  = glGetUniformLocation(ProgramHandle(), "m_alpha");
   m_hProj  = glGetUniformLocation(ProgramHandle(), "m_proj");
   m_hModel = glGetUniformLocation(ProgramHandle(), "m_model");
+  m_hVertexBlock = glGetUniformBlockIndex(ProgramHandle(), "KodiVideoFilterVertexBlock");
+  if (m_hVertexBlock >= 0)
+    glUniformBlockBinding(ProgramHandle(), static_cast<GLuint>(m_hVertexBlock),
+                          VIDEO_FILTER_VERTEX_BINDING_POINT);
 }
 
 bool BaseVideoFilterShader::OnEnabled()
 {
-  glUniformMatrix4fv(m_hProj,  1, GL_FALSE, m_proj);
-  glUniformMatrix4fv(m_hModel, 1, GL_FALSE, m_model);
-  glUniform1f(m_hAlpha, m_alpha);
+  if (m_hVertexBlock >= 0)
+  {
+    VideoFilterVertexBlockData vertexBlock;
+    std::copy_n(m_proj, 16, vertexBlock.proj.begin());
+    std::copy_n(m_model, 16, vertexBlock.model.begin());
+    vertexBlock.alpha = {m_alpha, 0.0f, 0.0f, 0.0f};
+
+    EnsureVideoFilterUniformBuffer(m_vertexUBO, sizeof(VideoFilterVertexBlockData));
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(VideoFilterVertexBlockData), &vertexBlock);
+    glBindBufferBase(GL_UNIFORM_BUFFER, VIDEO_FILTER_VERTEX_BINDING_POINT, m_vertexUBO);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+  }
+  else
+  {
+    glUniformMatrix4fv(m_hProj,  1, GL_FALSE, m_proj);
+    glUniformMatrix4fv(m_hModel, 1, GL_FALSE, m_model);
+    glUniform1f(m_hAlpha, m_alpha);
+  }
   return true;
+}
+
+void BaseVideoFilterShader::Free()
+{
+  if (m_vertexUBO != 0)
+  {
+    glDeleteBuffers(1, &m_vertexUBO);
+    m_vertexUBO = 0;
+  }
+  m_hVertexBlock = -1;
 }
 
 ConvolutionFilterShader::ConvolutionFilterShader(ESCALINGMETHOD method)
