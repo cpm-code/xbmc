@@ -8,17 +8,174 @@
 
 #include "ShaderGLES.h"
 
+#include "ServiceBroker.h"
 #include "ShaderTextureGLES.h"
 #include "ShaderUtilsGLES.h"
 #include "application/Application.h"
 #include "cores/RetroPlayer/rendering/RenderContext.h"
 #include "cores/RetroPlayer/shaders/IShaderLut.h"
 #include "cores/RetroPlayer/shaders/ShaderUtils.h"
+#include "filesystem/Directory.h"
+#include "filesystem/File.h"
+#include "rendering/RenderSystem.h"
 #include "rendering/gl/RenderSystemGL.h"
+#include "utils/Crc32.h"
+#include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/log.h"
 
+#include <cstring>
+
 using namespace KODI::SHADER;
+
+namespace
+{
+#if defined(HAS_GLES) && HAS_GLES == 3
+constexpr uint32_t RETRO_PLAYER_SHADER_BINARY_CACHE_MAGIC = 0x4B535233;
+constexpr uint32_t RETRO_PLAYER_SHADER_BINARY_CACHE_VERSION = 1;
+
+struct ShaderBinaryCacheHeader
+{
+  uint32_t magic;
+  uint32_t version;
+  uint32_t format;
+  uint32_t length;
+};
+
+bool SupportsProgramBinaryCache()
+{
+  const auto renderSystem = CServiceBroker::GetRenderSystem();
+  if (!renderSystem)
+    return false;
+
+  unsigned int major{0};
+  unsigned int minor{0};
+  renderSystem->GetRenderVersion(major, minor);
+  if (major < 3)
+    return false;
+
+  GLint numBinaryFormats{0};
+  glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS, &numBinaryFormats);
+  return numBinaryFormats > 0;
+}
+
+uint32_t ComputeShaderCacheKey(const std::string& shaderPath,
+                               const std::string& vertexShaderSource,
+                               const std::string& fragmentShaderSource)
+{
+  Crc32 crc;
+  const auto renderSystem = CServiceBroker::GetRenderSystem();
+
+  const auto addString = [&crc](const std::string& value) {
+    crc.Compute(value.data(), value.size());
+  };
+
+  addString(shaderPath);
+  addString(vertexShaderSource);
+  addString(fragmentShaderSource);
+
+  if (renderSystem)
+  {
+    addString(renderSystem->GetRenderVendor());
+    addString(renderSystem->GetRenderRenderer());
+    addString(renderSystem->GetRenderVersionString());
+  }
+
+  return crc;
+}
+
+std::string GetShaderBinaryCachePath(const std::string& shaderPath,
+                                     const std::string& vertexShaderSource,
+                                     const std::string& fragmentShaderSource)
+{
+  constexpr auto cacheDir = "special://profile/cache/shaders";
+  XFILE::CDirectory::Create(cacheDir);
+  return URIUtils::AddFileToFolder(
+      cacheDir,
+      StringUtils::Format("gles-retroplayer-program-{:08x}.bin",
+                          ComputeShaderCacheKey(shaderPath, vertexShaderSource, fragmentShaderSource)));
+}
+
+bool LoadProgramBinaryCache(GLuint program,
+                            const std::string& shaderPath,
+                            const std::string& vertexShaderSource,
+                            const std::string& fragmentShaderSource)
+{
+  std::vector<uint8_t> fileData;
+  XFILE::CFile file;
+  const std::string cachePath =
+      GetShaderBinaryCachePath(shaderPath, vertexShaderSource, fragmentShaderSource);
+
+  if (file.LoadFile(cachePath, fileData) <= static_cast<ssize_t>(sizeof(ShaderBinaryCacheHeader)))
+    return false;
+
+  ShaderBinaryCacheHeader header;
+  std::memcpy(&header, fileData.data(), sizeof(header));
+  if (header.magic != RETRO_PLAYER_SHADER_BINARY_CACHE_MAGIC ||
+      header.version != RETRO_PLAYER_SHADER_BINARY_CACHE_VERSION || header.length == 0 ||
+      fileData.size() != sizeof(header) + header.length)
+  {
+    XFILE::CFile::Delete(cachePath);
+    return false;
+  }
+
+  glProgramBinary(program, header.format, fileData.data() + sizeof(header), header.length);
+
+  GLint linked{GL_FALSE};
+  glGetProgramiv(program, GL_LINK_STATUS, &linked);
+  if (linked != GL_TRUE)
+  {
+    CLog::Log(LOGDEBUG, "CShaderGLES::Create: Program binary cache rejected for {}", shaderPath);
+    XFILE::CFile::Delete(cachePath);
+    return false;
+  }
+
+  CLog::Log(LOGDEBUG, "CShaderGLES::Create: Loaded program binary cache for {}", shaderPath);
+  return true;
+}
+
+void SaveProgramBinaryCache(GLuint program,
+                            const std::string& shaderPath,
+                            const std::string& vertexShaderSource,
+                            const std::string& fragmentShaderSource)
+{
+  GLint binaryLength{0};
+  glGetProgramiv(program, GL_PROGRAM_BINARY_LENGTH, &binaryLength);
+  if (binaryLength <= 0)
+    return;
+
+  std::vector<uint8_t> binary(binaryLength);
+  GLenum binaryFormat{0};
+  GLsizei actualLength{0};
+  glGetProgramBinary(program, binaryLength, &actualLength, &binaryFormat, binary.data());
+  if (actualLength <= 0)
+    return;
+
+  ShaderBinaryCacheHeader header{RETRO_PLAYER_SHADER_BINARY_CACHE_MAGIC,
+                                 RETRO_PLAYER_SHADER_BINARY_CACHE_VERSION,
+                                 static_cast<uint32_t>(binaryFormat),
+                                 static_cast<uint32_t>(actualLength)};
+
+  XFILE::CFile file;
+  const std::string cachePath =
+      GetShaderBinaryCachePath(shaderPath, vertexShaderSource, fragmentShaderSource);
+  if (!file.OpenForWrite(cachePath, true))
+    return;
+
+  if (file.Write(&header, sizeof(header)) != static_cast<ssize_t>(sizeof(header)) ||
+      file.Write(binary.data(), actualLength) != actualLength)
+  {
+    CLog::Log(LOGWARNING, "CShaderGLES::Create: Failed to write shader program binary cache {}",
+              cachePath);
+    file.Close();
+    XFILE::CFile::Delete(cachePath);
+    return;
+  }
+
+  file.Close();
+}
+#endif
+} // namespace
 
 CShaderGLES::CShaderGLES() = default;
 
@@ -48,7 +205,6 @@ bool CShaderGLES::Create(unsigned int passIdx,
   m_shaderParameters = std::move(shaderParameters);
   m_luts = std::move(luts);
   m_frameCountMod = frameCountMod;
-  m_shaderProgram = glCreateProgram();
 
   std::string defineVersion = CShaderUtilsGLES::GetGLSLVersion(m_shaderSource);
   std::string defineVertex = "#define VERTEX\n#define PARAMETER_UNIFORM\n";
@@ -57,6 +213,49 @@ bool CShaderGLES::Create(unsigned int passIdx,
   std::string fragmentShaderSourceStr = defineVersion + defineFragment + m_shaderSource;
   const GLchar* vertexShaderSource = vertexShaderSourceStr.c_str();
   const GLchar* fragmentShaderSource = fragmentShaderSourceStr.c_str();
+
+  const auto finishProgramSetup = [this]() {
+    glUseProgram(m_shaderProgram);
+
+    GetUniformLocs();
+
+    GLint paramLoc = glGetUniformLocation(m_shaderProgram, "Texture");
+    glUniform1i(paramLoc, 0);
+
+    const GLubyte idx[4] = {0, 1, 3, 2}; // Determines order of triangle strip
+
+    // Set up VBO
+    glGenBuffers(3, m_shaderVertexVBO.data());
+
+    glGenBuffers(1, &m_shaderIndexVBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_shaderIndexVBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 4, idx, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glUseProgram(0);
+  };
+
+#if defined(HAS_GLES) && HAS_GLES == 3
+  const bool useProgramBinaryCache = SupportsProgramBinaryCache();
+  if (useProgramBinaryCache)
+  {
+    m_shaderProgram = glCreateProgram();
+    if (m_shaderProgram != 0)
+    {
+      if (LoadProgramBinaryCache(m_shaderProgram, m_shaderPath, vertexShaderSourceStr,
+                                 fragmentShaderSourceStr))
+      {
+        finishProgramSetup();
+        return true;
+      }
+
+      glDeleteProgram(m_shaderProgram);
+      m_shaderProgram = 0;
+    }
+  }
+#endif
+
+  m_shaderProgram = glCreateProgram();
 
   GLint status;
   GLuint vShader;
@@ -99,6 +298,11 @@ bool CShaderGLES::Create(unsigned int passIdx,
   glBindAttribLocation(m_shaderProgram, 1, "COLOR");
   glBindAttribLocation(m_shaderProgram, 2, "TexCoord");
 
+#if defined(HAS_GLES) && HAS_GLES == 3
+  if (useProgramBinaryCache)
+    glProgramParameteri(m_shaderProgram, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
+#endif
+
   glLinkProgram(m_shaderProgram);
 
   glDeleteShader(vShader);
@@ -118,25 +322,13 @@ bool CShaderGLES::Create(unsigned int passIdx,
     return false;
   }
 
-  glUseProgram(m_shaderProgram);
+#if defined(HAS_GLES) && HAS_GLES == 3
+  if (useProgramBinaryCache)
+    SaveProgramBinaryCache(m_shaderProgram, m_shaderPath, vertexShaderSourceStr,
+                           fragmentShaderSourceStr);
+#endif
 
-  GetUniformLocs();
-
-  GLint paramLoc = glGetUniformLocation(m_shaderProgram, "Texture");
-  glUniform1i(paramLoc, 0);
-
-  const GLubyte idx[4] = {0, 1, 3, 2}; // Determines order of triangle strip
-
-  // Set up VBO
-  glGenBuffers(3, m_shaderVertexVBO.data());
-
-  glGenBuffers(1, &m_shaderIndexVBO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_shaderIndexVBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 4, idx, GL_STATIC_DRAW);
-
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-  glUseProgram(0);
+  finishProgramSetup();
   return true;
 }
 
