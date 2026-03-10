@@ -3365,7 +3365,9 @@ void CVideoPlayer::HandleMessages()
         {
           // When high-speed trickplay stalls the renderer, GetCurrentPts() intentionally reports
           // no valid PTS. Resume from the current display time instead of the raw clock so the
-          // transition seek stays anchored to the tracked playback position.
+          // transition seek stays anchored to the tracked playback position. GetUpdatedTime()
+          // already returns display time in milliseconds with the current display-time offset
+          // applied, so no extra time_offset adjustment is needed here.
           iTime = static_cast<double>(GetUpdatedTime());
         }
         else
@@ -3379,25 +3381,30 @@ void CVideoPlayer::HandleMessages()
         // normal-speed playback has packets to decode again, without creating a noticeable jump.
         // 50ms catches "almost at EOF" overshoots; 250ms gives the demuxer a little room to
         // refill audio/video after leaving trickplay.
-        constexpr auto kFastForwardResumeNearEndThreshold{50ms};
-        constexpr auto kFastForwardResumeBackoff{250ms};
+        constexpr auto kResumeNearEndThreshold{50ms};
+        constexpr auto kResumeBackoff{250ms};
+        constexpr auto kMinimumResumeMargin{1ms};
 
         // Only fast-forward can overshoot the end and turn the transition seek into an
         // end-of-stream seek failure. Rewind already seeks away from EOF.
         if (m_playSpeed > DVD_PLAYSPEED_NORMAL)
         {
           // GetMaxTime() is exposed in milliseconds, matching the seek message time units here.
-          const auto maxTime{std::chrono::milliseconds(m_processInfo->GetMaxTime())};
+          const auto maxTime{std::chrono::duration<double, std::milli>(m_processInfo->GetMaxTime())};
           const auto targetTime{std::chrono::duration<double, std::milli>(iTime)};
           if (maxTime > 0ms)
           {
-            if (targetTime + kFastForwardResumeNearEndThreshold >= maxTime)
+            if (targetTime + kResumeNearEndThreshold >= maxTime)
             {
-              // For extremely short content, fall back to the midpoint so we still move away from
-              // EOF without snapping all the way back to the beginning.
-              const auto resumeTime{maxTime > kFastForwardResumeBackoff
-                                        ? maxTime - kFastForwardResumeBackoff
-                                        : maxTime / 2};
+              // Prefer the normal backoff. If the clip is shorter than that, still move outside
+              // the near-EOF threshold when possible; only pathological sub-threshold clips fall
+              // back to the beginning, which is the only safe resume point left for such clips.
+              const auto resumeTime{
+                  maxTime > kResumeBackoff
+                      ? maxTime - kResumeBackoff
+                  : maxTime > (kResumeNearEndThreshold + kMinimumResumeMargin)
+                      ? maxTime - kResumeNearEndThreshold - kMinimumResumeMargin
+                      : 0ms};
               iTime = std::chrono::duration<double, std::milli>(resumeTime).count();
             }
           }
