@@ -26,11 +26,6 @@
 
 #define __MODULE_NAME__ "DVDVideoCodecAmlogic"
 
-namespace
-{
-constexpr auto SINGLE_LAYER_RETRY_DRAIN_GRACE = std::chrono::milliseconds(250);
-}
-
 CAMLVideoBufferPool::~CAMLVideoBufferPool()
 {
   CLog::Log(LOGDEBUG, "CAMLVideoBufferPool::~CAMLVideoBufferPool: Deleting {:d} buffers", static_cast<unsigned int>(m_videoBuffers.size()) );
@@ -499,8 +494,10 @@ void CDVDVideoCodecAmlogic::ClearBitstreamCommon(void)
   m_last_added = true;
   m_last_pData = nullptr;
   m_last_iSize = 0;
+  m_last_dts = DVD_NOPTS_VALUE;
+  m_last_pts = DVD_NOPTS_VALUE;
+  m_last_is_dual_stream = false;
   m_drainRequested = false;
-  m_tpDrainRequested.reset();
 
   if (m_bitstream) m_bitstream->ResetStartDecode();
 }
@@ -589,6 +586,8 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
   uint8_t *pData(packet.pData);
   uint32_t iSize(packet.iSize);
   bool set_osd_max = false;
+  const double packetPts =
+      (m_hints.ptsinvalid || packet.pts == DVD_NOPTS_VALUE) ? DVD_NOPTS_VALUE : packet.pts;
 
   if (pData)
   {
@@ -615,6 +614,9 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
         }
         m_last_pData = pData = m_bitstream->GetConvertBuffer();
         m_last_iSize = iSize = m_bitstream->GetConvertSize();
+        m_last_dts = packet.dts;
+        m_last_pts = packetPts;
+        m_last_is_dual_stream = packet.isDualStream;
       }
     }
     else if (!m_has_keyframe && m_bitparser)
@@ -645,7 +647,11 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
     }
   }
 
-  m_last_added = m_Codec->AddData(pData, iSize, packet.dts, m_hints.ptsinvalid ? DVD_NOPTS_VALUE : packet.pts);
+  const bool hasPendingBitstreamPacket = m_bitstream && !m_last_added;
+  const double dts = hasPendingBitstreamPacket ? m_last_dts : packet.dts;
+  const double pts = hasPendingBitstreamPacket ? m_last_pts : packetPts;
+
+  m_last_added = m_Codec->AddData(pData, iSize, dts, pts);
 
   // Make change in luminance as late a possible to try and avoid starting change in luminance in menu.
   if (set_osd_max)
@@ -682,16 +688,17 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecAmlogic::GetPicture(VideoPicture* pVideoP
   if (!m_Codec)
     return VC_ERROR;
 
+  const bool shouldRetryPendingSingleLayerPacket =
+      m_drainRequested && !m_last_added && m_last_pData && m_last_iSize > 0 && !m_last_is_dual_stream;
+  if (shouldRetryPendingSingleLayerPacket)
+    m_last_added = m_Codec->AddData(m_last_pData, m_last_iSize, m_last_dts, m_last_pts);
+
   VCReturn retVal = m_Codec->GetPicture(m_videobuffer);
 
-  if (retVal == VC_EOF && m_drainRequested && !m_last_added)
-  {
-    // Give the single-layer bitstream conversion retry a brief chance to feed AML
-    // before treating decoder drain as complete.
-    if (m_tpDrainRequested.has_value() &&
-        std::chrono::steady_clock::now() - *m_tpDrainRequested < SINGLE_LAYER_RETRY_DRAIN_GRACE)
-      return VC_NONE;
-  }
+  // Keep EOF from surfacing until the pending single-layer converted packet has
+  // actually been accepted by AML.
+  if (retVal == VC_EOF && shouldRetryPendingSingleLayerPacket && !m_last_added)
+    return VC_NONE;
 
   if (retVal == VC_PICTURE)
   {
@@ -742,13 +749,7 @@ void CDVDVideoCodecAmlogic::SetCodecControl(int flags)
       m_videobuffer.iFlags &= ~DVP_FLAG_DROPPED;
 
     if (m_drainRequested != drainRequested)
-    {
       m_drainRequested = drainRequested;
-      if (drainRequested)
-        m_tpDrainRequested = std::chrono::steady_clock::now();
-      else
-        m_tpDrainRequested.reset();
-    }
 
     if (m_Codec)
       m_Codec->SetDrain(drainRequested);

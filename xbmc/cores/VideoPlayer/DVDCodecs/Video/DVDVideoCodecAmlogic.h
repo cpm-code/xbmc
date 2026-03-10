@@ -15,10 +15,8 @@
 #include "cores/VideoPlayer/Buffers/VideoBuffer.h"
 #include "utils/BitstreamConverter.h"
 
-#include <chrono>
 #include <atomic>
 #include <memory>
-#include <optional>
 #include <set>
 
 class CAMLCodec;
@@ -129,11 +127,13 @@ private:
   bool      m_last_added = true;
   uint8_t  *m_last_pData = nullptr;
   uint32_t  m_last_iSize = 0;
+  double    m_last_dts = DVD_NOPTS_VALUE;
+  double    m_last_pts = DVD_NOPTS_VALUE;
+  bool      m_last_is_dual_stream = false;
 
   std::atomic<int> m_appendCMv40ModeSetting{static_cast<int>(DOVICMv40Mode::CMV40_NONE)};
   DOVICMv40Mode m_appendCMv40ModeApplied{DOVICMv40Mode::CMV40_NONE};
   bool m_settingsCallbackRegistered{false};
   bool m_drainRequested{false};
-  std::optional<std::chrono::steady_clock::time_point> m_tpDrainRequested;
 
 };
