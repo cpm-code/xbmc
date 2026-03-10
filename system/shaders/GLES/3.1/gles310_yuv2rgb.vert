@@ -8,10 +8,10 @@
 
 #version 310 es
 
-in vec4 m_attrpos;
-in vec2 m_attrcordY;
-in vec2 m_attrcordU;
-in vec2 m_attrcordV;
+layout(location = 0) in vec4 m_attrpos;
+layout(location = 1) in vec2 m_attrcordY;
+layout(location = 2) in vec2 m_attrcordU;
+layout(location = 3) in vec2 m_attrcordV;
 out vec2 m_cordY;
 out vec2 m_cordU;
 out vec2 m_cordV;
