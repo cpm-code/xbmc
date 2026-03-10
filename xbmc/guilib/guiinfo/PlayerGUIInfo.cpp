@@ -39,7 +39,6 @@
 #include <charconv>
 #include <chrono>
 #include <cmath>
-#include <cstdlib>
 #include <fmt/format.h>
 #include <memory>
 #include <iostream>
@@ -144,12 +143,17 @@ int CPlayerGUIInfo::GetDisplayedSeekTime() const
   const int64_t seekTarget = dataCache.GetSeekTarget();
   const int64_t seekOffset = dataCache.GetSeekTargetOffset();
   const int64_t playTimeMs = static_cast<int64_t>(playTime) * 1000;
+  constexpr int64_t milliSecondsPerSecond = 1000;
 
-  if (seekOffset != 0 &&
-      ((playTime == 0 && seekTarget > 0) ||
-       std::llabs(playTimeMs - seekTarget) >= std::llabs(seekOffset)))
+  if (seekOffset != 0)
   {
-    return std::max(0, static_cast<int>(std::llround(static_cast<double>(seekTarget) / 1000.0)));
+    // Some seeks briefly report the playback position as zero before the player state catches up.
+    const bool playTimeReset = playTime == 0 && seekTarget > 0;
+    if (playTimeReset || std::abs(playTimeMs - seekTarget) >= std::abs(seekOffset))
+    {
+      return static_cast<int>(
+          std::max<int64_t>(0, (seekTarget + milliSecondsPerSecond / 2) / milliSecondsPerSecond));
+    }
   }
 
   return playTime;
