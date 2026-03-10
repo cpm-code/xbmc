@@ -27,17 +27,16 @@ uniform sampler2D m_sampV;
 in vec2 m_cordY;
 in vec2 m_cordU;
 in vec2 m_cordV;
-uniform float m_alpha;
-uniform mat4 m_yuvmat;
-uniform float m_stepX;
-uniform float m_stepY;
-uniform int m_field;
-uniform mat3 m_primMat;
-uniform float m_gammaDstInv;
-uniform float m_gammaSrc;
-uniform float m_toneP1;
-uniform float m_luminance;
-uniform vec3 m_coefsDst;
+
+layout(std140) uniform KodiYuvParamsBlock
+{
+  vec4 uStepAlphaField;
+  vec4 uGamma;
+  vec4 uCoefsDst;
+  mat4 uYuvMat;
+  mat4 uPrimMat;
+};
+
 out vec4 fragColor;
 
 void main()
@@ -47,21 +46,24 @@ void main()
   vec2 offsetY = m_cordY;
   vec2 offsetU = m_cordU;
   vec2 offsetV = m_cordV;
-  float temp1 = mod(m_cordY.y, 2.0 * m_stepY);
+    float temp1 = mod(m_cordY.y, 2.0 * uStepAlphaField.y);
 
-  offsetY.y -= (temp1 - m_stepY / 2.0 + float(m_field) * m_stepY);
-  offsetU.y -= (temp1 - m_stepY / 2.0 + float(m_field) * m_stepY) / 2.0;
-  offsetV.y -= (temp1 - m_stepY / 2.0 + float(m_field) * m_stepY) / 2.0;
+    offsetY.y -=
+      (temp1 - uStepAlphaField.y / 2.0 + uStepAlphaField.w * uStepAlphaField.y);
+    offsetU.y -=
+      (temp1 - uStepAlphaField.y / 2.0 + uStepAlphaField.w * uStepAlphaField.y) / 2.0;
+    offsetV.y -=
+      (temp1 - uStepAlphaField.y / 2.0 + uStepAlphaField.w * uStepAlphaField.y) / 2.0;
 
-  float bstep = step(m_stepY, temp1);
+    float bstep = step(uStepAlphaField.y, temp1);
 
   vec2 belowY, belowU, belowV;
   belowY.x = offsetY.x;
-  belowY.y = offsetY.y + (2.0 * m_stepY * bstep);
+    belowY.y = offsetY.y + (2.0 * uStepAlphaField.y * bstep);
   belowU.x = offsetU.x;
-  belowU.y = offsetU.y + (m_stepY * bstep);
+    belowU.y = offsetU.y + (uStepAlphaField.y * bstep);
   belowV.x = offsetV.x;
-  belowV.y = offsetV.y + (m_stepY * bstep);
+    belowV.y = offsetV.y + (uStepAlphaField.y * bstep);
 
   vec4 rgbAbove;
   vec4 rgbBelow;
@@ -72,38 +74,38 @@ void main()
                   texture(m_sampU, offsetU).g,
                   texture(m_sampV, offsetV).a,
                   1.0);
-  rgbAbove = m_yuvmat * yuvAbove;
-  rgbAbove.a = m_alpha;
+  rgbAbove = uYuvMat * yuvAbove;
+  rgbAbove.a = uStepAlphaField.z;
 
   yuvBelow = vec4(texture(m_sampY, belowY).r,
                   texture(m_sampU, belowU).g,
                   texture(m_sampV, belowV).a,
                   1.0);
-  rgbBelow = m_yuvmat * yuvBelow;
-  rgbBelow.a = m_alpha;
+  rgbBelow = uYuvMat * yuvBelow;
+  rgbBelow.a = uStepAlphaField.z;
 
   rgb = mix(rgbAbove, rgbBelow, 0.5);
 
 #if defined(XBMC_COL_CONVERSION)
-  rgb.rgb = pow(max(vec3(0), rgb.rgb), vec3(m_gammaSrc));
-  rgb.rgb = max(vec3(0), m_primMat * rgb.rgb);
-  rgb.rgb = pow(rgb.rgb, vec3(m_gammaDstInv));
+  rgb.rgb = pow(max(vec3(0), rgb.rgb), vec3(uGamma.x));
+  rgb.rgb = max(vec3(0), mat3(uPrimMat) * rgb.rgb);
+  rgb.rgb = pow(rgb.rgb, vec3(uGamma.y));
 
 #if defined(KODI_TONE_MAPPING_REINHARD)
-  float luma = dot(rgb.rgb, m_coefsDst);
+  float luma = dot(rgb.rgb, uCoefsDst.xyz);
   rgb.rgb *= reinhard(luma) / luma;
 
 #elif defined(KODI_TONE_MAPPING_ACES)
   rgb.rgb = inversePQ(rgb.rgb);
-  rgb.rgb *= (10000.0 / m_luminance) * (2.0 / m_toneP1);
+  rgb.rgb *= (10000.0 / uGamma.w) * (2.0 / uGamma.z);
   rgb.rgb = aces(rgb.rgb);
-  rgb.rgb *= (1.24 / m_toneP1);
+  rgb.rgb *= (1.24 / uGamma.z);
   rgb.rgb = pow(rgb.rgb, vec3(0.27));
 
 #elif defined(KODI_TONE_MAPPING_HABLE)
   rgb.rgb = inversePQ(rgb.rgb);
-  rgb.rgb *= m_toneP1;
-  float wp = m_luminance / 100.0;
+  rgb.rgb *= uGamma.z;
+  float wp = uGamma.w / 100.0;
   rgb.rgb = hable(rgb.rgb * wp) / hable(vec3(wp));
   rgb.rgb = pow(rgb.rgb, vec3(1.0 / 2.2));
 #endif
