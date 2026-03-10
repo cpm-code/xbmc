@@ -25,8 +25,15 @@ precision highp float;
 uniform sampler2D img;
 uniform vec2 stepxy;
 in vec2 cord;
-uniform float m_alpha;
 uniform sampler2D kernelTex;
+
+layout(std140) uniform KodiVideoFilterVertexBlock
+{
+  mat4 uProj;
+  mat4 uModel;
+  vec4 uAlpha;
+};
+
 out vec4 fragColor;
 
 vec3 weight(float pos)
@@ -53,11 +60,11 @@ vec3 sampleLine(int ypos, int xpos, vec3 taps1, vec3 taps2, ivec2 texSize)
   vec4 s5 = texelFetch(img, clampCoord(ivec2(xpos + 5, ypos), texSize), 0);
 
   return s0.rgb * taps1.x +
-         s1.rgb * taps2.x +
-         s2.rgb * taps1.y +
-         s3.rgb * taps2.y +
-         s4.rgb * taps1.z +
-         s5.rgb * taps2.z;
+      s1.rgb * taps2.x +
+      s2.rgb * taps1.y +
+      s3.rgb * taps2.y +
+      s4.rgb * taps1.z +
+      s5.rgb * taps2.z;
 }
 
 void main()
@@ -76,11 +83,11 @@ void main()
   int startY = base.y - 3;
 
   vec3 rgb = sampleLine(startY, startX, linetaps1, linetaps2, texSize) * columntaps1.x +
-             sampleLine(startY + 1, startX, linetaps1, linetaps2, texSize) * columntaps2.x +
-             sampleLine(startY + 2, startX, linetaps1, linetaps2, texSize) * columntaps1.y +
-             sampleLine(startY + 3, startX, linetaps1, linetaps2, texSize) * columntaps2.y +
-             sampleLine(startY + 4, startX, linetaps1, linetaps2, texSize) * columntaps1.z +
-             sampleLine(startY + 5, startX, linetaps1, linetaps2, texSize) * columntaps2.z;
+      sampleLine(startY + 1, startX, linetaps1, linetaps2, texSize) * columntaps2.x +
+      sampleLine(startY + 2, startX, linetaps1, linetaps2, texSize) * columntaps1.y +
+      sampleLine(startY + 3, startX, linetaps1, linetaps2, texSize) * columntaps2.y +
+      sampleLine(startY + 4, startX, linetaps1, linetaps2, texSize) * columntaps1.z +
+      sampleLine(startY + 5, startX, linetaps1, linetaps2, texSize) * columntaps2.z;
 
-  fragColor = vec4(rgb, m_alpha);
+  fragColor = vec4(rgb, uAlpha.x);
 }
