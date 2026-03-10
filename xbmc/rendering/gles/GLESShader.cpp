@@ -24,6 +24,38 @@
 
 using namespace Shaders;
 
+namespace
+{
+constexpr GLuint GUI_VERTEX_BINDING_POINT = 3;
+constexpr GLuint GUI_FRAGMENT_BINDING_POINT = 4;
+
+struct GuiVertexBlockData
+{
+  std::array<GLfloat, 16> proj{};
+  std::array<GLfloat, 16> model{};
+};
+
+struct GuiFragmentBlockData
+{
+  std::array<GLfloat, 4> guiParams0{};
+  std::array<GLfloat, 4> guiParams1{};
+};
+
+void EnsureGuiUniformBuffer(GLuint& buffer, GLsizeiptr size)
+{
+  if (buffer == 0)
+  {
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_UNIFORM_BUFFER, buffer);
+    glBufferData(GL_UNIFORM_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
+  }
+  else
+  {
+    glBindBuffer(GL_UNIFORM_BUFFER, buffer);
+  }
+}
+} // namespace
+
 CGLESShader::CGLESShader(const char* shader, const std::string& prefix)
 {
   m_proj = nullptr;
@@ -69,6 +101,16 @@ void CGLESShader::OnCompiledAndLinked()
   m_hShaderClip = glGetUniformLocation(ProgramHandle(), "m_shaderClip");
   m_hCoordStep = glGetUniformLocation(ProgramHandle(), "m_cordStep");
   m_hDepth = glGetUniformLocation(ProgramHandle(), "m_depth");
+
+  m_hVertexBlock = glGetUniformBlockIndex(ProgramHandle(), "KodiGuiVertexBlock");
+  if (m_hVertexBlock >= 0)
+    glUniformBlockBinding(ProgramHandle(), static_cast<GLuint>(m_hVertexBlock),
+                          GUI_VERTEX_BINDING_POINT);
+
+  m_hFragmentBlock = glGetUniformBlockIndex(ProgramHandle(), "KodiGuiFragmentBlock");
+  if (m_hFragmentBlock >= 0)
+    glUniformBlockBinding(ProgramHandle(), static_cast<GLuint>(m_hFragmentBlock),
+                          GUI_FRAGMENT_BINDING_POINT);
 
   // Vertex attributes
   if (KODI::GLES::UsesFixedAttributeLocationsForShader(VertexShader()->GetName()))
@@ -131,6 +173,8 @@ CGLESShader::~CGLESShader()
     const auto settings = settingsComponent->GetSettings();
     if (settings) settings->UnregisterCallback(this);
   }
+
+  Free();
 }
 
 void CGLESShader::OnSettingChanged(const std::shared_ptr<const CSetting>& setting)
@@ -167,8 +211,21 @@ bool CGLESShader::OnEnabled()
 
   const GLfloat *projMatrix = glMatrixProject.Get();
   const GLfloat *modelMatrix = glMatrixModview.Get();
-  glUniformMatrix4fv(m_hProj,  1, GL_FALSE, projMatrix);
-  glUniformMatrix4fv(m_hModel, 1, GL_FALSE, modelMatrix);
+  if (m_hVertexBlock >= 0)
+  {
+    GuiVertexBlockData vertexBlock;
+    std::copy_n(projMatrix, 16, vertexBlock.proj.begin());
+    std::copy_n(modelMatrix, 16, vertexBlock.model.begin());
+    EnsureGuiUniformBuffer(m_vertexUBO, sizeof(GuiVertexBlockData));
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(GuiVertexBlockData), &vertexBlock);
+    glBindBufferBase(GL_UNIFORM_BUFFER, GUI_VERTEX_BINDING_POINT, m_vertexUBO);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+  }
+  else
+  {
+    glUniformMatrix4fv(m_hProj,  1, GL_FALSE, projMatrix);
+    glUniformMatrix4fv(m_hModel, 1, GL_FALSE, modelMatrix);
+  }
 
   const TransformMatrix &guiMatrix = CServiceBroker::GetWinSystem()->GetGfxContext().GetGUIMatrix();
   CRect viewPort; // absolute positions of corners
@@ -248,19 +305,46 @@ bool CGLESShader::OnEnabled()
     m_clipYOffset = m_clipYOffset * yMult + (viewPort.y2 + viewPort.y1) / 2;
   }
 
-  glUniform1f(m_hBrightness, 0.0f);
-  glUniform1f(m_hContrast, 1.0f);
+  if (m_hFragmentBlock >= 0)
+  {
+    GuiFragmentBlockData fragmentBlock;
+    fragmentBlock.guiParams0 = {0.0f, 1.0f, m_cachedGuiSdrPeak, m_cachedGuiSdrSaturation};
+    fragmentBlock.guiParams1 = {m_cachedHdrPgsPeak, m_cachedHdrPgsSaturation, 0.0f, 0.0f};
+    EnsureGuiUniformBuffer(m_fragmentUBO, sizeof(GuiFragmentBlockData));
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(GuiFragmentBlockData), &fragmentBlock);
+    glBindBufferBase(GL_UNIFORM_BUFFER, GUI_FRAGMENT_BINDING_POINT, m_fragmentUBO);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+  }
+  else
+  {
+    glUniform1f(m_hBrightness, 0.0f);
+    glUniform1f(m_hContrast, 1.0f);
 
-  if (m_sdrPeak >= 0) glUniform1f(m_sdrPeak, m_cachedGuiSdrPeak);
-  if (m_sdrSaturation >= 0) glUniform1f(m_sdrSaturation, m_cachedGuiSdrSaturation);
-  if (m_hdrPgsPeak >= 0) glUniform1f(m_hdrPgsPeak, m_cachedHdrPgsPeak);
-  if (m_hdrPgsSaturation >= 0) glUniform1f(m_hdrPgsSaturation, m_cachedHdrPgsSaturation);
+    if (m_sdrPeak >= 0) glUniform1f(m_sdrPeak, m_cachedGuiSdrPeak);
+    if (m_sdrSaturation >= 0) glUniform1f(m_sdrSaturation, m_cachedGuiSdrSaturation);
+    if (m_hdrPgsPeak >= 0) glUniform1f(m_hdrPgsPeak, m_cachedHdrPgsPeak);
+    if (m_hdrPgsSaturation >= 0) glUniform1f(m_hdrPgsSaturation, m_cachedHdrPgsSaturation);
+  }
 
   return true;
 }
 
 void CGLESShader::Free()
 {
-  // Do Cleanup here
+  if (m_vertexUBO != 0)
+  {
+    glDeleteBuffers(1, &m_vertexUBO);
+    m_vertexUBO = 0;
+  }
+
+  if (m_fragmentUBO != 0)
+  {
+    glDeleteBuffers(1, &m_fragmentUBO);
+    m_fragmentUBO = 0;
+  }
+
+  m_hVertexBlock = -1;
+  m_hFragmentBlock = -1;
+
   CGLSLShaderProgram::Free();
 }

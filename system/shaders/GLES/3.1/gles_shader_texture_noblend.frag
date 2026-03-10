@@ -27,12 +27,15 @@ precision mediump float;
 #endif
 uniform sampler2D m_samp0;
 in vec4 m_cord0;
-uniform float m_sdrPeak;
-uniform float m_sdrSaturation;
 #if defined(KODI_HDR_PGS_ADJUST)
-uniform float m_hdrPgsPeak;
-uniform float m_hdrPgsSaturation;
 #endif
+
+layout(std140) uniform KodiGuiFragmentBlock
+{
+  vec4 uGuiParams0;
+  vec4 uGuiParams1;
+};
+
 out vec4 fragColor;
 
 highp float interleavedGradientNoise(highp vec2 co)
@@ -59,10 +62,10 @@ vec3 transferPQ(vec3 x)
   x = max(x, vec3(0.0));
 
   vec3 luma = vec3(dot(x, vec3(0.2627, 0.6780, 0.0593)));
-  x = mix(luma, x, m_sdrSaturation);
+  x = mix(luma, x, uGuiParams0.w);
   x = max(x, vec3(0.0));
 
-  float peakNits = 100.0 * m_sdrPeak;
+  float peakNits = 100.0 * uGuiParams0.z;
   x = pow(x * (peakNits / 10000.0), vec3(ST2084_m1));
   x = (ST2084_c1 + ST2084_c2 * x) / (1.0 + ST2084_c3 * x);
   x = pow(x, vec3(ST2084_m2));
@@ -106,9 +109,9 @@ vec3 adjustHdrPgsPQ(vec3 pq)
 {
   vec3 linear = decodePQ(pq);
   vec3 luma = vec3(dot(linear, vec3(0.2627, 0.6780, 0.0593)));
-  linear = mix(luma, linear, m_hdrPgsSaturation);
+  linear = mix(luma, linear, uGuiParams1.y);
   linear = max(linear, vec3(0.0));
-  linear *= m_hdrPgsPeak;
+  linear *= uGuiParams1.x;
   return encodePQ(linear);
 }
 #endif
