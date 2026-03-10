@@ -2454,16 +2454,19 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture& videoPicture)
 
   if (m_drain)
   {
+    const int poll_ms = static_cast<int>((am_private->video_rate * 1000 + UNIT_FREQ - 1) / UNIT_FREQ);
+    const auto drain_poll_wait = std::chrono::milliseconds(std::max(poll_ms * 2, 250));
+
     if (buffer_level > 0.0f)
     {
       const auto drain_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_tp_drain_start);
       if (drain_elapsed < std::chrono::seconds(m_decoder_drain_timeout))
         return CDVDVideoCodec::VC_NONE;
-
-      const int poll_ms = static_cast<int>((am_private->video_rate * 1000 + UNIT_FREQ - 1) / UNIT_FREQ);
-      if (elapsed_since_last_frame < std::chrono::milliseconds(poll_ms))
-        return CDVDVideoCodec::VC_NONE;
     }
+
+    if (elapsed_since_last_frame < drain_poll_wait)
+      return CDVDVideoCodec::VC_NONE;
+
     return CDVDVideoCodec::VC_EOF;
   }
 
