@@ -19,6 +19,8 @@
 #include "utils/log.h"
 
 #include <cstring>
+#include <mutex>
+#include <unordered_map>
 
 #ifdef HAS_GLES
 #define GLchar char
@@ -31,6 +33,54 @@ using namespace XFILE;
 
 namespace
 {
+using ShaderSourceCache = std::unordered_map<std::string, std::string>;
+
+ShaderSourceCache& GetShaderSourceCache()
+{
+  static ShaderSourceCache cache;
+  return cache;
+}
+
+std::mutex& GetShaderSourceCacheMutex()
+{
+  static std::mutex cacheMutex;
+  return cacheMutex;
+}
+
+bool LoadShaderSourceFile(const std::string& filename, std::string& path, std::string& source)
+{
+  const auto renderSystem = CServiceBroker::GetRenderSystem();
+  if (!renderSystem)
+    return false;
+
+  path = "special://xbmc/system/shaders/";
+  path += renderSystem->GetShaderPath(filename);
+  path += filename;
+
+  {
+    std::scoped_lock lock(GetShaderSourceCacheMutex());
+    const auto it = GetShaderSourceCache().find(path);
+    if (it != GetShaderSourceCache().cend())
+    {
+      source = it->second;
+      return true;
+    }
+  }
+
+  CFileStream file;
+  if (!file.Open(path))
+    return false;
+
+  getline(file, source, '\0');
+
+  {
+    std::scoped_lock lock(GetShaderSourceCacheMutex());
+    GetShaderSourceCache().insert_or_assign(path, source);
+  }
+
+  return true;
+}
+
 #if defined(HAS_GLES) && HAS_GLES == 3
 constexpr uint32_t SHADER_BINARY_CACHE_MAGIC = 0x4B534233;
 constexpr uint32_t SHADER_BINARY_CACHE_VERSION = 1;
@@ -171,17 +221,12 @@ bool CShader::LoadSource(const std::string& filename, const std::string& prefix)
   if(filename.empty())
     return true;
 
-  CFileStream file;
-
-  std::string path = "special://xbmc/system/shaders/";
-  path += CServiceBroker::GetRenderSystem()->GetShaderPath(filename);
-  path += filename;
-  if(!file.Open(path))
+  std::string path;
+  if (!LoadShaderSourceFile(filename, path, m_source))
   {
     CLog::Log(LOGERROR, "CYUVShaderGLSL::CYUVShaderGLSL - failed to open file {}", filename);
     return false;
   }
-  getline(file, m_source, '\0');
 
   size_t pos = 0;
   size_t versionPos = m_source.find("#version");
@@ -203,18 +248,13 @@ bool CShader::AppendSource(const std::string& filename)
   if(filename.empty())
     return true;
 
-  CFileStream file;
   std::string temp;
-
-  std::string path = "special://xbmc/system/shaders/";
-  path += CServiceBroker::GetRenderSystem()->GetShaderPath(filename);
-  path += filename;
-  if(!file.Open(path))
+  std::string path;
+  if (!LoadShaderSourceFile(filename, path, temp))
   {
     CLog::Log(LOGERROR, "CShader::AppendSource - failed to open file {}", filename);
     return false;
   }
-  getline(file, temp, '\0');
   m_source.append(temp);
 
   m_filenames.append(" " + filename);
@@ -227,18 +267,13 @@ bool CShader::InsertSource(const std::string& filename, const std::string& loc)
   if(filename.empty())
     return true;
 
-  CFileStream file;
   std::string temp;
-
-  std::string path = "special://xbmc/system/shaders/";
-  path += CServiceBroker::GetRenderSystem()->GetShaderPath(filename);
-  path += filename;
-  if(!file.Open(path))
+  std::string path;
+  if (!LoadShaderSourceFile(filename, path, temp))
   {
     CLog::Log(LOGERROR, "CShader::InsertSource - failed to open file {}", filename);
     return false;
   }
-  getline(file, temp, '\0');
 
   size_t locPos = m_source.find(loc);
   if (locPos == std::string::npos)
@@ -561,4 +596,3 @@ void CGLSLShaderProgram::Disable()
     OnDisabled();
   }
 }
-
