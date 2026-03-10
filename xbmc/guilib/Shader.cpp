@@ -47,7 +47,7 @@ ShaderSourceCacheState& GetShaderSourceCacheState()
   return state;
 }
 
-bool LoadShaderSourceFile(const std::string& filename, std::string& path, std::string& source)
+bool GetCachedShaderSource(const std::string& filename, std::string& path, std::string& source)
 {
   const auto renderSystem = CServiceBroker::GetRenderSystem();
   if (!renderSystem)
@@ -224,7 +224,7 @@ bool CShader::LoadSource(const std::string& filename, const std::string& prefix)
     return true;
 
   std::string path;
-  if (!LoadShaderSourceFile(filename, path, m_source))
+  if (!GetCachedShaderSource(filename, path, m_source))
   {
     CLog::Log(LOGERROR, "CYUVShaderGLSL::CYUVShaderGLSL - failed to open file {}", filename);
     return false;
@@ -252,7 +252,7 @@ bool CShader::AppendSource(const std::string& filename)
 
   std::string temp;
   std::string path;
-  if (!LoadShaderSourceFile(filename, path, temp))
+  if (!GetCachedShaderSource(filename, path, temp))
   {
     CLog::Log(LOGERROR, "CShader::AppendSource - failed to open file {}", filename);
     return false;
@@ -271,7 +271,7 @@ bool CShader::InsertSource(const std::string& filename, const std::string& loc)
 
   std::string temp;
   std::string path;
-  if (!LoadShaderSourceFile(filename, path, temp))
+  if (!GetCachedShaderSource(filename, path, temp))
   {
     CLog::Log(LOGERROR, "CShader::InsertSource - failed to open file {}", filename);
     return false;
