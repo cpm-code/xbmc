@@ -12,6 +12,7 @@
 #include "../RenderFlags.h"
 #include "ConvolutionKernels.h"
 #include "ToneMappers.h"
+#include "ServiceBroker.h"
 #include "settings/AdvancedSettings.h"
 #include "utils/GLUtils.h"
 #include "utils/log.h"
@@ -20,6 +21,21 @@
 #include <string>
 
 using namespace Shaders::GLES;
+
+namespace
+{
+bool UseFixedAttributeLocations()
+{
+  const auto renderSystem = CServiceBroker::GetRenderSystem();
+  if (!renderSystem)
+    return false;
+
+  unsigned int major{0};
+  unsigned int minor{0};
+  renderSystem->GetRenderVersion(major, minor);
+  return major > 3 || (major == 3 && minor >= 1);
+}
+} // namespace
 
 //////////////////////////////////////////////////////////////////////
 // BaseYUV2RGBGLSLShader - base class for GLSL YUV2RGB shaders
@@ -83,10 +99,20 @@ BaseYUV2RGBGLSLShader::~BaseYUV2RGBGLSLShader()
 
 void BaseYUV2RGBGLSLShader::OnCompiledAndLinked()
 {
-  m_hVertex = glGetAttribLocation(ProgramHandle(),  "m_attrpos");
-  m_hYcoord = glGetAttribLocation(ProgramHandle(),  "m_attrcordY");
-  m_hUcoord = glGetAttribLocation(ProgramHandle(),  "m_attrcordU");
-  m_hVcoord = glGetAttribLocation(ProgramHandle(),  "m_attrcordV");
+  if (UseFixedAttributeLocations())
+  {
+    m_hVertex = 0;
+    m_hYcoord = 1;
+    m_hUcoord = 2;
+    m_hVcoord = 3;
+  }
+  else
+  {
+    m_hVertex = glGetAttribLocation(ProgramHandle(), "m_attrpos");
+    m_hYcoord = glGetAttribLocation(ProgramHandle(), "m_attrcordY");
+    m_hUcoord = glGetAttribLocation(ProgramHandle(), "m_attrcordU");
+    m_hVcoord = glGetAttribLocation(ProgramHandle(), "m_attrcordV");
+  }
   m_hProj = glGetUniformLocation(ProgramHandle(), "m_proj");
   m_hModel = glGetUniformLocation(ProgramHandle(), "m_model");
   m_hAlpha = glGetUniformLocation(ProgramHandle(), "m_alpha");

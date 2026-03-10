@@ -23,6 +23,21 @@
 
 using namespace Shaders;
 
+namespace
+{
+bool UseFixedAttributeLocations()
+{
+  const auto renderSystem = CServiceBroker::GetRenderSystem();
+  if (!renderSystem)
+    return false;
+
+  unsigned int major{0};
+  unsigned int minor{0};
+  renderSystem->GetRenderVersion(major, minor);
+  return major > 3 || (major == 3 && minor >= 1);
+}
+} // namespace
+
 CGLESShader::CGLESShader(const char* shader, const std::string& prefix)
 {
   m_proj = nullptr;
@@ -70,10 +85,20 @@ void CGLESShader::OnCompiledAndLinked()
   m_hDepth = glGetUniformLocation(ProgramHandle(), "m_depth");
 
   // Vertex attributes
-  m_hPos    = glGetAttribLocation(ProgramHandle(),  "m_attrpos");
-  m_hCol    = glGetAttribLocation(ProgramHandle(),  "m_attrcol");
-  m_hCord0  = glGetAttribLocation(ProgramHandle(),  "m_attrcord0");
-  m_hCord1  = glGetAttribLocation(ProgramHandle(),  "m_attrcord1");
+  if (UseFixedAttributeLocations())
+  {
+    m_hPos = 0;
+    m_hCol = 1;
+    m_hCord0 = 2;
+    m_hCord1 = 3;
+  }
+  else
+  {
+    m_hPos = glGetAttribLocation(ProgramHandle(), "m_attrpos");
+    m_hCol = glGetAttribLocation(ProgramHandle(), "m_attrcol");
+    m_hCord0 = glGetAttribLocation(ProgramHandle(), "m_attrcord0");
+    m_hCord1 = glGetAttribLocation(ProgramHandle(), "m_attrcord1");
+  }
 
   // It's okay to do this only one time. Textures units never change.
   glUseProgram( ProgramHandle() );
@@ -253,4 +278,3 @@ void CGLESShader::Free()
   // Do Cleanup here
   CGLSLShaderProgram::Free();
 }
-

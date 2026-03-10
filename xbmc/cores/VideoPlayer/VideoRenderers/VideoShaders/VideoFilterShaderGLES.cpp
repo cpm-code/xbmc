@@ -21,6 +21,21 @@
 
 using namespace Shaders::GLES;
 
+namespace
+{
+bool UseFixedAttributeLocations()
+{
+  const auto renderSystem = CServiceBroker::GetRenderSystem();
+  if (!renderSystem)
+    return false;
+
+  unsigned int major{0};
+  unsigned int minor{0};
+  renderSystem->GetRenderVersion(major, minor);
+  return major > 3 || (major == 3 && minor >= 1);
+}
+} // namespace
+
 //////////////////////////////////////////////////////////////////////
 // BaseVideoFilterShader - base class for video filter shaders
 //////////////////////////////////////////////////////////////////////
@@ -42,8 +57,16 @@ BaseVideoFilterShader::BaseVideoFilterShader()
 
 void BaseVideoFilterShader::OnCompiledAndLinked()
 {
-  m_hVertex = glGetAttribLocation(ProgramHandle(),  "m_attrpos");
-  m_hcoord = glGetAttribLocation(ProgramHandle(),  "m_attrcord");
+  if (UseFixedAttributeLocations())
+  {
+    m_hVertex = 0;
+    m_hcoord = 1;
+  }
+  else
+  {
+    m_hVertex = glGetAttribLocation(ProgramHandle(), "m_attrpos");
+    m_hcoord = glGetAttribLocation(ProgramHandle(), "m_attrcord");
+  }
   m_hAlpha  = glGetUniformLocation(ProgramHandle(), "m_alpha");
   m_hProj  = glGetUniformLocation(ProgramHandle(), "m_proj");
   m_hModel = glGetUniformLocation(ProgramHandle(), "m_model");
