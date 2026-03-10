@@ -656,6 +656,7 @@ void CVideoPlayerVideo::Process()
       else
       {
         SendMessageBack(pMsg);
+        ProcessDecoderOutput(frametime, pts);
         onlyPrioMsgs = true;
       }
     }
