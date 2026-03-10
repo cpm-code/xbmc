@@ -77,7 +77,7 @@ bool LoadShaderSourceFile(const std::string& filename, std::string& path, std::s
   {
     auto& cacheState = GetShaderSourceCacheState();
     std::scoped_lock lock(cacheState.mutex);
-    cacheState.cache.insert_or_assign(path, source);
+    cacheState.cache.emplace(path, source);
   }
 
   return true;
