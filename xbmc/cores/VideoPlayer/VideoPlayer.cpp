@@ -3360,6 +3360,10 @@ void CVideoPlayer::HandleMessages()
       // back from FF: fill the empty audio queue to avoid no audio
       if ((speed == DVD_PLAYSPEED_NORMAL || isTempoSpeed) && wasFFRW)
       {
+        // Prefer the renderer's current PTS when it is available, because it reflects the frame
+        // actually on screen. GetUpdatedTime() is derived from the tracked play state / clock and
+        // is a safer fallback when trickplay stalls the renderer, but using it unconditionally can
+        // resume from a clock-derived position instead of the last displayed video frame.
         double iTime = m_VideoPlayerVideo->GetCurrentPts();
         if (iTime == DVD_NOPTS_VALUE)
         {
