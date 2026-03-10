@@ -27,14 +27,19 @@ in vec4 m_cord0;
 in vec4 m_cord1;
 in lowp vec4 m_colour;
 uniform int m_method;
-uniform float m_brightness;
-uniform float m_contrast;
+
+layout(std140) uniform KodiGuiFragmentBlock
+{
+  vec4 uGuiParams0;
+  vec4 uGuiParams1;
+};
+
 out vec4 fragColor;
 
 void main()
 {
   vec4 rgb = texture(m_samp0, m_cord0.xy);
-  rgb *= m_contrast;
-  rgb += m_brightness;
+  rgb *= uGuiParams0.y;
+  rgb += uGuiParams0.x;
   fragColor = rgb;
 }
