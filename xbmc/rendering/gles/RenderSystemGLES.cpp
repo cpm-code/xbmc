@@ -861,6 +861,14 @@ std::string CRenderSystemGLES::GetShaderPath(const std::string& filename)
 {
   std::string path = "GLES/2.0/";
 
+  if (m_RenderVersionMajor > 3 || (m_RenderVersionMajor == 3 && m_RenderVersionMinor >= 2))
+  {
+    std::string file = "special://xbmc/system/shaders/GLES/3.2/" + filename;
+    const CURL pathToUrl(file);
+    if (CFileUtils::Exists(pathToUrl.Get()))
+      return "GLES/3.2/";
+  }
+
   if (m_RenderVersionMajor > 3 || (m_RenderVersionMajor == 3 && m_RenderVersionMinor >= 1))
   {
     std::string file = "special://xbmc/system/shaders/GLES/3.1/" + filename;
@@ -880,6 +888,7 @@ bool UsesFixedAttributeLocationsForShader(const std::string& vertexShaderName)
   if (!renderSystem || vertexShaderName.empty())
     return false;
 
-  return renderSystem->GetShaderPath(vertexShaderName) == "GLES/3.1/";
+  const std::string shaderPath = renderSystem->GetShaderPath(vertexShaderName);
+  return shaderPath == "GLES/3.1/" || shaderPath == "GLES/3.2/";
 }
 }
