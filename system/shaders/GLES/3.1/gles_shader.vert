@@ -20,10 +20,10 @@
 
 #version 310 es
 
-in vec4 m_attrpos;
-in vec4 m_attrcol;
-in vec4 m_attrcord0;
-in vec4 m_attrcord1;
+layout(location = 0) in vec4 m_attrpos;
+layout(location = 1) in vec4 m_attrcol;
+layout(location = 2) in vec4 m_attrcord0;
+layout(location = 3) in vec4 m_attrcord1;
 out vec4 m_cord0;
 out vec4 m_cord1;
 out lowp vec4 m_colour;

@@ -14,6 +14,7 @@
 #include "utils/Map.h"
 
 #include <array>
+#include <string>
 
 #include <fmt/format.h>
 
@@ -167,3 +168,8 @@ protected:
 
   GLint      m_viewPort[4];
 };
+
+namespace KODI::GLES
+{
+bool UsesFixedAttributeLocationsForShader(const std::string& vertexShaderName);
+}
