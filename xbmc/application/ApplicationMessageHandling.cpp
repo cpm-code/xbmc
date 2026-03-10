@@ -787,6 +787,7 @@ bool CApplicationMessageHandling::OnMessage(const CGUIMessage& message)
       CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Player, "OnSeek",
                                                          m_app.CurrentFileItemPtr(), param);
 
+      CDataCacheCore::GetInstance().SetSeekTarget(iTime);
       CDataCacheCore::GetInstance().SeekFinished(static_cast<int>(seekOffset));
 
       return true;
