@@ -3365,13 +3365,18 @@ void CVideoPlayer::HandleMessages()
           iTime = m_clock.GetClock();
         iTime = (iTime + m_State.time_offset) / 1000;
 
+        constexpr auto ffResumeNearEndThreshold{50ms};
+        constexpr auto ffResumeBackoff{250ms};
+
+        // Only fast-forward can overshoot the end and turn the transition seek into an
+        // end-of-stream seek failure. Rewind already seeks away from EOF.
         if (m_playSpeed > DVD_PLAYSPEED_NORMAL)
         {
           const auto maxTime{std::chrono::milliseconds(m_processInfo->GetMaxTime())};
           const auto targetTime{std::chrono::duration<double, std::milli>(iTime)};
-          if (maxTime > 0ms && targetTime + 50ms > maxTime)
+          if (maxTime > 0ms && targetTime + ffResumeNearEndThreshold > maxTime)
           {
-            const auto resumeTime{maxTime > 250ms ? maxTime - 250ms : 0ms};
+            const auto resumeTime{maxTime > ffResumeBackoff ? maxTime - ffResumeBackoff : 0ms};
             iTime = std::chrono::duration<double, std::milli>(resumeTime).count();
           }
         }
