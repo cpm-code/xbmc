@@ -35,16 +35,16 @@ namespace
 {
 using ShaderSourceCache = std::unordered_map<std::string, std::string>;
 
-ShaderSourceCache& GetShaderSourceCache()
+struct ShaderSourceCacheState
 {
-  static ShaderSourceCache cache;
-  return cache;
-}
+  std::mutex mutex;
+  ShaderSourceCache cache;
+};
 
-std::mutex& GetShaderSourceCacheMutex()
+ShaderSourceCacheState& GetShaderSourceCacheState()
 {
-  static std::mutex cacheMutex;
-  return cacheMutex;
+  static ShaderSourceCacheState state;
+  return state;
 }
 
 bool LoadShaderSourceFile(const std::string& filename, std::string& path, std::string& source)
@@ -58,9 +58,10 @@ bool LoadShaderSourceFile(const std::string& filename, std::string& path, std::s
   path += filename;
 
   {
-    std::scoped_lock lock(GetShaderSourceCacheMutex());
-    const auto it = GetShaderSourceCache().find(path);
-    if (it != GetShaderSourceCache().cend())
+    auto& cacheState = GetShaderSourceCacheState();
+    std::scoped_lock lock(cacheState.mutex);
+    const auto it = cacheState.cache.find(path);
+    if (it != cacheState.cache.cend())
     {
       source = it->second;
       return true;
@@ -74,8 +75,9 @@ bool LoadShaderSourceFile(const std::string& filename, std::string& path, std::s
   getline(file, source, '\0');
 
   {
-    std::scoped_lock lock(GetShaderSourceCacheMutex());
-    GetShaderSourceCache().insert_or_assign(path, source);
+    auto& cacheState = GetShaderSourceCacheState();
+    std::scoped_lock lock(cacheState.mutex);
+    cacheState.cache.insert_or_assign(path, source);
   }
 
   return true;
