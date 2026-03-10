@@ -204,8 +204,20 @@ public:
   /*!
    * @brief Gets the last seek offset
    * @return the last seek offset
-  */
+   */
   int64_t GetSeekOffSet() const;
+
+  /*!
+   * @brief Stores the last requested absolute seek target time in milliseconds
+   * @param time - the last requested seek target time
+   */
+  void SetSeekTarget(int64_t time);
+
+  /*!
+   * @brief Gets the last requested absolute seek target time in milliseconds
+   * @return the last requested seek target time
+   */
+  int64_t GetSeekTarget() const;
 
   void SetSpeed(float tempo, float speed);
   float GetSpeed();
@@ -420,6 +432,8 @@ protected:
         std::chrono::time_point<std::chrono::system_clock>{}};
     /*! Last seek offset */
     int64_t m_lastSeekOffset{0};
+    /*! Last requested absolute seek target */
+    int64_t m_lastSeekTarget{0};
   } m_stateInfo;
 
   struct STimeInfo
