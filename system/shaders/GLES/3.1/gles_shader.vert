@@ -27,14 +27,19 @@ layout(location = 3) in vec4 m_attrcord1;
 out vec4 m_cord0;
 out vec4 m_cord1;
 out lowp vec4 m_colour;
-uniform mat4 m_proj;
-uniform mat4 m_model;
+
+layout(std140) uniform KodiGuiVertexBlock
+{
+  mat4 uProj;
+  mat4 uModel;
+};
+
 uniform mat4 m_coord0Matrix;
 uniform float m_depth;
 
 void main()
 {
-  mat4 mvp = m_proj * m_model;
+  mat4 mvp = uProj * uModel;
   gl_Position = mvp * m_attrpos;
   gl_Position.z = m_depth * gl_Position.w;
   m_colour = m_attrcol;
