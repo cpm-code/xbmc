@@ -3365,6 +3365,17 @@ void CVideoPlayer::HandleMessages()
           iTime = m_clock.GetClock();
         iTime = (iTime + m_State.time_offset) / 1000;
 
+        if (m_playSpeed > DVD_PLAYSPEED_NORMAL)
+        {
+          const auto maxTime{std::chrono::milliseconds(m_processInfo->GetMaxTime())};
+          const auto targetTime{std::chrono::duration<double, std::milli>(iTime)};
+          if (maxTime > 0ms && targetTime + 50ms > maxTime)
+          {
+            const auto resumeTime{maxTime > 250ms ? maxTime - 250ms : 0ms};
+            iTime = std::chrono::duration<double, std::milli>(resumeTime).count();
+          }
+        }
+
         CDVDMsgPlayerSeek::CMode mode;
         mode.time = iTime;
         mode.backward = m_playSpeed < 0;
