@@ -45,6 +45,8 @@ public:
   virtual void SetAlpha(GLfloat alpha) { m_alpha = alpha; }
 
 protected:
+  void Free();
+
   int m_width;
   int m_height;
   float m_stepX;
@@ -57,9 +59,11 @@ protected:
 
   GLint m_hVertex = -1;
   GLint m_hcoord = -1;
+  GLint m_hVertexBlock = -1;
   GLint m_hProj = -1;
   GLint m_hModel = -1;
   GLint m_hAlpha = -1;
+  GLuint m_vertexUBO = 0;
 
   const GLfloat* m_proj;
   const GLfloat* m_model;
