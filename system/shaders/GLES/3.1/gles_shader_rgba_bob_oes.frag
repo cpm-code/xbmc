@@ -31,8 +31,13 @@ in lowp vec4 m_colour;
 uniform int m_method;
 uniform int m_field;
 uniform float m_step;
-uniform float m_brightness;
-uniform float m_contrast;
+
+layout(std140) uniform KodiGuiFragmentBlock
+{
+  vec4 uGuiParams0;
+  vec4 uGuiParams1;
+};
+
 out vec4 fragColor;
 
 void main()
@@ -49,8 +54,8 @@ void main()
   below.y = source.y + (2.0 * m_step * bstep);
 
   vec4 color = mix(texture(m_samp0, source), texture(m_samp0, below), 0.5);
-  color *= m_contrast;
-  color += m_brightness;
+  color *= uGuiParams0.y;
+  color += uGuiParams0.x;
 
   fragColor = color;
 }
