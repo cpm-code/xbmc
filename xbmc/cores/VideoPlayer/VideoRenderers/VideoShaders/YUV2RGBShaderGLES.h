@@ -98,9 +98,13 @@ class BaseYUV2RGBGLSLShader : public CGLSLShaderProgram
     GLint m_hYcoord{-1};
     GLint m_hUcoord{-1};
     GLint m_hVcoord{-1};
+    GLint m_hVertexBlock{-1};
+    GLint m_hFragmentBlock{-1};
     GLint m_hProj{-1};
     GLint m_hModel{-1};
     GLint m_hAlpha{-1};
+    GLuint m_vertexUBO{0};
+    GLuint m_fragmentUBO{0};
 
     const GLfloat *m_proj{nullptr};
     const GLfloat *m_model{nullptr};
