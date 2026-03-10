@@ -11,6 +11,7 @@
 #include <algorithm>
 
 #include "ServiceBroker.h"
+#include "rendering/gles/RenderSystemGLES.h"
 #include "rendering/MatrixGL.h"
 #include "rendering/RenderSystem.h"
 #include "settings/Settings.h"
@@ -70,10 +71,20 @@ void CGLESShader::OnCompiledAndLinked()
   m_hDepth = glGetUniformLocation(ProgramHandle(), "m_depth");
 
   // Vertex attributes
-  m_hPos    = glGetAttribLocation(ProgramHandle(),  "m_attrpos");
-  m_hCol    = glGetAttribLocation(ProgramHandle(),  "m_attrcol");
-  m_hCord0  = glGetAttribLocation(ProgramHandle(),  "m_attrcord0");
-  m_hCord1  = glGetAttribLocation(ProgramHandle(),  "m_attrcord1");
+  if (KODI::GLES::UsesFixedAttributeLocationsForShader(VertexShader()->GetName()))
+  {
+    m_hPos = 0;
+    m_hCol = 1;
+    m_hCord0 = 2;
+    m_hCord1 = 3;
+  }
+  else
+  {
+    m_hPos = glGetAttribLocation(ProgramHandle(), "m_attrpos");
+    m_hCol = glGetAttribLocation(ProgramHandle(), "m_attrcol");
+    m_hCord0 = glGetAttribLocation(ProgramHandle(), "m_attrcord0");
+    m_hCord1 = glGetAttribLocation(ProgramHandle(), "m_attrcord1");
+  }
 
   // It's okay to do this only one time. Textures units never change.
   glUseProgram( ProgramHandle() );
@@ -253,4 +264,3 @@ void CGLESShader::Free()
   // Do Cleanup here
   CGLSLShaderProgram::Free();
 }
-

@@ -12,6 +12,7 @@
 #include "../RenderFlags.h"
 #include "ConvolutionKernels.h"
 #include "ToneMappers.h"
+#include "rendering/gles/RenderSystemGLES.h"
 #include "settings/AdvancedSettings.h"
 #include "utils/GLUtils.h"
 #include "utils/log.h"
@@ -83,10 +84,20 @@ BaseYUV2RGBGLSLShader::~BaseYUV2RGBGLSLShader()
 
 void BaseYUV2RGBGLSLShader::OnCompiledAndLinked()
 {
-  m_hVertex = glGetAttribLocation(ProgramHandle(),  "m_attrpos");
-  m_hYcoord = glGetAttribLocation(ProgramHandle(),  "m_attrcordY");
-  m_hUcoord = glGetAttribLocation(ProgramHandle(),  "m_attrcordU");
-  m_hVcoord = glGetAttribLocation(ProgramHandle(),  "m_attrcordV");
+  if (KODI::GLES::UsesFixedAttributeLocationsForShader(VertexShader()->GetName()))
+  {
+    m_hVertex = 0;
+    m_hYcoord = 1;
+    m_hUcoord = 2;
+    m_hVcoord = 3;
+  }
+  else
+  {
+    m_hVertex = glGetAttribLocation(ProgramHandle(), "m_attrpos");
+    m_hYcoord = glGetAttribLocation(ProgramHandle(), "m_attrcordY");
+    m_hUcoord = glGetAttribLocation(ProgramHandle(), "m_attrcordU");
+    m_hVcoord = glGetAttribLocation(ProgramHandle(), "m_attrcordV");
+  }
   m_hProj = glGetUniformLocation(ProgramHandle(), "m_proj");
   m_hModel = glGetUniformLocation(ProgramHandle(), "m_model");
   m_hAlpha = glGetUniformLocation(ProgramHandle(), "m_alpha");
