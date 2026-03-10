@@ -3361,8 +3361,9 @@ void CVideoPlayer::HandleMessages()
       {
         double iTime = m_VideoPlayerVideo->GetCurrentPts();
         if (iTime == DVD_NOPTS_VALUE)
-          iTime = m_clock.GetClock();
-        iTime = (iTime + m_State.time_offset) / 1000;
+          iTime = static_cast<double>(GetUpdatedTime());
+        else
+          iTime = (iTime + m_State.time_offset) / 1000;
 
         CDVDMsgPlayerSeek::CMode mode;
         mode.time = iTime;
