@@ -379,7 +379,7 @@ void CAMLDRMUtils::aml_set_framebuffer_resolution(unsigned int width,
 
 void CAMLDRMUtils::aml_drmDevice_vsync()
 {
-  if (m_fd != -1)
+  if (m_fd != -1 && aml_get_drmDevice_connected())
   {
     drmVBlank vbl = {};
     vbl.request.type = DRM_VBLANK_RELATIVE;
