@@ -19,6 +19,7 @@ namespace
 constexpr size_t TEST_EAC3_FRAME_SIZE{10};
 constexpr size_t TEST_AC3_FRAME_SIZE{128};
 constexpr unsigned int AC3_CRC16_POLY{(1u << 0) | (1u << 2) | (1u << 15) | (1u << 16)};
+constexpr uint8_t DIALNORM_DEFEAT_VALUE{31};
 
 uint16_t Ac3ByteSwap16(uint16_t x)
 {
@@ -160,11 +161,12 @@ TEST(TestAEStreamInfo, DefeatDialNormStillPatchesIndependentEac3)
 
   ASSERT_NE(packetHolder, nullptr);
   ASSERT_EQ(packetSize, mainFrame.size());
-  EXPECT_EQ(GetEac3Dialnorm(packetHolder.get()), 31);
+  EXPECT_EQ(GetEac3Dialnorm(packetHolder.get()), DIALNORM_DEFEAT_VALUE);
 }
 
-void ExpectEac3FramePatchedToZeroDialnorm(const uint8_t* actual,
-                                          const std::array<uint8_t, TEST_EAC3_FRAME_SIZE>& original)
+void ExpectEac3FramePatchedForDialnormDefeat(
+    const uint8_t* actual,
+    const std::array<uint8_t, TEST_EAC3_FRAME_SIZE>& original)
 {
   EXPECT_EQ(actual[0], original[0]);
   EXPECT_EQ(actual[1], original[1]);
@@ -174,7 +176,7 @@ void ExpectEac3FramePatchedToZeroDialnorm(const uint8_t* actual,
   EXPECT_EQ(actual[5] & 0xF8, original[5] & 0xF8);
   EXPECT_EQ(actual[6] & 0x3F, original[6] & 0x3F);
   EXPECT_EQ(actual[7], original[7]);
-  EXPECT_EQ(GetEac3Dialnorm(actual), 31);
+  EXPECT_EQ(GetEac3Dialnorm(actual), DIALNORM_DEFEAT_VALUE);
 }
 
 TEST(TestAEStreamInfo, DefeatDialNormStillPatchesAc3)
@@ -214,8 +216,8 @@ TEST(TestAEStreamInfo, DefeatDialNormAlsoPatchesDependentEac3Substream)
 
   ASSERT_NE(packetHolder, nullptr);
   ASSERT_EQ(packetSize, input.size());
-  ExpectEac3FramePatchedToZeroDialnorm(packetHolder.get(), mainFrame);
-  ExpectEac3FramePatchedToZeroDialnorm(packetHolder.get() + mainFrame.size(), dependentFrame);
+  ExpectEac3FramePatchedForDialnormDefeat(packetHolder.get(), mainFrame);
+  ExpectEac3FramePatchedForDialnormDefeat(packetHolder.get() + mainFrame.size(), dependentFrame);
 }
 
 TEST(TestAEStreamInfo, DependentEac3SubstreamsKeepMainStreamMetadata)
@@ -239,6 +241,8 @@ TEST(TestAEStreamInfo, DependentEac3SubstreamsKeepMainStreamMetadata)
   ASSERT_NE(packetHolder, nullptr);
   ASSERT_EQ(packetSize, input.size());
   EXPECT_EQ(parser.GetStreamInfo().m_repeat, 6u);
+  // Main-frame dialnorm 12 maps to 12 - 31 = -19 dB and must not be replaced by the dependent
+  // substream's dialnorm when assembling the packet.
   EXPECT_EQ(parser.GetStreamInfo().m_dialNorm, -19);
 }
 
@@ -262,9 +266,10 @@ TEST(TestAEStreamInfo, DefeatDialNormKeepsAllDependentEac3SubstreamsInSamePacket
 
   ASSERT_NE(packetHolder, nullptr);
   ASSERT_EQ(packetSize, input.size());
-  ExpectEac3FramePatchedToZeroDialnorm(packetHolder.get(), mainFrame);
-  ExpectEac3FramePatchedToZeroDialnorm(packetHolder.get() + mainFrame.size(), dependentFrameA);
-  ExpectEac3FramePatchedToZeroDialnorm(packetHolder.get() + mainFrame.size() +
-                                           dependentFrameA.size(),
-                                       dependentFrameB);
+  ExpectEac3FramePatchedForDialnormDefeat(packetHolder.get(), mainFrame);
+  ExpectEac3FramePatchedForDialnormDefeat(packetHolder.get() + mainFrame.size(),
+                                          dependentFrameA);
+  ExpectEac3FramePatchedForDialnormDefeat(packetHolder.get() + mainFrame.size() +
+                                              dependentFrameA.size(),
+                                          dependentFrameB);
 }
