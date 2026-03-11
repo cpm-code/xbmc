@@ -476,8 +476,8 @@ void CAEStreamParser::DefeatAC3DialNorm(uint8_t* data, unsigned int size)
       frame[5] |= 0x07;
       frame[6] |= 0xC0;
 
-      // E-AC-3 only carries CRC per syncframe. There is no extra CRC across the concatenated
-      // syncframes we later place in an IEC 61937 burst, so updating this frame-local CRC is
+      // E-AC-3 only carries CRC per sync frame. There is no extra CRC across the concatenated
+      // sync frames we later place in an IEC 61937 burst, so updating this frame-local CRC is
       // sufficient here.
       // Recompute CRC-2 (covers bytes 2..frame_bytes-3)
       uint16_t crc2 = ac3_bswap16(
