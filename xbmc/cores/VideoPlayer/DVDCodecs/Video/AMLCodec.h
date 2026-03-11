@@ -345,7 +345,6 @@ private:
   CDataCacheCore  &m_dataCacheCore;
 
   int              m_decoder_timeout;
-  int              m_decoder_drain_timeout;
   float            m_decoder_buffer;
   float            m_decoder_stream_buffer;
   float            m_decoder_minimum_buffer;
@@ -353,7 +352,7 @@ private:
   int64_t          m_decoder_h264_offset;
 
   std::chrono::time_point<std::chrono::system_clock> m_tp_last_frame;
-  std::chrono::time_point<std::chrono::system_clock> m_tp_drain_start;
+  float            m_last_drain_buffer_level{0.0f};
 
   bool             m_buffer_level_ready;
   float            m_minimum_buffer_level{0.0f};
