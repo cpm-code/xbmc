@@ -62,6 +62,7 @@ public:
   bool AcceptsData() const override;
   bool HasData() const override;
   bool IsInited() const override;
+  bool IsEOS() override;
   void SendMessage(std::shared_ptr<CDVDMsg> pMsg, int priority = 0) override;
   void FlushMessages() override;
 
@@ -134,6 +135,7 @@ protected:
   int m_speed;
   std::atomic_bool m_stalled = false;
   std::atomic_bool m_playbackStalled;
+  std::atomic_bool m_isEOS{true};
   bool m_paused;
   IDVDStreamPlayer::ESyncState m_syncState;
   std::atomic_bool m_bAbortOutput;
