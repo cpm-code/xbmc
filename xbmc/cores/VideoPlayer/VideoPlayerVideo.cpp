@@ -264,6 +264,7 @@ void CVideoPlayerVideo::OpenStream(CDVDStreamInfo& hint, std::unique_ptr<CDVDVid
   m_hints = hint;
   m_stalled = m_messageQueue.GetPacketCount(CDVDMsg::DEMUXER_PACKET) == 0;
   m_playbackStalled = false;
+  m_isEOS = false;
   m_packets.clear();
   m_syncState = IDVDStreamPlayer::SYNC_STARTING;
   m_renderManager.ShowVideo(false);
@@ -312,6 +313,11 @@ bool CVideoPlayerVideo::HasData() const
 bool CVideoPlayerVideo::IsInited() const
 {
   return m_messageQueue.IsInited();
+}
+
+bool CVideoPlayerVideo::IsEOS()
+{
+  return m_isEOS;
 }
 
 inline void CVideoPlayerVideo::SendMessage(std::shared_ptr<CDVDMsg> pMsg, int priority)
@@ -494,6 +500,7 @@ void CVideoPlayerVideo::Process()
       }
       m_packets.clear();
       m_droppingStats.Reset();
+      m_isEOS = false;
       m_syncState = IDVDStreamPlayer::SYNC_STARTING;
       m_renderManager.ShowVideo(false);
       m_playbackStalled = false;
@@ -520,6 +527,7 @@ void CVideoPlayerVideo::Process()
       m_droppingStats.Reset();
 
       m_stalled = true;
+      m_isEOS = false;
       if (sync)
       {
         m_syncState = IDVDStreamPlayer::SYNC_STARTING;
@@ -541,6 +549,7 @@ void CVideoPlayerVideo::Process()
     {
       auto msg = std::static_pointer_cast<CDVDMsgVideoCodecChange>(pMsg);
 
+      m_isEOS = false;
       while (!m_bStop && m_pVideoCodec)
       {
         m_pVideoCodec->SetCodecControl(DVD_CODEC_CTRL_DRAIN);
@@ -560,6 +569,7 @@ void CVideoPlayerVideo::Process()
     }
     else if (pMsg->IsType(CDVDMsg::VIDEO_DRAIN))
     {
+      m_isEOS = false;
       while (!m_bStop && m_pVideoCodec)
       {
         m_pVideoCodec->SetCodecControl(DVD_CODEC_CTRL_DRAIN);
@@ -626,6 +636,7 @@ void CVideoPlayerVideo::Process()
 
       if (m_pVideoCodec->AddData(*pPacket))
       {
+        m_isEOS = false;
         // buffer packets so we can recover should decoder flush for some reason
         if (m_pVideoCodec->GetConvergeCount() > 0)
         {
@@ -730,11 +741,13 @@ bool CVideoPlayerVideo::ProcessDecoderOutput(double &frametime, double &pts)
   if (decoderState == CDVDVideoCodec::VC_ERROR)
   {
     CLog::Log(LOGDEBUG, "CVideoPlayerVideo - video decoder returned error");
+    m_isEOS = true;
     return false;
   }
 
   if (decoderState == CDVDVideoCodec::VC_EOF)
   {
+    m_isEOS = true;
     if (m_syncState == IDVDStreamPlayer::SYNC_STARTING)
     {
       SStartMsg msg;
@@ -750,6 +763,7 @@ bool CVideoPlayerVideo::ProcessDecoderOutput(double &frametime, double &pts)
   // check for a new picture
   if (decoderState == CDVDVideoCodec::VC_PICTURE)
   {
+    m_isEOS = false;
 
     if (m_processInfo.GetVideoInterlaced() &&
         MathUtils::FloatEquals(static_cast<float>(m_picture.iDuration), static_cast<float>(2 * DVD_TIME_BASE) / m_processInfo.GetVideoFps(), 700.0f))
@@ -842,6 +856,7 @@ bool CVideoPlayerVideo::ProcessDecoderOutput(double &frametime, double &pts)
     }
     else if (m_outputSate == OUTPUT_ABORT)
     {
+      m_isEOS = true;
       return false;
     }
     else if ((m_outputSate == OUTPUT_DROPPED) && !(m_picture.iFlags & DVP_FLAG_DROPPED))
