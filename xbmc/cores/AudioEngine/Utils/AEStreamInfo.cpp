@@ -454,15 +454,6 @@ void CAEStreamParser::DefeatAC3DialNorm(uint8_t* data, unsigned int size)
       frame_bytes = framewords * 2;
       if (offset + frame_bytes > size) break;
 
-      uint8_t strmtyp = frame[2] >> 6;
-      if (strmtyp == 1)
-      {
-        // Dependent E-AC-3 substreams can carry Atmos/JOC extensions. Leave them untouched to
-        // avoid altering the extension substream layout/validation bytes that receivers use.
-        offset += frame_bytes;
-        continue;
-      }
-
       // dialnorm: byte 5 bits[2:0] (MSBs) + byte 6 bits[7:6] (LSBs)
       uint8_t dn = ((frame[5] & 0x07) << 2) | ((frame[6] >> 6) & 0x03);
       if (dn == 31)
@@ -472,7 +463,9 @@ void CAEStreamParser::DefeatAC3DialNorm(uint8_t* data, unsigned int size)
         continue;
       }
 
-      // Set dialnorm to 31 (= 0 dB, no normalization)
+      // Set dialnorm to 31 (= 0 dB, no normalization). Dependent E-AC-3 substreams also carry
+      // their own dialnorm field ahead of any Atmos/JOC-specific data, so patch each syncframe
+      // locally and only recompute its frame-local CRC.
       frame[5] |= 0x07;
       frame[6] |= 0xC0;
 

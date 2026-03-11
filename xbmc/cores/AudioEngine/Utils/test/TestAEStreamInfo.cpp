@@ -11,7 +11,6 @@
 #include <gtest/gtest.h>
 
 #include <array>
-#include <cstring>
 #include <memory>
 #include <vector>
 
@@ -164,6 +163,20 @@ TEST(TestAEStreamInfo, DefeatDialNormStillPatchesIndependentEac3)
   EXPECT_EQ(GetEac3Dialnorm(packetHolder.get()), 31);
 }
 
+void ExpectEac3FramePatchedToZeroDialnorm(const uint8_t* actual,
+                                          const std::array<uint8_t, TEST_EAC3_FRAME_SIZE>& original)
+{
+  EXPECT_EQ(actual[0], original[0]);
+  EXPECT_EQ(actual[1], original[1]);
+  EXPECT_EQ(actual[2], original[2]);
+  EXPECT_EQ(actual[3], original[3]);
+  EXPECT_EQ(actual[4], original[4]);
+  EXPECT_EQ(actual[5] & 0xF8, original[5] & 0xF8);
+  EXPECT_EQ(actual[6] & 0x3F, original[6] & 0x3F);
+  EXPECT_EQ(actual[7], original[7]);
+  EXPECT_EQ(GetEac3Dialnorm(actual), 31);
+}
+
 TEST(TestAEStreamInfo, DefeatDialNormStillPatchesAc3)
 {
   auto frame = MakeAc3Frame(12);
@@ -183,7 +196,7 @@ TEST(TestAEStreamInfo, DefeatDialNormStillPatchesAc3)
   EXPECT_EQ(GetAc3Dialnorm(packetHolder.get(), 0), 31);
 }
 
-TEST(TestAEStreamInfo, DefeatDialNormLeavesDependentEac3SubstreamUntouched)
+TEST(TestAEStreamInfo, DefeatDialNormAlsoPatchesDependentEac3Substream)
 {
   auto mainFrame = MakeEac3Frame(0, 12, 0x34, 0x15);
   auto dependentFrame = MakeEac3Frame(1, 7, 0x34, 0x2A);
@@ -201,11 +214,8 @@ TEST(TestAEStreamInfo, DefeatDialNormLeavesDependentEac3SubstreamUntouched)
 
   ASSERT_NE(packetHolder, nullptr);
   ASSERT_EQ(packetSize, input.size());
-  EXPECT_EQ(GetEac3Dialnorm(packetHolder.get()), 31);
-  EXPECT_EQ(GetEac3Dialnorm(packetHolder.get() + mainFrame.size()), 7);
-  EXPECT_EQ(std::memcmp(packetHolder.get() + mainFrame.size(), dependentFrame.data(),
-                        dependentFrame.size()),
-            0);
+  ExpectEac3FramePatchedToZeroDialnorm(packetHolder.get(), mainFrame);
+  ExpectEac3FramePatchedToZeroDialnorm(packetHolder.get() + mainFrame.size(), dependentFrame);
 }
 
 TEST(TestAEStreamInfo, DependentEac3SubstreamsKeepMainStreamMetadata)
@@ -252,11 +262,9 @@ TEST(TestAEStreamInfo, DefeatDialNormKeepsAllDependentEac3SubstreamsInSamePacket
 
   ASSERT_NE(packetHolder, nullptr);
   ASSERT_EQ(packetSize, input.size());
-  EXPECT_EQ(GetEac3Dialnorm(packetHolder.get()), 31);
-  EXPECT_EQ(std::memcmp(packetHolder.get() + mainFrame.size(), dependentFrameA.data(),
-                        dependentFrameA.size()),
-            0);
-  EXPECT_EQ(std::memcmp(packetHolder.get() + mainFrame.size() + dependentFrameA.size(),
-                        dependentFrameB.data(), dependentFrameB.size()),
-            0);
+  ExpectEac3FramePatchedToZeroDialnorm(packetHolder.get(), mainFrame);
+  ExpectEac3FramePatchedToZeroDialnorm(packetHolder.get() + mainFrame.size(), dependentFrameA);
+  ExpectEac3FramePatchedToZeroDialnorm(packetHolder.get() + mainFrame.size() +
+                                           dependentFrameA.size(),
+                                       dependentFrameB);
 }
