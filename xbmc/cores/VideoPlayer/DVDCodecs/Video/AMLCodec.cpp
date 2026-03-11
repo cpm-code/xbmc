@@ -1656,7 +1656,6 @@ bool CAMLCodec::OpenDecoder(bool restart)
   auto advancedSettings = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings();
 
   m_decoder_timeout = advancedSettings->m_videoDecoderTimeout;
-  m_decoder_drain_timeout = advancedSettings->m_videoDecoderDrainTimeout;
   m_decoder_buffer = advancedSettings->m_videoDecoderBuffer;
   m_decoder_stream_buffer = advancedSettings->m_videoDecoderStreamBuffer;
   m_decoder_minimum_buffer = advancedSettings->m_videoDecoderMinimumBuffer;
@@ -1665,12 +1664,11 @@ bool CAMLCodec::OpenDecoder(bool restart)
 
   m_buffer_level_ready = false;
 
-  logM(LOGINFO, "CAMLCodec", "Decoder settings: timeout:[{:d}s] drain timeout:[{:d}s] "
+  logM(LOGINFO, "CAMLCodec", "Decoder settings: timeout:[{:d}s] "
                              "buffer:[{:.1f}%] stream buffer:[{:.1f}%] "
                              "minimum buffer:[{:.1f}%] minimum stream buffer:[{:.1f}%] "
                              "h264 offset:[{:d}usec]",
     m_decoder_timeout,
-    m_decoder_drain_timeout,
     m_decoder_buffer,
     m_decoder_stream_buffer,
     m_decoder_minimum_buffer,
@@ -2420,6 +2418,7 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture& videoPicture)
       GetNextDequeuedBuffer())
   {
     ResetFrameTimeoutClock();
+    if (m_drain) m_last_drain_buffer_level = buffer_level;
 
     videoPicture.iFlags = 0;
 
@@ -2456,13 +2455,21 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture& videoPicture)
   {
     if (buffer_level > 0.0f)
     {
-      const auto drain_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_tp_drain_start);
-      if (drain_elapsed < std::chrono::seconds(m_decoder_drain_timeout))
+      if ((buffer_level + 0.1f) < m_last_drain_buffer_level)
+      {
+        m_last_drain_buffer_level = buffer_level;
+        ResetFrameTimeoutClock();
+        return CDVDVideoCodec::VC_NONE;
+      }
+
+      const int poll_ms = std::max(1, static_cast<int>((am_private->video_rate * 1000 + UNIT_FREQ - 1) / UNIT_FREQ));
+      const auto drain_idle_timeout = std::max(std::chrono::milliseconds{250}, std::chrono::milliseconds(poll_ms * 3));
+
+      if (elapsed_since_last_frame < drain_idle_timeout)
         return CDVDVideoCodec::VC_NONE;
 
-      const int poll_ms = static_cast<int>((am_private->video_rate * 1000 + UNIT_FREQ - 1) / UNIT_FREQ);
-      if (elapsed_since_last_frame < std::chrono::milliseconds(poll_ms))
-        return CDVDVideoCodec::VC_NONE;
+      logM(LOGWARNING, "CAMLCodec", "drain idle - no progress for [{:d}ms] with buffer level [{:.1f}%], ending drain",
+                                    elapsed_since_last_frame.count(), buffer_level);
     }
     return CDVDVideoCodec::VC_EOF;
   }
@@ -2482,9 +2489,13 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture& videoPicture)
 
 void CAMLCodec::SetDrain(bool drain)
 {
+  if (drain && !m_drain)
+  {
+    ResetFrameTimeoutClock();
+    m_last_drain_buffer_level = GetBufferLevel();
+  }
+
   m_drain = drain;
-  if (drain)
-    m_tp_drain_start = std::chrono::system_clock::now();
 }
 
 void CAMLCodec::SetSpeed(int speed)
