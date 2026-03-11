@@ -1723,7 +1723,9 @@ void CVideoPlayer::Process()
 
       // while players are still playing, keep going to allow seekbacks
       if (m_VideoPlayerAudio->HasData() ||
-          m_VideoPlayerVideo->HasData())
+          (m_VideoPlayerVideo->HasData() ||
+           (m_VideoPlayerVideo->IsInited() &&
+            !m_VideoPlayerVideo->IsEOS())))
       {
         CThread::Sleep(100ms);
         continue;
