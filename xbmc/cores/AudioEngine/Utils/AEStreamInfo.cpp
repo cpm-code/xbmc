@@ -632,6 +632,9 @@ bool CAEStreamParser::TrySyncAC3(uint8_t* data,
     if (strmtyp == 3)
       return false;
 
+    if (strmtyp == 1 && !wantEAC3dependent)
+      return false;
+
     if (strmtyp != 1 && wantEAC3dependent)
       return false;
 
@@ -667,30 +670,57 @@ bool CAEStreamParser::TrySyncAC3(uint8_t* data,
       m_info.m_dialNorm = static_cast<int>(dialNormRaw) - 31;
     }
 
-    // EAC3 can have a dependent stream too
+    // EAC3 can have one or more dependent substreams after the independent substream.
+    // Probe and concatenate all consecutive dependents, but keep the main stream metadata.
     if (!wantEAC3dependent)
     {
-      unsigned int fsizeMain = m_fsize;
-      unsigned int reqBytes = fsizeMain + 8;
+      const CAEStreamInfo mainInfo = m_info;
+      const unsigned int mainFrameSize = m_fsize;
+      const bool hadSync = m_hasSync;
+      const ParseFunc syncFunc = m_syncFunc;
+      const unsigned int needBytes = m_needBytes;
 
-      if (size < reqBytes)
+      unsigned int totalFrameSize = mainFrameSize;
+      bool foundDependentSubstream = false;
+
+      while (true)
       {
-        CLog::Log(LOGINFO, "CAEStreamParser::TrySyncAC3 - E-AC3 Not enough data for frame");
-        // not enough data to check for E-AC3 frame, request more
-        m_needBytes = reqBytes;
-        m_fsize = 0;
-        // no need to resync => return true
-        return true;
+        unsigned int reqBytes = totalFrameSize + 8;
+
+        if (size < reqBytes)
+        {
+          if (foundDependentSubstream)
+            break;
+
+          CLog::Log(LOGINFO, "CAEStreamParser::TrySyncAC3 - E-AC3 Not enough data for frame");
+          // not enough data to check for the next substream header, request more
+          m_needBytes = reqBytes;
+          m_fsize = 0;
+          // no need to resync => return true
+          return true;
+        }
+
+        if (!TrySyncAC3(data + totalFrameSize, size - totalFrameSize, resyncing, true))
+          break;
+
+        totalFrameSize += m_fsize;
+        foundDependentSubstream = true;
+
+        m_info = mainInfo;
+        m_hasSync = hadSync;
+        m_syncFunc = syncFunc;
+        m_needBytes = needBytes;
+        m_fsize = mainFrameSize;
       }
 
-      m_info.m_frameSize = fsizeMain;
-      if (TrySyncAC3(data + fsizeMain, size - fsizeMain, resyncing, true))
-      {
-        // concatenate the main and dependent frames
-        m_fsize += fsizeMain;
-        return true;
-      }
+      m_info = mainInfo;
+      m_hasSync = hadSync;
+      m_syncFunc = syncFunc;
+      m_needBytes = needBytes;
+      m_fsize = totalFrameSize;
     }
+
+    m_info.m_frameSize = m_fsize;
 
     if (m_info.m_type == CAEStreamInfo::STREAM_TYPE_EAC3 && m_hasSync && !resyncing)
       return true;
@@ -700,7 +730,6 @@ bool CAEStreamParser::TrySyncAC3(uint8_t* data,
     m_info.m_channels = AC3Channels[acmod] + lfeon;
     m_syncFunc = &CAEStreamParser::SyncAC3;
     m_info.m_type = CAEStreamInfo::STREAM_TYPE_EAC3;
-    m_info.m_frameSize += m_fsize;
     m_info.m_bitDepth = 16;
 
     {

@@ -124,13 +124,14 @@ std::array<uint8_t, TEST_AC3_FRAME_SIZE> MakeAc3Frame(uint8_t dialnorm)
 
 std::array<uint8_t, TEST_EAC3_FRAME_SIZE> MakeEac3Frame(uint8_t strmtyp,
                                                         uint8_t dialnorm,
+                                                        uint8_t byte4 = 0x34,
                                                         uint8_t byte6LowBits = 0x00)
 {
   return {0x0B,
           0x77,
           static_cast<uint8_t>((strmtyp << 6) | 0x00),
           0x04,
-          0x34,
+          byte4,
           static_cast<uint8_t>((11u << 3) | ((dialnorm >> 2) & 0x07)),
           static_cast<uint8_t>(((dialnorm & 0x03) << 6) | (byte6LowBits & 0x3F)),
           0x12,
@@ -146,7 +147,7 @@ uint8_t GetEac3Dialnorm(const uint8_t* frame)
 
 TEST(TestAEStreamInfo, DefeatDialNormStillPatchesIndependentEac3)
 {
-  auto mainFrame = MakeEac3Frame(0, 12, 0x15);
+  auto mainFrame = MakeEac3Frame(0, 12, 0x34, 0x15);
   std::vector<uint8_t> input(mainFrame.begin(), mainFrame.end());
   input.resize(input.size() + 8, 0x00);
 
@@ -184,8 +185,8 @@ TEST(TestAEStreamInfo, DefeatDialNormStillPatchesAc3)
 
 TEST(TestAEStreamInfo, DefeatDialNormLeavesDependentEac3SubstreamUntouched)
 {
-  auto mainFrame = MakeEac3Frame(0, 12, 0x15);
-  auto dependentFrame = MakeEac3Frame(1, 7, 0x2A);
+  auto mainFrame = MakeEac3Frame(0, 12, 0x34, 0x15);
+  auto dependentFrame = MakeEac3Frame(1, 7, 0x34, 0x2A);
 
   std::vector<uint8_t> input(mainFrame.begin(), mainFrame.end());
   input.insert(input.end(), dependentFrame.begin(), dependentFrame.end());
@@ -204,5 +205,58 @@ TEST(TestAEStreamInfo, DefeatDialNormLeavesDependentEac3SubstreamUntouched)
   EXPECT_EQ(GetEac3Dialnorm(packetHolder.get() + mainFrame.size()), 7);
   EXPECT_EQ(std::memcmp(packetHolder.get() + mainFrame.size(), dependentFrame.data(),
                         dependentFrame.size()),
+            0);
+}
+
+TEST(TestAEStreamInfo, DependentEac3SubstreamsKeepMainStreamMetadata)
+{
+  constexpr uint8_t mainByte4{0x04};      // fscod=0, numblkscod=0 -> 1 block -> repeat 6
+  constexpr uint8_t dependentByte4{0x34}; // fscod=0, numblkscod=3 -> 6 blocks -> repeat 1
+
+  auto mainFrame = MakeEac3Frame(0, 12, mainByte4, 0x15);
+  auto dependentFrame = MakeEac3Frame(1, 7, dependentByte4, 0x2A);
+
+  std::vector<uint8_t> input(mainFrame.begin(), mainFrame.end());
+  input.insert(input.end(), dependentFrame.begin(), dependentFrame.end());
+
+  CAEStreamParser parser;
+
+  uint8_t* packet = nullptr;
+  unsigned int packetSize = 0;
+  EXPECT_EQ(parser.AddData(input.data(), input.size(), &packet, &packetSize), input.size());
+  std::unique_ptr<uint8_t[]> packetHolder(packet);
+
+  ASSERT_NE(packetHolder, nullptr);
+  ASSERT_EQ(packetSize, input.size());
+  EXPECT_EQ(parser.GetStreamInfo().m_repeat, 6u);
+  EXPECT_EQ(parser.GetStreamInfo().m_dialNorm, -19);
+}
+
+TEST(TestAEStreamInfo, DefeatDialNormKeepsAllDependentEac3SubstreamsInSamePacket)
+{
+  auto mainFrame = MakeEac3Frame(0, 12, 0x34, 0x15);
+  auto dependentFrameA = MakeEac3Frame(1, 7, 0x34, 0x2A);
+  auto dependentFrameB = MakeEac3Frame(1, 9, 0x34, 0x11);
+
+  std::vector<uint8_t> input(mainFrame.begin(), mainFrame.end());
+  input.insert(input.end(), dependentFrameA.begin(), dependentFrameA.end());
+  input.insert(input.end(), dependentFrameB.begin(), dependentFrameB.end());
+
+  CAEStreamParser parser;
+  parser.SetDefeatAC3DialNorm(true);
+
+  uint8_t* packet = nullptr;
+  unsigned int packetSize = 0;
+  EXPECT_EQ(parser.AddData(input.data(), input.size(), &packet, &packetSize), input.size());
+  std::unique_ptr<uint8_t[]> packetHolder(packet);
+
+  ASSERT_NE(packetHolder, nullptr);
+  ASSERT_EQ(packetSize, input.size());
+  EXPECT_EQ(GetEac3Dialnorm(packetHolder.get()), 31);
+  EXPECT_EQ(std::memcmp(packetHolder.get() + mainFrame.size(), dependentFrameA.data(),
+                        dependentFrameA.size()),
+            0);
+  EXPECT_EQ(std::memcmp(packetHolder.get() + mainFrame.size() + dependentFrameA.size(),
+                        dependentFrameB.data(), dependentFrameB.size()),
             0);
 }
