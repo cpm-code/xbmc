@@ -56,18 +56,24 @@ void CGUIDialogVideoOSD::FrameMove()
 
 void CGUIDialogVideoOSD::Render()
 {
-  auto& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
+  auto* winSystem = CServiceBroker::GetWinSystem();
+  if (!winSystem)
+    return;
+
+  auto& gfxContext = winSystem->GetGfxContext();
   const RENDER_ORDER renderOrder = gfxContext.GetRenderOrder();
+  const bool forceSinglePass = renderOrder == RENDER_ORDER_BACK_TO_FRONT;
 
   if (renderOrder == RENDER_ORDER_FRONT_TO_BACK)
     return;
 
-  if (renderOrder == RENDER_ORDER_BACK_TO_FRONT)
+  if (forceSinglePass)
     gfxContext.SetRenderOrder(RENDER_ORDER_ALL_BACK_TO_FRONT);
 
   CGUIDialog::Render();
 
-  gfxContext.SetRenderOrder(renderOrder);
+  if (forceSinglePass)
+    gfxContext.SetRenderOrder(renderOrder);
 }
 
 bool CGUIDialogVideoOSD::OnAction(const CAction &action)
