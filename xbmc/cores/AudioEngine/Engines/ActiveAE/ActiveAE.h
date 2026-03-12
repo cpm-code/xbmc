@@ -338,6 +338,9 @@ protected:
   void MixSounds(CSoundPacket &dstSample);
   void Deamplify(CSoundPacket &dstSample);
 
+  bool IsOnlyNotRaw(const CActiveAEStream* stream) const;
+  bool IsRawMode() const;
+
   bool CompareFormat(const AEAudioFormat& lhs, const AEAudioFormat& rhs);
 
   CEvent m_inMsgEvent;
