@@ -71,6 +71,17 @@ void CEngineStats::Reset(unsigned int sampleRate, bool pcm)
   m_pcmOutput = pcm;
 }
 
+bool CActiveAE::IsOnlyNotRaw(const CActiveAEStream* stream) const
+{
+  return m_streams.size() == 1 && stream &&
+         stream->m_format.m_dataFormat != AE_FMT_RAW;
+}
+
+bool CActiveAE::IsRawMode() const
+{
+  return m_mode == MODE_RAW;
+}
+
 void CEngineStats::UpdateSinkDelay(const AEDelayStatus& status, int samples)
 {
   std::unique_lock lock(m_lock);
@@ -701,7 +712,7 @@ void CActiveAE::StateMachine(int signal, Protocol *port, Message *msg)
         case CActiveAEControlProtocol::PAUSESTREAM:
           CActiveAEStream *stream;
           stream = *(CActiveAEStream**)msg->data;
-          if (!stream->m_paused && m_streams.size() == 1)
+          if (!stream->m_paused && IsOnlyNotRaw(stream))
           {
             FlushEngine();
             streaming = false;
@@ -1286,7 +1297,7 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
     m_sink.m_controlPort.SendOutMessage(CSinkControlProtocol::STREAMING, &streaming, sizeof(bool));
 
     AEAudioFormat outputFormat;
-    if (m_mode == MODE_RAW)
+    if (IsRawMode())
     {
       inputFormat.m_frames = m_sinkFormat.m_frames;
       outputFormat = inputFormat;
@@ -1589,7 +1600,7 @@ void CActiveAE::SFlushStream(CActiveAEStream *stream)
   }
 
   // flush the engine if we only have a single stream
-  if (m_streams.size() == 1)
+  if (IsOnlyNotRaw(stream))
   {
     FlushEngine();
   }
@@ -1696,7 +1707,7 @@ void CActiveAE::ConfigureLowLatency()
 {
   bool resample{false};
 
-  if (m_settings.lowLatencyMode)
+  if (m_settings.lowLatencyMode && !IsRawMode())
   {
     if (!m_streams.empty())
     {
@@ -2033,27 +2044,18 @@ bool CActiveAE::RunStages()
     }
   }
 
-  // TrueHD can be very "jumpy" (frames don't come in equidistantly) and is only smoothed at the
-  // end when IEC packing happens. On AML, DTS-HD MA can show similar pacing sensitivity.
-#if defined(HAS_LIBAMCODEC)
+  // TrueHD and DTS (to a lesser extent) can be very "jumpy" (frames don't come in equidistantly)
+  // and is only smoothed at the end when IEC packing happens.
   const bool isTrueHDPassthrough =
-      (m_mode == MODE_RAW &&
-       m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD);
+    IsRawMode() && (m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD);
   const bool isDtsHdMaPassthrough =
-      (m_mode == MODE_RAW &&
-       m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
+    IsRawMode() && (m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
   // Only TrueHD is treated as "jumpy" for buffer fill behavior.
-  // DTS-HD MA benefits from error dampening on AML, but forcing continuous fill
+  // DTS-HD MA benefits from error dampening, but forcing continuous fill
   // can lead to excessive buffered delay and large sync error spam after seeks.
   const bool isJumpyPassthrough = isTrueHDPassthrough;
-#else
-  const bool isTrueHDPassthrough =
-      (m_mode == MODE_RAW && m_sinkFormat.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD);
-  const bool isDtsHdMaPassthrough = false;
-  const bool isJumpyPassthrough = isTrueHDPassthrough;
-#endif
 
-  if (m_settings.lowLatencyMode)
+  if (m_settings.lowLatencyMode && !IsRawMode())
   {
     // m_targetBufferLevel grows progressively from ~20ms (virtual zero buffer and zero latency)
     // to ~200 ms (nominal buffer and nominal latency), same as before.
@@ -2120,7 +2122,7 @@ bool CActiveAE::RunStages()
     }
 
     // mix streams and sounds sounds
-    if (m_mode != MODE_RAW)
+    if (!IsRawMode())
     {
       CSampleBuffer *out = NULL;
       if (!m_sounds_playing.empty() && m_streams.empty())
@@ -2495,10 +2497,14 @@ CSampleBuffer* CActiveAE::SyncStream(CActiveAEStream *stream)
   if (!stream->m_pClock)
     return ret;
 
+  const bool keepCadence = (IsRawMode() &&
+                            (stream->m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD));
+
   if (stream->m_syncState == CAESyncInfo::AESyncState::SYNC_START)
   {
-    stream->m_syncState = CAESyncInfo::AESyncState::SYNC_MUTE;
-    stream->m_syncError.Flush(100ms);
+    stream->m_syncState = keepCadence ? CAESyncInfo::AESyncState::SYNC_INSYNC
+                                      : CAESyncInfo::AESyncState::SYNC_MUTE;
+    stream->m_syncError.Flush(keepCadence ? 1000ms : 100ms);
     stream->m_processingBuffers->SetRR(1.0, m_settings.atempoThreshold);
     stream->m_resampleIntegral = 0;
     CLog::Log(LOGDEBUG,"ActiveAE - start sync of audio stream");
@@ -2522,7 +2528,19 @@ CSampleBuffer* CActiveAE::SyncStream(CActiveAEStream *stream)
                                           : stream->GetErrorInterval();
   bool newerror = stream->m_syncError.Get(error, timeout);
 
-  if (newerror && fabs(error) > threshold && stream->m_syncState == CAESyncInfo::AESyncState::SYNC_INSYNC)
+  if (keepCadence &&
+      ((stream->m_syncState == CAESyncInfo::AESyncState::SYNC_MUTE) ||
+       (stream->m_syncState == CAESyncInfo::AESyncState::SYNC_ADJUST)))
+  {
+    stream->m_syncState = CAESyncInfo::AESyncState::SYNC_INSYNC;
+    stream->m_syncError.Flush(1000ms);
+    stream->m_resampleIntegral = 0;
+    stream->m_processingBuffers->SetRR(1.0, m_settings.atempoThreshold);
+  }
+
+  if (!keepCadence && newerror &&
+      (fabs(error) > threshold) &&
+      (stream->m_syncState == CAESyncInfo::AESyncState::SYNC_INSYNC))
   {
     stream->m_syncState = CAESyncInfo::AESyncState::SYNC_ADJUST;
     stream->m_processingBuffers->SetRR(1.0, m_settings.atempoThreshold);
@@ -2531,7 +2549,8 @@ CSampleBuffer* CActiveAE::SyncStream(CActiveAEStream *stream)
     CLog::Log(LOGDEBUG, "ActiveAE::SyncStream - average error {:f} above threshold of {:f}", error,
               threshold);
   }
-  else if (newerror && stream->m_syncState == CAESyncInfo::AESyncState::SYNC_MUTE)
+  else if (!keepCadence && newerror &&
+           (stream->m_syncState == CAESyncInfo::AESyncState::SYNC_MUTE))
   {
     stream->m_syncState = CAESyncInfo::AESyncState::SYNC_ADJUST;
     stream->m_lastSyncError = error;
@@ -2541,7 +2560,7 @@ CSampleBuffer* CActiveAE::SyncStream(CActiveAEStream *stream)
   if (stream->m_syncState == CAESyncInfo::AESyncState::SYNC_MUTE)
   {
     CSampleBuffer *buf = stream->m_processingBuffers->m_outputSamples.front();
-    if (m_mode == MODE_RAW)
+    if (IsRawMode())
     {
       buf->pkt->nb_samples = 0;
       buf->pkt->pause_burst_ms = stream->m_processingBuffers->m_inputFormat.m_streamInfo.GetDuration();
@@ -2574,7 +2593,7 @@ CSampleBuffer* CActiveAE::SyncStream(CActiveAEStream *stream)
             framesToDelay = 0;
         }
         ret->pkt->nb_samples = framesToDelay;
-        if (m_mode == MODE_RAW)
+        if (IsRawMode())
         {
           ret->pkt->nb_samples = 0;
           ret->pkt->pause_burst_ms = error;
@@ -2615,7 +2634,7 @@ CSampleBuffer* CActiveAE::SyncStream(CActiveAEStream *stream)
         else
           framesToSkip = 0;
       }
-      if (m_mode == MODE_RAW)
+      if (IsRawMode())
       {
         if (-error > stream->m_format.m_streamInfo.GetDuration() / 2)
         {
@@ -3440,7 +3459,7 @@ bool CActiveAE::ResampleSound(CActiveAESound *sound)
   uint8_t **dst_buffer;
   int dst_samples;
 
-  if (m_mode == MODE_RAW || m_internalFormat.m_dataFormat == AE_FMT_INVALID)
+  if (IsRawMode() || m_internalFormat.m_dataFormat == AE_FMT_INVALID)
     return false;
 
   if (!sound->GetSound(true))
