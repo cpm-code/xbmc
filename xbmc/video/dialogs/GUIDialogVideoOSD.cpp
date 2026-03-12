@@ -64,18 +64,18 @@ void CGUIDialogVideoOSD::Render()
   const RENDER_ORDER renderOrder = gfxContext.GetRenderOrder();
 
   // Skip the front-to-back opaque pass so the OSD isn't split across the
-  // dual-pass GUI pipeline while fullscreen video is being composed underneath it.
+  // dual-pass GUI pipeline (opaque first, transparent second) while fullscreen
+  // video is being composed underneath it.
   if (renderOrder == RENDER_ORDER_FRONT_TO_BACK)
     return;
 
-  const bool isBackToFrontPass = renderOrder == RENDER_ORDER_BACK_TO_FRONT;
-  if (isBackToFrontPass)
+  if (renderOrder == RENDER_ORDER_BACK_TO_FRONT)
     // Render the OSD atomically within the transparent pass.
     gfxContext.SetRenderOrder(RENDER_ORDER_ALL_BACK_TO_FRONT);
 
   CGUIDialog::Render();
 
-  if (isBackToFrontPass)
+  if (renderOrder == RENDER_ORDER_BACK_TO_FRONT)
     gfxContext.SetRenderOrder(renderOrder);
 }
 
