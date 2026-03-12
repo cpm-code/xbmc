@@ -855,6 +855,8 @@ void CApplication::Render()
   if (!CServiceBroker::GetRenderSystem()->BeginRender())
     return;
 
+  // Render video and GUI/OSD on the render thread in submission order so they
+  // share the same graphics context and present as a single frame.
   // render video layer
   CServiceBroker::GetGUI()->GetWindowManager().RenderEx();
 
