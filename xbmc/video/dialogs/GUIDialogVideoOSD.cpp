@@ -63,14 +63,16 @@ void CGUIDialogVideoOSD::Render()
   auto& gfxContext = winSystem->GetGfxContext();
   const RENDER_ORDER renderOrder = gfxContext.GetRenderOrder();
 
-  // Skip the front-to-back opaque pass so the OSD isn't split across the
-  // dual-pass GUI pipeline (opaque first, transparent second) while fullscreen
-  // video is being composed underneath it.
+  // Skip rendering the OSD during the front-to-back stage of the two-pass GUI
+  // pipeline so it can be rendered in the later back-to-front stage without
+  // being split across both passes while fullscreen video is composed under it.
   if (renderOrder == RENDER_ORDER_FRONT_TO_BACK)
     return;
 
   if (renderOrder == RENDER_ORDER_BACK_TO_FRONT)
-    // Render the OSD atomically within the transparent pass.
+    // When rendering during the back-to-front stage, temporarily switch to
+    // ALL_BACK_TO_FRONT so the whole OSD is drawn together instead of
+    // inheriting the split-pass dialog ordering.
     gfxContext.SetRenderOrder(RENDER_ORDER_ALL_BACK_TO_FRONT);
 
   CGUIDialog::Render();
