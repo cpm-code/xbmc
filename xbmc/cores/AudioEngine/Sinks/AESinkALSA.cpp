@@ -1443,6 +1443,17 @@ void CAESinkALSA::Flush()
   if (!m_pcm)
     return;
 
+  // for passthrough just reset
+  if (m_passthrough)
+  {
+    int err = snd_pcm_reset(m_pcm);
+    if (err >= 0)
+    {
+      ApplySwParams();
+      return;
+    }
+  }
+
   // Drop any queued frames immediately (do not block like snd_pcm_drain).
   int err = snd_pcm_drop(m_pcm);
   if (err < 0)
