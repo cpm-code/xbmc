@@ -14,6 +14,7 @@
 
 #include "qry_dat.h"
 
+#include <cstdarg>
 #include <list>
 #include <map>
 #include <memory>
