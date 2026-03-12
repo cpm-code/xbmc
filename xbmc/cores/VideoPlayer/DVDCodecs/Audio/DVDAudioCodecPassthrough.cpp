@@ -440,9 +440,12 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
       m_internalClock -= absMinJitter;
       m_jitterTracker.OffsetValues(-absMinJitter);
 
-      // Signal discontinuity to downstream
-      frame.hasDiscontinuity = true;
-      frame.discontinuityCorrection = absMinJitter;
+      if (!isTrueHD)
+      {
+        // Signal discontinuity to downstream
+        frame.hasDiscontinuity = true;
+        frame.discontinuityCorrection = absMinJitter;
+      }
 
       CLog::Log(LOGDEBUG,
                 "CDVDAudioCodecPassthrough: Jitter correction {:.2f}ms (threshold {:.0f}ms)",
