@@ -20,6 +20,8 @@
 #include "input/mouse/MouseEvent.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
+#include "windowing/GraphicContext.h"
+#include "windowing/WinSystem.h"
 
 using namespace KODI;
 using namespace PVR;
@@ -50,6 +52,22 @@ void CGUIDialogVideoOSD::FrameMove()
       SetAutoClose(m_showDuration);
   }
   CGUIDialog::FrameMove();
+}
+
+void CGUIDialogVideoOSD::Render()
+{
+  auto& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
+  const RENDER_ORDER renderOrder = gfxContext.GetRenderOrder();
+
+  if (renderOrder == RENDER_ORDER_FRONT_TO_BACK)
+    return;
+
+  if (renderOrder == RENDER_ORDER_BACK_TO_FRONT)
+    gfxContext.SetRenderOrder(RENDER_ORDER_ALL_BACK_TO_FRONT);
+
+  CGUIDialog::Render();
+
+  gfxContext.SetRenderOrder(renderOrder);
 }
 
 bool CGUIDialogVideoOSD::OnAction(const CAction &action)
@@ -101,4 +119,3 @@ bool CGUIDialogVideoOSD::OnMessage(CGUIMessage& message)
   }
   return CGUIDialog::OnMessage(message);
 }
-
