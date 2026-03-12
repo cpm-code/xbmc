@@ -58,6 +58,8 @@ void CGUIDialogVideoOSD::Render()
 {
   auto* winSystem = CServiceBroker::GetWinSystem();
   if (!winSystem)
+    // Without a window system there is no graphics context or render order to
+    // restore, so skip the OSD pass entirely.
     return;
 
   auto& gfxContext = winSystem->GetGfxContext();

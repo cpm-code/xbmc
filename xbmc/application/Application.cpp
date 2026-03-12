@@ -111,6 +111,7 @@
 #include "network/upnp/UPnP.h"
 #endif
 #include "jobs/JobManager.h"
+#include "jobs/LambdaJob.h"
 #include "peripherals/Peripherals.h"
 #include "pictures/SlideShowDelegator.h"
 #include "platform/Environment.h"
@@ -216,6 +217,20 @@ using KODI::MESSAGING::HELPERS::DialogResponse;
 using namespace std::chrono_literals;
 
 #define MAX_FFWD_SPEED 5
+
+namespace
+{
+class CResetAtomicFlag
+{
+public:
+  explicit CResetAtomicFlag(std::atomic_bool& flag) : m_flag(flag) {}
+
+  ~CResetAtomicFlag() { m_flag.store(false); }
+
+private:
+  std::atomic_bool& m_flag;
+};
+} // namespace
 
 CApplication::CApplication(void)
   :
@@ -2352,6 +2367,35 @@ void CApplication::Process()
   }
 }
 
+void CApplication::ScheduleIdleResourceCleanup()
+{
+  bool expected = false;
+  if (!m_idleResourceCleanupScheduled.compare_exchange_strong(expected, true))
+    return;
+
+  auto idleCleanup = [this]()
+  {
+    CResetAtomicFlag resetScheduled{m_idleResourceCleanupScheduled};
+
+    g_curlInterface.CheckIdle();
+
+#if defined(TARGET_POSIX) && defined(HAS_FILESYSTEM_SMB)
+    smb.CheckIfIdle();
+#endif
+
+#ifdef HAS_FILESYSTEM_NFS
+    gNfsConnection.CheckIfIdle();
+#endif
+  };
+
+  if (CServiceBroker::GetJobManager()->AddJob(
+          new CLambdaJob<decltype(idleCleanup)>(std::move(idleCleanup)), nullptr,
+          CJob::PRIORITY_LOW) == 0)
+  {
+    m_idleResourceCleanupScheduled.store(false);
+  }
+}
+
 // We get called every 500ms
 void CApplication::ProcessSlow()
 {
@@ -2409,8 +2453,9 @@ void CApplication::ProcessSlow()
   CXBMCApp::Get().ProcessSlow();
 #endif
 
-  // check for any idle curl connections
-  g_curlInterface.CheckIdle();
+  // Keep idle connection cleanup off the application thread; GUI and platform
+  // maintenance below still needs to stay on the app thread.
+  ScheduleIdleResourceCleanup();
 
   CServiceBroker::GetGUI()->GetLargeTextureManager().CleanupUnusedImages();
 
@@ -2426,14 +2471,6 @@ void CApplication::ProcessSlow()
 #ifdef HAS_UPNP
   if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_SERVICES_UPNP) && UPNP::CUPnP::IsInstantiated())
     UPNP::CUPnP::GetInstance()->UpdateState();
-#endif
-
-#if defined(TARGET_POSIX) && defined(HAS_FILESYSTEM_SMB)
-  smb.CheckIfIdle();
-#endif
-
-#ifdef HAS_FILESYSTEM_NFS
-  gNfsConnection.CheckIfIdle();
 #endif
 
   for (const auto& vfsAddon : CServiceBroker::GetVFSAddonCache().GetAddonInstances())

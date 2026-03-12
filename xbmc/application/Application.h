@@ -241,6 +241,7 @@ public:
 private:
   void PrintStartupLog();
   void ResetCurrentItem();
+  void ScheduleIdleResourceCleanup();
 
   mutable CCriticalSection m_critSection; /*!< critical section for all changes to this class, except for changes to triggers */
 
@@ -251,6 +252,7 @@ private:
   int m_ExitCode{EXITCODE_QUIT};
   std::shared_ptr<CFileItem> m_itemCurrentFile; //!< Currently playing file
   CEvent m_playerEvent;
+  std::atomic_bool m_idleResourceCleanupScheduled{false};
 
   unsigned int m_maxOtherTaskTime = 6;  // Maximum time for other tasks on main thread.
 };
