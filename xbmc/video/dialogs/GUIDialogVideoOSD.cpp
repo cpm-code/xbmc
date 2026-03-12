@@ -62,17 +62,19 @@ void CGUIDialogVideoOSD::Render()
 
   auto& gfxContext = winSystem->GetGfxContext();
   const RENDER_ORDER renderOrder = gfxContext.GetRenderOrder();
-  const bool forceSinglePass = renderOrder == RENDER_ORDER_BACK_TO_FRONT;
+  const bool shouldForceAllBackToFront = renderOrder == RENDER_ORDER_BACK_TO_FRONT;
 
+  // Skip the opaque pass so the OSD isn't split across the dual-pass GUI pipeline
+  // while fullscreen video is being composed underneath it.
   if (renderOrder == RENDER_ORDER_FRONT_TO_BACK)
     return;
 
-  if (forceSinglePass)
+  if (shouldForceAllBackToFront)
     gfxContext.SetRenderOrder(RENDER_ORDER_ALL_BACK_TO_FRONT);
 
   CGUIDialog::Render();
 
-  if (forceSinglePass)
+  if (shouldForceAllBackToFront)
     gfxContext.SetRenderOrder(renderOrder);
 }
 
