@@ -361,7 +361,8 @@ void CVideoPlayerAudio::Process()
                 pts / DVD_TIME_BASE, m_messageQueue.GetLevel(), m_audioSink.GetDelay() / DVD_TIME_BASE);
 
       double delay = m_audioSink.GetDelay();
-      if (pts > m_audioClock - delay + 0.5 * DVD_TIME_BASE)
+      if (!(m_pAudioCodec && m_pAudioCodec->NeedPassthrough()) &&
+          (pts > m_audioClock - delay + 0.5 * DVD_TIME_BASE))
       {
         m_audioSink.Flush();
       }
