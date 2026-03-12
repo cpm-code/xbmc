@@ -194,6 +194,8 @@ public:
   // render loop
   void RegisterRenderLoop(IRenderLoop *client);
   void UnregisterRenderLoop(IRenderLoop *client);
+  // Drives registered render-loop clients on the calling thread. Today this is
+  // the application thread, not a dedicated render thread.
   void DriveRenderLoop();
 
   // winsystem events

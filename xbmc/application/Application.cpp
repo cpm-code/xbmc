@@ -855,8 +855,9 @@ void CApplication::Render()
   if (!CServiceBroker::GetRenderSystem()->BeginRender())
     return;
 
-  // Render video and GUI/OSD on the render thread in submission order so they
-  // share the same graphics context and present as a single frame.
+  // Render video and GUI/OSD serially on the current application thread during
+  // the render phase so they share the same graphics context and present as a
+  // single frame.
   // render video layer
   CServiceBroker::GetGUI()->GetWindowManager().RenderEx();
 
@@ -1558,7 +1559,8 @@ void CApplication::FrameMove(bool processEvents, bool processGUI)
 
   appPlayer->FrameMove();
 
-  // this will go away when render systems gets its own thread
+  // Drive render-loop clients from the application thread for now. This only
+  // goes away once the render system owns a dedicated render thread.
   CServiceBroker::GetWinSystem()->DriveRenderLoop();
 }
 
