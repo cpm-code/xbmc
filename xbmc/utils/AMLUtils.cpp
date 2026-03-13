@@ -710,7 +710,12 @@ void aml_dv_set_xbmc_osd()
                     wm.IsWindowVisible(WINDOW_VIDEO_MENU) ||
                     CServiceBroker::GetDataCacheCore().GetAVChangeExtended();
 
-  CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_xbmc_osd", osd_active ? 1 : 0);
+  const int osd_state = osd_active ? 1 : 0;
+  static int last_osd_active = -1;
+  if (osd_state == last_osd_active) return;
+  last_osd_active = osd_state;
+
+  CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_xbmc_osd", osd_state);
 }
 
 bool aml_dv_use_active_area()
