@@ -26,7 +26,7 @@ class CDRMAtomic : public CDRMUtils
 {
 public:
   CDRMAtomic() = default;
-  ~CDRMAtomic() override = default;
+  ~CDRMAtomic() override;
   void FlipPage(struct gbm_bo* bo, bool rendered, bool videoLayer, bool async) override;
   bool SetVideoMode(const RESOLUTION_INFO& res, struct gbm_bo* bo) override;
   bool SetActive(bool active) override;
@@ -36,10 +36,14 @@ public:
   bool AddProperty(CDRMObject* object, const char* name, uint64_t value);
 
 private:
-  void DrmAtomicCommit(int fb_id, int flags, bool rendered, bool videoLayer);
+  void DrmAtomicCommit(int fb_id, int flags, bool rendered, bool videoLayer, bool updateGuiPlane);
+  bool IsVideoGuiCommitPending();
+  void ResetVideoGuiCommitFence();
 
   bool m_need_modeset;
   bool m_active = true;
+  bool m_videoGuiCommitPending = false;
+  int m_videoGuiOutFenceFd{-1};
 
   class CDRMAtomicRequest
   {
