@@ -174,6 +174,7 @@ set(HEADERS ActorProtocol.h
             RssManager.h
             RssReader.h
             SaveFileStateJob.h
+            ScopeExit.h
             ScopeGuard.h
             ScraperParser.h
             ScraperUrl.h
