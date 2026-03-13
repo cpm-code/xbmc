@@ -15,6 +15,7 @@
 #include "utils/log.h"
 
 #include <errno.h>
+#include <poll.h>
 #include <string.h>
 
 #include <drm_fourcc.h>
@@ -23,13 +24,60 @@
 
 using namespace KODI::WINDOWING::GBM;
 
-void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool videoLayer)
+CDRMAtomic::~CDRMAtomic()
+{
+  ResetVideoGuiCommitFence();
+}
+
+bool CDRMAtomic::IsVideoGuiCommitPending()
+{
+  if (!m_videoGuiCommitPending)
+    return false;
+
+  if (m_videoGuiOutFenceFd == -1)
+  {
+    m_videoGuiCommitPending = false;
+    return false;
+  }
+
+  pollfd pfd{m_videoGuiOutFenceFd, POLLIN, 0};
+  const int ret = poll(&pfd, 1, 0);
+  if (ret > 0 && (pfd.revents & (POLLIN | POLLHUP | POLLERR)))
+  {
+    ResetVideoGuiCommitFence();
+    return false;
+  }
+
+  if (ret < 0)
+  {
+    logM(LOGWARNING, "CDRMAtomic", "poll on out fence failed: {}", strerror(errno));
+    ResetVideoGuiCommitFence();
+    return false;
+  }
+
+  return true;
+}
+
+void CDRMAtomic::ResetVideoGuiCommitFence()
+{
+  if (m_videoGuiOutFenceFd != -1)
+  {
+    close(m_videoGuiOutFenceFd);
+    m_videoGuiOutFenceFd = -1;
+  }
+
+  m_videoGuiCommitPending = false;
+}
+
+void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool videoLayer, bool updateGuiPlane)
 {
   // Declared at function scope so the blob outlives drmModeAtomicCommit.
   // DRM requires the blob to remain alive for the duration of the commit;
   // destroying it before the commit returns leaves the atomic request
   // referencing an invalid id and the kernel rejects with EINVAL.
   CDRMPropertyBlob modeBlob;
+
+  const bool trackVideoGuiCommit = rendered && videoLayer && updateGuiPlane;
 
   if (m_old_crtc != nullptr)
   {
@@ -89,7 +137,15 @@ void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool video
   // Pick whichever is live.
   CDRMPlane* outputPlane = m_gui_plane ? m_gui_plane : m_video_plane;
 
-  if (rendered)
+  const bool updateOutputPlane = rendered && (!m_gui_plane || updateGuiPlane);
+
+  if (trackVideoGuiCommit)
+  {
+    ResetVideoGuiCommitFence();
+    AddProperty(m_crtc, "OUT_FENCE_PTR", reinterpret_cast<uint64_t>(&m_videoGuiOutFenceFd));
+  }
+
+  if (updateOutputPlane)
   {
     AddProperty(outputPlane, "FB_ID", fb_id);
     AddProperty(outputPlane, "CRTC_ID", m_crtc->GetCrtcId());
@@ -104,7 +160,8 @@ void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool video
 
     if (m_inFenceFd != -1)
     {
-      AddProperty(m_crtc, "OUT_FENCE_PTR", reinterpret_cast<uint64_t>(&m_outFenceFd));
+      if (!trackVideoGuiCommit)
+        AddProperty(m_crtc, "OUT_FENCE_PTR", reinterpret_cast<uint64_t>(&m_outFenceFd));
       AddProperty(outputPlane, "IN_FENCE_FD", m_inFenceFd);
     }
   }
@@ -142,7 +199,7 @@ void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool video
     m_req = oldRequest;
 
     // update the old atomic request with the new fb id to avoid tearing
-    if (rendered)
+    if (updateOutputPlane)
       AddProperty(outputPlane, "FB_ID", fb_id);
   }
 
@@ -165,6 +222,14 @@ void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool video
       m_atomicRequestQueue.pop_front();
   }
 
+  if (ret >= 0 && trackVideoGuiCommit)
+  {
+    if (flags & DRM_MODE_ATOMIC_NONBLOCK)
+      m_videoGuiCommitPending = (m_videoGuiOutFenceFd != -1);
+    else
+      ResetVideoGuiCommitFence();
+  }
+
   if (m_inFenceFd != -1)
   {
     close(m_inFenceFd);
@@ -179,6 +244,8 @@ void CDRMAtomic::FlipPage(struct gbm_bo* bo, bool rendered, bool videoLayer, boo
 {
   struct drm_fb* drm_fb = nullptr;
   uint32_t flags = 0;
+  const bool trackVideoGuiCommit = rendered && videoLayer;
+  const bool deferGuiPlaneUpdate = trackVideoGuiCommit && IsVideoGuiCommitPending();
 
   if (rendered)
   {
@@ -189,8 +256,15 @@ void CDRMAtomic::FlipPage(struct gbm_bo* bo, bool rendered, bool videoLayer, boo
       return;
     }
 
-    if (async && !m_need_modeset)
+    if ((async || trackVideoGuiCommit) && !m_need_modeset)
       flags |= DRM_MODE_ATOMIC_NONBLOCK;
+  }
+
+  if (deferGuiPlaneUpdate)
+  {
+    CLog::Log(LOGDEBUG,
+              "CDRMAtomic::{} - deferring GUI plane update until previous video/gui commit completes",
+              __FUNCTION__);
   }
 
   if (m_need_modeset)
@@ -200,7 +274,8 @@ void CDRMAtomic::FlipPage(struct gbm_bo* bo, bool rendered, bool videoLayer, boo
     CLog::LogF(LOGDEBUG, "Execute modeset at next commit");
   }
 
-  DrmAtomicCommit(!drm_fb ? 0 : drm_fb->fb_id, flags, rendered, videoLayer);
+  DrmAtomicCommit(!drm_fb ? 0 : drm_fb->fb_id, flags, rendered, videoLayer,
+                  rendered && !deferGuiPlaneUpdate);
 }
 
 bool CDRMAtomic::InitDrm()
@@ -228,6 +303,7 @@ bool CDRMAtomic::InitDrm()
 
 void CDRMAtomic::DestroyDrm()
 {
+  ResetVideoGuiCommitFence();
   CDRMUtils::DestroyDrm();
 }
 
