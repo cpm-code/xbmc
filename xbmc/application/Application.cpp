@@ -111,6 +111,7 @@
 #include "network/upnp/UPnP.h"
 #endif
 #include "jobs/JobManager.h"
+#include "jobs/LambdaJob.h"
 #include "peripherals/Peripherals.h"
 #include "pictures/SlideShowDelegator.h"
 #include "platform/Environment.h"
@@ -145,6 +146,7 @@
 #include "utils/PlayerUtils.h"
 #include "utils/RegExp.h"
 #include "utils/Screenshot.h"
+#include "utils/ScopeExit.h"
 #include "utils/StringUtils.h"
 #include "utils/SystemInfo.h"
 #include "utils/TimeUtils.h"
@@ -2349,6 +2351,37 @@ void CApplication::Process()
   }
 }
 
+void CApplication::ScheduleIdleCleanup()
+{
+  bool expected = false;
+  if (!m_idleCleanupScheduled.compare_exchange_strong(expected, true)) return;
+
+  auto idleCleanup = [this]()
+  {
+    [[maybe_unused]]
+    const auto resetScheduled = KODI::UTILS::MakeScopeExit([this] {
+      m_idleCleanupScheduled.store(false);
+    });
+
+    g_curlInterface.CheckIdle();
+
+#if defined(TARGET_POSIX) && defined(HAS_FILESYSTEM_SMB)
+    smb.CheckIfIdle();
+#endif
+
+#ifdef HAS_FILESYSTEM_NFS
+    gNfsConnection.CheckIfIdle();
+#endif
+  };
+
+  if (CServiceBroker::GetJobManager()->AddJob(
+        new CLambdaJob<decltype(idleCleanup)>(std::move(idleCleanup)),
+        nullptr, CJob::PRIORITY_LOW) == 0)
+  {
+    m_idleCleanupScheduled.store(false);
+  }
+}
+
 // We get called every 500ms
 void CApplication::ProcessSlow()
 {
@@ -2406,8 +2439,7 @@ void CApplication::ProcessSlow()
   CXBMCApp::Get().ProcessSlow();
 #endif
 
-  // check for any idle curl connections
-  g_curlInterface.CheckIdle();
+  ScheduleIdleCleanup();
 
   CServiceBroker::GetGUI()->GetLargeTextureManager().CleanupUnusedImages();
 
@@ -2423,14 +2455,6 @@ void CApplication::ProcessSlow()
 #ifdef HAS_UPNP
   if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_SERVICES_UPNP) && UPNP::CUPnP::IsInstantiated())
     UPNP::CUPnP::GetInstance()->UpdateState();
-#endif
-
-#if defined(TARGET_POSIX) && defined(HAS_FILESYSTEM_SMB)
-  smb.CheckIfIdle();
-#endif
-
-#ifdef HAS_FILESYSTEM_NFS
-  gNfsConnection.CheckIfIdle();
 #endif
 
   for (const auto& vfsAddon : CServiceBroker::GetVFSAddonCache().GetAddonInstances())
