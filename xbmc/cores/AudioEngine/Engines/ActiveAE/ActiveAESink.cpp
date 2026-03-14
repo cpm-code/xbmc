@@ -1122,7 +1122,10 @@ unsigned int CActiveAESink::OutputSamples(CSampleBuffer* samples)
 
   while (frames > 0)
   {
-    maxFrames = std::min(frames, m_sinkFormat.m_frames);
+    if (m_requestedFormat.m_dataFormat == AE_FMT_RAW)
+      maxFrames = frames;
+    else
+      maxFrames = std::min(frames, m_sinkFormat.m_frames);
     written = m_sink->AddPackets(buffer, maxFrames, totalFrames - frames);
 
     if (written > 0 && isPassthroughAudioPacket)

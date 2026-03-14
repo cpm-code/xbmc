@@ -1273,9 +1273,11 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
   }
 
   uint8_t* buffer = data[0] + offset * m_format.m_frameSize;
+  uint8_t* const bufferStart = buffer; // remember start for passthrough burst realignment
   unsigned int amount = 0;
   int64_t data_left = (int64_t) frames;
   int frames_written = 0;
+  int burstResets = 0; // prevent infinite reset loops
 
   while (data_left > 0)
   {
@@ -1330,6 +1332,15 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
 
         if (ret < 0)
           ret = 0;
+      }
+      if (m_passthrough && frames_written > 0 && burstResets < 2)
+      {
+        logM(LOGDEBUG, "CAESinkALSA", "passthrough: underrun recovery lost [{}] frames, realigning burst", frames_written);
+        buffer = bufferStart;
+        data_left = static_cast<int64_t>(frames);
+        frames_written = 0;
+        burstResets++;
+        continue;
       }
     }
 
