@@ -10,6 +10,7 @@
 
 #include "AEPackIEC61937.h"
 #include "AEStreamInfo.h"
+#include "PackerMAT.h"
 #include "utils/log.h"
 
 #include <array>
@@ -82,6 +83,13 @@ bool CAEBitstreamPacker::PackPause(CAEStreamInfo &info, unsigned int millis, boo
   switch (info.m_type)
   {
     case CAEStreamInfo::STREAM_TYPE_TRUEHD:
+    {
+      const auto& trueHDSilence = CPackerMAT::GenerateIECSilenceBurst();
+      memcpy(m_packedBuffer, trueHDSilence.data(), trueHDSilence.size());
+      m_dataSize = static_cast<unsigned int>(trueHDSilence.size());
+      m_pauseDuration = millis;
+      break;
+    }
     case CAEStreamInfo::STREAM_TYPE_EAC3:
       m_dataSize = CAEPackIEC61937::PackPause(m_packedBuffer, millis, GetOutputChannelMap(info).Count() * 2, GetOutputRate(info), 4, info.m_sampleRate);
       m_pauseDuration = millis;
@@ -104,7 +112,11 @@ bool CAEBitstreamPacker::PackPause(CAEStreamInfo &info, unsigned int millis, boo
 
   if (!iecBursts)
   {
-    memset(m_packedBuffer, 0, m_dataSize);
+    // For TrueHD, never zero the MAT silence frame - the whole point is to
+    // maintain the MAT frame structure so receivers keep their Atmos lock.
+    // For other codecs, zeroing is fine as it just produces digital silence.
+    if (info.m_type != CAEStreamInfo::STREAM_TYPE_TRUEHD)
+      memset(m_packedBuffer, 0, m_dataSize);
   }
 
   return true;

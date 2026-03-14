@@ -38,6 +38,9 @@ public:
   bool HadDiscontinuity() const { return m_lastOutputHadDiscontinuity; }
   void Reset();
 
+  static const std::vector<uint8_t>& GenerateSilenceFrame();
+  static const std::vector<uint8_t>& GenerateIECSilenceBurst();
+
 private:
   struct MATState
   {

@@ -8,6 +8,7 @@
 
 #include "PackerMAT.h"
 
+#include "AEPackIEC61937.h"
 #include "utils/log.h"
 
 #include <array>
@@ -498,4 +499,57 @@ TrueHDMajorSyncInfo CPackerMAT::ParseTrueHDMajorSyncHeaders(const uint8_t* p, in
   }
 
   return info;
+}
+
+const std::vector<uint8_t>& CPackerMAT::GenerateSilenceFrame()
+{
+  static const std::vector<uint8_t> frame = []()
+  {
+    // Generate a properly formatted empty MAT frame (61440 bytes).
+    // This contains the MAT start code, middle code, and end code at their
+    // required positions, with zero-padded audio data throughout.
+    //
+    // By sending a proper MAT frame structure (which gets wrapped
+    // as IEC 61937 type 0x16), the receiver sees a continuous TrueHD stream.
+    //
+    // Layout:
+    //   [0..7]         : Reserved for IEC burst header (zeros, filled by IEC packer)
+    //   [8..27]        : MAT start code (20 bytes)
+    //   [28..30715]    : Zero padding
+    //   [30716..30727] : MAT middle code (12 bytes)
+    //   [30728..61415] : Zero padding
+    //   [61416..61439] : MAT end code (24 bytes)
+
+    std::vector<uint8_t> cachedFrame(MAT_BUFFER_SIZE, 0);
+
+    // Write MAT start code at position BURST_HEADER_SIZE (8)
+    memcpy(cachedFrame.data() + BURST_HEADER_SIZE, mat_start_code.data(), mat_start_code.size());
+
+    // Write MAT middle code at position MAT_POS_MIDDLE (30716)
+    memcpy(cachedFrame.data() + MAT_POS_MIDDLE, mat_middle_code.data(), mat_middle_code.size());
+
+    // Write MAT end code at position MAT_BUFFER_LIMIT (61416)
+    memcpy(cachedFrame.data() + MAT_BUFFER_LIMIT, mat_end_code.data(), mat_end_code.size());
+
+    return cachedFrame;
+  }();
+
+  return frame;
+}
+
+const std::vector<uint8_t>& CPackerMAT::GenerateIECSilenceBurst()
+{
+  static const std::vector<uint8_t> iecBurst = []()
+  {
+    std::vector<uint8_t> cachedBurst(MAT_BUFFER_SIZE);
+
+    constexpr unsigned int iecDataOffset = 8;
+    const std::vector<uint8_t>& matFrame = GenerateSilenceFrame();
+    CAEPackIEC61937::PackTrueHD(matFrame.data() + iecDataOffset,
+                                static_cast<unsigned int>(matFrame.size()) - iecDataOffset,
+                                cachedBurst.data());
+    return cachedBurst;
+  }();
+
+  return iecBurst;
 }
