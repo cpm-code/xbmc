@@ -451,6 +451,15 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
                 "CDVDAudioCodecPassthrough: Jitter correction {:.2f}ms (threshold {:.0f}ms)",
                 absMinJitter / 1000.0,
                 m_jitterThreshold / 1000.0);
+
+      if (isTrueHD)
+      {
+        logM(LOGDEBUG, "CDVDAudioCodecPassthrough", "TrueHD jitter details corr={:.2f}ms "
+                                                    "jitter={:.2f}ms samplesOffset={:.2f}ms internal={:.3f}s demux={:.3f}s",
+                                                    absMinJitter / 1000.0,
+                                                    jitter / 1000.0, samplesOffsetTime / 1000.0,
+                                                    m_internalClock / DVD_TIME_BASE, demuxerPts / DVD_TIME_BASE);
+      }
     }
   }
 
