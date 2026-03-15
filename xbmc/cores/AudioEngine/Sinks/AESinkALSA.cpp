@@ -1278,6 +1278,7 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
   int64_t data_left = (int64_t) frames;
   int frames_written = 0;
   int burstResets = 0; // prevent infinite reset loops
+  int zeroWriteRetries = 0;
 
   while (data_left > 0)
   {
@@ -1297,15 +1298,8 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
       const int waitTimeout = std::max(m_timeout / 2, 20);
       const int waitRet = snd_pcm_wait(m_pcm, waitTimeout);
       if (waitRet <= 0)
-      {
-        logM(LOGDEBUG,
-             "CAESinkALSA",
-             "passthrough wait anomaly: ret=[{}], timeout=[{}], amount=[{}], data_left=[{}]",
-             waitRet,
-             waitTimeout,
-             amount,
-             data_left);
-      }
+        logM(LOGDEBUG, "CAESinkALSA", "passthrough wait anomaly: ret=[{}], timeout=[{}], amount=[{}], data_left=[{}]",
+                                      waitRet, waitTimeout, amount, data_left);
     }
 
     int ret = snd_pcm_writei(m_pcm, buffer, amount);
@@ -1318,11 +1312,8 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
       const int recoverErr = snd_pcm_recover(m_pcm, writeErr, 1);
       if (recoverErr == 0)
       {
-        logM(LOGDEBUG,
-             "CAESinkALSA",
-             "snd_pcm_recover succeeded for passthrough writeErr=[{}], retrying amount=[{}]",
-             writeErr,
-             amount);
+        logM(LOGDEBUG, "CAESinkALSA", "snd_pcm_recover succeeded for passthrough writeErr=[{}], retrying amount=[{}]",
+                                      writeErr, amount);
         // Recovered successfully; retry the write.
         ret = snd_pcm_writei(m_pcm, buffer, amount);
       }
@@ -1333,12 +1324,8 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
         HandleError("snd_pcm_writei(recover)", writeErr);
         if (m_passthrough)
           snd_pcm_wait(m_pcm, std::min(m_timeout, 20));
-        logM(LOGDEBUG,
-             "CAESinkALSA",
-             "snd_pcm_recover failed for passthrough writeErr=[{}], recoverErr=[{}], retrying amount=[{}]",
-             writeErr,
-             recoverErr,
-             amount);
+        logM(LOGDEBUG, "CAESinkALSA", "snd_pcm_recover failed for passthrough writeErr=[{}], recoverErr=[{}], retrying amount=[{}]",
+                                      writeErr, recoverErr, amount);
         ret = snd_pcm_writei(m_pcm, buffer, amount);
       }
 
@@ -1349,11 +1336,8 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
         {
           // One extra retry for IEC61937 bursts after prepare/resume.
           snd_pcm_wait(m_pcm, std::min(m_timeout, 20));
-          logM(LOGDEBUG,
-               "CAESinkALSA",
-               "passthrough extra retry after HandleError: err=[{}], amount=[{}]",
-               ret,
-               amount);
+          logM(LOGDEBUG, "CAESinkALSA", "passthrough extra retry after HandleError: err=[{}], amount=[{}]",
+                                        ret, amount);
           ret = snd_pcm_writei(m_pcm, buffer, amount);
         }
 
@@ -1409,9 +1393,22 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
       }
     }
 
+    if (ret == 0 && m_passthrough)
+    {
+      if (zeroWriteRetries < 3)
+      {
+        zeroWriteRetries++;
+        logM(LOGINFO, "CAESinkALSA", "passthrough zero write: retry=[{}], amount=[{}], data_left=[{}]",
+                                     zeroWriteRetries, amount, data_left);
+        snd_pcm_wait(m_pcm, std::min(m_timeout, 20));
+        continue;
+      }
+    }
+
     if (ret <= 0)
       break;
 
+    zeroWriteRetries = 0;
     frames_written += ret;
     data_left -= ret;
     buffer += m_format.m_frameSize * ret;
