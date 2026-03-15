@@ -79,6 +79,8 @@ private:
   void AppendData(const uint8_t* data, int size, Type type);
   uint32_t GetCount() const { return m_bufferCount; }
   int FillDataBuffer(const uint8_t* data, int size, Type type);
+  void QueueOutputFrame(std::vector<uint8_t> frame, int samplesOffset, bool discontinuity);
+  void QueueSilenceFramesFromPadding();
   void FlushPacket();
   TrueHDMajorSyncInfo ParseTrueHDMajorSyncHeaders(const uint8_t* p, int buffsize) const;
 

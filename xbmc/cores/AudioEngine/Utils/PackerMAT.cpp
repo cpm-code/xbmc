@@ -196,12 +196,21 @@ bool CPackerMAT::PackTrueHD(const uint8_t* data, int size)
     // Buffer is full, submit it
     if (GetCount() == MAT_BUFFER_SIZE)
     {
+      const bool bridgeLargeGap = m_pendingDiscontinuity && (m_state.padding >= MAT_BUFFER_SIZE);
+
       FlushPacket();
 
-      // and setup a new buffer
-      WriteHeader();
+      // If a branch discontinuity created a very large padding correction,
+      // bridge any whole MAT-frame-sized gap with explicit silence frames.
+      // This keeps the receiver seeing normal MAT bursts rather than one large
+      // synthetic intra-burst padding event.
+      if (bridgeLargeGap) QueueSilenceFramesFromPadding();
+
+      if (m_state.padding > 0) WriteHeader();
     }
   }
+
+  if (GetCount() == 0) WriteHeader();
 
   // count the number of samples in this frame
   m_state.samples += frameSamples;
@@ -409,9 +418,7 @@ void CPackerMAT::FlushPacket()
 
   // push MAT packet to output queue along with current samples offset and discontinuity flag
   // (like LAV Filters, the offset is captured BEFORE updating, so it applies to this frame)
-  m_outputQueue.emplace_back(std::move(m_buffer));
-  m_offsetQueue.push_back(m_state.numberOfSamplesOffset);
-  m_discontinuityQueue.push_back(m_pendingDiscontinuity);
+  QueueOutputFrame(std::move(m_buffer), m_state.numberOfSamplesOffset, m_pendingDiscontinuity);
   m_pendingDiscontinuity = false; // Clear after queuing
 
   // we expect 24 frames per MAT frame, so calculate an offset from that
@@ -424,6 +431,37 @@ void CPackerMAT::FlushPacket()
 
   m_buffer.clear();
   m_bufferCount = 0;
+}
+
+void CPackerMAT::QueueOutputFrame(std::vector<uint8_t> frame,
+                                  int samplesOffset,
+                                  bool discontinuity)
+{
+  m_outputQueue.emplace_back(std::move(frame));
+  m_offsetQueue.push_back(samplesOffset);
+  m_discontinuityQueue.push_back(discontinuity);
+}
+
+void CPackerMAT::QueueSilenceFramesFromPadding()
+{
+  if (m_state.padding < MAT_BUFFER_SIZE) return;
+
+  const int32_t paddingBefore = m_state.padding;
+  const int silenceFrames = m_state.padding / static_cast<int32_t>(MAT_BUFFER_SIZE);
+  const int32_t residualPadding = paddingBefore - silenceFrames * static_cast<int32_t>(MAT_BUFFER_SIZE);
+
+  logM(LOGDEBUG, "CPackerMAT", "large branch padding gap: total=[{}] bytes, bridging with [{}] full MAT silence "
+                               "frame(s), residual=[{}] bytes",
+                               paddingBefore, silenceFrames, residualPadding);
+
+  for (int i = 0; i < silenceFrames; ++i)
+  {
+    // The branch discontinuity has already been attached to the flushed frame
+    // that led into this gap. These inserted silence frames are only transport
+    // bridge frames and should not surface as additional discontinuity events.
+    QueueOutputFrame(GenerateSilenceFrame(), 0, false);
+    m_state.padding -= MAT_BUFFER_SIZE;
+  }
 }
 
 TrueHDMajorSyncInfo CPackerMAT::ParseTrueHDMajorSyncHeaders(const uint8_t* p, int buffsize) const
