@@ -88,6 +88,8 @@ bool CAEBitstreamPacker::PackPause(CAEStreamInfo &info, unsigned int millis, boo
       memcpy(m_packedBuffer, trueHDSilence.data(), trueHDSilence.size());
       m_dataSize = static_cast<unsigned int>(trueHDSilence.size());
       m_pauseDuration = millis;
+      logM(LOGDEBUG, "CAEBitstreamPacker", "TrueHD pause burst: millis=[{}], iecBursts=[{}], size=[{}]",
+                                           millis, iecBursts, m_dataSize);
       break;
     }
     case CAEStreamInfo::STREAM_TYPE_EAC3:
