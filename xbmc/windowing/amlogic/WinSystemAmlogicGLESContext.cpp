@@ -68,6 +68,21 @@ bool CWinSystemAmlogicGLESContext::DestroyWindowSystem()
   return CWinSystemAmlogic::DestroyWindowSystem();
 }
 
+bool CWinSystemAmlogicGLESContext::BindTextureUploadContext()
+{
+  return m_pGLContext.BindTextureUploadContext();
+}
+
+bool CWinSystemAmlogicGLESContext::UnbindTextureUploadContext()
+{
+  return m_pGLContext.UnbindTextureUploadContext();
+}
+
+bool CWinSystemAmlogicGLESContext::HasContext()
+{
+  return m_pGLContext.HasContext();
+}
+
 bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
                                                bool fullScreen,
                                                RESOLUTION_INFO& res)

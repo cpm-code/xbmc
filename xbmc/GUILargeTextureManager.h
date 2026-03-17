@@ -184,7 +184,7 @@ private:
     CAspectRatio::AspectRatio GetAspectRatio() const { return m_aspectRatio; }
 
   private:
-    static const unsigned int TIME_TO_DELETE = 2000;
+    static const unsigned int TIME_TO_DELETE = 5000;
 
     unsigned int m_refCount;
     std::string m_path;
