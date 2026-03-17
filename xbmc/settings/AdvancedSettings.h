@@ -394,7 +394,7 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     int32_t m_guiAnisotropicFiltering{0};
     bool m_guiFrontToBackRendering{true};
     bool m_guiGeometryClear{false};
-    bool m_guiAsyncTextureUpload{false};
+    bool m_guiAsyncTextureUpload{true};
     bool m_guiVideoLayoutTransparent{false};
     unsigned int m_guiAVChangeFlagTimeout;
     unsigned int m_addonPackageFolderSize;
