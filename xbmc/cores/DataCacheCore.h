@@ -314,6 +314,23 @@ protected:
     int queueLevel = 0;
     int queueDataLevel = 0;
   } m_playerVideoInfo;
+  std::atomic<uint64_t> m_videoSeq{0};
+  std::atomic<int> m_videoWidth{0};
+  std::atomic<int> m_videoHeight{0};
+  std::atomic<float> m_videoFps{0.0f};
+  std::atomic<float> m_videoDar{0.0f};
+  std::atomic<bool> m_videoIsInterlaced{false};
+  std::atomic<int> m_videoBitDepth{0};
+  std::atomic<StreamHdrType> m_videoHdrType{StreamHdrType::HDR_TYPE_NONE};
+  std::atomic<StreamHdrType> m_videoSourceHdrType{StreamHdrType::HDR_TYPE_NONE};
+  std::atomic<StreamHdrType> m_videoSourceAdditionalHdrType{StreamHdrType::HDR_TYPE_NONE};
+  std::atomic<AVColorSpace> m_videoColorSpace{AVCOL_SPC_UNSPECIFIED};
+  std::atomic<AVColorRange> m_videoColorRange{AVCOL_RANGE_UNSPECIFIED};
+  std::atomic<AVColorPrimaries> m_videoColorPrimaries{AVCOL_PRI_UNSPECIFIED};
+  std::atomic<AVColorTransferCharacteristic> m_videoColorTransferCharacteristic{AVCOL_TRC_UNSPECIFIED};
+  std::atomic<double> m_videoLiveBitRate{0.0};
+  std::atomic<int> m_videoQueueLevel{0};
+  std::atomic<int> m_videoQueueDataLevel{0};
 
   CCriticalSection m_audioPlayerSection;
   struct SPlayerAudioInfo
@@ -329,6 +346,14 @@ protected:
     int queueLevel = 0;
     int queueDataLevel = 0;
   } m_playerAudioInfo;
+  std::atomic<uint64_t> m_audioSeq{0};
+  std::atomic<int> m_audioSampleRate{0};
+  std::atomic<int> m_audioBitsPerSample{0};
+  std::atomic<uint64_t> m_audioSpeakerMask{0};
+  std::atomic<uint64_t> m_audioSpeakerMaskSink{0};
+  std::atomic<double> m_audioLiveBitRate{0.0};
+  std::atomic<int> m_audioQueueLevel{0};
+  std::atomic<int> m_audioQueueDataLevel{0};
 
   mutable CCriticalSection m_contentSection;
   struct SContentInfo
@@ -416,17 +441,21 @@ protected:
     bool m_isClockSync;
     double pts = 0;
   } m_renderInfo{};
+  std::atomic<uint64_t> m_renderSeq{0};
+  std::atomic<bool> m_renderClockSync{false};
+  std::atomic<double> m_renderPts{0.0};
 
   mutable CCriticalSection m_stateSection;
   bool m_playerStateChanged = false;
   struct SStateInfo
   {
-    bool m_stateSeeking{false};
-    bool m_renderGuiLayer{false};
-    bool m_renderVideoLayer{false};
-    float m_tempo{1.0f};
-    float m_speed{1.0f};
-    bool m_frameAdvance{false};
+    std::atomic<uint64_t> m_speedTempoSeq{0};
+    std::atomic<bool> m_stateSeeking{false};
+    std::atomic<bool> m_renderGuiLayer{false};
+    std::atomic<bool> m_renderVideoLayer{false};
+    std::atomic<float> m_tempo{1.0f};
+    std::atomic<float> m_speed{1.0f};
+    std::atomic<bool> m_frameAdvance{false};
     /*! Time point of the last seek operation */
     std::chrono::time_point<std::chrono::system_clock> m_lastSeekTime{
         std::chrono::time_point<std::chrono::system_clock>{}};
