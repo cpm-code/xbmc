@@ -1205,6 +1205,19 @@ int CDVDVideoCodecFFmpeg::FilterOpen(const std::string& filters, bool scale)
       m_pCodecContext->sample_aspect_ratio.num != 0 ? m_pCodecContext->sample_aspect_ratio.num : 1,
       m_pCodecContext->sample_aspect_ratio.num != 0 ? m_pCodecContext->sample_aspect_ratio.den : 1);
 
+  const AVColorSpace colorSpace = (m_pCodecContext->colorspace == AVCOL_SPC_UNSPECIFIED)
+                                    ? m_hints.colorSpace
+                                    : m_pCodecContext->colorspace;
+  const AVColorRange colorRange = (m_pCodecContext->color_range == AVCOL_RANGE_UNSPECIFIED)
+                                    ? m_hints.colorRange
+                                    : m_pCodecContext->color_range;
+
+  if (colorSpace != AVCOL_SPC_UNSPECIFIED)
+    args += StringUtils::Format(":colorspace={}", static_cast<int>(colorSpace));
+
+  if (colorRange != AVCOL_RANGE_UNSPECIFIED)
+    args += StringUtils::Format(":range={}", static_cast<int>(colorRange));
+
   if (!((m_pFilterOut = avfilter_graph_alloc_filter(m_pFilterGraph, outFilter, "out"))))
   {
     CLog::LogF(LOGERROR, "unable to alloc filter out");
