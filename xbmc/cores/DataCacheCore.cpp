@@ -18,7 +18,81 @@
 #include "utils/log.h"
 
 #include <mutex>
+#include <thread>
+#include <type_traits>
 #include <utility>
+
+namespace
+{
+constexpr uint64_t SPEED_TEMPO_SEQ_ODD_BIT{1ULL};
+constexpr unsigned int SPEED_TEMPO_READ_YIELD_FREQUENCY{64};
+
+class CScopedSequenceWrite
+{
+public:
+  explicit CScopedSequenceWrite(std::atomic<uint64_t>& sequence) noexcept : m_sequence(sequence)
+  {
+    m_sequence.fetch_add(1, std::memory_order_seq_cst);
+  }
+
+  ~CScopedSequenceWrite() noexcept
+  {
+    m_sequence.fetch_add(1, std::memory_order_release);
+  }
+
+  CScopedSequenceWrite(const CScopedSequenceWrite&) = delete;
+  CScopedSequenceWrite& operator=(const CScopedSequenceWrite&) = delete;
+  CScopedSequenceWrite(CScopedSequenceWrite&&) = delete;
+  CScopedSequenceWrite& operator=(CScopedSequenceWrite&&) = delete;
+
+private:
+  std::atomic<uint64_t>& m_sequence;
+};
+
+template<typename ValueType, typename ReaderFunc>
+ValueType ReadSequenceGuardedValue(const std::atomic<uint64_t>& sequence, ReaderFunc&& readValue)
+{
+  static_assert(std::is_trivially_copyable_v<ValueType>,
+                "ValueType must be trivially copyable for sequence-guarded reads");
+
+  unsigned int retries{0};
+  while (true)
+  {
+    const auto before = sequence.load(std::memory_order_acquire);
+    if (!(before & SPEED_TEMPO_SEQ_ODD_BIT))
+    {
+      const ValueType value = readValue();
+      const auto after = sequence.load(std::memory_order_acquire);
+      if (before == after)
+        return value;
+    }
+
+    if (++retries % SPEED_TEMPO_READ_YIELD_FREQUENCY == 0)
+      std::this_thread::yield();
+  }
+}
+
+template<typename ValueType>
+void WriteSeqAtomic(std::atomic<uint64_t>& sequence,
+                    std::atomic<ValueType>& target,
+                    ValueType value)
+{
+  static_assert(std::is_trivially_copyable_v<ValueType>,
+                "ValueType must be trivially copyable for sequence-guarded writes");
+
+  CScopedSequenceWrite writeGuard(sequence);
+  target.store(value, std::memory_order_relaxed);
+}
+
+template<typename ValueType>
+ValueType ReadSeqAtomic(const std::atomic<uint64_t>& sequence,
+                        const std::atomic<ValueType>& source)
+{
+  return ReadSequenceGuardedValue<ValueType>(sequence, [&source]() {
+    return source.load(std::memory_order_relaxed);
+  });
+}
+}
 
 CDataCacheCore::CDataCacheCore() :
   m_playerVideoInfo {},
@@ -40,17 +114,54 @@ void CDataCacheCore::Reset()
 {
   {
     std::unique_lock lock(m_stateSection);
-    m_stateInfo = {};
+    m_stateInfo.m_stateSeeking.store(false, std::memory_order_relaxed);
+    m_stateInfo.m_renderGuiLayer.store(false, std::memory_order_relaxed);
+    m_stateInfo.m_renderVideoLayer.store(false, std::memory_order_relaxed);
+    {
+      CScopedSequenceWrite speedTempoWriteGuard(m_stateInfo.m_speedTempoSeq);
+      m_stateInfo.m_tempo.store(1.0f, std::memory_order_relaxed);
+      m_stateInfo.m_speed.store(1.0f, std::memory_order_relaxed);
+    }
+    m_stateInfo.m_frameAdvance.store(false, std::memory_order_relaxed);
+    m_stateInfo.m_lastSeekTime = std::chrono::time_point<std::chrono::system_clock>{};
+    m_stateInfo.m_lastSeekOffset = 0;
+    m_stateInfo.m_lastSeekTarget = 0;
     m_playerStateChanged = false;
   }
   {
     std::unique_lock lock(m_videoPlayerSection);
     m_playerVideoInfo = {};
+    {
+      CScopedSequenceWrite videoWriteGuard(m_videoSeq);
+      m_videoWidth.store(0, std::memory_order_relaxed);
+      m_videoHeight.store(0, std::memory_order_relaxed);
+      m_videoFps.store(0.0f, std::memory_order_relaxed);
+      m_videoDar.store(0.0f, std::memory_order_relaxed);
+      m_videoIsInterlaced.store(false, std::memory_order_relaxed);
+      m_videoBitDepth.store(0, std::memory_order_relaxed);
+      m_videoHdrType.store(StreamHdrType::HDR_TYPE_NONE, std::memory_order_relaxed);
+      m_videoSourceHdrType.store(StreamHdrType::HDR_TYPE_NONE, std::memory_order_relaxed);
+      m_videoSourceAdditionalHdrType.store(StreamHdrType::HDR_TYPE_NONE,
+                                           std::memory_order_relaxed);
+      m_videoColorSpace.store(AVCOL_SPC_UNSPECIFIED, std::memory_order_relaxed);
+      m_videoColorRange.store(AVCOL_RANGE_UNSPECIFIED, std::memory_order_relaxed);
+      m_videoColorPrimaries.store(AVCOL_PRI_UNSPECIFIED, std::memory_order_relaxed);
+      m_videoColorTransferCharacteristic.store(AVCOL_TRC_UNSPECIFIED,
+                                               std::memory_order_relaxed);
+      m_videoLiveBitRate.store(0.0, std::memory_order_relaxed);
+      m_videoQueueLevel.store(0, std::memory_order_relaxed);
+      m_videoQueueDataLevel.store(0, std::memory_order_relaxed);
+    }
   }
   m_hasAVInfoChanges = false;
   {
     std::unique_lock lock(m_renderSection);
     m_renderInfo = {};
+    {
+      CScopedSequenceWrite renderWriteGuard(m_renderSeq);
+      m_renderClockSync.store(false, std::memory_order_relaxed);
+      m_renderPts.store(0.0, std::memory_order_relaxed);
+    }
   }
   {
     std::unique_lock lock(m_contentSection);
@@ -64,6 +175,16 @@ void CDataCacheCore::ResetAudioCache()
   {
     std::unique_lock lock(m_audioPlayerSection);
     m_playerAudioInfo = {};
+    {
+      CScopedSequenceWrite audioWriteGuard(m_audioSeq);
+      m_audioSampleRate.store(0, std::memory_order_relaxed);
+      m_audioBitsPerSample.store(0, std::memory_order_relaxed);
+      m_audioSpeakerMask.store(0, std::memory_order_relaxed);
+      m_audioSpeakerMaskSink.store(0, std::memory_order_relaxed);
+      m_audioLiveBitRate.store(0.0, std::memory_order_relaxed);
+      m_audioQueueLevel.store(0, std::memory_order_relaxed);
+      m_audioQueueDataLevel.store(0, std::memory_order_relaxed);
+    }
   }
 }
 
@@ -176,136 +297,100 @@ std::string CDataCacheCore::GetVideoStereoMode()
 
 void CDataCacheCore::SetVideoDimensions(int width, int height)
 {
-  std::unique_lock lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.width = width;
-  m_playerVideoInfo.height = height;
+  CScopedSequenceWrite videoWriteGuard(m_videoSeq);
+  m_videoWidth.store(width, std::memory_order_relaxed);
+  m_videoHeight.store(height, std::memory_order_relaxed);
 }
 
 int CDataCacheCore::GetVideoWidth()
 {
-  std::unique_lock lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.width;
+  return ReadSeqAtomic(m_videoSeq, m_videoWidth);
 }
 
 int CDataCacheCore::GetVideoHeight()
 {
-  std::unique_lock lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.height;
+  return ReadSeqAtomic(m_videoSeq, m_videoHeight);
 }
 
 void CDataCacheCore::SetVideoBitDepth(int bitDepth)
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.bitDepth = bitDepth;
+  WriteSeqAtomic(m_videoSeq, m_videoBitDepth, bitDepth);
 }
 
 int CDataCacheCore::GetVideoBitDepth()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.bitDepth;
+  return ReadSeqAtomic(m_videoSeq, m_videoBitDepth);
 }
 
 void CDataCacheCore::SetVideoHdrType(StreamHdrType hdrType)
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.hdrType = hdrType;
+  WriteSeqAtomic(m_videoSeq, m_videoHdrType, hdrType);
 }
 
 StreamHdrType CDataCacheCore::GetVideoHdrType()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.hdrType;
+  return ReadSeqAtomic(m_videoSeq, m_videoHdrType);
 }
 
 void CDataCacheCore::SetVideoSourceHdrType(StreamHdrType hdrType)
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.sourceHdrType = hdrType;
+  WriteSeqAtomic(m_videoSeq, m_videoSourceHdrType, hdrType);
 }
 
 StreamHdrType CDataCacheCore::GetVideoSourceHdrType()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.sourceHdrType;
+  return ReadSeqAtomic(m_videoSeq, m_videoSourceHdrType);
 }
 
 void CDataCacheCore::SetVideoSourceAdditionalHdrType(StreamHdrType hdrType)
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.sourceAdditionalHdrType = hdrType;
+  WriteSeqAtomic(m_videoSeq, m_videoSourceAdditionalHdrType, hdrType);
 }
 
 StreamHdrType CDataCacheCore::GetVideoSourceAdditionalHdrType()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.sourceAdditionalHdrType;
+  return ReadSeqAtomic(m_videoSeq, m_videoSourceAdditionalHdrType);
 }
 
 void CDataCacheCore::SetVideoColorSpace(AVColorSpace colorSpace)
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.colorSpace = colorSpace;
+  WriteSeqAtomic(m_videoSeq, m_videoColorSpace, colorSpace);
 }
 
 AVColorSpace CDataCacheCore::GetVideoColorSpace()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.colorSpace;
+  return ReadSeqAtomic(m_videoSeq, m_videoColorSpace);
 }
 
 void CDataCacheCore::SetVideoColorRange(AVColorRange colorRange)
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.colorRange = colorRange;
+  WriteSeqAtomic(m_videoSeq, m_videoColorRange, colorRange);
 }
 
 AVColorRange CDataCacheCore::GetVideoColorRange()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.colorRange;
+  return ReadSeqAtomic(m_videoSeq, m_videoColorRange);
 }
 
 void CDataCacheCore::SetVideoColorPrimaries(AVColorPrimaries colorPrimaries)
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.colorPrimaries = colorPrimaries;
+  WriteSeqAtomic(m_videoSeq, m_videoColorPrimaries, colorPrimaries);
 }
 
 AVColorPrimaries CDataCacheCore::GetVideoColorPrimaries()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.colorPrimaries;
+  return ReadSeqAtomic(m_videoSeq, m_videoColorPrimaries);
 }
 
 void CDataCacheCore::SetVideoColorTransferCharacteristic(AVColorTransferCharacteristic colorTransferCharacteristic)
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.colorTransferCharacteristic = colorTransferCharacteristic;
+  WriteSeqAtomic(m_videoSeq, m_videoColorTransferCharacteristic,
+                 colorTransferCharacteristic);
 }
 
 AVColorTransferCharacteristic CDataCacheCore::GetVideoColorTransferCharacteristic()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.colorTransferCharacteristic;
+  return ReadSeqAtomic(m_videoSeq, m_videoColorTransferCharacteristic);
 }
 
 void CDataCacheCore::SetVideoDoViFrameMetadata(DOVIFrameMetadata value)
@@ -404,84 +489,62 @@ HDRStaticMetadataInfo CDataCacheCore::GetVideoHDRStaticMetadataInfo()
 
 void CDataCacheCore::SetVideoLiveBitRate(double bitRate)
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.liveBitRate = bitRate;
+  WriteSeqAtomic(m_videoSeq, m_videoLiveBitRate, bitRate);
 }
 
 double CDataCacheCore::GetVideoLiveBitRate()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.liveBitRate;
+  return ReadSeqAtomic(m_videoSeq, m_videoLiveBitRate);
 }
 
 void CDataCacheCore::SetVideoQueueLevel(int level)
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.queueLevel = level;
+  WriteSeqAtomic(m_videoSeq, m_videoQueueLevel, level);
 }
 
 int CDataCacheCore::GetVideoQueueLevel()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.queueLevel;
+  return ReadSeqAtomic(m_videoSeq, m_videoQueueLevel);
 }
 
 void CDataCacheCore::SetVideoQueueDataLevel(int level)
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.queueDataLevel = level;
+  WriteSeqAtomic(m_videoSeq, m_videoQueueDataLevel, level);
 }
 
 int CDataCacheCore::GetVideoQueueDataLevel()
 {
-  std::lock_guard lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.queueDataLevel;
+  return ReadSeqAtomic(m_videoSeq, m_videoQueueDataLevel);
 }
 
 void CDataCacheCore::SetVideoFps(float fps)
 {
-  std::unique_lock lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.fps = fps;
+  WriteSeqAtomic(m_videoSeq, m_videoFps, fps);
 }
 
 float CDataCacheCore::GetVideoFps()
 {
-  std::unique_lock lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.fps;
+  return ReadSeqAtomic(m_videoSeq, m_videoFps);
 }
 
 void CDataCacheCore::SetVideoDAR(float dar)
 {
-  std::unique_lock lock(m_videoPlayerSection);
-
-  m_playerVideoInfo.dar = dar;
+  WriteSeqAtomic(m_videoSeq, m_videoDar, dar);
 }
 
 float CDataCacheCore::GetVideoDAR()
 {
-  std::unique_lock lock(m_videoPlayerSection);
-
-  return m_playerVideoInfo.dar;
+  return ReadSeqAtomic(m_videoSeq, m_videoDar);
 }
 
 void CDataCacheCore::SetVideoInterlaced(bool isInterlaced)
 {
-  std::unique_lock lock(m_videoPlayerSection);
-  m_playerVideoInfo.m_isInterlaced = isInterlaced;
+  WriteSeqAtomic(m_videoSeq, m_videoIsInterlaced, isInterlaced);
 }
 
 bool CDataCacheCore::IsVideoInterlaced()
 {
-  std::unique_lock lock(m_videoPlayerSection);
-  return m_playerVideoInfo.m_isInterlaced;
+  return ReadSeqAtomic(m_videoSeq, m_videoIsInterlaced);
 }
 
 // player audio info
@@ -529,30 +592,22 @@ std::string CDataCacheCore::GetAudioChannelsSink()
 
 void CDataCacheCore::SetAudioSampleRate(int sampleRate)
 {
-  std::unique_lock lock(m_audioPlayerSection);
-
-  m_playerAudioInfo.sampleRate = sampleRate;
+  WriteSeqAtomic(m_audioSeq, m_audioSampleRate, sampleRate);
 }
 
 int CDataCacheCore::GetAudioSampleRate()
 {
-  std::unique_lock lock(m_audioPlayerSection);
-
-  return m_playerAudioInfo.sampleRate;
+  return ReadSeqAtomic(m_audioSeq, m_audioSampleRate);
 }
 
 void CDataCacheCore::SetAudioBitsPerSample(int bitsPerSample)
 {
-  std::unique_lock lock(m_audioPlayerSection);
-
-  m_playerAudioInfo.bitsPerSample = bitsPerSample;
+  WriteSeqAtomic(m_audioSeq, m_audioBitsPerSample, bitsPerSample);
 }
 
 int CDataCacheCore::GetAudioBitsPerSample()
 {
-  std::unique_lock lock(m_audioPlayerSection);
-
-  return m_playerAudioInfo.bitsPerSample;
+  return ReadSeqAtomic(m_audioSeq, m_audioBitsPerSample);
 }
 
 uint64_t CDataCacheCore::MakeSpeakerMask(const CAEChannelInfo& channels)
@@ -629,68 +684,52 @@ uint64_t CDataCacheCore::MakeSpeakerMask(const CAEChannelInfo& channels)
 
 void CDataCacheCore::SetAudioSpeakerMask(uint64_t mask)
 {
-  std::unique_lock lock(m_audioPlayerSection);
-  m_playerAudioInfo.speakerMask = mask;
+  WriteSeqAtomic(m_audioSeq, m_audioSpeakerMask, mask);
 }
 
 uint64_t CDataCacheCore::GetAudioSpeakerMask()
 {
-  std::unique_lock lock(m_audioPlayerSection);
-  return m_playerAudioInfo.speakerMask;
+  return ReadSeqAtomic(m_audioSeq, m_audioSpeakerMask);
 }
 
 void CDataCacheCore::SetAudioSpeakerMaskSink(uint64_t mask)
 {
-  std::unique_lock lock(m_audioPlayerSection);
-  m_playerAudioInfo.speakerMaskSink = mask;
+  WriteSeqAtomic(m_audioSeq, m_audioSpeakerMaskSink, mask);
 }
 
 uint64_t CDataCacheCore::GetAudioSpeakerMaskSink()
 {
-  std::unique_lock lock(m_audioPlayerSection);
-  return m_playerAudioInfo.speakerMaskSink;
+  return ReadSeqAtomic(m_audioSeq, m_audioSpeakerMaskSink);
 }
 
 void CDataCacheCore::SetAudioLiveBitRate(double bitRate)
 {
-  std::lock_guard lock(m_audioPlayerSection);
-
-  m_playerAudioInfo.liveBitRate = bitRate;
+  WriteSeqAtomic(m_audioSeq, m_audioLiveBitRate, bitRate);
 }
 
 double CDataCacheCore::GetAudioLiveBitRate()
 {
-  std::lock_guard lock(m_audioPlayerSection);
-
-  return m_playerAudioInfo.liveBitRate;
+  return ReadSeqAtomic(m_audioSeq, m_audioLiveBitRate);
 }
 
 void CDataCacheCore::SetAudioQueueLevel(int level)
 {
-  std::lock_guard lock(m_audioPlayerSection);
-
-  m_playerAudioInfo.queueLevel = level;
+  WriteSeqAtomic(m_audioSeq, m_audioQueueLevel, level);
 }
 
 int CDataCacheCore::GetAudioQueueLevel()
 {
-  std::lock_guard lock(m_audioPlayerSection);
-
-  return m_playerAudioInfo.queueLevel;
+  return ReadSeqAtomic(m_audioSeq, m_audioQueueLevel);
 }
 
 void CDataCacheCore::SetAudioQueueDataLevel(int level)
 {
-  std::lock_guard lock(m_audioPlayerSection);
-
-  m_playerAudioInfo.queueDataLevel = level;
+  WriteSeqAtomic(m_audioSeq, m_audioQueueDataLevel, level);
 }
 
 int CDataCacheCore::GetAudioQueueDataLevel()
 {
-  std::lock_guard lock(m_audioPlayerSection);
-
-  return m_playerAudioInfo.queueDataLevel;
+  return ReadSeqAtomic(m_audioSeq, m_audioQueueDataLevel);
 }
 
 void CDataCacheCore::SetEditList(const std::vector<EDL::Edit>& editList)
@@ -743,30 +782,22 @@ const std::vector<std::pair<std::string, int64_t>>& CDataCacheCore::GetChapters(
 
 void CDataCacheCore::SetRenderClockSync(bool enable)
 {
-  std::unique_lock lock(m_renderSection);
-
-  m_renderInfo.m_isClockSync = enable;
+  WriteSeqAtomic(m_renderSeq, m_renderClockSync, enable);
 }
 
 bool CDataCacheCore::IsRenderClockSync()
 {
-  std::unique_lock lock(m_renderSection);
-
-  return m_renderInfo.m_isClockSync;
+  return ReadSeqAtomic(m_renderSeq, m_renderClockSync);
 }
 
 void CDataCacheCore::SetRenderPts(double pts)
 {
-  std::lock_guard lock(m_renderSection);
-
-  m_renderInfo.pts = pts;
+  WriteSeqAtomic(m_renderSeq, m_renderPts, pts);
 }
 
 double CDataCacheCore::GetRenderPts()
 {
-  std::lock_guard lock(m_renderSection);
-
-  return m_renderInfo.pts;
+  return ReadSeqAtomic(m_renderSeq, m_renderPts);
 }
 
 // player states
@@ -811,65 +842,52 @@ void CDataCacheCore::SetStateSeeking(bool active)
 {
   std::unique_lock lock(m_stateSection);
 
-  m_stateInfo.m_stateSeeking = active;
+  m_stateInfo.m_stateSeeking.store(active, std::memory_order_relaxed);
   m_playerStateChanged = true;
 }
 
 bool CDataCacheCore::IsSeeking()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_stateSeeking;
+  return m_stateInfo.m_stateSeeking.load(std::memory_order_relaxed);
 }
 
 void CDataCacheCore::SetSpeed(float tempo, float speed)
 {
   std::unique_lock lock(m_stateSection);
 
-  m_stateInfo.m_tempo = tempo;
-  m_stateInfo.m_speed = speed;
+  CScopedSequenceWrite speedTempoWriteGuard(m_stateInfo.m_speedTempoSeq);
+  m_stateInfo.m_tempo.store(tempo, std::memory_order_relaxed);
+  m_stateInfo.m_speed.store(speed, std::memory_order_relaxed);
 }
 
 float CDataCacheCore::GetSpeed()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_speed;
+  return ReadSeqAtomic(m_stateInfo.m_speedTempoSeq, m_stateInfo.m_speed);
 }
 
 bool CDataCacheCore::IsNormalPlayback()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_speed == 1.0f;
+  return ReadSeqAtomic(m_stateInfo.m_speedTempoSeq, m_stateInfo.m_speed) == 1.0f;
 }
 
 bool CDataCacheCore::IsPausedPlayback()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_speed == 0.0f;
+  return ReadSeqAtomic(m_stateInfo.m_speedTempoSeq, m_stateInfo.m_speed) == 0.0f;
 }
 
 float CDataCacheCore::GetTempo()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_tempo;
+  return ReadSeqAtomic(m_stateInfo.m_speedTempoSeq, m_stateInfo.m_tempo);
 }
 
 void CDataCacheCore::SetFrameAdvance(bool fa)
 {
-  std::unique_lock lock(m_stateSection);
-
-  m_stateInfo.m_frameAdvance = fa;
+  m_stateInfo.m_frameAdvance.store(fa, std::memory_order_relaxed);
 }
 
 bool CDataCacheCore::IsFrameAdvance()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_frameAdvance;
+  return m_stateInfo.m_frameAdvance.load(std::memory_order_relaxed);
 }
 
 bool CDataCacheCore::IsPlayerStateChanged()
@@ -886,30 +904,26 @@ void CDataCacheCore::SetGuiRender(bool gui)
 {
   std::unique_lock lock(m_stateSection);
 
-  m_stateInfo.m_renderGuiLayer = gui;
+  m_stateInfo.m_renderGuiLayer.store(gui, std::memory_order_relaxed);
   m_playerStateChanged = true;
 }
 
 bool CDataCacheCore::GetGuiRender()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_renderGuiLayer;
+  return m_stateInfo.m_renderGuiLayer.load(std::memory_order_relaxed);
 }
 
 void CDataCacheCore::SetVideoRender(bool video)
 {
   std::unique_lock lock(m_stateSection);
 
-  m_stateInfo.m_renderVideoLayer = video;
+  m_stateInfo.m_renderVideoLayer.store(video, std::memory_order_relaxed);
   m_playerStateChanged = true;
 }
 
 bool CDataCacheCore::GetVideoRender()
 {
-  std::unique_lock lock(m_stateSection);
-
-  return m_stateInfo.m_renderVideoLayer;
+  return m_stateInfo.m_renderVideoLayer.load(std::memory_order_relaxed);
 }
 
 void CDataCacheCore::SetPlayTimes(time_t start, int64_t current, int64_t min, int64_t max)
