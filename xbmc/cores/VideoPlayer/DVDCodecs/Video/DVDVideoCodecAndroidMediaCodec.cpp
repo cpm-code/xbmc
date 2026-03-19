@@ -1268,7 +1268,6 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecAndroidMediaCodec::GetPicture(VideoPictur
 
     if (retgp > 0)
     {
-      pVideoPicture->videoBuffer = nullptr;
       pVideoPicture->SetParams(m_videobuffer);
       pVideoPicture->videoBuffer = m_videobuffer.videoBuffer;
 
