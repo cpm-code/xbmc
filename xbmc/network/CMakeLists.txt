@@ -54,6 +54,10 @@ endif()
 
 core_add_library(network)
 
+if(TARGET ${APP_NAME_LC}::Bluetooth)
+  target_link_libraries(${CORE_LIBRARY} PRIVATE ${APP_NAME_LC}::Bluetooth)
+endif()
+
 if(ENABLE_STATIC_LIBS AND ENABLE_UPNP)
   target_link_libraries(${CORE_LIBRARY} PRIVATE upnp)
 endif()
