@@ -859,10 +859,19 @@ bool CVideoPlayerVideo::ProcessDecoderOutput(double &frametime, double &pts)
       m_isEOS = true;
       return false;
     }
-    else if ((m_outputSate == OUTPUT_DROPPED) && !(m_picture.iFlags & DVP_FLAG_DROPPED))
+    else if (m_outputSate == OUTPUT_DROPPED)
     {
-      m_iDroppedFrames++;
-      m_ptsTracker.Flush();
+      if (!(m_picture.iFlags & DVP_FLAG_DROPPED))
+      {
+        m_iDroppedFrames++;
+        m_ptsTracker.Flush();
+      }
+
+      if (m_picture.videoBuffer)
+      {
+        m_picture.videoBuffer->Release();
+        m_picture.videoBuffer = nullptr;
+      }
     }
 
     if (m_syncState == IDVDStreamPlayer::SYNC_STARTING &&
@@ -1046,15 +1055,23 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
   // a buffer release — no GPU work needed. This reduces latency for late frames.
   const auto minWait = m_processInfo.IsVideoHwDecoder() ? 10ms : 50ms;
   std::chrono::milliseconds maxWaitTime = std::min(std::max(timeToDisplay + 500ms, minWait), 500ms);
-  // don't wait when going ff
+
+  const bool highSpeedTrickplay = m_speed > (DVD_PLAYSPEED_NORMAL * 2);
   if (m_speed > DVD_PLAYSPEED_NORMAL)
-    maxWaitTime = std::max(timeToDisplay, 0ms);
+    maxWaitTime = highSpeedTrickplay ? 0ms : std::max(timeToDisplay, 0ms);
 
   int buffer = m_renderManager.WaitForBuffer(m_bAbortOutput, maxWaitTime);
   logM(LOGDEBUG, "CVideoPlayerVideo", "ttd:{:d}ms pts:{:.3f} Clock:{:.3f} Level:{:d}",
     timeToDisplay.count(), picture.pts / DVD_TIME_BASE, static_cast<double>(iPlayingClock) / DVD_TIME_BASE, buffer);
   if (buffer < 0)
   {
+    if (highSpeedTrickplay && (m_syncState == IDVDStreamPlayer::SYNC_INSYNC))
+    {
+      logM(LOGDEBUG, "CVideoPlayerVideo", "output drop: render buffer timeout in high-speed ff");
+      m_droppingStats.AddOutputDropGain(picture.pts, 1);
+      return OUTPUT_DROPPED;
+    }
+
     m_playbackStalled = true;
 
     if (m_speed != DVD_PLAYSPEED_PAUSE)
