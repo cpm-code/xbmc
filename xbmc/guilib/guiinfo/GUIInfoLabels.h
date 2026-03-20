@@ -337,9 +337,19 @@ constexpr uint32_t VIDEOPLAYER_CHANNEL_NUMBER        = 327;
 constexpr uint32_t VIDEOPLAYER_HAS_EPG               = 328;
 constexpr uint32_t VIDEOPLAYER_CAN_RESUME_LIVE_TV    = 329;
 
+// RetroPlayer infolabels
 constexpr uint32_t RETROPLAYER_VIDEO_FILTER          = 330;
 constexpr uint32_t RETROPLAYER_STRETCH_MODE          = 331;
 constexpr uint32_t RETROPLAYER_VIDEO_ROTATION        = 332;
+constexpr uint32_t RETROPLAYER_TITLE                 = 1704;
+constexpr uint32_t RETROPLAYER_PLATFORM              = 1705;
+constexpr uint32_t RETROPLAYER_GENRES                = 1706;
+constexpr uint32_t RETROPLAYER_PUBLISHER             = 1707;
+constexpr uint32_t RETROPLAYER_DEVELOPER             = 1708;
+constexpr uint32_t RETROPLAYER_OVERVIEW              = 1709;
+constexpr uint32_t RETROPLAYER_GAME_CLIENT           = 1710;
+constexpr uint32_t RETROPLAYER_GAME_CLIENT_NAME      = 1711;
+constexpr uint32_t RETROPLAYER_GAME_CLIENT_PLATFORMS = 1712;
 constexpr uint32_t RETROPLAYER_SUPPORTS_EJECT        = 1700;
 constexpr uint32_t RETROPLAYER_DISC_EJECTED          = 1701;
 constexpr uint32_t RETROPLAYER_DISC_LABEL            = 1702;
