@@ -2273,7 +2273,7 @@ void CVideoPlayer::HandlePlaySpeed()
       // a clock that doesn't account for video latency, causing A/V desync.
       // We still process video normally - only audio RESYNC is delayed.
       //========================================================================
-      bool waitingForVideoPts = (m_CurrentVideo.id >= 0 && m_CurrentVideo.starttime == DVD_NOPTS_VALUE);
+      const bool waitingForVideoPts = (m_CurrentVideo.id >= 0 && m_CurrentVideo.starttime == DVD_NOPTS_VALUE);
 
       if (m_CurrentVideo.starttime != DVD_NOPTS_VALUE && m_CurrentVideo.packets > 0 &&
           m_playSpeed == DVD_PLAYSPEED_PAUSE)
