@@ -13,7 +13,6 @@
 #include <optional>
 #include <stdint.h>
 
-#include "ServiceBroker.h"
 #include "cores/DataCacheCore.h"
 #include "cores/VideoPlayer/DVDStreamInfo.h"
 #include "cores/VideoPlayer/Process/ProcessInfo.h"
@@ -138,13 +137,13 @@ public:
   int GetExtraSize() const;
   void ResetStartDecode();
   bool CanStartDecode(StartDecodePolicy policy = StartDecodePolicy::Default) const;
-  void SetConvertDovi(enum DOVIMode value) { 
+  void SetConvertDovi(enum DOVIMode value) {
     if (m_convert_dovi != value) InvalidateDoViCache();
-    m_convert_dovi = value; 
+    m_convert_dovi = value;
   }
-  void SetAppendCMv40(enum DOVICMv40Mode value) { 
+  void SetAppendCMv40(enum DOVICMv40Mode value) {
     if (m_append_cmv40 != value) InvalidateDoViCache();
-    m_append_cmv40 = value; 
+    m_append_cmv40 = value;
   }
   void SetConvertHdr10Plus(bool value) { m_convert_Hdr10Plus = value; }
   void SetPreferCovertHdr10Plus(bool value) { m_prefer_Hdr10Plus_conversion = value; }
