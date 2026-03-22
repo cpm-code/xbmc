@@ -302,6 +302,7 @@ private:
 
   unsigned int  GetDecoderVideoRate() const;
   std::string   GetHDRStaticMetadata() const;
+  std::string   QueryDecoderName() const;
 
   std::string   IntToFourCCString(unsigned int value) const;
   std::string   GetDoViCodecFourCC(unsigned int codec_tag) const;
@@ -318,6 +319,7 @@ private:
   uint64_t         m_cur_pts;
   uint64_t         m_last_pts;
   uint32_t         m_bufferIndex;
+  std::string      m_vdecName;
 
   CRect            m_dst_rect;
   CRect            m_display_rect;
