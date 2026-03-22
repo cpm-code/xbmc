@@ -113,6 +113,7 @@ protected:
   CBitstreamConverter* m_bitstream = nullptr;
 
 private:
+  bool CanStartDecode() const;
   bool DualLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet);
   bool SingleLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet) const;
   void ClearBitstreamCommon(void);
