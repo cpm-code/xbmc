@@ -498,6 +498,14 @@ void CDVDVideoCodecAmlogic::ClearBitstreamCommon(void)
   if (m_bitstream) m_bitstream->ResetStartDecode();
 }
 
+bool CDVDVideoCodecAmlogic::CanStartDecode() const
+{
+  const auto policy = (m_hints.codec == AV_CODEC_ID_HEVC)
+                        ? CBitstreamConverter::StartDecodePolicy::Strict
+                        : CBitstreamConverter::StartDecodePolicy::Default;
+  return m_bitstream->CanStartDecode(policy);
+}
+
 bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet)
 {
   bool dual_layer_converted = false;
@@ -551,7 +559,7 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
     KODI::MEMORY::AlignedFree(std::get<0>(m_packages.front()));
     m_packages.pop_front();
 
-    if (!m_bitstream->CanStartDecode())
+    if (!CanStartDecode())
     {
       logM(LOGDEBUG, "CDVDVideoCodecAmlogic", "waiting for keyframe (bitstream)");
       return false;
@@ -561,11 +569,12 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
   return true;
 }
 
-bool CDVDVideoCodecAmlogic::SingleLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet) const {
+bool CDVDVideoCodecAmlogic::SingleLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet) const
+{
   if (!m_bitstream->Convert(pData, iSize, packet.pts))
     return false;
 
-  if (!m_bitstream->CanStartDecode())
+  if (!CanStartDecode())
   {
     logM(LOGDEBUG, "CDVDVideoCodecAmlogic", "waiting for keyframe (bitstream)");
     return false;
