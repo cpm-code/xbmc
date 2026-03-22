@@ -1934,26 +1934,6 @@ bool CAMLCodec::OpenDecoder(bool restart)
     return false;
   }
 
-    logM(LOGINFO, "CAMLCodec",
-      "amcodec init ok: handle:{} cntl:{} sub:{} audio_utils:{} | gcodec dec_mode:{} stream_type:{} video_path:{} dv_enable:{} format:{} param:0x{:x}",
-      am_private->vcodec.handle,
-      am_private->vcodec.cntl_handle,
-      am_private->vcodec.sub_handle,
-      am_private->vcodec.audio_utils_handle,
-      static_cast<unsigned int>(am_private->gcodec.dec_mode),
-      static_cast<unsigned int>(am_private->gcodec.stream_type),
-      static_cast<unsigned int>(am_private->gcodec.video_path),
-      am_private->gcodec.dv_enable,
-      am_private->gcodec.format,
-      static_cast<unsigned int>(reinterpret_cast<std::uintptr_t>(am_private->gcodec.param)));
-
-    logM(LOGINFO, "CAMLCodec",
-      "amcodec ABI sizes: codec_para_t:{} buf_status:{} vdec_info:{} vdec_status:{}",
-      sizeof(codec_para_t),
-      sizeof(struct buf_status),
-      sizeof(struct vdec_info),
-      sizeof(struct vdec_status));
-
   am_private->dumpdemux = false;
   dumpfile_open(am_private);
 
@@ -1984,12 +1964,49 @@ bool CAMLCodec::OpenDecoder(bool restart)
   CSysfsPath("/sys/class/video/freerun_mode", 1);
 
   m_opened = true;
+
+  m_vdecName = QueryDecoderName();
+
+  logM(LOGINFO, "CAMLCodec",
+    "amcodec init ok: decoder:{} handle:{} cntl:{} sub:{} audio_utils:{} | gcodec dec_mode:{} stream_type:{} video_path:{} dv_enable:{} format:{} param:0x{:x}",
+    m_vdecName,
+    am_private->vcodec.handle,
+    am_private->vcodec.cntl_handle,
+    am_private->vcodec.sub_handle,
+    am_private->vcodec.audio_utils_handle,
+    static_cast<unsigned int>(am_private->gcodec.dec_mode),
+    static_cast<unsigned int>(am_private->gcodec.stream_type),
+    static_cast<unsigned int>(am_private->gcodec.video_path),
+    am_private->gcodec.dv_enable,
+    am_private->gcodec.format,
+    static_cast<unsigned int>(reinterpret_cast<std::uintptr_t>(am_private->gcodec.param)));
+
+  logM(LOGINFO, "CAMLCodec",
+    "amcodec ABI sizes: codec_para_t:{} buf_status:{} vdec_info:{} vdec_status:{}",
+    sizeof(codec_para_t),
+    sizeof(struct buf_status),
+    sizeof(struct vdec_info),
+    sizeof(struct vdec_status));
+
   // vcodec is open, update speed if it was
   // changed before VideoPlayer called OpenDecoder.
   SetSpeed(m_speed);
   SetPollDevice(am_private->vcodec.cntl_handle);
 
   return true;
+}
+
+std::string CAMLCodec::QueryDecoderName() const
+{
+  if (!am_private || (am_private->vcodec.handle < 0))
+    return "undefined";
+
+  struct vdec_info vi{};
+  if ((m_dll->codec_get_vdec_info(&am_private->vcodec, &vi) != 0) ||
+      (vi.vdec_name[0] == '\0'))
+    return "undefined";
+
+  return vi.vdec_name;
 }
 
 bool CAMLCodec::OpenAmlVideo()
