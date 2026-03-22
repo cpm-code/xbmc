@@ -116,6 +116,13 @@ public:
 class CBitstreamConverter
 {
 public:
+  enum class StartDecodePolicy
+  {
+    None = 0,
+    Default,
+    Strict,
+  };
+
   CBitstreamConverter(CDVDStreamInfo& hints);
   ~CBitstreamConverter();
 
@@ -130,7 +137,7 @@ public:
   const uint8_t* GetExtraData() const;
   int GetExtraSize() const;
   void ResetStartDecode();
-  bool CanStartDecode() const;
+  bool CanStartDecode(StartDecodePolicy policy = StartDecodePolicy::Default) const;
   void SetConvertDovi(enum DOVIMode value) { 
     if (m_convert_dovi != value) InvalidateDoViCache();
     m_convert_dovi = value; 
@@ -164,6 +171,9 @@ protected:
   int isom_write_avcc(AVIOContext* pb, const uint8_t* data, int len);
   // bitstream to bytestream (Annex B) conversion support.
   bool IsIDR(uint8_t unit_type);
+  StartDecodePolicy GetStartDecodePolicy(uint8_t unit_type) const;
+  void SetStartDecode(StartDecodePolicy policy);
+  void SetStartDecode(uint8_t unit_type);
   bool IsSlice(uint8_t unit_type);
   bool BitstreamConvertInitAVC(void* in_extradata, int in_extrasize);
   bool BitstreamConvertInitHEVC(void* in_extradata, int in_extrasize);
@@ -220,7 +230,7 @@ protected:
   CDVDStreamInfo& m_hints;
   CDataCacheCore& m_dataCacheCore;
   StreamHdrType m_initial_hdrType;
-  bool m_start_decode;
+  StartDecodePolicy m_start_decode_policy;
   enum DOVIMode m_convert_dovi;
   enum DOVICMv40Mode m_append_cmv40;
   uint8_t m_cmv40_trim{1};
