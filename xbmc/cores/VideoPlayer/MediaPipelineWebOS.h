@@ -159,6 +159,18 @@ public:
   bool IsVideoInited() const;
 
   /**
+   * @brief Check whether the video pipeline has reached EOS.
+   * @return True if video EOS has been observed.
+   */
+  bool IsVideoEOS() const;
+
+  /**
+   * @brief Set the observed video EOS state.
+   * @param eos True if video EOS has been observed.
+   */
+  void SetVideoEOS(bool eos);
+
+  /**
    * @brief Get current audio buffer level.
    * @return Buffer level percentage.
    */
@@ -397,6 +409,7 @@ private:
   std::atomic<bool> m_stalled{false};
   std::atomic<bool> m_loaded{false};
   std::atomic<bool> m_flushed{false};
+  std::atomic<bool> m_videoEOS{true};
   std::atomic<bool> m_subtitle{false};
   std::atomic<double> m_subtitleDelay{0.0};
   std::atomic<bool> m_needsTranscode{false};

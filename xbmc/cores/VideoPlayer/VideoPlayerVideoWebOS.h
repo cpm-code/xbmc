@@ -39,6 +39,8 @@ public:
   std::string GetPlayerInfo() override;
   int GetVideoBitrate() override;
   void SetSpeed(const int speed) override;
+  void SetEOS(bool eos) override;
+  bool IsEOS() override;
 
 private:
   CMediaPipelineWebOS& m_mediaPipeline;
