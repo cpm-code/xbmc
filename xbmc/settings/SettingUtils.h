@@ -8,12 +8,19 @@
 
 #pragma once
 
+#include "ServiceBroker.h"
+#include "settings/AdvancedSettings.h"
+#include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
+
 #include <memory>
 #include <vector>
 
+class CAdvancedSettings;
 class CVariant;
 class CSettingList;
 class CSetting;
+class CSettings;
 
 class CSettingUtils
 {
@@ -49,4 +56,60 @@ public:
    \return True if value was found in list, false otherwise
   */
   static bool FindIntInList(const std::shared_ptr<const CSettingList>& settingList, int value);
+
+  template<typename T, typename MemberT>
+  static T GetAdvancedSettingValue(MemberT CAdvancedSettings::*member, T defaultValue)
+  {
+    const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+    if (!settingsComponent)
+      return defaultValue;
+
+    const auto advancedSettings = settingsComponent->GetAdvancedSettings();
+    if (!advancedSettings)
+      return defaultValue;
+
+    return static_cast<T>(advancedSettings.get()->*member);
+  }
+
+  template<typename T, typename Getter>
+  static T GetAdvancedSettingValue(Getter&& getter, T defaultValue)
+  {
+    const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+    if (!settingsComponent)
+      return defaultValue;
+
+    const auto advancedSettings = settingsComponent->GetAdvancedSettings();
+    if (!advancedSettings)
+      return defaultValue;
+
+    return getter(*advancedSettings);
+  }
+
+  template<typename T, typename MemberT>
+  static T GetSettingValue(MemberT CSettings::*member, T defaultValue)
+  {
+    const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+    if (!settingsComponent)
+      return defaultValue;
+
+    const auto settings = settingsComponent->GetSettings();
+    if (!settings)
+      return defaultValue;
+
+    return static_cast<T>(settings.get()->*member);
+  }
+
+  template<typename T, typename Getter>
+  static T GetSettingValue(Getter&& getter, T defaultValue)
+  {
+    const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+    if (!settingsComponent)
+      return defaultValue;
+
+    const auto settings = settingsComponent->GetSettings();
+    if (!settings)
+      return defaultValue;
+
+    return getter(*settings);
+  }
 };
