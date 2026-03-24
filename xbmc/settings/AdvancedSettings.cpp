@@ -226,6 +226,7 @@ void CAdvancedSettings::Initialize()
   m_videoPercentSeekBackward = -2;
   m_videoPercentSeekForwardBig = 10;
   m_videoPercentSeekBackwardBig = -10;
+  m_videoSeekMinimumDistanceBeforeEof = 10;
 
   m_videoPPFFmpegPostProc = "ha:128:7,va,dr";
   m_videoDefaultPlayer = "VideoPlayer";
@@ -782,6 +783,7 @@ void CAdvancedSettings::ParseSettingsFile(const std::string &file)
     XMLUtils::GetInt(pElement, "percentseekbackward", m_videoPercentSeekBackward, -100, 0);
     XMLUtils::GetInt(pElement, "percentseekforwardbig", m_videoPercentSeekForwardBig, 0, 100);
     XMLUtils::GetInt(pElement, "percentseekbackwardbig", m_videoPercentSeekBackwardBig, -100, 0);
+    XMLUtils::GetInt(pElement, "seekminimumdistancebeforeeof", m_videoSeekMinimumDistanceBeforeEof, 0, 600);
 
     const TiXmlElement* pVideoExcludes = pElement->FirstChildElement("excludefromlisting");
     if (pVideoExcludes)
