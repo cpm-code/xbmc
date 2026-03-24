@@ -348,6 +348,8 @@ bool CMediaPipelineWebOS::OpenAudioStream(CDVDStreamInfo& audioHint)
 
 bool CMediaPipelineWebOS::OpenVideoStream(CDVDStreamInfo hint)
 {
+  m_videoEOS = false;
+
   if (!Supports(hint.codec, hint.profile))
   {
     CLog::LogF(LOGERROR, "Unsupported codec: {}", hint.codec);
@@ -411,6 +413,7 @@ void CMediaPipelineWebOS::CloseVideoStream(const bool waitForBuffers)
 {
   m_videoClosed = true;
   m_fedVideoPts = NO_PTS;
+  m_videoEOS = true;
   if (m_videoClosed && m_audioClosed)
   {
     Unload(waitForBuffers);
@@ -435,6 +438,7 @@ void CMediaPipelineWebOS::Flush(bool sync)
   m_fedVideoPts = NO_PTS;
   m_started = false;
   m_flushed = true;
+  m_videoEOS = false;
 }
 
 bool CMediaPipelineWebOS::AcceptsAudioData() const
@@ -471,6 +475,16 @@ bool CMediaPipelineWebOS::IsAudioInited() const
 bool CMediaPipelineWebOS::IsVideoInited() const
 {
   return m_messageQueueVideo.IsInited();
+}
+
+bool CMediaPipelineWebOS::IsVideoEOS() const
+{
+  return m_videoEOS;
+}
+
+void CMediaPipelineWebOS::SetVideoEOS(bool eos)
+{
+  m_videoEOS = eos;
 }
 
 int CMediaPipelineWebOS::GetAudioLevel() const
@@ -725,6 +739,8 @@ bool CMediaPipelineWebOS::Load(CDVDStreamInfo videoHint, CDVDStreamInfo audioHin
   std::string payload;
   CJSONVariantWriter::Write(payloadArgs, payload, true);
 
+  m_videoEOS = false;
+
   if (!m_mediaAPIs->notifyForeground())
     CLog::LogF(LOGERROR, "notifyForeground failed");
   CLog::LogFC(LOGDEBUG, LOGVIDEO, "Sending Load payload {}", payload);
@@ -828,6 +844,8 @@ void CMediaPipelineWebOS::Unload(const bool sync)
   CThread::StopThread(true);
   if (m_audioThread.joinable())
     m_audioThread.join();
+
+  m_videoEOS = true;
 
   if (!m_mediaAPIs->Unload())
     CLog::LogF(LOGERROR, "Unload failed");
@@ -1229,6 +1247,7 @@ bool CMediaPipelineWebOS::FeedVideoData(const std::shared_ptr<CDVDMsg>& msg)
 
     if (result.find("Ok") != std::string::npos)
     {
+      m_videoEOS = false;
       m_fedVideoPts = feedPts;
       m_videoStats.AddSampleBytes(packet->iSize);
       const unsigned int level = GetQueueLevel(StreamType::VIDEO);
@@ -1717,6 +1736,9 @@ void CMediaPipelineWebOS::PlayerCallback(int32_t type, const int64_t numValue, c
       UpdateGUISounds(true);
       break;
     }
+    case PF_EVENT_TYPE_STR_STATE_UPDATE__ENDOFSTREAM:
+      m_videoEOS = true;
+      break;
     case PF_EVENT_TYPE_STR_BUFFERFULL:
     {
       SStateMsg msg{.syncState = IDVDStreamPlayer::SYNC_INSYNC, .player = VideoPlayer_AUDIO};

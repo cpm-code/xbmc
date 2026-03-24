@@ -102,3 +102,13 @@ void CVideoPlayerVideoWebOS::SetSpeed(const int speed)
 {
   m_mediaPipeline.SetSpeed(speed);
 }
+
+void CVideoPlayerVideoWebOS::SetEOS(bool eos)
+{
+  m_mediaPipeline.SetVideoEOS(eos);
+}
+
+bool CVideoPlayerVideoWebOS::IsEOS()
+{
+  return m_mediaPipeline.IsVideoEOS();
+}
