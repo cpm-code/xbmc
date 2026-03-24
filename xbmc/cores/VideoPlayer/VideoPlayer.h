@@ -474,6 +474,8 @@ protected:
   bool IsInMenuInternal() const;
   void SynchronizeDemuxer();
   void CheckAutoSceneSkip();
+  bool IsWaitingForVideoDrainAtEof();
+  bool HandleReadPacketEndOfStream();
   bool CheckContinuity(CCurrentStream& current, DemuxPacket* pPacket);
   bool CheckSceneSkip(const CCurrentStream& current);
   bool CheckPlayerInit(CCurrentStream& current);

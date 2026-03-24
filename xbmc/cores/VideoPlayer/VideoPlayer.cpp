@@ -49,6 +49,7 @@
 #include "resources/LocalizeStrings.h"
 #include "resources/ResourcesComponent.h"
 #include "settings/AdvancedSettings.h"
+#include "settings/SettingUtils.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "threads/SingleLock.h"
@@ -75,11 +76,43 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <thread>
 #include <utility>
 
 using namespace KODI;
 using namespace std::chrono_literals;
+
+namespace
+{
+// Clamp backward seeks to the start of the item, and clamp forward seeks so
+// they stay at least the configured minimum distance before the reported EOS.
+// If playback has already advanced into the final keep-out range, allow seeks
+// that stay within the already-played range.
+int64_t NormalizeTarget(int64_t seekTarget, int64_t currentTime, int64_t maxTime)
+{
+  if (seekTarget < 0) return 0;
+  if (maxTime <= 0) return seekTarget;
+
+  const int64_t minBeforeEof =
+      CSettingUtils::GetAdvancedSettingValue(&CAdvancedSettings::m_videoSeekMinimumDistanceBeforeEof, 10);
+  const int64_t minBeforeEofMs = std::max<int64_t>(0, minBeforeEof) * 1000;
+
+  const int64_t maxSeekTarget = std::max<int64_t>(0, maxTime - minBeforeEofMs);
+
+  // Reported durations can be shorter than the actual playable media. Allow
+  // seeks that stay within the already-played range, but clamp forward seeks
+  // that would move into the reported end and potentially trigger forced EOF.
+  if (seekTarget <= maxSeekTarget) return seekTarget;
+
+  if ((currentTime > maxSeekTarget) && (seekTarget <= currentTime)) return seekTarget;
+
+  logM(LOGDEBUG, "CVideoPlayer", "clamp seek [{}] ms to [{}] ms to stay at least [{}] ms before reported EOS",
+                                 seekTarget, maxSeekTarget, minBeforeEofMs);
+
+  return maxSeekTarget;
+}
+}
 
 //------------------------------------------------------------------------------
 // selection streams
@@ -1665,7 +1698,7 @@ void CVideoPlayer::Process()
       if (std::shared_ptr<CDVDInputStream::IMenus> pStream = std::dynamic_pointer_cast<CDVDInputStream::IMenus>(m_pInputStream))
       {
         // stills will be skipped
-        if(m_dvd.state == DVDSTATE_STILL)
+        if (m_dvd.state == DVDSTATE_STILL)
         {
           if (m_dvd.iDVDStillTime > 0ms)
           {
@@ -1708,35 +1741,9 @@ void CVideoPlayer::Process()
         continue;
       }
 
-      if (m_CurrentVideo.inited)
-      {
-        m_VideoPlayerVideo->SendMessage(std::make_shared<CDVDMsg>(CDVDMsg::VIDEO_DRAIN));
-      }
+      if (!HandleReadPacketEndOfStream()) break;
 
-      m_CurrentAudio.inited = false;
-      m_CurrentVideo.inited = false;
-      m_CurrentSubtitle.inited = false;
-      m_CurrentTeletext.inited = false;
-      m_CurrentRadioRDS.inited = false;
-      m_CurrentAudioID3.inited = false;
-
-      // if we are caching, start playing it again
-      SetCaching(CACHESTATE_DONE);
-
-      // while players are still playing, keep going to allow seekbacks
-      if (m_VideoPlayerAudio->HasData() ||
-          (m_VideoPlayerVideo->HasData() ||
-           (m_VideoPlayerVideo->IsInited() &&
-            !m_VideoPlayerVideo->IsEOS())))
-      {
-        CThread::Sleep(100ms);
-        continue;
-      }
-
-      if (!m_pInputStream->IsEOF())
-        CLog::Log(LOGINFO, "{} - eof reading from demuxer", __FUNCTION__);
-
-      break;
+      continue;
     }
 
     // see if we can find something better to play
@@ -1802,6 +1809,50 @@ void CVideoPlayer::Process()
     // process the packet
     ProcessPacket(pStream, pPacket);
   }
+}
+
+bool CVideoPlayer::IsWaitingForVideoDrainAtEof()
+{
+  const auto waitingForVideoEof = !m_VideoPlayerVideo->HasData() &&
+                                  m_VideoPlayerVideo->IsInited() &&
+                                  !m_VideoPlayerVideo->IsEOS();
+
+  return m_VideoPlayerVideo->HasData() || waitingForVideoEof;
+}
+
+bool CVideoPlayer::HandleReadPacketEndOfStream()
+{
+  if (m_CurrentVideo.inited)
+  {
+    m_VideoPlayerVideo->SendMessage(std::make_shared<CDVDMsg>(CDVDMsg::VIDEO_DRAIN));
+  }
+  else if (m_VideoPlayerVideo->IsInited() && !m_VideoPlayerVideo->HasData())
+  {
+    logM(LOGDEBUG, "CVideoPlayer",  "forcing video EOS at EOF");
+    m_VideoPlayerVideo->SetEOS(true);
+  }
+
+  m_CurrentAudio.inited = false;
+  m_CurrentVideo.inited = false;
+  m_CurrentSubtitle.inited = false;
+  m_CurrentTeletext.inited = false;
+  m_CurrentRadioRDS.inited = false;
+  m_CurrentAudioID3.inited = false;
+
+  // if we are caching, start playing it again
+  SetCaching(CACHESTATE_DONE);
+
+  // while players are still playing, keep going to allow seek-backs
+  if (m_VideoPlayerAudio->HasData() || IsWaitingForVideoDrainAtEof())
+  {
+    CThread::Sleep(100ms);
+    return true;
+  }
+
+  if (!m_pInputStream->IsEOF())
+    logM(LOGINFO, "CVideoPlayer", "demuxer ran dry before input stream reported EOF");
+
+  return false;
 }
 
 bool CVideoPlayer::CheckIsCurrent(const CCurrentStream& current,
@@ -3013,13 +3064,17 @@ void CVideoPlayer::HandleMessages()
         }
       }
 
-      if (!msg.GetTrickPlay())
+      const ECacheState cacheStateBeforeSeek = m_caching;
+      const bool shouldFlushCaching = !msg.GetTrickPlay();
+
+      if (shouldFlushCaching)
       {
         m_processInfo->SeekFinished(0);
         SetCaching(CACHESTATE_FLUSH);
       }
 
       double start = DVD_NOPTS_VALUE;
+      const int64_t currentTime = GetTime();
 
       double time = msg.GetTime();
       if (msg.GetRelative())
@@ -3044,6 +3099,8 @@ void CVideoPlayer::HandleMessages()
           time += DVD_TIME_TO_MSEC(m_demuxSeekBasePts);
       }
 
+      time = static_cast<double>(NormalizeTarget(std::lround(time), currentTime, m_processInfo->GetMaxTime()));
+
       CLog::Log(LOGDEBUG, "demuxer seek to: {:f}", time);
       if (m_pDemuxer && m_pDemuxer->SeekTime(time, msg.GetBackward(), &start))
       {
@@ -3065,18 +3122,8 @@ void CVideoPlayer::HandleMessages()
       }
       else if (m_pDemuxer)
       {
-        CLog::Log(LOGDEBUG, "VideoPlayer: seek failed or hit end of stream");
-        // dts after successful seek
-        if (start == DVD_NOPTS_VALUE)
-          start = DVD_MSEC_TO_TIME(time) - m_State.time_offset;
-
-        m_State.dts = start;
-
-        FlushBuffers(start, false, true);
-        if (m_playSpeed != DVD_PLAYSPEED_PAUSE)
-        {
-          SetPlaySpeed(DVD_PLAYSPEED_NORMAL);
-        }
+        logM(LOGDEBUG, "CVideoPlayer", "seek [{}] ms failed; keeping playback pos", std::lround(time));
+        if (shouldFlushCaching) SetCaching(cacheStateBeforeSeek);
       }
 
       // set flag to indicate we have finished a seeking request
@@ -3095,6 +3142,7 @@ void CVideoPlayer::HandleMessages()
              m_messenger.GetPacketCount(CDVDMsg::PLAYER_SEEK) == 0 &&
              m_messenger.GetPacketCount(CDVDMsg::PLAYER_SEEK_CHAPTER) == 0)
     {
+      const ECacheState cacheStateBeforeSeek = m_caching;
       m_processInfo->SeekFinished(0);
       SetCaching(CACHESTATE_FLUSH);
 
@@ -3128,10 +3176,16 @@ void CVideoPlayer::HandleMessages()
           }
         }
 
-        if (m_pDemuxer->SeekTime(time, true, &start))
+        const int64_t target = NormalizeTarget(std::lround(time), GetTime(), m_processInfo->GetMaxTime());
+        if (m_pDemuxer->SeekTime(target, true, &start))
         {
           FlushBuffers(start, true, true);
           m_callback.OnPlayBackSeekChapter(msg.GetChapter());
+        }
+        else
+        {
+          logM(LOGDEBUG, "CVideoPlayer", "seek [{}] ms failed; keeping playback pos", target);
+          SetCaching(cacheStateBeforeSeek);
         }
       }
       else if (m_pInputStream)
@@ -3636,18 +3690,21 @@ void CVideoPlayer::Seek(bool bPlus, bool bLargeStep, bool bChapterOverride)
 
   bool restore = true;
 
-  int64_t time = GetTime();
+  const int64_t time = GetTime();
   if(g_application.CurrentFileItem().IsStack() &&
      (seekTarget > m_processInfo->GetMaxTime() || seekTarget < 0))
   {
-    g_application.SeekTime((seekTarget - time) * 0.001 + g_application.GetTime());
+    const int64_t target = NormalizeTarget(seekTarget, time, m_processInfo->GetMaxTime());
+    g_application.SeekTime((target - time) * 0.001 + g_application.GetTime());
     // warning, don't access any VideoPlayer variables here as
     // the VideoPlayer object may have been destroyed
     return;
   }
 
+  seekTarget = NormalizeTarget(seekTarget, time, m_processInfo->GetMaxTime());
+
   CDVDMsgPlayerSeek::CMode mode;
-  mode.time = (int)seekTarget;
+  mode.time = static_cast<double>(seekTarget);
   mode.backward = !bPlus;
   mode.accurate = false;
   mode.restore = restore;
@@ -3656,8 +3713,6 @@ void CVideoPlayer::Seek(bool bPlus, bool bLargeStep, bool bChapterOverride)
 
   m_messenger.Put(std::make_shared<CDVDMsgPlayerSeek>(mode));
   SynchronizeDemuxer();
-  if (seekTarget < 0)
-    seekTarget = 0;
   m_callback.OnPlayBackSeek(seekTarget, seekTarget - time);
 }
 
@@ -3678,11 +3733,13 @@ bool CVideoPlayer::SeekScene(Direction seekDirection)
       m_Edl.GetNextSceneMarker(seekDirection, clock);
   if (sceneMarker)
   {
+    const int64_t target = NormalizeTarget(sceneMarker.value().count(), clock.count(), m_processInfo->GetMaxTime());
+
     /*
      * Seeking is flushed and inaccurate, just like Seek()
      */
     CDVDMsgPlayerSeek::CMode mode;
-    mode.time = sceneMarker.value().count();
+    mode.time = target;
     mode.backward = seekDirection == Direction::BACKWARD;
     mode.accurate = false;
     mode.restore = false;
@@ -3904,10 +3961,13 @@ void CVideoPlayer::LoadPage(int p, int sp, unsigned char* buffer)
 
 void CVideoPlayer::SeekTime(int64_t iTime)
 {
-  int64_t seekOffset = iTime - GetTime();
+  const int64_t currentTime = GetTime();
+  const int64_t target = NormalizeTarget(iTime, currentTime, m_processInfo->GetMaxTime());
+
+  int64_t seekOffset = target - currentTime;
 
   CDVDMsgPlayerSeek::CMode mode;
-  mode.time = static_cast<double>(iTime);
+  mode.time = static_cast<double>(target);
   mode.backward = true;
   mode.accurate = true;
   mode.trickplay = false;
@@ -3915,19 +3975,21 @@ void CVideoPlayer::SeekTime(int64_t iTime)
 
   m_messenger.Put(std::make_shared<CDVDMsgPlayerSeek>(mode));
   SynchronizeDemuxer();
-  m_callback.OnPlayBackSeek(iTime, seekOffset);
+  m_callback.OnPlayBackSeek(target, seekOffset);
   m_processInfo->SeekFinished(seekOffset);
 }
 
 bool CVideoPlayer::SeekTimeRelative(int64_t iTime)
 {
-  int64_t abstime = GetTime() + iTime;
+  const int64_t currentTime = GetTime();
+  const int64_t unclampedTime = currentTime + iTime;
+  const int64_t abstime = NormalizeTarget(unclampedTime, currentTime, m_processInfo->GetMaxTime());
 
   // if the file has EDL cuts we can't rely on m_clock for relative seeks
   // EDL cuts remove time from the original file, hence we might seek to
   // positions too far from the current m_clock position. Seek to absolute
   // time instead
-  if (m_Edl.HasCuts())
+  if (m_Edl.HasCuts() || (abstime != unclampedTime))
   {
     SeekTime(abstime);
     return true;
