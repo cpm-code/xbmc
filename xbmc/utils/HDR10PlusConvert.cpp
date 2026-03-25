@@ -193,14 +193,14 @@ std::vector<uint8_t> create_dovi_rpu_nalu_from_hdr10plus(
     last_rpu = create_dovi_rpu_nalu(vdr_dm_data);
     last_vdr_dm_data = vdr_dm_data;
 
-    logM(LOGDEBUG, "HDR10PlusConvert", "min_pq [{}] max_pq [{}] avg_pq [{}] mdml max [{}] mdml min [{}] cll [{}] fall [{}]",
-      vdr_dm_data.min_pq,
-      vdr_dm_data.max_pq,
-      vdr_dm_data.avg_pq,
-      vdr_dm_data.max_display_mastering_luminance,
-      vdr_dm_data.min_display_mastering_luminance,
-      vdr_dm_data.max_content_light_level,
-      vdr_dm_data.max_frame_average_light_level);
+    logM(LOGDEBUG, "min_pq [{}] max_pq [{}] avg_pq [{}] mdml max [{}] mdml min [{}] cll [{}] fall [{}]",
+                   vdr_dm_data.min_pq,
+                   vdr_dm_data.max_pq,
+                   vdr_dm_data.avg_pq,
+                   vdr_dm_data.max_display_mastering_luminance,
+                   vdr_dm_data.min_display_mastering_luminance,
+                   vdr_dm_data.max_content_light_level,
+                   vdr_dm_data.max_frame_average_light_level);
   }
 
   return last_rpu;

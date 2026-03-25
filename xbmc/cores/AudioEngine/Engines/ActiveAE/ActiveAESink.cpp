@@ -1075,14 +1075,14 @@ unsigned int CActiveAESink::OutputSamples(CSampleBuffer* samples)
         bool burst = m_extStreaming;
         if (!m_packer->PackPause(m_sinkFormat.m_streamInfo, samples->pkt->pause_burst_ms, burst))
         {
-          logM(LOGDEBUG, "CActiveAESink", "reusing passthrough pause burst (millis={}, extStreaming={}, hasIecBurst={})",
-                                          samples->pkt->pause_burst_ms, m_extStreaming, m_hasIecBurst);
+          logM(LOGDEBUG, "reusing passthrough pause burst (millis [{}] extStreaming [{}] hasIecBurst [{}])",
+                         samples->pkt->pause_burst_ms, m_extStreaming, m_hasIecBurst);
           skipSwap = true;
         }
         else
         {
-          logM(LOGDEBUG, "CActiveAESink", "built passthrough pause burst (millis={}, burst={}, extStreaming={}, hasIecBurst={})",
-                                          samples->pkt->pause_burst_ms, burst, m_extStreaming, m_hasIecBurst);
+          logM(LOGDEBUG, "built passthrough pause burst (millis [{}] burst [{}] extStreaming [{}] hasIecBurst [{}])",
+                         samples->pkt->pause_burst_ms, burst, m_extStreaming, m_hasIecBurst);
         }
       }
       else
@@ -1139,8 +1139,8 @@ unsigned int CActiveAESink::OutputSamples(CSampleBuffer* samples)
     if (written == 0)
     {
       if (m_requestedFormat.m_dataFormat == AE_FMT_RAW)
-        logM(LOGDEBUG, "CActiveAESink", "passthrough write stalled (frames={}, totalFrames={}, retry={}, hasIecBurst={})",
-                                        frames, totalFrames, retry, m_hasIecBurst);
+        logM(LOGDEBUG, "passthrough write stalled (frames [{}] totalFrames [{}] retry [{}] hasIecBurst [{}])",
+                       frames, totalFrames, retry, m_hasIecBurst);
 
       CThread::Sleep(
           std::chrono::milliseconds(500 * m_sinkFormat.m_frames / m_sinkFormat.m_sampleRate));
@@ -1163,8 +1163,8 @@ unsigned int CActiveAESink::OutputSamples(CSampleBuffer* samples)
       else
       {
         if (m_requestedFormat.m_dataFormat == AE_FMT_RAW)
-          logM(LOGDEBUG, "CActiveAESink", "retrying passthrough write (retry={}, maxRetries={})",
-                                          retry, maxRetries);
+          logM(LOGDEBUG, "retrying passthrough write (retry [{}] maxRetries [{}])",
+                         retry, maxRetries);
         continue;
       }
     }

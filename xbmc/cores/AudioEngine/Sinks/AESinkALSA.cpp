@@ -491,7 +491,7 @@ snd_pcm_chmap_t* CAESinkALSA::SelectALSAChannelMap(const CAEChannelInfo& info)
   if (!supportedMaps)
     return NULL;
 
-  logM(LOGINFO, "CAESinkALSA", "channel info [{}]: [{}]", info.Count(), CAEUtil::GetAVChannelLayoutString(info));
+  logM(LOGINFO, "channel info [{}]: [{}]", info.Count(), CAEUtil::GetAVChannelLayoutString(info));
 
   CAEChannelInfo infoAlternate = GetAlternateLayoutForm(info);
 
@@ -659,12 +659,12 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
               break;
           }
 
-          logM(LOGINFO, "CAESinkALSA", "Set Spdif to HDMITX to \"{}\"", AMLSpdifIDToStr(spdif_id).c_str());
+          logM(LOGINFO, "Set Spdif to HDMITX to \"{}\"", AMLSpdifIDToStr(spdif_id).c_str());
           snd_mixer_selem_id_set_name(sid, "Spdif to HDMITX Select");
           elem = snd_mixer_find_selem(handle, sid);
           if (!elem) {
-            logM(LOGERROR, "CAESinkALSA", "Unable to find simple control '{}',{:d}\n",
-              snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
+            logM(LOGERROR, "Unable to find simple control '{}',{:d}\n",
+                           snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
             snd_mixer_close(handle);
             return;
           }
@@ -672,12 +672,12 @@ void CAESinkALSA::aml_configure_simple_control(std::string &device, const enum I
           snd_mixer_selem_set_enum_item(elem, (snd_mixer_selem_channel_id_t)0, spdif_id);
 
           // set codec format for SPDIF-B
-          logM(LOGINFO, "CAESinkALSA", "Set codec for \"{}\"", sid_names_fmt[HDMITX_SRC_SPDIF_B].c_str());
+          logM(LOGINFO, "Set codec for \"{}\"", sid_names_fmt[HDMITX_SRC_SPDIF_B].c_str());
           snd_mixer_selem_id_set_name(sid, sid_names_fmt[HDMITX_SRC_SPDIF_B].c_str());
           elem = snd_mixer_find_selem(handle, sid);
           if (!elem) {
-            logM(LOGERROR, "CAESinkALSA", "Unable to find simple control '{}',{:d}\n",
-              snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
+            logM(LOGERROR, "Unable to find simple control '{}',{:d}\n",
+                           snd_mixer_selem_id_get_name(sid), snd_mixer_selem_id_get_index(sid));
             snd_mixer_close(handle);
             return;
           }
@@ -844,8 +844,8 @@ bool CAESinkALSA::Initialize(AEAudioFormat &format, std::string &device)
       snd_pcm_free_chmaps(supportedMaps);
     }
 
-    logM(LOGINFO, "CAESinkALSA", "Selecting Channel Map: channels:[{}] chmap:[{}]",
-                                 selectedChmap->channels, ALSAchmapToString(selectedChmap));
+    logM(LOGINFO, "Selecting Channel Map: channels:[{}] chmap:[{}]",
+                  selectedChmap->channels, ALSAchmapToString(selectedChmap));
 
     // Failure is OK (device may have a fixed map), but log it for diagnostics.
     const int err = snd_pcm_set_chmap(m_pcm, selectedChmap);
@@ -1298,8 +1298,8 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
       const int waitTimeout = std::max(m_timeout / 2, 20);
       const int waitRet = snd_pcm_wait(m_pcm, waitTimeout);
       if (waitRet <= 0)
-        logM(LOGDEBUG, "CAESinkALSA", "passthrough wait anomaly: ret=[{}], timeout=[{}], amount=[{}], data_left=[{}]",
-                                      waitRet, waitTimeout, amount, data_left);
+        logM(LOGDEBUG, "passthrough wait anomaly: ret [{}] timeout [{}] amount [{}] data_left [{}]",
+                       waitRet, waitTimeout, amount, data_left);
     }
 
     int ret = snd_pcm_writei(m_pcm, buffer, amount);
@@ -1312,8 +1312,8 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
       const int recoverErr = snd_pcm_recover(m_pcm, writeErr, 1);
       if (recoverErr == 0)
       {
-        logM(LOGDEBUG, "CAESinkALSA", "snd_pcm_recover succeeded for passthrough writeErr=[{}], retrying amount=[{}]",
-                                      writeErr, amount);
+        logM(LOGDEBUG, "snd_pcm_recover succeeded for passthrough writeErr [{}] retrying amount [{}]",
+                       writeErr, amount);
         // Recovered successfully; retry the write.
         ret = snd_pcm_writei(m_pcm, buffer, amount);
       }
@@ -1324,8 +1324,8 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
         HandleError("snd_pcm_writei(recover)", writeErr);
         if (m_passthrough)
           snd_pcm_wait(m_pcm, std::min(m_timeout, 20));
-        logM(LOGDEBUG, "CAESinkALSA", "snd_pcm_recover failed for passthrough writeErr=[{}], recoverErr=[{}], retrying amount=[{}]",
-                                      writeErr, recoverErr, amount);
+        logM(LOGDEBUG, "snd_pcm_recover failed for passthrough writeErr [{}] recoverErr [{}] retrying amount [{}]",
+                       writeErr, recoverErr, amount);
         ret = snd_pcm_writei(m_pcm, buffer, amount);
       }
 
@@ -1336,8 +1336,7 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
         {
           // One extra retry for IEC61937 bursts after prepare/resume.
           snd_pcm_wait(m_pcm, std::min(m_timeout, 20));
-          logM(LOGDEBUG, "CAESinkALSA", "passthrough extra retry after HandleError: err=[{}], amount=[{}]",
-                                        ret, amount);
+          logM(LOGDEBUG, "passthrough extra retry after HandleError: err [{}] amount [{}]", ret, amount);
           ret = snd_pcm_writei(m_pcm, buffer, amount);
         }
 
@@ -1346,7 +1345,7 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
       }
       if (m_passthrough && frames_written > 0 && burstResets < 2)
       {
-        logM(LOGDEBUG, "CAESinkALSA", "passthrough: underrun recovery lost [{}] frames, realigning burst", frames_written);
+        logM(LOGDEBUG, "passthrough: underrun recovery lost [{}] frames, realigning burst", frames_written);
         buffer = bufferStart;
         data_left = static_cast<int64_t>(frames);
         frames_written = 0;
@@ -1398,7 +1397,7 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
       if (zeroWriteRetries < 3)
       {
         zeroWriteRetries++;
-        logM(LOGINFO, "CAESinkALSA", "passthrough zero write: retry=[{}], amount=[{}], data_left=[{}]",
+        logM(LOGINFO, "passthrough zero write: retry=[{}], amount=[{}], data_left=[{}]",
                                      zeroWriteRetries, amount, data_left);
         snd_pcm_wait(m_pcm, std::min(m_timeout, 20));
         continue;
@@ -1431,7 +1430,7 @@ void CAESinkALSA::HandleError(const char* name, int err)
 
     case -ESTRPIPE:
     {
-      logM(LOGINFO, "CAESinkALSA", "({}) - Resuming after suspend", name);
+      logM(LOGINFO, "({}) - Resuming after suspend", name);
 
       /* try to resume the stream */
       // Some platforms can report -EAGAIN for a noticeable time; don't block
@@ -1447,7 +1446,7 @@ void CAESinkALSA::HandleError(const char* name, int err)
       if (err == -ENOSYS || err == -EAGAIN || err < 0)
       {
         if (err == -EAGAIN)
-          logM(LOGINFO, "CAESinkALSA", "({}) - snd_pcm_resume still EAGAIN, falling back to prepare", name);
+          logM(LOGINFO, "({}) - snd_pcm_resume still EAGAIN, falling back to prepare", name);
 
         if ((err = snd_pcm_prepare(m_pcm)) < 0)
           CLog::Log(LOGERROR, "CAESinkALSA::HandleError({}) - snd_pcm_prepare returned {} ({})",
@@ -1459,8 +1458,7 @@ void CAESinkALSA::HandleError(const char* name, int err)
     }
 
     default:
-      logM(LOGERROR, "CAESinkALSA", "({}) - snd_pcm_writei returned {} ({})", name,
-                                    err, snd_strerror(err));
+      logM(LOGERROR, "({}) - snd_pcm_writei returned {} ({})", name, err, snd_strerror(err));
       break;
   }
 }
@@ -1492,11 +1490,11 @@ void CAESinkALSA::Flush()
   // Drop any queued frames immediately (do not block like snd_pcm_drain).
   int err = snd_pcm_drop(m_pcm);
   if (err < 0)
-    logM(LOGERROR, "CAESinkALSA", "Flush - snd_pcm_drop returned {} ({})", err, snd_strerror(err));
+    logM(LOGERROR, "Flush - snd_pcm_drop returned {} ({})", err, snd_strerror(err));
 
   err = snd_pcm_prepare(m_pcm);
   if (err < 0)
-    logM(LOGERROR, "CAESinkALSA", "Flush - snd_pcm_prepare returned {} ({})", err, snd_strerror(err));
+    logM(LOGERROR, "Flush - snd_pcm_prepare returned {} ({})", err, snd_strerror(err));
   else
     ApplySwParams();
 }
@@ -1525,7 +1523,7 @@ bool CAESinkALSA::TryDevice(const std::string &name, snd_pcm_t **pcmp, snd_confi
 
   int err = snd_pcm_open_lconf(pcmp, name.c_str(), SND_PCM_STREAM_PLAYBACK, ALSA_OPTIONS, lconf);
   if (err < 0)
-    logM(LOGINFO, "CAESinkALSA", "Unable to open device \"{}\" for playback", name);
+    logM(LOGINFO, "Unable to open device \"{}\" for playback", name);
 
   return err == 0;
 }
@@ -1646,7 +1644,7 @@ void CAESinkALSA::EnumerateDevicesEx(AEDeviceInfoList &list, bool force)
 
   if (snd_device_name_hint(-1, "pcm", &hints) < 0)
   {
-    logM(LOGINFO, "CAESinkALSA", "Unable to get a list of devices");
+    logM(LOGINFO, "Unable to get a list of devices");
     return;
   }
 
@@ -1870,7 +1868,7 @@ void CAESinkALSA::EnumerateDevice(AEDeviceInfoList &list, const std::string &dev
   if (int err = snd_pcm_info(pcmhandle, pcminfo);
       err < 0)
   {
-    logM(LOGINFO, "CAESinkALSA", "Unable to get pcm_info for \"{}\"", device);
+    logM(LOGINFO, "Unable to get pcm_info for \"{}\"", device);
     snd_pcm_close(pcmhandle);
   }
 
@@ -1934,8 +1932,8 @@ void CAESinkALSA::EnumerateDevice(AEDeviceInfoList &list, const std::string &dev
 #endif
 
             if (!GetELD(hctl, dev, info, badHDMI))
-              logM(LOGDEBUG, "CAESinkALSA", "Unable to obtain ELD information for device \"{}\" (not "
-                                            "supported by device, or kernel older than 3.2)", device);
+              logM(LOGDEBUG, "Unable to obtain ELD information for device \"{}\" (not "
+                             "supported by device, or kernel older than 3.2)", device);
 
             /* snd_hctl_close also closes ctlhandle */
             snd_hctl_close(hctl);
@@ -1944,7 +1942,7 @@ void CAESinkALSA::EnumerateDevice(AEDeviceInfoList &list, const std::string &dev
             // Detection can go wrong on Intel, Nvidia and on all
             // AMD (fglrx) hardware, so it is not safe to close those handles
             if (badHDMI)
-              logM(LOGDEBUG, "CAESinkALSA", "HDMI device \"{}\" may be unconnected (no ELD data)", device);
+              logM(LOGDEBUG, "HDMI device \"{}\" may be unconnected (no ELD data)", device);
           }
           else
           {
@@ -2002,7 +2000,7 @@ void CAESinkALSA::EnumerateDevice(AEDeviceInfoList &list, const std::string &dev
   /* ensure we can get a playback configuration for the device */
   if (snd_pcm_hw_params_any(pcmhandle, hwparams) < 0)
   {
-    logM(LOGINFO, "CAESinkALSA", "No playback configurations available for device \"{}\"", device);
+    logM(LOGINFO, "No playback configurations available for device \"{}\"", device);
     snd_pcm_close(pcmhandle);
     return;
   }
@@ -2065,9 +2063,8 @@ void CAESinkALSA::EnumerateDevice(AEDeviceInfoList &list, const std::string &dev
   /* remove the channels from m_channels that we cant use */
   info.m_channels.ResolveChannels(alsaChannels);
 
-  logM(LOGINFO, "CAESinkALSA", "device [{}] channels [{}]: [{}]",
-                                device, info.m_channels.Count(),
-                                CAEUtil::GetAVChannelLayoutString(info.m_channels));
+  logM(LOGINFO, "device [{}] channels [{}]: [{}]",
+                device, info.m_channels.Count(), CAEUtil::GetAVChannelLayoutString(info.m_channels));
 
   /* detect the PCM sample formats that are available */
   for (enum AEDataFormat i = AE_FMT_MAX; i > AE_FMT_INVALID; i = (enum AEDataFormat)((int)i - 1))
@@ -2177,8 +2174,8 @@ void CAESinkALSA::sndLibErrorHandler(const char *file, int line, const char *fun
   if (char *errorStr;
       vasprintf(&errorStr, fmt, arg) >= 0)
   {
-    logM(LOGINFO, "CAESinkALSA", "ALSA: {}:{}:({}) {}{}{}", file, line, function, errorStr,
-              err ? ": " : "", err ? snd_strerror(err) : "");
+    logM(LOGINFO, "ALSA: {}:{}:({}) {}{}{}", file, line, function, errorStr,
+                  err ? ": " : "", err ? snd_strerror(err) : "");
     free(errorStr);
   }
   va_end(arg);

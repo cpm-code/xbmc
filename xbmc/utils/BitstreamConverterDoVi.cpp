@@ -193,9 +193,8 @@ inline void PopulateDoviRpuInfo(DoviRpuOpaque* opaque,
     if (!loggedParsedMetadata)
     {
       loggedParsedMetadata = true;
-      logM(LOGINFO, "CBitstreamConverterDoVi",
-           "Parsed DoVi metadata (first frame): meta='{}' has_l254={} l2_count={} l8_count={}",
-           metaVersion, hasLevel254, level2Count, level8Count);
+      logM(LOGINFO, "Parsed DoVi metadata (first frame): meta='{}' has_l254={} l2_count={} l8_count={}",
+                    metaVersion, hasLevel254, level2Count, level8Count);
     }
 
     doviStreamMetadata.meta_version = metaVersion;
@@ -412,8 +411,7 @@ DoviRpuOpaque* AppendCMv40ToRpuNalu(uint8_t* nalBuf,
       {
         if (trim != trimBits)
         {
-          logM(LOGINFO, "CBitstreamConverterDoVi",
-                        "CMv4 alignment: last_byte=0x{:02X} padding={}",
+          logM(LOGINFO, "CMv4 alignment: last_byte=0x{:02X} padding={}",
                         rbsp[payloadSize - 1], trimBits);
           trim = trimBits;
         }
@@ -613,7 +611,7 @@ void CBitstreamConverter::ProcessDoViRpu(
     {
       dovi_rpu_free(appendOpaque);
       if (m_first_frame)
-        logM(LOGINFO, "CBitstreamConverterDoVi", "CMv4.0 extension appended to RPU");
+        logM(LOGINFO, "CMv4.0 extension appended to RPU");
     }
 
     // Update cache with the newly calculated modified NAL out for the next frame

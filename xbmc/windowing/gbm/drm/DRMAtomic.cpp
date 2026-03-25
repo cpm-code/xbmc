@@ -50,7 +50,7 @@ bool CDRMAtomic::IsVideoGuiCommitPending()
 
   if (ret < 0)
   {
-    logM(LOGWARNING, "CDRMAtomic", "poll on out fence failed: {}", strerror(errno));
+    logM(LOGWARNING, "poll on out fence failed: {}", strerror(errno));
     ResetVideoGuiCommitFence();
     return false;
   }
