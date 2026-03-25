@@ -107,8 +107,8 @@ int64_t NormalizeTarget(int64_t seekTarget, int64_t currentTime, int64_t maxTime
 
   if ((currentTime > maxSeekTarget) && (seekTarget <= currentTime)) return seekTarget;
 
-  logM(LOGDEBUG, "CVideoPlayer", "clamp seek [{}] ms to [{}] ms to stay at least [{}] ms before reported EOS",
-                                 seekTarget, maxSeekTarget, minBeforeEofMs);
+  logM(LOGDEBUG, "clamp seek [{}] ms to [{}] ms to stay at least [{}] ms before reported EOS",
+                 seekTarget, maxSeekTarget, minBeforeEofMs);
 
   return maxSeekTarget;
 }
@@ -1828,7 +1828,7 @@ bool CVideoPlayer::HandleReadPacketEndOfStream()
   }
   else if (m_VideoPlayerVideo->IsInited() && !m_VideoPlayerVideo->HasData())
   {
-    logM(LOGDEBUG, "CVideoPlayer",  "forcing video EOS at EOF");
+    logM(LOGDEBUG, "forcing video EOS at EOF");
     m_VideoPlayerVideo->SetEOS(true);
   }
 
@@ -1850,7 +1850,7 @@ bool CVideoPlayer::HandleReadPacketEndOfStream()
   }
 
   if (!m_pInputStream->IsEOF())
-    logM(LOGINFO, "CVideoPlayer", "demuxer ran dry before input stream reported EOF");
+    logM(LOGINFO, "demuxer ran dry before input stream reported EOF");
 
   return false;
 }
@@ -1975,9 +1975,9 @@ void CVideoPlayer::ProcessVideoData(CDemuxStream* pStream, DemuxPacket* pPacket)
   if (CheckSceneSkip(m_CurrentVideo))
     drop = true;
 
-  logM(LOGDEBUG, "CVideoPlayer", "size:{:d} dts:{:.3f} pts:{:.3f} dur:{:.3f}ms, clock:{:.3f} level:{:d}",
-    pPacket->iSize, pPacket->dts/1000000, pPacket->pts/1000000, pPacket->duration/1000.0,
-    m_clock.GetClock()/1000000.0, m_VideoPlayerVideo->GetLevel());
+  logM(LOGDEBUG, "size:{:d} dts:{:.3f} pts:{:.3f} dur:{:.3f}ms, clock:{:.3f} level:{:d}",
+                 pPacket->iSize, pPacket->dts/1000000, pPacket->pts/1000000, pPacket->duration/1000.0,
+                 m_clock.GetClock()/1000000.0, m_VideoPlayerVideo->GetLevel());
   m_VideoPlayerVideo->SendMessage(std::make_shared<CDVDMsgDemuxerPacket>(pPacket, drop));
 
   if (!drop)
@@ -3122,7 +3122,7 @@ void CVideoPlayer::HandleMessages()
       }
       else if (m_pDemuxer)
       {
-        logM(LOGDEBUG, "CVideoPlayer", "seek [{}] ms failed; keeping playback pos", std::lround(time));
+        logM(LOGDEBUG, "seek [{}] ms failed; keeping playback pos", std::lround(time));
         if (shouldFlushCaching) SetCaching(cacheStateBeforeSeek);
       }
 
@@ -3184,7 +3184,7 @@ void CVideoPlayer::HandleMessages()
         }
         else
         {
-          logM(LOGDEBUG, "CVideoPlayer", "seek [{}] ms failed; keeping playback pos", target);
+          logM(LOGDEBUG, "seek [{}] ms failed; keeping playback pos", target);
           SetCaching(cacheStateBeforeSeek);
         }
       }

@@ -127,8 +127,8 @@ void CDVDVideoCodecAmlogic::ApplyDynamicDoViSettings()
   m_bitstream->SetAppendCMv40(mode);
   m_appendCMv40ModeApplied = mode;
 
-  logM(LOGINFO, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - CMv4.0 append mode changed to [{:d}]",
-       static_cast<int>(mode));
+  logM(LOGINFO, "DV HEVC bitstream - CMv4.0 append mode changed to [{:d}]",
+                static_cast<int>(mode));
 }
 
 std::unique_ptr<CDVDVideoCodec> CDVDVideoCodecAmlogic::Create(CProcessInfo& processInfo)
@@ -343,16 +343,16 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
           if (cmv40Mode != DOVICMv40Mode::CMV40_NONE)
           {
             if (cmv40Mode == DOVICMv40Mode::CMV40_NO_L2)
-              logM(LOGINFO, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - if CMv2.9 without L2 trims then CMv4.0 metadata block will be appended.");
+              logM(LOGINFO, "DV HEVC bitstream - if CMv2.9 without L2 trims then CMv4.0 metadata block will be appended.");
             else
-              logM(LOGINFO, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - CMv4.0 metadata block will always be appended.");
+              logM(LOGINFO, "DV HEVC bitstream - CMv4.0 metadata block will always be appended.");
             m_bitstream->SetAppendCMv40(cmv40Mode);
           }
           m_appendCMv40ModeApplied = cmv40Mode;
 
           if (dualPriorityHdr10Plus)
           {
-            logM(LOGINFO, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - if stream also contains HDR10+, native HDR10+ has priority.");
+            logM(LOGINFO, "DV HEVC bitstream - if stream also contains HDR10+, native HDR10+ has priority.");
             m_bitstream->SetDualPriorityHdr10Plus(true);
           }
           else if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_CONVERT))
@@ -361,7 +361,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
             m_bitstream->SetPreferCovertHdr10Plus(preferConvertHdr10Plus);
 
             if (preferConvertHdr10Plus)
-              logM(LOGINFO, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - if stream also contains HDR10+, conversion will be preferred over original Dolby Vision.");
+              logM(LOGINFO, "DV HEVC bitstream - if stream also contains HDR10+, conversion will be preferred over original Dolby Vision.");
           }
 
           if (m_hints.dovi.dv_profile == 7)
@@ -369,7 +369,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
             auto convertDovi = static_cast<DOVIMode>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_RPU_CONVERT));
             if (convertDovi)
             {
-              logM(LOGINFO, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - user chooses to convert to mode [{:d}]", convertDovi);
+              logM(LOGINFO, "DV HEVC bitstream - user chooses to convert to mode [{:d}]", convertDovi);
               m_bitstream->SetConvertDovi(convertDovi);
             }
           }
@@ -379,8 +379,8 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
         if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_CONVERT))
         {
           auto peakBrightnessSource = static_cast<PeakBrightnessSource>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_PEAK_BRIGHTNESS_SOURCE));
-          logM(LOGINFO, "CDVDVideoCodecAmlogic", "HEVC bitstream - if also HDR10+ then will be considered for conversion to Dolby Vision P8.1 with brightness source [{:d}]",
-               peakBrightnessSource);
+          logM(LOGINFO, "HEVC bitstream - if also HDR10+ then will be considered for conversion to Dolby Vision P8.1 with brightness source [{:d}]",
+                        static_cast<int>(peakBrightnessSource));
           m_bitstream->SetConvertHdr10Plus(true);
           m_bitstream->SetConvertHdr10PlusPeakBrightnessSource(peakBrightnessSource);
         }
@@ -392,7 +392,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
           if (mode < DOLBY_VISION_OUTPUT_MODE_BYPASS)
           {
             // for VS10 conversion need to remove the HDR10plus metadata.
-            logM(LOGINFO, "CDVDVideoCodecAmlogic", "HDR10 HEVC bitstream - if HDR10+ then metadata will be removed to allow correct VS10 processing");
+            logM(LOGINFO, "HDR10 HEVC bitstream - if HDR10+ then metadata will be removed to allow correct VS10 processing");
             m_bitstream->SetRemoveHdr10Plus(true);
             m_bitstream->SetRemoveDovi(true);
           }
@@ -510,8 +510,10 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
 {
   bool dual_layer_converted = false;
 
-  logComponentM(LOGDEBUG, LOGVIDEO, "CDVDVideoCodecAmlogic", "DT-DL {} package with dts: {:.3f}, pts: {:.3f} and size {} arrived, list {} empty",
-    packet.isELPackage ? "EL" : "BL", packet.dts/DVD_TIME_BASE, packet.pts/DVD_TIME_BASE, iSize, m_packages.empty() ? "is" : "is not");
+  logComponentM(LOGDEBUG, LOGVIDEO, "DT-DL {} package with dts: {:.3f}, pts: {:.3f} and size {} arrived, list {} empty",
+                                    packet.isELPackage ? "EL" : "BL",
+                                    (packet.dts/DVD_TIME_BASE), (packet.pts/DVD_TIME_BASE),
+                                    iSize, m_packages.empty() ? "is" : "is not");
 
   if (!m_packages.empty())
   {
@@ -521,13 +523,14 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
 
     if (isELPackageBackup != packet.isELPackage)
     {
-      logComponentM(LOGDEBUG, LOGVIDEO, "CDVDVideoCodecAmlogic", "found DT-DL {} package with dts: {:.3f} in list",
-        packet.isELPackage ? "BL" : "EL", dts/DVD_TIME_BASE);
+      logComponentM(LOGDEBUG, LOGVIDEO, "found DT-DL {} package with dts: {:.3f} in list",
+                                        packet.isELPackage ? "BL" : "EL", dts/DVD_TIME_BASE);
 
       if (packet.dts < dts) // prior dts arrived - out of step - remove and attempt next.
       {
-        logComponentM(LOGDEBUG, LOGVIDEO, "CDVDVideoCodecAmlogic", "discarding DT-DL {} package with dts {:.3f} as before package in list with dts: {:.3f}",
-          packet.isELPackage ? "EL" : "BL", packet.dts/DVD_TIME_BASE, dts/DVD_TIME_BASE);
+        logComponentM(LOGDEBUG, LOGVIDEO, "discarding DT-DL {} package with dts {:.3f} as before package in list with dts: {:.3f}",
+                                          packet.isELPackage ? "EL" : "BL",
+                                          (packet.dts/DVD_TIME_BASE), (dts/DVD_TIME_BASE));
 
         return false;
       }
@@ -545,15 +548,16 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
     memcpy(pDataBackup, packet.pData, packet.iSize);
     m_packages.emplace_back(pDataBackup, iSize, packet.isELPackage, packet.dts);
 
-    logComponentM(LOGDEBUG, LOGVIDEO, "CDVDVideoCodecAmlogic", "did add DT-DL {} package with dts: {:.3f}, pts: {:.3f} and size {} in list",
-      packet.isELPackage ? "EL" : "BL", packet.dts/DVD_TIME_BASE, packet.pts/DVD_TIME_BASE, packet.iSize);
+    logComponentM(LOGDEBUG, LOGVIDEO, "did add DT-DL {} package with dts: {:.3f}, pts: {:.3f} and size {} in list",
+                                      packet.isELPackage ? "EL" : "BL",
+                                      (packet.dts/DVD_TIME_BASE), (packet.pts/DVD_TIME_BASE), packet.iSize);
 
     return false;
   }
   else
   {
-    logComponentM(LOGDEBUG, LOGVIDEO, "CDVDVideoCodecAmlogic", "converted DT-DL with dts: {:.3f}, pts: {:.3f}",
-      packet.dts/DVD_TIME_BASE, packet.pts/DVD_TIME_BASE);
+    logComponentM(LOGDEBUG, LOGVIDEO, "converted DT-DL with dts: {:.3f}, pts: {:.3f}",
+                                      (packet.dts/DVD_TIME_BASE), (packet.pts/DVD_TIME_BASE));
 
     // All good can remove the backed up package
     KODI::MEMORY::AlignedFree(std::get<0>(m_packages.front()));
@@ -561,7 +565,7 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
 
     if (!CanStartDecode())
     {
-      logM(LOGDEBUG, "CDVDVideoCodecAmlogic", "waiting for keyframe (bitstream)");
+      logM(LOGDEBUG, "waiting for keyframe (bitstream)");
       return false;
     }
   }
@@ -576,7 +580,7 @@ bool CDVDVideoCodecAmlogic::SingleLayerConvert(uint8_t *pData, uint32_t iSize, c
 
   if (!CanStartDecode())
   {
-    logM(LOGDEBUG, "CDVDVideoCodecAmlogic", "waiting for keyframe (bitstream)");
+    logM(LOGDEBUG, "waiting for keyframe (bitstream)");
     return false;
   }
 
