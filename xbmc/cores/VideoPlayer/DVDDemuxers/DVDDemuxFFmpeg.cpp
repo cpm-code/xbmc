@@ -1343,7 +1343,7 @@ bool CDVDDemuxFFmpeg::SeekTime(double time, bool backwards, double* startpts)
       if (m_pFormatContext->duration &&
           seek_pts >= (m_pFormatContext->duration + starttime))
       {
-        logM(LOGDEBUG, "CDVDDemuxFFmpeg", "seek target is behind EOF");
+        logM(LOGDEBUG, "seek target is behind EOF");
 
         // Files of realtime streams may still grow,
         // so keep treating those seeks as successful.

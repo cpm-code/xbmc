@@ -69,15 +69,15 @@ static void aml_dv_toggle_frame(unsigned int mode)
   if (dolby_vision_flags.Exists())
   {
     dolby_vision_flags.Set(dolby_vision_flags.Get<unsigned int>().value() | FLAG_TOGGLE_FRAME);
-    logM(LOGINFO, "AMLUtils", "Toggle Frame - start - for mode [{}]", aml_dv_output_mode_to_string(mode));
+    logM(LOGINFO, "Toggle Frame - start - for mode [{}]", aml_dv_output_mode_to_string(mode));
     std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
     while(true) {
       if ((dolby_vision_flags.Get<unsigned int>().value() & FLAG_TOGGLE_FRAME) == 0) {
-        logM(LOGINFO, "AMLUtils", "Toggle Frame - done - for mode [{}]", aml_dv_output_mode_to_string(mode));
+        logM(LOGINFO, "Toggle Frame - done - for mode [{}]", aml_dv_output_mode_to_string(mode));
         break;
       }
       if ((std::chrono::system_clock::now() - now) >= std::chrono::milliseconds(3000)) {
-        logM(LOGINFO, "AMLUtils", "Toggle Frame - wait time elapsed - for mode [{}]", aml_dv_output_mode_to_string(mode));
+        logM(LOGINFO, "Toggle Frame - wait time elapsed - for mode [{}]", aml_dv_output_mode_to_string(mode));
         break;
       }
       usleep(10000); // wait 10ms
@@ -91,16 +91,16 @@ static void aml_dv_wait_dv_std_vsif_packet()
   CSysfsPath hdmi_pkt{"/sys/kernel/debug/amhdmitx/hdmi_pkt"};
   if (hdmi_pkt.Exists())
   {
-    logM(LOGINFO, "AMLUtils", "DV VSIF Packet - start");
+    logM(LOGINFO, "DV VSIF Packet - start");
     std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
     while(true) {
       std::string valstr = hdmi_pkt.Get<std::string>().value();
       if (valstr.find("DV STD hdmitx_parsing_vsifpkt") != std::string::npos) {
-        logM(LOGINFO, "AMLUtils", "DV VSIF Packet - done");
+        logM(LOGINFO, "DV VSIF Packet - done");
         break;
       }
       if ((std::chrono::system_clock::now() - now) >= std::chrono::milliseconds(3000)) {
-        logM(LOGINFO, "AMLUtils", "DV VSIF Packet - wait time elapsed");
+        logM(LOGINFO, "DV VSIF Packet - wait time elapsed");
         break;
       }
       usleep(10000); // wait 10ms
@@ -126,15 +126,15 @@ void aml_dv_wait_video_off(int timeout)
   CSysfsPath dv_video_on{"/sys/class/amdolby_vision/dv_video_on"};
   if (dv_video_on.Exists())
   {
-    logM(LOGINFO, "AMLUtils", "DV Video Off - start");
+    logM(LOGINFO, "DV Video Off - start");
     std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
     while(true) {
       if (dv_video_on.Get<int>().value() == 0) {
-        logM(LOGINFO, "AMLUtils", "DV Video Off - done");
+        logM(LOGINFO, "DV Video Off - done");
         break;
       }
       if ((std::chrono::system_clock::now() - now) >= std::chrono::seconds(timeout)) {
-        logM(LOGINFO, "AMLUtils", "DV Video Off - wait time elapsed");
+        logM(LOGINFO, "DV Video Off - wait time elapsed");
         break;
       }
       usleep(10000); // wait 10ms
@@ -324,7 +324,7 @@ bool aml_display_support_3d()
     else
       support_3d = 0;
 
-    logM(LOGDEBUG, "AMLUtils", "display support 3D: {}", bool(!!support_3d));
+    logM(LOGDEBUG, "display support 3D: {}", bool(!!support_3d));
   }
 
   return (support_3d == 1);
@@ -436,7 +436,7 @@ bool aml_support_dolby_vision()
       if (support_dv == 1) {
         CSysfsPath ko_info{"/sys/class/amdolby_vision/ko_info"};
         if (ko_info.Exists())
-          logM(LOGDEBUG, "AMLUtils", "Amlogic Dolby Vision info: {}", ko_info.Get<std::string>().value().c_str());
+          logM(LOGDEBUG, "Amlogic Dolby Vision info: {}", ko_info.Get<std::string>().value().c_str());
       }
     }
   }
@@ -579,10 +579,10 @@ unsigned int aml_dv_on(unsigned int mode)
   CSysfsPath dolby_vision_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_mode"};
   unsigned int existing_mode = dolby_vision_mode.Get<unsigned int>().value();
   bool modeChange(existing_mode != mode);
-  logM(LOGINFO, "AMLUtils", "mode change [{}], existing mode [{}], this mode [{}]",
-    modeChange,
-    aml_dv_output_mode_to_string(existing_mode),
-    aml_dv_output_mode_to_string(mode));
+  logM(LOGINFO, "mode change [{}], existing mode [{}], this mode [{}]",
+                modeChange,
+                aml_dv_output_mode_to_string(existing_mode),
+                aml_dv_output_mode_to_string(mode));
   if (modeChange) CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_mode", mode);
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_policy", DOLBY_VISION_FORCE_OUTPUT_MODE);
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_enable", "Y");
@@ -613,10 +613,10 @@ void aml_dv_off()
   unsigned int existing_mode = dolby_vision_mode.Get<unsigned int>().value();
   bool modeChange(existing_mode != DOLBY_VISION_OUTPUT_MODE_BYPASS);
 
-  logM(LOGINFO, "AMLUtils", "mode change [{}], existing mode [{}], this mode [{}]",
-    modeChange,
-    aml_dv_output_mode_to_string(existing_mode),
-    aml_dv_output_mode_to_string(DOLBY_VISION_OUTPUT_MODE_BYPASS));
+  logM(LOGINFO, "mode change [{}], existing mode [{}], this mode [{}]",
+                modeChange,
+                aml_dv_output_mode_to_string(existing_mode),
+                aml_dv_output_mode_to_string(DOLBY_VISION_OUTPUT_MODE_BYPASS));
 
   // First allow system to reset to follow source, then turn off DV.
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_policy", DOLBY_VISION_FOLLOW_SOURCE);
@@ -640,7 +640,7 @@ unsigned int aml_dv_dolby_vision_mode()
 void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
 {
   enum DV_MODE dv_mode(aml_dv_mode());
-  logM(LOGINFO, "AMLUtils", "Checking DV for DV mode: [{}], DV type: [{}]", aml_dv_mode_to_string(dv_mode), aml_dv_type_to_string(aml_dv_type()));
+  logM(LOGINFO, "Checking DV for DV mode: [{}], DV type: [{}]", aml_dv_mode_to_string(dv_mode), aml_dv_type_to_string(aml_dv_type()));
   if (dv_mode == DV_MODE::ON || dv_mode == DV_MODE::ON_DEMAND) {
 
     unsigned int vs10_mode = aml_vs10_by_hdrtype(hdrType, bitDepth);
@@ -651,8 +651,8 @@ void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
       aml_dv_off();
 
     bool content_is_dv(hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
-    logM(LOGINFO, "AMLUtils", "DV is [{}], requested with vs10 mode: [{}], set for: [{}]",
-      aml_is_dv_enable(), aml_dv_output_mode_to_string(vs10_mode), content_is_dv ? "content" : "mapping");
+    logM(LOGINFO, "DV is [{}], requested with vs10 mode: [{}], set for: [{}]",
+                  aml_is_dv_enable(), aml_dv_output_mode_to_string(vs10_mode), content_is_dv ? "content" : "mapping");
   }
 }
 
@@ -751,7 +751,7 @@ void aml_set_osd_pq_bypass(StreamHdrType hdrType)
                        (hdrType == StreamHdrType::HDR_TYPE_HDR10PLUS));
 
   CSysfsPath("/sys/module/am_vecm/parameters/osd_pq_bypass", enable);
-  logM(LOGINFO, "AMLUtils", "am_vecm osd_pq_bypass [{}]", enable ? "enabled" : "disabled");
+  logM(LOGINFO, "am_vecm osd_pq_bypass [{}]", enable ? "enabled" : "disabled");
 }
 
 void aml_set_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth) {
@@ -774,11 +774,11 @@ void aml_set_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth) {
     }
   }
 
-  logM(LOGINFO, "AMLUtils", "{}DV support, {}, HDR type is {}, transfer PQ is {}",
-          aml_support_dolby_vision() ? "" : "no ",
-          dv_on ? "enabled" : "disabled",
-          CStreamDetails::HdrTypeToString(hdrType),
-          hdr ? "set" : "not set");
+  logM(LOGINFO, "{}DV support, {}, HDR type is {}, transfer PQ is {}",
+                aml_support_dolby_vision() ? "" : "no ",
+                dv_on ? "enabled" : "disabled",
+                CStreamDetails::HdrTypeToString(hdrType),
+                hdr ? "set" : "not set");
 
   CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(hdr);
 }
@@ -804,7 +804,7 @@ void aml_video_mute(bool mute)
   {
     _mute = !!mute;
     CSysfsPath("/sys/class/amhdmitx/amhdmitx0/vid_mute", _mute);
-    logM(LOGDEBUG, "AMLUtils", "{} video", mute ? "mute" : "unmute");
+    logM(LOGDEBUG, "{} video", mute ? "mute" : "unmute");
   }
 }
 
@@ -819,7 +819,7 @@ void aml_set_3d_video_mode(unsigned int mode, bool framepacking_support, int vie
   if ((fd = open("/dev/amvideo", O_RDWR)) >= 0)
   {
     if (ioctl(fd, AMSTREAM_IOC_SET_3D_TYPE, mode) != 0)
-      logM(LOGERROR, "AMLUtils", "unable to set 3D video mode 0x%x", mode);
+      logM(LOGERROR, "unable to set 3D video mode 0x%x", mode);
     close(fd);
 
     CSysfsPath("/sys/module/amvideo/parameters/framepacking_support", framepacking_support ? 1 : 0);
@@ -1172,10 +1172,10 @@ bool aml_set_display_resolution(const RESOLUTION_INFO &res, std::string framebuf
       mode_options.append(_mode[i]);
       i++;
     }
-    logM(LOGDEBUG, "AMLUtils", "try to set mode: {} ({})", mode.c_str(), mode_options.c_str());
+    logM(LOGDEBUG, "try to set mode: {} ({})", mode.c_str(), mode_options.c_str());
   }
   else
-    logM(LOGDEBUG, "AMLUtils", "try to set mode: {}", mode.c_str());
+    logM(LOGDEBUG, "try to set mode: {}", mode.c_str());
 
   CSysfsPath display_mode{"/sys/class/display/mode"};
   if (display_mode.Exists())
@@ -1258,7 +1258,7 @@ void aml_handle_display_stereo_mode(RenderStereoMode stereo_mode)
         break;
     }
 
-    logM(LOGDEBUG, "AMLUtils", "setting new mode: {}", command);
+    logM(LOGDEBUG, "setting new mode: {}", command);
     CSysfsPath("/sys/class/amhdmitx/amhdmitx0/config", command);
     kernel_stereo_mode = stereo_int;
   }
@@ -1528,7 +1528,7 @@ void aml_pin_thread_to_core(unsigned int core_id) {
   CPU_SET(core_id, &cpuset);
   int ret_affinity = pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
 
-  logM(LOGINFO, "AMLUtils", "pin thread:[{}]-[{}] to core id:[{}] ret-affinity:[{}]",
+  logM(LOGINFO, "pin thread:[{}]-[{}] to core id:[{}] ret-affinity:[{}]",
                             tid, name, core_id, ret_affinity);
 }
 
@@ -1572,7 +1572,7 @@ void aml_wait(double waitUs)
     char name[16] = {0};
     pthread_getname_np(pthread_self(), name, sizeof(name));
 
-    logM(LOGINFO, "AMLUtils", "overslept: req:{}us late:{}us thread:{}",
+    logM(LOGINFO, "overslept: req:{}us late:{}us thread:{}",
          static_cast<unsigned>(uSeconds),
          static_cast<unsigned long long>(late_us),
          name);
@@ -1637,11 +1637,11 @@ bool aml_wait_vsync_early(int offsetUs)
     fbFd = open(fbPath.c_str(), O_RDWR | O_CLOEXEC);
     if (fbFd < 0)
     {
-      logM(LOGWARNING, "AMLUtils", "failed to open {}: {}", fbPath, strerror(errno));
+      logM(LOGWARNING, "failed to open {}: {}", fbPath, strerror(errno));
       return false;
     }
 
-    logM(LOGINFO, "AMLUtils", "opened {} fd:{}", fbPath, fbFd);
+    logM(LOGINFO, "opened {} fd:{}", fbPath, fbFd);
   }
 
   fb_vsync_early_request req{};
@@ -1649,13 +1649,13 @@ bool aml_wait_vsync_early(int offsetUs)
   req.reserved = 0;
   req.next_vsync_ts = 0;
 
-  logM(LOGINFO, "AMLUtils", "ioctl request offset:{}us on {}", offsetUs, fbPath);
+  logM(LOGINFO, "ioctl request offset:{}us on {}", offsetUs, fbPath);
 
   const auto ioctlStart = std::chrono::steady_clock::now();
 
   if (ioctl(fbFd, FBIO_WAITFORVSYNC_EARLY_64, &req) < 0)
   {
-    logM(LOGWARNING, "AMLUtils", "vsync early: ioctl failed on {}: {}", fbPath, strerror(errno));
+    logM(LOGWARNING, "vsync early: ioctl failed on {}: {}", fbPath, strerror(errno));
     close(fbFd);
     fbFd = -1;
     fbPath.clear();
@@ -1665,8 +1665,8 @@ bool aml_wait_vsync_early(int offsetUs)
   const auto ioctlEnd = std::chrono::steady_clock::now();
   const auto ioctlWaitUs = std::chrono::duration_cast<std::chrono::microseconds>(ioctlEnd - ioctlStart).count();
 
-  logM(LOGINFO, "AMLUtils", "ioctl ok offset:{}us next_vsync_ts:{} waited:{}us", offsetUs,
-       req.next_vsync_ts, static_cast<long long>(ioctlWaitUs));
+  logM(LOGINFO, "ioctl ok offset:{}us next_vsync_ts:{} waited:{}us", offsetUs,
+                req.next_vsync_ts, static_cast<long long>(ioctlWaitUs));
 
   return true;
 }
@@ -1683,17 +1683,17 @@ bool aml_get_time_to_next_vsync_us(int& timeToNextVsyncUs)
     fbFd = open(fbPath.c_str(), O_RDWR | O_CLOEXEC);
     if (fbFd < 0)
     {
-      logM(LOGWARNING, "AMLUtils", "failed to open {}: {}", fbPath, strerror(errno));
+      logM(LOGWARNING, "failed to open {}: {}", fbPath, strerror(errno));
       return false;
     }
 
-    logM(LOGINFO, "AMLUtils", "opened {} fd:{}", fbPath, fbFd);
+    logM(LOGINFO, "opened {} fd:{}", fbPath, fbFd);
   }
 
   fb_vsync_timing_request req{};
   if (ioctl(fbFd, FBIO_GET_VSYNC_TIMING_64, &req) < 0)
   {
-    logM(LOGDEBUG, "AMLUtils", "ioctl failed on {}: {}", fbPath, strerror(errno));
+    logM(LOGDEBUG, "ioctl failed on {}: {}", fbPath, strerror(errno));
     return false;
   }
 
@@ -1713,10 +1713,10 @@ bool aml_try_set_thread_nice(int niceLevel)
   const int ret = setpriority(PRIO_PROCESS, 0, lvl);
   if (ret != 0)
   {
-    logM(LOGWARNING, "AMLUtils", "Failed to set nice {}: {}", lvl, strerror(errno));
+    logM(LOGWARNING, "Failed to set nice {}: {}", lvl, strerror(errno));
     return false;
   }
-  logM(LOGINFO, "AMLUtils", "Set nice {}", lvl);
+  logM(LOGINFO, "Set nice {}", lvl);
   return true;
 }
 
@@ -1726,8 +1726,7 @@ bool aml_set_timer_slack_ns(long slackNs)
   const long oldSlackNs = prctl(PR_GET_TIMERSLACK);
   const int setRet = prctl(PR_SET_TIMERSLACK, slackNs);
   const long newSlackNs = prctl(PR_GET_TIMERSLACK);
-  logM(LOGINFO, "AMLUtils", "old:{}ns new:{}ns set_ret:{}", oldSlackNs, newSlackNs,
-       setRet);
+  logM(LOGINFO, "old:{}ns new:{}ns set_ret:{}", oldSlackNs, newSlackNs, setRet);
   return setRet == 0;
 #else
   (void)slackNs;
