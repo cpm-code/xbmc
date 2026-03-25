@@ -346,7 +346,7 @@ void CVideoPlayerVideo::Process()
 {
   aml_pin_thread_to_core(CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_threadVideoPlayerVideoCore);
 
-  logM(LOGINFO, "CVideoPlayerVideo", "running thread: video_thread");
+  logM(LOGINFO, "running thread: video_thread");
 
   double pts = 0;
   double frametime = (double)DVD_TIME_BASE / m_fFrameRate;
@@ -1013,12 +1013,12 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
     const auto retryElapsed = now - m_rendererConfigureRetryStart;
     if (retryElapsed < 5s)
     {
-      logM(LOGWARNING, "CVideoPlayerVideo", "renderer configure not ready, retrying ({} ms)",
-                                            std::chrono::duration_cast<std::chrono::milliseconds>(retryElapsed).count());
+      logM(LOGWARNING, "renderer configure not ready, retrying ({} ms)",
+                       std::chrono::duration_cast<std::chrono::milliseconds>(retryElapsed).count());
       return OUTPUT_AGAIN;
     }
 
-    logM(LOGERROR, "CVideoPlayerVideo", "failed to configure renderer (timeout)");
+    logM(LOGERROR, "failed to configure renderer (timeout)");
     return OUTPUT_ABORT;
   }
 
@@ -1043,7 +1043,7 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
   if (picture.iFlags & DVP_FLAG_DROPPED)
   {
     m_droppingStats.AddOutputDropGain(picture.pts, 1);
-    logM(LOGDEBUG, "CVideoPlayerVideo", "dropped in output");
+    logM(LOGDEBUG, "dropped in output");
 
     return OUTPUT_DROPPED;
   }
@@ -1061,13 +1061,13 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
     maxWaitTime = highSpeedTrickplay ? 0ms : std::max(timeToDisplay, 0ms);
 
   int buffer = m_renderManager.WaitForBuffer(m_bAbortOutput, maxWaitTime);
-  logM(LOGDEBUG, "CVideoPlayerVideo", "ttd:{:d}ms pts:{:.3f} Clock:{:.3f} Level:{:d}",
-    timeToDisplay.count(), picture.pts / DVD_TIME_BASE, static_cast<double>(iPlayingClock) / DVD_TIME_BASE, buffer);
+  logM(LOGDEBUG, "ttd:{:d}ms pts:{:.3f} Clock:{:.3f} Level:{:d}",
+                 timeToDisplay.count(), picture.pts / DVD_TIME_BASE, static_cast<double>(iPlayingClock) / DVD_TIME_BASE, buffer);
   if (buffer < 0)
   {
     if (highSpeedTrickplay && (m_syncState == IDVDStreamPlayer::SYNC_INSYNC))
     {
-      logM(LOGDEBUG, "CVideoPlayerVideo", "output drop: render buffer timeout in high-speed ff");
+      logM(LOGDEBUG, "output drop: render buffer timeout in high-speed ff");
       m_droppingStats.AddOutputDropGain(picture.pts, 1);
       return OUTPUT_DROPPED;
     }

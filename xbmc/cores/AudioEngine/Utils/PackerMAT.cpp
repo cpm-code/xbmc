@@ -450,9 +450,9 @@ void CPackerMAT::QueueSilenceFramesFromPadding()
   const int silenceFrames = m_state.padding / static_cast<int32_t>(MAT_BUFFER_SIZE);
   const int32_t residualPadding = paddingBefore - silenceFrames * static_cast<int32_t>(MAT_BUFFER_SIZE);
 
-  logM(LOGDEBUG, "CPackerMAT", "large branch padding gap: total=[{}] bytes, bridging with [{}] full MAT silence "
-                               "frame(s), residual=[{}] bytes",
-                               paddingBefore, silenceFrames, residualPadding);
+  logM(LOGDEBUG, "large branch padding gap: total=[{}] bytes, bridging with [{}] full MAT silence "
+                 "frame(s), residual=[{}] bytes",
+                 paddingBefore, silenceFrames, residualPadding);
 
   for (int i = 0; i < silenceFrames; ++i)
   {

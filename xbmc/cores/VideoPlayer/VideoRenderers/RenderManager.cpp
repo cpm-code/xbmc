@@ -221,9 +221,8 @@ bool CRenderManager::Configure(const VideoPicture& picture, float fps, unsigned 
         presentStepStr = PresentStepToString(m_presentstep);
     }
 
-    logM(LOGWARNING, "CRenderManager",
-         "timeout waiting for configure (timeout={} ms, waited={} ms, renderState={}, presentStep={})",
-         timeoutMs, waitedMs, renderStateStr, presentStepStr);
+    logM(LOGWARNING, "timeout waiting for configure (timeout={} ms, waited={} ms, renderState={}, presentStep={})",
+                     timeoutMs, waitedMs, renderStateStr, presentStepStr);
 
     return false;
   }
@@ -914,30 +913,29 @@ void CRenderManager::ClockAlign()
     const double finalGapUs = -diff;
 
     // Emit one consolidated line per alignment attempt.
-    logM(LOGDEBUG, "CRenderManager", "gapInit:[{:.0f}] gapFinal:[{:.0f}] ft:[{:.0f}] wait:[{:.0f}] mode:[{}] nextIn:[{}] guard:[{}] sleep:[{:.0f}] clamped:[{}] nextAfter:[{}] sliceSleep:[{:.0f}] presenting:[{:02d}] queued:[{}] skip:[{:02d}]",
-      initialGapUs, finalGapUs, m_presentframetime,
-      waitDbg.used ? waitDbg.waitUs : wait,
-      waitDbg.used ? (waitDbg.gui ? "gui" : (waitDbg.usedSlice ? "slice" : "video")) : "none",
-      waitDbg.gotNextIn ? waitDbg.nextInUs : -1,
-      waitDbg.guardUs,
-      waitDbg.usedSlice ? 0 : waitDbg.sleepUs,
-      waitDbg.clamped,
-      waitDbg.gotNextInAfter ? waitDbg.nextInAfterUs : -1,
-      waitDbg.usedSlice ? waitDbg.sliceSleepUs : 0.0,
-      m_presentsource, m_queued.size(), m_QueueSkip);
+    logM(LOGDEBUG, "gapInit:[{:.0f}] gapFinal:[{:.0f}] ft:[{:.0f}] wait:[{:.0f}] mode:[{}] nextIn:[{}] guard:[{}] sleep:[{:.0f}] clamped:[{}] nextAfter:[{}] sliceSleep:[{:.0f}] presenting:[{:02d}] queued:[{}] skip:[{:02d}]",
+                   initialGapUs, finalGapUs, m_presentframetime,
+                   waitDbg.used ? waitDbg.waitUs : wait,
+                   waitDbg.used ? (waitDbg.gui ? "gui" : (waitDbg.usedSlice ? "slice" : "video")) : "none",
+                   waitDbg.gotNextIn ? waitDbg.nextInUs : -1,
+                   waitDbg.guardUs,
+                   waitDbg.usedSlice ? 0 : waitDbg.sleepUs,
+                   waitDbg.clamped,
+                   waitDbg.gotNextInAfter ? waitDbg.nextInAfterUs : -1,
+                   waitDbg.usedSlice ? waitDbg.sliceSleepUs : 0.0,
+                   m_presentsource, m_queued.size(), m_QueueSkip);
 
     // Escalate only when we're meaningfully late (gapFinal is negative when late).
     if (finalGapUs < -2000.0)
-      logM(LOGWARNING, "CRenderManager",
-           "late gapFinal:[{:.0f}] ft:[{:.0f}] wait:[{:.0f}] mode:[{}] nextIn:[{}] guard:[{}] sleep:[{:.0f}] clamped:[{}] nextAfter:[{}]",
-           finalGapUs, m_presentframetime,
-           waitDbg.waitUs,
-           waitDbg.used ? (waitDbg.gui ? "gui" : (waitDbg.usedSlice ? "slice" : "video")) : "none",
-           waitDbg.gotNextIn ? waitDbg.nextInUs : -1,
-           waitDbg.guardUs,
-           waitDbg.usedSlice ? 0 : waitDbg.sleepUs,
-           waitDbg.clamped,
-           waitDbg.gotNextInAfter ? waitDbg.nextInAfterUs : -1);
+      logM(LOGWARNING, "late gapFinal:[{:.0f}] ft:[{:.0f}] wait:[{:.0f}] mode:[{}] nextIn:[{}] guard:[{}] sleep:[{:.0f}] clamped:[{}] nextAfter:[{}]",
+                       finalGapUs, m_presentframetime,
+                       waitDbg.waitUs,
+                       waitDbg.used ? (waitDbg.gui ? "gui" : (waitDbg.usedSlice ? "slice" : "video")) : "none",
+                       waitDbg.gotNextIn ? waitDbg.nextInUs : -1,
+                       waitDbg.guardUs,
+                       waitDbg.usedSlice ? 0 : waitDbg.sleepUs,
+                       waitDbg.clamped,
+                       waitDbg.gotNextInAfter ? waitDbg.nextInAfterUs : -1);
   }
 }
 
@@ -1211,19 +1209,17 @@ void CRenderManager::UpdateResolution(bool force)
 
         if (needsApply)
         {
-          logM(LOGINFO, "CRenderManager",
-               "Before - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
-               m_fps, m_picture.iWidth, m_picture.iHeight, m_picture.stereoMode.empty(),
-               CStreamDetails::DynamicRangeToString(desiredHdrType));
+          logM(LOGINFO, "Before - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
+                        m_fps, m_picture.iWidth, m_picture.iHeight, m_picture.stereoMode.empty(),
+                        CStreamDetails::DynamicRangeToString(desiredHdrType));
 
           gfxContext.SetHDRType(desiredHdrType);
           gfxContext.SetVideoResolution(desiredRes, false);
           UpdateVideoLatencyTweak();
 
-          logM(LOGINFO, "CRenderManager",
-               "After - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
-               m_fps, m_picture.iWidth, m_picture.iHeight, m_picture.stereoMode.empty(),
-               CStreamDetails::DynamicRangeToString(desiredHdrType));
+          logM(LOGINFO, "After - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
+                        m_fps, m_picture.iWidth, m_picture.iHeight, m_picture.stereoMode.empty(),
+                        CStreamDetails::DynamicRangeToString(desiredHdrType));
 
           if (m_pRenderer)
             m_pRenderer->Update();
@@ -1239,7 +1235,7 @@ void CRenderManager::UpdateResolution(bool force)
 
 void CRenderManager::TriggerUpdateResolutionHdr(StreamHdrType hdrType)
 {
-  logM(LOGINFO, "CRenderManager", "hdr type [{}] current trigger [{}]",
+  logM(LOGINFO, "hdr type [{}] current trigger [{}]",
                 CStreamDetails::DynamicRangeToString(hdrType), m_bTriggerUpdateResolution);
 
   m_hdrType_override = hdrType;
@@ -1248,7 +1244,7 @@ void CRenderManager::TriggerUpdateResolutionHdr(StreamHdrType hdrType)
 
 void CRenderManager::TriggerUpdateResolution(float fps, int width, int height, std::string &stereomode)
 {
-  logM(LOGINFO, "CRenderManager", "fps [{}] width [{}] height [{}] stereomode empty [{}] current trigger [{}]",
+  logM(LOGINFO, "fps [{}] width [{}] height [{}] stereomode empty [{}] current trigger [{}]",
                 fps, width, height, m_picture.stereoMode.empty(), m_bTriggerUpdateResolution);
 
   m_bTriggerUpdateResolutionNoParams = (width == 0);
@@ -1514,7 +1510,7 @@ void CRenderManager::PrepareNextRender()
 
   if (m_dvdClock.GetClockSpeed() < 0)
   {
-    logM(LOGINFO, "CRenderManager", "negative clock speed detected!");
+    logM(LOGINFO, "negative clock speed detected!");
     m_presentpts = renderPts;
   }
 
@@ -1560,12 +1556,12 @@ void CRenderManager::PrepareNextRender()
   m_queued.pop_front();
   NotifyPresentWaiters();
 
-  logComponentM(LOGDEBUG, LOGAVTIMING, "CRenderManager", "render:[{:.3f}] presenting:[{:02d}] [{:.3f}] "
-                                                         "diff:[{:.3f}] "
-                                                         "queued:[{:02d}] frametime:[{:.3f}] skip:[{:02d}] force:[{:d}] speed:[{:.1f}]",
-                                                         (renderPts / DVD_TIME_BASE), m_presentsource, (m_presentpts / DVD_TIME_BASE),
-                                                         (diff / DVD_TIME_BASE),
-                                                         m_queued.size(), (m_presentframetime / DVD_TIME_BASE), m_QueueSkip, m_forceNext, speed);
+  logComponentM(LOGDEBUG, LOGAVTIMING, "render:[{:.3f}] presenting:[{:02d}] [{:.3f}] "
+                                       "diff:[{:.3f}] "
+                                       "queued:[{:02d}] frametime:[{:.3f}] skip:[{:02d}] force:[{:d}] speed:[{:.1f}]",
+                                       (renderPts / DVD_TIME_BASE), m_presentsource, (m_presentpts / DVD_TIME_BASE),
+                                       (diff / DVD_TIME_BASE),
+                                       m_queued.size(), (m_presentframetime / DVD_TIME_BASE), m_QueueSkip, m_forceNext, speed);
 }
 
 void CRenderManager::DiscardBuffer()
