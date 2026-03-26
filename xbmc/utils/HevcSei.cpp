@@ -14,6 +14,8 @@ namespace
 constexpr uint8_t SEI_TYPE_USER_DATA_REGISTERED_ITU_T_T35 = 4;
 constexpr uint8_t SEI_TYPE_MASTERING_DISPLAY_COLOUR_VOLUME = 137;
 constexpr uint8_t SEI_TYPE_CONTENT_LIGHT_LEVEL_INFO = 144;
+// ITU-T H.265 Annex D alternative_transfer_characteristics payload type.
+constexpr uint8_t SEI_TYPE_ALTERNATIVE_TRANSFER_CHARACTERISTICS = 147;
 
 bool HasContainedPayload(
   const CHevcSei& sei,
@@ -36,8 +38,7 @@ bool IsHdr10PlusSeiMessage(
   const CHevcSei& sei,
   const std::vector<uint8_t>& buf)
 {
-  if (!HasHdr10PlusPayload(sei, buf))
-    return false;
+  if (!HasHdr10PlusPayload(sei, buf)) return false;
 
   CBitstreamReader br(buf.data() + sei.m_payloadOffset, sei.m_payloadSize);
   const auto itu_t_t35_country_code = br.ReadBits(8);
@@ -208,13 +209,19 @@ CHevcSei::MetadataSeiMessages CHevcSei::CollectMetadataSeiMessages(
             HasContainedPayload(sei, buf, 4))
           collected.contentLightLevel = &sei;
         break;
+      case SEI_TYPE_ALTERNATIVE_TRANSFER_CHARACTERISTICS:
+        if ((collected.alternativeTransferCharacteristics == nullptr) &&
+            HasContainedPayload(sei, buf, 1))
+          collected.alternativeTransferCharacteristics = &sei;
+        break;
       default:
         break;
     }
 
     if (collected.hdr10Plus &&
         collected.masteringDisplayColourVolume &&
-        collected.contentLightLevel)
+        collected.contentLightLevel &&
+        collected.alternativeTransferCharacteristics)
       break;
   }
 
@@ -260,7 +267,6 @@ const std::optional<MasteringDisplayColourVolume> CHevcSei::ExtractMasteringDisp
 
   const uint32_t maxLuminanceRaw = br.ReadBits(32);
   const uint32_t minLuminanceRaw = br.ReadBits(32);
-
   metadata.maxLuminance = static_cast<uint32_t>(maxLuminanceRaw) / 10000.0f;
   metadata.minLuminance = static_cast<uint32_t>(minLuminanceRaw);
 
@@ -280,6 +286,17 @@ const std::optional<ContentLightLevel> CHevcSei::ExtractContentLightLevel(
   uint16_t maxFALL = br.ReadBits(16);
 
   return ContentLightLevel{maxCLL, maxFALL};
+}
+
+std::optional<uint8_t> CHevcSei::ExtractAlternativeTransferCharacteristics(
+  const CHevcSei* message,
+  const std::vector<uint8_t>& buf)
+{
+  if (message == nullptr || !HasContainedPayload(*message, buf, 1))
+    return std::nullopt;
+
+  CBitstreamReader br(buf.data() + message->m_payloadOffset, message->m_payloadSize);
+  return static_cast<uint8_t>(br.ReadBits(8));
 }
 
 const std::vector<uint8_t> CHevcSei::RemoveHdr10PlusFromSeiNalu(

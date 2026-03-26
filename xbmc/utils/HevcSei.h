@@ -56,6 +56,7 @@ public:
     const CHevcSei* hdr10Plus{nullptr};
     const CHevcSei* masteringDisplayColourVolume{nullptr};
     const CHevcSei* contentLightLevel{nullptr};
+    const CHevcSei* alternativeTransferCharacteristics{nullptr};
   };
 
   CHevcSei() = default;
@@ -98,6 +99,10 @@ public:
     const std::vector<uint8_t>& buf);
 
   static const std::optional<ContentLightLevel> ExtractContentLightLevel(
+    const CHevcSei* message,
+    const std::vector<uint8_t>& buf);
+
+  static std::optional<uint8_t> ExtractAlternativeTransferCharacteristics(
     const CHevcSei* message,
     const std::vector<uint8_t>& buf);
 

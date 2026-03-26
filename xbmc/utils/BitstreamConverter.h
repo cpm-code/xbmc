@@ -192,6 +192,7 @@ protected:
                                     uint8_t nal_type);
   void ApplyMasteringDisplayColourVolume(const MasteringDisplayColourVolume& metadata, bool& update);
   void ApplyContentLightLevel(const ContentLightLevel& metadata, bool& update);
+  void ApplyAlternativeTransferCharacteristics(uint8_t transfer);
   void UpdateHdrStaticMetadata() const;
 
   void AddDoViRpuNaluWrap(const Hdr10PlusMetadata& meta, uint8_t **poutbuf, uint32_t& poutbuf_size, double pts);
