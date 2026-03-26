@@ -1333,6 +1333,16 @@ void CBitstreamConverter::ApplyContentLightLevel(const ContentLightLevel& metada
   }
 }
 
+void CBitstreamConverter::ApplyAlternativeTransferCharacteristics(uint8_t transfer) {
+
+  if ((transfer == AVCOL_TRC_ARIB_STD_B67) &&
+      (m_hints.hdrType != StreamHdrType::HDR_TYPE_HLG))
+  {
+    m_hints.hdrType = StreamHdrType::HDR_TYPE_HLG;
+    m_dataCacheCore.SetVideoSourceHdrType(StreamHdrType::HDR_TYPE_HLG);
+  }
+}
+
 void CBitstreamConverter::UpdateHdrStaticMetadata() const {
 
   HDRStaticMetadataInfo hdrStaticMetadataInfo;
@@ -1374,6 +1384,8 @@ void CBitstreamConverter::ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8
 
   if (updateMetadata) UpdateHdrStaticMetadata();
 
+  if (auto res = CHevcSei::ExtractAlternativeTransferCharacteristics(metadata.alternativeTransferCharacteristics, clearBuf))
+    ApplyAlternativeTransferCharacteristics(res.value());
   if (auto res = CHevcSei::ExtractHdr10Plus(metadata.hdr10Plus, clearBuf)) {
 
     bool isDual = (m_initial_hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION); // Original is DV and now also found HDR10+ so is dual.
