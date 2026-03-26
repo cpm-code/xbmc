@@ -1362,18 +1362,19 @@ void CBitstreamConverter::ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8
 
   std::vector<uint8_t> clearBuf;
   auto messages = CHevcSei::ParseSeiRbspUnclearedEmulation(buf, nal_size, clearBuf);
+  const auto metadata = CHevcSei::CollectMetadataSeiMessages(messages, clearBuf);
 
   bool updateMetadata = false;
 
-  if (auto colourVolume = CHevcSei::ExtractMasteringDisplayColourVolume(messages, clearBuf))
-    ApplyMasteringDisplayColourVolume(colourVolume.value(), updateMetadata);
+  if (auto res = CHevcSei::ExtractMasteringDisplayColourVolume(metadata.masteringDisplayColourVolume, clearBuf))
+    ApplyMasteringDisplayColourVolume(res.value(), updateMetadata);
 
-  if (auto lightLevel = CHevcSei::ExtractContentLightLevel(messages, clearBuf))
-    ApplyContentLightLevel(lightLevel.value(), updateMetadata);
+  if (auto res = CHevcSei::ExtractContentLightLevel(metadata.contentLightLevel, clearBuf))
+    ApplyContentLightLevel(res.value(), updateMetadata);
 
   if (updateMetadata) UpdateHdrStaticMetadata();
 
-  if (auto res = CHevcSei::ExtractHdr10Plus(messages, clearBuf)) {
+  if (auto res = CHevcSei::ExtractHdr10Plus(metadata.hdr10Plus, clearBuf)) {
 
     bool isDual = (m_initial_hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION); // Original is DV and now also found HDR10+ so is dual.
     bool considerAsHdr10Plus = (!isDual || m_dual_priority_Hdr10Plus || m_prefer_Hdr10Plus_conversion);
