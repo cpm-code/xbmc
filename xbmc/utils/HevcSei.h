@@ -51,12 +51,12 @@ void HevcClearStartCodeEmulationPrevention3Byte(const uint8_t* buf,
 class CHevcSei
 {
 public:
-  struct MetadataSeiMessages
+  struct Metadata
   {
-    const CHevcSei* hdr10Plus{nullptr};
-    const CHevcSei* masteringDisplayColourVolume{nullptr};
-    const CHevcSei* contentLightLevel{nullptr};
-    const CHevcSei* alternativeTransferCharacteristics{nullptr};
+    std::optional<Hdr10PlusMetadata> hdr10Plus;
+    std::optional<MasteringDisplayColourVolume> masteringDisplayColourVolume;
+    std::optional<ContentLightLevel> contentLightLevel;
+    std::optional<uint8_t> alternativeTransferCharacteristics;
   };
 
   CHevcSei() = default;
@@ -78,9 +78,7 @@ public:
     const size_t inDataLen,
     std::vector<uint8_t>& buf);
 
-  static MetadataSeiMessages CollectMetadataSeiMessages(
-    const std::vector<CHevcSei>& messages,
-    const std::vector<uint8_t>& buf);
+  static Metadata ExtractMetadata(const uint8_t* inData, const size_t inDataLen);
 
   // Returns a pair with:
   //   1) a bool for whether or not the NALU SEI payload contains a HDR10+ SEI message.
@@ -90,23 +88,7 @@ public:
   static const std::vector<uint8_t> RemoveHdr10PlusFromSeiNalu(
       const uint8_t* inData, const size_t inDataLen);
 
-  static const std::optional<const Hdr10PlusMetadata> ExtractHdr10Plus(
-    const CHevcSei* message,
-    const std::vector<uint8_t>& buf);
-
-  static const std::optional<MasteringDisplayColourVolume> ExtractMasteringDisplayColourVolume(
-    const CHevcSei* message,
-    const std::vector<uint8_t>& buf);
-
-  static const std::optional<ContentLightLevel> ExtractContentLightLevel(
-    const CHevcSei* message,
-    const std::vector<uint8_t>& buf);
-
-  static std::optional<uint8_t> ExtractAlternativeTransferCharacteristics(
-    const CHevcSei* message,
-    const std::vector<uint8_t>& buf);
-
-private:
+ private:
   // Parses single SEI message from the reader and pushes it to the list
   static int ParseSeiMessage(CBitstreamReader& br, std::vector<CHevcSei>& messages);
 
