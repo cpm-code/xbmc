@@ -1370,23 +1370,22 @@ void CBitstreamConverter::ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8
 
   bool copy = true;
 
-  std::vector<uint8_t> clearBuf;
-  auto messages = CHevcSei::ParseSeiRbspUnclearedEmulation(buf, nal_size, clearBuf);
-  const auto metadata = CHevcSei::CollectMetadataSeiMessages(messages, clearBuf);
+  const auto metadata = CHevcSei::ExtractMetadata(buf, nal_size);
 
   bool updateMetadata = false;
 
-  if (auto res = CHevcSei::ExtractMasteringDisplayColourVolume(metadata.masteringDisplayColourVolume, clearBuf))
-    ApplyMasteringDisplayColourVolume(res.value(), updateMetadata);
+  if (metadata.masteringDisplayColourVolume)
+    ApplyMasteringDisplayColourVolume(*metadata.masteringDisplayColourVolume, updateMetadata);
 
-  if (auto res = CHevcSei::ExtractContentLightLevel(metadata.contentLightLevel, clearBuf))
-    ApplyContentLightLevel(res.value(), updateMetadata);
+  if (metadata.contentLightLevel)
+    ApplyContentLightLevel(*metadata.contentLightLevel, updateMetadata);
 
   if (updateMetadata) UpdateHdrStaticMetadata();
 
-  if (auto res = CHevcSei::ExtractAlternativeTransferCharacteristics(metadata.alternativeTransferCharacteristics, clearBuf))
-    ApplyAlternativeTransferCharacteristics(res.value());
-  if (auto res = CHevcSei::ExtractHdr10Plus(metadata.hdr10Plus, clearBuf)) {
+  if (metadata.alternativeTransferCharacteristics)
+    ApplyAlternativeTransferCharacteristics(*metadata.alternativeTransferCharacteristics);
+
+  if (metadata.hdr10Plus) {
 
     bool isDual = (m_initial_hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION); // Original is DV and now also found HDR10+ so is dual.
     bool considerAsHdr10Plus = (!isDual || m_dual_priority_Hdr10Plus || m_prefer_Hdr10Plus_conversion);
@@ -1404,7 +1403,7 @@ void CBitstreamConverter::ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8
     bool convert = (considerAsHdr10Plus && m_convert_Hdr10Plus && !m_dual_priority_Hdr10Plus);
 
     if (convert) {
-      meta = res.value();
+      meta = *metadata.hdr10Plus;
       convert_hdr10plus_meta = true;
     }
 
