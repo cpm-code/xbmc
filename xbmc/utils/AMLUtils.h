@@ -134,7 +134,7 @@ enum DV_TYPE aml_dv_type();
 unsigned int aml_vs10_by_setting(const std::string setting);
 void aml_dv_enable_fel();
 void aml_set_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth);
-void aml_set_osd_pq_bypass(StreamHdrType hdrType);
+void aml_set_osd_pq_bypass(StreamHdrType hdrType, unsigned int bitDepth = 0);
 bool aml_has_frac_rate_policy();
 void aml_video_mute(bool mute);
 void aml_set_audio_passthrough(bool passthrough);

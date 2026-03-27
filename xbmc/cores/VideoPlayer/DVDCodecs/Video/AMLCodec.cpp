@@ -1819,7 +1819,7 @@ bool CAMLCodec::OpenDecoder(bool restart)
 
   // Now have the HDRType resolved, ok to set the transfer pq - so renderer can set the shaders as needed.
   aml_set_transfer_pq(m_hints.hdrType, m_hints.bitdepth);
-  aml_set_osd_pq_bypass(m_hints.hdrType);
+  aml_set_osd_pq_bypass(m_hints.hdrType, m_hints.bitdepth);
 
   SetProcessInfoVideoDetails();
 
