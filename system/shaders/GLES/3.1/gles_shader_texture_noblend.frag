@@ -27,8 +27,6 @@ precision mediump float;
 #endif
 uniform sampler2D m_samp0;
 in vec4 m_cord0;
-#if defined(KODI_HDR_PGS_ADJUST)
-#endif
 
 layout(std140) uniform KodiGuiFragmentBlock
 {
@@ -43,7 +41,7 @@ highp float interleavedGradientNoise(highp vec2 co)
   return fract(52.9829189 * fract(0.06711056 * co.x + 0.00583715 * co.y));
 }
 
-vec3 transferPQ(vec3 x)
+vec3 convertGuiForPqOutput(vec3 x)
 {
   const float ST2084_m1 = 2610.0 / (4096.0 * 4.0);
   const float ST2084_m2 = (2523.0 / 4096.0) * 128.0;
@@ -74,7 +72,7 @@ vec3 transferPQ(vec3 x)
   return clamp(x + vec3(dither), vec3(0.0), vec3(1.0));
 }
 
-#if defined(KODI_HDR_PGS_ADJUST)
+#if defined(KODI_HDR_PGS_PQ_OUTPUT)
 vec3 decodePQ(vec3 x)
 {
   const float ST2084_m1 = 2610.0 / (4096.0 * 4.0);
@@ -105,7 +103,7 @@ vec3 encodePQ(vec3 x)
   return clamp(y, vec3(0.0), vec3(1.0));
 }
 
-vec3 adjustHdrPgsPQ(vec3 pq)
+vec3 convertHdrPgsForPqOutput(vec3 pq)
 {
   vec3 linear = decodePQ(pq);
   vec3 luma = vec3(dot(linear, vec3(0.2627, 0.6780, 0.0593)));
@@ -121,9 +119,9 @@ void main()
   vec4 rgb = texture(m_samp0, m_cord0.xy);
 
 #if defined(KODI_TRANSFER_PQ)
-  rgb.rgb = transferPQ(rgb.rgb);
-#elif defined(KODI_HDR_PGS_ADJUST)
-  rgb.rgb = adjustHdrPgsPQ(rgb.rgb);
+  rgb.rgb = convertGuiForPqOutput(rgb.rgb);
+#elif defined(KODI_HDR_PGS_PQ_OUTPUT)
+  rgb.rgb = convertHdrPgsForPqOutput(rgb.rgb);
 #endif
 
 #if defined(KODI_LIMITED_RANGE)

@@ -39,7 +39,7 @@ highp float rand(highp vec2 co)
   return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
-vec3 transferPQ(vec3 x)
+vec3 convertGuiForPqOutput(vec3 x)
 {
   const float ST2084_m1 = 2610.0 / (4096.0 * 4.0);
   const float ST2084_m2 = (2523.0 / 4096.0) * 128.0;
@@ -89,7 +89,7 @@ void main ()
   rgb = m_unicol * texture2D(m_samp0, m_cord0.xy) * texture2D(m_samp1, m_cord1.xy);
 
 #if defined(KODI_TRANSFER_PQ)
-  rgb.rgb = transferPQ(rgb.rgb);
+  rgb.rgb = convertGuiForPqOutput(rgb.rgb);
 #endif
 
 #if defined(KODI_LIMITED_RANGE)
