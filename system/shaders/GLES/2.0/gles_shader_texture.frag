@@ -37,7 +37,7 @@ highp float interleavedGradientNoise(highp vec2 co)
   return fract(52.9829189 * fract(0.06711056 * co.x + 0.00583715 * co.y));
 }
 
-vec3 transferPQ(vec3 x)
+vec3 convertGuiForPqOutput(vec3 x)
 {
   const float ST2084_m1 = 2610.0 / (4096.0 * 4.0);
   const float ST2084_m2 = (2523.0 / 4096.0) * 128.0;
@@ -87,7 +87,7 @@ void main ()
   rgb = texture2D(m_samp0, m_cord0.xy).rgba * m_unicol;
 
 #if defined(KODI_TRANSFER_PQ)
-  rgb.rgb = transferPQ(rgb.rgb);
+  rgb.rgb = convertGuiForPqOutput(rgb.rgb);
 #endif
 
 #if defined(KODI_LIMITED_RANGE)

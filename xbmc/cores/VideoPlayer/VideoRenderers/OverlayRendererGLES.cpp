@@ -34,6 +34,18 @@
 
 using namespace OVERLAY;
 
+namespace
+{
+ShaderMethodGLES GetOverlayTextureShaderMethod(bool isHdrPqAuthored)
+{
+  if (!isHdrPqAuthored) return ShaderMethodGLES::SM_TEXTURE_NOBLEND;
+
+  return CServiceBroker::GetWinSystem()->GetGfxContext().IsTransferPQ()
+             ? ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT
+             : ShaderMethodGLES::SM_TEXTURE_NOBLEND;
+}
+} // namespace
+
 static void LoadTexture(GLenum target,
                         GLsizei width,
                         GLsizei height,
@@ -450,10 +462,9 @@ void COverlayTextureGLES::Render(SRenderState& state)
 
   CRenderSystemGLES* renderSystem =
       dynamic_cast<CRenderSystemGLES*>(CServiceBroker::GetRenderSystem());
-  const bool bypassTransferPQ = m_isHdrPqAuthored &&
-                                CServiceBroker::GetWinSystem()->GetGfxContext().IsTransferPQ();
-  renderSystem->EnableGUIShader(bypassTransferPQ ? ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ
-                                                 : ShaderMethodGLES::SM_TEXTURE_NOBLEND);
+
+  renderSystem->EnableGUIShader(GetOverlayTextureShaderMethod(m_isHdrPqAuthored));
+
   GLint posLoc = renderSystem->GUIShaderGetPos();
   GLint tex0Loc = renderSystem->GUIShaderGetCoord0();
   GLint depthLoc = renderSystem->GUIShaderGetDepth();
