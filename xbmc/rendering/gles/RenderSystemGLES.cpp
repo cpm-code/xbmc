@@ -447,16 +447,16 @@ void CRenderSystemGLES::SetDepthCulling(DepthCulling culling)
 void CRenderSystemGLES::InitialiseShaders()
 {
   std::string defines;
-  std::string definesNoPQ;
+  std::string definesHdrPgsPqOutput;
   m_limitedColorRange = CServiceBroker::GetWinSystem()->UseLimitedColor();
   if (m_limitedColorRange)
   {
     defines += "#define KODI_LIMITED_RANGE 1\n";
-    definesNoPQ += "#define KODI_LIMITED_RANGE 1\n";
+    definesHdrPgsPqOutput += "#define KODI_LIMITED_RANGE 1\n";
   }
 
-  // SM_TEXTURE_NOBLEND_NO_PQ is used for HDR-authored overlays (e.g. HDR PGS).
-  definesNoPQ += "#define KODI_HDR_PGS_ADJUST 1\n";
+  // HDR-authored PQ overlays need a dedicated PQ output shader variant.
+  definesHdrPgsPqOutput += "#define KODI_HDR_PGS_PQ_OUTPUT 1\n";
 
   if (m_transferPQ)
   {
@@ -536,15 +536,15 @@ void CRenderSystemGLES::InitialiseShaders()
     CLog::Log(LOGERROR, "GUI Shader gles_shader_texture_noblend.frag - compile and link failed");
   }
 
-  // Same shader, but compiled without KODI_TRANSFER_PQ for HDR-coded overlays (e.g. UHD-BD PGS).
-  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ) =
-      std::make_unique<CGLESShader>("gles_shader_texture_noblend.frag", definesNoPQ);
-  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ)->CompileAndLink())
+  // Same shader, but compiled for HDR-authored PQ overlays targeting PQ GUI output.
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT) =
+      std::make_unique<CGLESShader>("gles_shader_texture_noblend.frag", definesHdrPgsPqOutput);
+  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT)->CompileAndLink())
   {
-    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ)->Free();
-    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ).reset();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT)->Free();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT).reset();
     CLog::Log(LOGERROR,
-              "GUI Shader gles_shader_texture_noblend.frag (no PQ) - compile and link failed");
+              "GUI Shader gles_shader_texture_noblend.frag (HDR PGS PQ output) - compile and link failed");
   }
 
   shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR) =
@@ -669,9 +669,9 @@ void CRenderSystemGLES::ReleaseShaders()
     shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND)->Free();
   shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND).reset();
 
-  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ))
-    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ)->Free();
-  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ).reset();
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT).reset();
 
   if (shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR))
     shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR)->Free();
