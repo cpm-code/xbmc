@@ -745,34 +745,62 @@ void aml_dv_enable_fel()
   CSysfsPath("/sys/class/amdolby_vision/debug", "enable_fel 1");
 }
 
-void aml_set_osd_pq_bypass(StreamHdrType hdrType)
+static StreamHdrType aml_get_final_hdr_type(StreamHdrType hdrType, unsigned int bitDepth)
 {
-  const bool enable = ((hdrType == StreamHdrType::HDR_TYPE_HDR10) ||
-                       (hdrType == StreamHdrType::HDR_TYPE_HDR10PLUS));
+  if ((hdrType == StreamHdrType::HDR_TYPE_NONE) || (aml_dv_mode() == DV_MODE::OFF))
+    return hdrType;
+
+  switch (aml_vs10_by_hdrtype(hdrType, bitDepth))
+  {
+    case DOLBY_VISION_OUTPUT_MODE_IPT:
+    case DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL:
+      return StreamHdrType::HDR_TYPE_DOLBYVISION;
+    case DOLBY_VISION_OUTPUT_MODE_HDR10:
+      return StreamHdrType::HDR_TYPE_HDR10;
+    case DOLBY_VISION_OUTPUT_MODE_SDR10:
+      return StreamHdrType::HDR_TYPE_NONE;
+    case DOLBY_VISION_OUTPUT_MODE_BYPASS:
+    default:
+      return hdrType;
+  }
+}
+
+static bool aml_should_use_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  switch (aml_get_final_hdr_type(hdrType, bitDepth))
+  {
+    case StreamHdrType::HDR_TYPE_NONE:
+    case StreamHdrType::HDR_TYPE_HLG: // HLG not PQ
+      return false;
+    case StreamHdrType::HDR_TYPE_DOLBYVISION:
+    case StreamHdrType::HDR_TYPE_HDR10:
+    case StreamHdrType::HDR_TYPE_HDR10PLUS:
+      return true;
+  }
+
+  return false;
+}
+
+static bool aml_should_enable_osd_pq_bypass(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  const StreamHdrType finalHdrType = aml_get_final_hdr_type(hdrType, bitDepth);
+  return (finalHdrType == StreamHdrType::HDR_TYPE_HDR10) ||
+         (finalHdrType == StreamHdrType::HDR_TYPE_HDR10PLUS);
+}
+
+void aml_set_osd_pq_bypass(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  const bool enable = aml_should_enable_osd_pq_bypass(hdrType, bitDepth);
 
   CSysfsPath("/sys/module/am_vecm/parameters/osd_pq_bypass", enable);
   logM(LOGINFO, "am_vecm osd_pq_bypass [{}]", enable ? "enabled" : "disabled");
 }
 
-void aml_set_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth) {
-
-  // Configure GUI/OSD for HDR PQ when display is in HDR PQ mode
-  bool hdr_display(CServiceBroker::GetWinSystem()->IsHDRDisplay() || aml_display_support_dv());
-  bool dv_on(aml_dv_mode() != DV_MODE::OFF);
-  bool hdr(false);
-
-  if (hdr_display) // Only relevant with an hdr_display
-  {
-    // TODO: any need to test display supports each hdr content (inc fallback) specifically?
-    hdr = (hdrType != StreamHdrType::HDR_TYPE_NONE);
-
-    // Check for vs10 up or down mapping.
-    if (dv_on) {
-      unsigned int vs10_mode = aml_vs10_by_hdrtype(hdrType, bitDepth);
-      hdr = (((vs10_mode == DOLBY_VISION_OUTPUT_MODE_BYPASS) && hdr) ||
-              (vs10_mode <= DOLBY_VISION_OUTPUT_MODE_HDR10));
-    }
-  }
+void aml_set_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  const bool dv_on = (aml_dv_mode() != DV_MODE::OFF);
+  const bool hdr_display = CServiceBroker::GetWinSystem()->IsHDRDisplay() || aml_display_support_dv();
+  const bool hdr = hdr_display && aml_should_use_transfer_pq(hdrType, bitDepth);
 
   logM(LOGINFO, "{}DV support, {}, HDR type is {}, transfer PQ is {}",
                 aml_support_dolby_vision() ? "" : "no ",
