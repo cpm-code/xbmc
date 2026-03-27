@@ -29,7 +29,7 @@ uniform sampler2D m_samp0;
 varying vec4 m_cord0;
 uniform float m_sdrPeak;
 uniform float m_sdrSaturation;
-#if defined(KODI_HDR_PGS_ADJUST)
+#if defined(KODI_HDR_PGS_PQ_OUTPUT) || defined(KODI_HDR_PGS_SDR_OUTPUT)
 uniform float m_hdrPgsPeak;
 uniform float m_hdrPgsSaturation;
 #endif
@@ -40,7 +40,7 @@ highp float interleavedGradientNoise(highp vec2 co)
   return fract(52.9829189 * fract(0.06711056 * co.x + 0.00583715 * co.y));
 }
 
-vec3 transferPQ(vec3 x)
+vec3 convertGuiForPqOutput(vec3 x)
 {
   const float ST2084_m1 = 2610.0 / (4096.0 * 4.0);
   const float ST2084_m2 = (2523.0 / 4096.0) * 128.0;
@@ -83,7 +83,7 @@ vec3 transferPQ(vec3 x)
   return x;
 }
 
-#if defined(KODI_HDR_PGS_ADJUST)
+#if defined(KODI_HDR_PGS_PQ_OUTPUT) || defined(KODI_HDR_PGS_SDR_OUTPUT)
 vec3 decodePQ(vec3 x)
 {
   const float ST2084_m1 = 2610.0 / (4096.0 * 4.0);
@@ -114,7 +114,7 @@ vec3 encodePQ(vec3 x)
   return clamp(y, vec3(0.0), vec3(1.0));
 }
 
-vec3 adjustHdrPgsPQ(vec3 pq)
+vec3 convertHdrPgsForPqOutput(vec3 pq)
 {
   vec3 linear = decodePQ(pq);
 
@@ -126,6 +126,25 @@ vec3 adjustHdrPgsPQ(vec3 pq)
 
   return encodePQ(linear);
 }
+
+vec3 convertHdrPgsForSdrOutput(vec3 pq)
+{
+  const mat3 bt2020ToBt709 = mat3(
+      1.6605, -0.5876, -0.0728,
+     -0.1246,  1.1329, -0.0083,
+     -0.0182, -0.1006,  1.1187);
+
+  vec3 linear = decodePQ(pq);
+  vec3 luma = vec3(dot(linear, vec3(0.2627, 0.6780, 0.0593)));
+  linear = mix(luma, linear, m_hdrPgsSaturation);
+
+  // PQ decode is normalized to 10,000 nits. Remap into the SDR GUI range where 1.0 ~= 100 nits.
+  linear = max(linear, vec3(0.0)) * (100.0 * m_hdrPgsPeak);
+  linear = clamp(bt2020ToBt709 * linear, vec3(0.0), vec3(1.0));
+
+  // Approximate SDR gamma encoding for GUI composition.
+  return pow(linear, vec3(0.45));
+}
 #endif
 
 void main ()
@@ -135,9 +154,11 @@ void main ()
   rgb = texture2D(m_samp0, m_cord0.xy);
 
 #if defined(KODI_TRANSFER_PQ)
-  rgb.rgb = transferPQ(rgb.rgb);
-#elif defined(KODI_HDR_PGS_ADJUST)
-  rgb.rgb = adjustHdrPgsPQ(rgb.rgb);
+  rgb.rgb = convertGuiForPqOutput(rgb.rgb);
+#elif defined(KODI_HDR_PGS_PQ_OUTPUT)
+  rgb.rgb = convertHdrPgsForPqOutput(rgb.rgb);
+#elif defined(KODI_HDR_PGS_SDR_OUTPUT)
+  rgb.rgb = convertHdrPgsForSdrOutput(rgb.rgb);
 #endif
 
 #if defined(KODI_LIMITED_RANGE)
