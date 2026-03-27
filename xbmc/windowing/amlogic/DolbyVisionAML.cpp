@@ -197,6 +197,7 @@ void vs10_hdr10_filler(const SettingConstPtr& /*setting*/, std::vector<IntegerSe
   list.clear();
   if (aml_display_support_hdr_pq()) add_vs10_bypass(list);
   add_vs10_sdr(list);
+  if (aml_display_support_hdr_pq()) add_vs10_hdr10(list);
   if (support_dv()) add_vs10_dv(list);
 }
 
