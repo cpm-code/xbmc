@@ -2086,7 +2086,10 @@ void CAESinkALSA::EnumerateDevice(AEDeviceInfoList &list, const std::string &dev
     else if (info.m_deviceType != AE_DEVTYPE_HDMI)
     {
       if (device.substr(0, 10) == "surround71")
+      {
         info.m_displayNameExtra = "HDMI Multi Ch PCM";
+        info.m_onlyPCM = true;
+      }
       else
         info.m_displayNameExtra = "PCM";
     }

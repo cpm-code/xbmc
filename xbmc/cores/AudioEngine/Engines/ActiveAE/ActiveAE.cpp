@@ -2783,21 +2783,21 @@ void CActiveAE::Deamplify(CSoundPacket &dstSample)
 void CActiveAE::LoadSettings(AEAudioFormat *format)
 {
   const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  int soc_id = aml_get_cpufamily_id();
 
   m_settings.device = settings->GetString(CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE);
   m_settings.passthroughdevice = settings->GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE);
 
-  // find on NEWSTREAM the matching passthrough device by device type
-  if (format != NULL && (soc_id >= AML_S5 || soc_id == AML_T7))
+  // On stream open, prefer the configured passthrough endpoint but fall back
+  // to any endpoint that can actually handle the requested raw format.
+  if (format != NULL)
   {
     std::string device(m_settings.passthroughdevice);
     if (SupportsFormat(*format, &device))
     {
       if (device != m_settings.passthroughdevice)
       {
-        CLog::LogF(LOGINFO, "Change temporary passthrough output device because of Amlogic SoC '{}', stream type: {:d}",
-           aml_get_cpufamily_name(), format->m_streamInfo.m_type);
+        CLog::LogF(LOGINFO, "Changing temporary passthrough output device from '{}' to '{}' for stream type {:d}",
+                            m_settings.passthroughdevice, device, format->m_streamInfo.m_type);
         m_settings.passthroughdevice = device;
       }
     }
@@ -2917,21 +2917,47 @@ void CActiveAE::OnSettingsChange()
 bool CActiveAE::SupportsFormat(AEAudioFormat &format, std::string *device)
 {
   AEDeviceList devices;
-  AEDeviceType pt_device_type =
-    m_sink.GetDeviceType(CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE));
+  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+  const std::string configuredDevice =
+      settings ? settings->GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE) : "";
+  const std::string preferredDevice =
+      (device != nullptr && !device->empty()) ? *device : configuredDevice;
+  const AEDeviceType preferredDeviceType =
+      preferredDevice.empty() ? AE_DEVTYPE_PCM : m_sink.GetDeviceType(preferredDevice);
 
   m_sink.EnumerateOutputDevices(devices, true);
 
+  auto supportsOnDevice = [&](const std::string& candidate) {
+    return !candidate.empty() && m_sink.SupportsFormat(candidate, format);
+  };
+
+  if (supportsOnDevice(preferredDevice))
+  {
+    if (device != nullptr) *device = preferredDevice;
+    return true;
+  }
+
+  for (const auto& sink : devices)
+  {
+    if (sink.second == preferredDevice) continue;
+
+    if (m_sink.GetDeviceType(sink.second) != preferredDeviceType) continue;
+
+    if (supportsOnDevice(sink.second))
+    {
+      if (device != nullptr) *device = sink.second;
+      return true;
+    }
+  }
+
   for (AEDeviceList::const_iterator sink = devices.begin(); sink != devices.end(); ++sink)
   {
-    if (m_sink.GetDeviceType(sink->second) == pt_device_type)
+    if (sink->second == preferredDevice) continue;
+
+    if (supportsOnDevice(sink->second))
     {
-      if (m_sink.SupportsFormat(sink->second, format))
-      {
-        if (device != NULL)
-          *device = static_cast<std::string>(sink->second);
-        return true;
-      }
+      if (device != nullptr) *device = sink->second;
+      return true;
     }
   }
 
