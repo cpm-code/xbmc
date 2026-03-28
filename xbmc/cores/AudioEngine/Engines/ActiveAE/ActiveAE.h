@@ -340,6 +340,8 @@ protected:
 
   bool IsOnlyNotRaw(const CActiveAEStream* stream) const;
   bool IsRawMode() const;
+  bool IsRawOrTransitioningToRaw() const;
+  bool IsGuiSoundAllowed() const;
 
   bool CompareFormat(const AEAudioFormat& lhs, const AEAudioFormat& rhs);
 
