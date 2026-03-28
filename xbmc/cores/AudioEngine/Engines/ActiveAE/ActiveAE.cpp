@@ -82,6 +82,25 @@ bool CActiveAE::IsRawMode() const
   return m_mode == MODE_RAW;
 }
 
+bool CActiveAE::IsRawOrTransitioningToRaw() const
+{
+  return (IsRawMode() ||
+          (m_sinkRequestFormat.m_dataFormat == AE_FMT_RAW));
+}
+
+bool CActiveAE::IsGuiSoundAllowed() const
+{
+  if (IsRawOrTransitioningToRaw()) return false;
+
+  if (m_settings.guisoundmode == AE_SOUND_OFF) return false;
+
+  if ((m_settings.guisoundmode == AE_SOUND_IDLE) &&
+      !m_streams.empty() &&
+      !m_aeGUISoundForce) return false;
+
+  return true;
+}
+
 void CEngineStats::UpdateSinkDelay(const AEDelayStatus& status, int samples)
 {
   std::unique_lock lock(m_lock);
@@ -789,9 +808,7 @@ void CActiveAE::StateMachine(int signal, Protocol *port, Message *msg)
           sound = *(CActiveAESound**)msg->data;
           if (sound)
           {
-            if (m_settings.guisoundmode == AE_SOUND_OFF ||
-               (m_settings.guisoundmode == AE_SOUND_IDLE && !m_streams.empty()))
-              return;
+            if (!IsGuiSoundAllowed()) return;
 
             SoundState st = {sound, 0};
             m_sounds_playing.push_back(st);
@@ -1215,7 +1232,14 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
 
   m_sinkRequestFormat = inputFormat;
   ApplySettingsToFormat(m_sinkRequestFormat, m_settings, (int*)&m_mode);
+  const bool transitioningToRaw = (m_sinkRequestFormat.m_dataFormat == AE_FMT_RAW);
   m_extKeepConfig = 0ms;
+
+  if (transitioningToRaw)
+  {
+    m_sounds_playing.clear();
+    m_aeGUISoundForce = false;
+  }
 
   std::string device = (m_sinkRequestFormat.m_dataFormat == AE_FMT_RAW) ? m_settings.passthroughdevice : m_settings.device;
 
@@ -3462,10 +3486,7 @@ void CActiveAE::StopSound(CActiveAESound *sound)
  */
 void CActiveAE::ResampleSounds()
 {
-  if ((m_settings.guisoundmode == AE_SOUND_OFF ||
-      (m_settings.guisoundmode == AE_SOUND_IDLE && !m_streams.empty())) &&
-      !m_aeGUISoundForce)
-    return;
+  if (!IsGuiSoundAllowed()) return;
 
   std::vector<CActiveAESound*>::iterator it;
   for (it = m_sounds.begin(); it != m_sounds.end(); ++it)
