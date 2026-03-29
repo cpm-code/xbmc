@@ -1664,52 +1664,6 @@ std::string GetFramebufferDevicePath()
 }
 } // namespace
 
-bool aml_wait_vsync_early(int offsetUs)
-{
-  if (offsetUs <= 0) return false;
-
-  static int fbFd{-1};
-  static std::string fbPath;
-  if (fbFd < 0)
-  {
-    fbPath = GetFramebufferDevicePath();
-    fbFd = open(fbPath.c_str(), O_RDWR | O_CLOEXEC);
-    if (fbFd < 0)
-    {
-      logM(LOGWARNING, "failed to open {}: {}", fbPath, strerror(errno));
-      return false;
-    }
-
-    logM(LOGINFO, "opened {} fd:{}", fbPath, fbFd);
-  }
-
-  fb_vsync_early_request req{};
-  req.offset_us = offsetUs;
-  req.reserved = 0;
-  req.next_vsync_ts = 0;
-
-  logM(LOGINFO, "ioctl request offset:{}us on {}", offsetUs, fbPath);
-
-  const auto ioctlStart = std::chrono::steady_clock::now();
-
-  if (ioctl(fbFd, FBIO_WAITFORVSYNC_EARLY_64, &req) < 0)
-  {
-    logM(LOGWARNING, "vsync early: ioctl failed on {}: {}", fbPath, strerror(errno));
-    close(fbFd);
-    fbFd = -1;
-    fbPath.clear();
-    return false;
-  }
-
-  const auto ioctlEnd = std::chrono::steady_clock::now();
-  const auto ioctlWaitUs = std::chrono::duration_cast<std::chrono::microseconds>(ioctlEnd - ioctlStart).count();
-
-  logM(LOGINFO, "ioctl ok offset:{}us next_vsync_ts:{} waited:{}us", offsetUs,
-                req.next_vsync_ts, static_cast<long long>(ioctlWaitUs));
-
-  return true;
-}
-
 bool aml_get_time_to_next_vsync_us(int& timeToNextVsyncUs)
 {
   timeToNextVsyncUs = 0;
