@@ -1431,56 +1431,67 @@ FpsInfo gather_fps_data() {
 
   static std::vector<FpsData> fps_history;
   static const std::chrono::seconds HISTORY_DURATION(1);
+  static const std::chrono::milliseconds SAMPLE_INTERVAL(100);
+  static std::chrono::steady_clock::time_point last_sample_time;
+  static bool sample_valid = false;
+  static unsigned int cached_input_fps = 0;
+  static unsigned int cached_output_fps = 0;
 
-  CSysfsPath fps_info{"/sys/class/video/fps_info"};
-  if (fps_info.Exists()) {
+  auto now = std::chrono::steady_clock::now();
+  bool sample_updated = false;
 
-    std::string input = fps_info.Get<std::string>().value();
-    unsigned int input_fps, output_fps;
-    std::istringstream iss(input);
+  if (!sample_valid || (now - last_sample_time) >= SAMPLE_INTERVAL) {
+    CSysfsPath fps_info{"/sys/class/video/fps_info"};
+    if (fps_info.Exists()) {
 
-    if ((iss.ignore(std::numeric_limits<std::streamsize>::max(), ':') && iss >> std::hex >> input_fps) &&
-        (iss.ignore(std::numeric_limits<std::streamsize>::max(), ':') && iss >> std::hex >> output_fps)) {
+      std::string input = fps_info.Get<std::string>().value();
+      unsigned int input_fps, output_fps;
+      std::istringstream iss(input);
 
-      // Add new entry
-      auto now = std::chrono::steady_clock::now();
-      fps_history.push_back({input_fps, output_fps, now});
-
-      // Remove old entries
-      fps_history.erase(
-        std::remove_if(
-            fps_history.begin(), fps_history.end(),
-            [&now](const FpsData& data) {
-              return (now - data.timestamp) > HISTORY_DURATION;
-            }
-          ), fps_history.end()
-      );
-
-      // Calculate averages
-      double avg_input_fps = 0;
-      double avg_output_fps = 0;
-      double avg_drop_fps = 0;
-
-      unsigned int valid_count = 0;
-
-      for (const auto& data : fps_history) {
-        avg_input_fps += data.input_fps;
-        avg_output_fps += data.output_fps;
-        valid_count++;
-      }
-
-      if (valid_count > 0) {
-        avg_input_fps /= valid_count;
-        avg_output_fps /= valid_count;
-        avg_drop_fps = avg_input_fps - avg_output_fps;
-
-        return {
-          static_cast<unsigned int>(avg_input_fps + 0.5),
-          static_cast<unsigned int>(avg_output_fps + 0.5),
-          static_cast<unsigned int>(avg_drop_fps + 0.5)
-        };
+      if ((iss.ignore(std::numeric_limits<std::streamsize>::max(), ':') && iss >> std::hex >> input_fps) &&
+          (iss.ignore(std::numeric_limits<std::streamsize>::max(), ':') && iss >> std::hex >> output_fps)) {
+        cached_input_fps = input_fps;
+        cached_output_fps = output_fps;
+        sample_valid = true;
+        sample_updated = true;
       }
     }
+
+    last_sample_time = now;
+  }
+
+  if (sample_valid && sample_updated) {
+    fps_history.push_back({cached_input_fps, cached_output_fps, now});
+  }
+
+  fps_history.erase(
+    std::remove_if(
+        fps_history.begin(), fps_history.end(),
+        [&now](const FpsData& data) {
+          return (now - data.timestamp) > HISTORY_DURATION;
+        }
+      ), fps_history.end()
+  );
+
+  if (!fps_history.empty()) {
+    double avg_input_fps = 0;
+    double avg_output_fps = 0;
+    double avg_drop_fps = 0;
+
+    for (const auto& data : fps_history) {
+      avg_input_fps += data.input_fps;
+      avg_output_fps += data.output_fps;
+    }
+
+    avg_input_fps /= fps_history.size();
+    avg_output_fps /= fps_history.size();
+    avg_drop_fps = avg_input_fps - avg_output_fps;
+
+    return {
+      static_cast<unsigned int>(avg_input_fps + 0.5),
+      static_cast<unsigned int>(avg_output_fps + 0.5),
+      static_cast<unsigned int>(avg_drop_fps + 0.5)
+    };
   }
 
   return {0, 0, 0};
