@@ -237,8 +237,11 @@ void GetDoviRpuInfo(uint8_t* nalBuf,
   // https://professionalsupport.dolby.com/s/article/Dolby-Vision-Metadata-Levels?language=en_US
 
   DoviRpuOpaque* opaque = dovi_parse_unspec62_nalu(nalBuf, nalSize);
-  PopulateDoviRpuInfo(opaque, firstFrame, doviElType, dovi, pts, dataCacheCore);
-  dovi_rpu_free(opaque);
+  if (opaque)
+  {
+    PopulateDoviRpuInfo(opaque, firstFrame, doviElType, dovi, pts, dataCacheCore);
+    dovi_rpu_free(opaque);
+  }
 }
 
 void AppendCMv40ExtensionBlock(BitstreamIoWriter& writer)
@@ -569,10 +572,10 @@ void CBitstreamConverter::ProcessDoViRpu(
     m_cached_dovi_rpu_in_nal.assign(nalBuf, nalBuf + nalSize);
 
     DoviRpuOpaque* opaque = dovi_parse_unspec62_nalu(nalBuf, nalSize);
-    const DoviRpuDataHeader* header = dovi_rpu_get_header(opaque);
-    const DoviVdrDmData* vdrDmData = dovi_rpu_get_vdr_dm_data(opaque);
+    const DoviRpuDataHeader* header = opaque ? dovi_rpu_get_header(opaque) : nullptr;
+    const DoviVdrDmData* vdrDmData = opaque ? dovi_rpu_get_vdr_dm_data(opaque) : nullptr;
 
-    if (m_convert_dovi != DOVIMode::MODE_NONE)
+    if (opaque && (m_convert_dovi != DOVIMode::MODE_NONE))
       ConvertDoVi(m_convert_dovi,
                   m_first_frame,
                   opaque,
@@ -596,17 +599,20 @@ void CBitstreamConverter::ProcessDoViRpu(
 
     // Use the appendOpaque from the append CMv4.0 if available
     DoviRpuOpaque* metadataOpaque = appendOpaque ? appendOpaque : opaque;
-    PopulateDoviRpuInfo(metadataOpaque,
-                        m_first_frame,
-                        m_hints.dovi_el_type,
-                        m_hints.dovi,
-                        pts,
-                        m_dataCacheCore,
-                        &m_cached_dovi_frame_metadata);
+    if (metadataOpaque)
+    {
+      PopulateDoviRpuInfo(metadataOpaque,
+                          m_first_frame,
+                          m_hints.dovi_el_type,
+                          m_hints.dovi,
+                          pts,
+                          m_dataCacheCore,
+                          &m_cached_dovi_frame_metadata);
+    }
 
-    dovi_rpu_free_header(header);
-    dovi_rpu_free_vdr_dm_data(vdrDmData);
-    dovi_rpu_free(opaque);
+    if (header) dovi_rpu_free_header(header);
+    if (vdrDmData) dovi_rpu_free_vdr_dm_data(vdrDmData);
+    if (opaque) dovi_rpu_free(opaque);
     if (appendOpaque)
     {
       dovi_rpu_free(appendOpaque);
