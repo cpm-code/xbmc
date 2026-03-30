@@ -88,12 +88,20 @@ bool CachedRpuInputMatches(const std::vector<uint8_t>& cachedNalu,
   return std::equal(cachedNalu.begin(), cachedSuffixBegin, nalBuf);
 }
 
-bool IsCMv29NoL2(const DoviRpuDataHeader* header,
-                 const DoviVdrDmData* vdrDmData)
+bool SupportsCMv40Append(const DoviVdrDmData* vdrDmData)
 {
-  if (!header || !vdrDmData) return false;
+  if (!vdrDmData) return false;
+
+  if (!vdrDmData->dm_data.level1) return false;
 
   if (vdrDmData->dm_data.level254) return false;
+
+  return true;
+}
+
+bool IsCMv29NoL2(const DoviVdrDmData* vdrDmData)
+{
+  if (!SupportsCMv40Append(vdrDmData)) return false;
 
   if (vdrDmData->dm_data.level2.len > 0) return false;
 
@@ -473,11 +481,10 @@ inline void AppendCMv40(DOVICMv40Mode cmv40Mode,
                         std::vector<uint8_t>& nalu,
                         DoviRpuOpaque*& opaque)
 {
-  if (!header || !vdrDmData) return;
+  if (!header || !SupportsCMv40Append(vdrDmData)) return;
 
-  const bool hasLevel254 = (vdrDmData->dm_data.level254 != nullptr);
-  if (!(((cmv40Mode == DOVICMv40Mode::CMV40_ALWAYS) && !hasLevel254) ||
-        IsCMv29NoL2(header, vdrDmData))) return;
+  const bool shouldAppend = (cmv40Mode == DOVICMv40Mode::CMV40_ALWAYS) || IsCMv29NoL2(vdrDmData);
+  if (!shouldAppend) return;
 
   opaque = AppendCMv40ToRpuNalu(nalBuf, nalSize, vdrDmData, nalu);
   if (opaque)
