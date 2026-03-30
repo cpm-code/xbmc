@@ -233,7 +233,6 @@ protected:
   StartDecodePolicy m_start_decode_policy;
   enum DOVIMode m_convert_dovi;
   enum DOVICMv40Mode m_append_cmv40;
-  uint8_t m_cmv40_trim{1};
   bool m_removeDovi;
   bool m_removeHdr10Plus;
   bool m_convert_Hdr10Plus;
