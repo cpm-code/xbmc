@@ -223,6 +223,8 @@ public:
 
   void SetTransferPQ(bool PQ) { m_isTransferPQ = PQ; }
   bool IsTransferPQ() const { return m_isTransferPQ; }
+  void SetHdrOsdComposition(bool enable) { m_isHdrOsdComposition = enable; }
+  bool IsHdrOsdComposition() const { return m_isHdrOsdComposition; }
 
 protected:
 
@@ -276,6 +278,7 @@ protected:
   StreamHdrType m_hdrType;
 
   bool m_isTransferPQ{false};
+  bool m_isHdrOsdComposition{false};
   RENDER_ORDER m_renderOrder{RENDER_ORDER_ALL_BACK_TO_FRONT};
   uint32_t m_layer{2};
 };

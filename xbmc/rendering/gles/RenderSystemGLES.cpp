@@ -179,7 +179,8 @@ bool CRenderSystemGLES::BeginRender()
     return false;
 
   const bool useLimited = CServiceBroker::GetWinSystem()->UseLimitedColor();
-  const bool usePQ = CServiceBroker::GetWinSystem()->GetGfxContext().IsTransferPQ();
+  const auto& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
+  const bool usePQ = gfxContext.IsTransferPQ() || gfxContext.IsHdrOsdComposition();
 
   if (m_limitedColorRange != useLimited || m_transferPQ != usePQ)
   {

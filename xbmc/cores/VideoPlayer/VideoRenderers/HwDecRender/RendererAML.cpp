@@ -160,6 +160,7 @@ void CRendererAML::Reset()
   }
 
   CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(false);
+  CServiceBroker::GetWinSystem()->GetGfxContext().SetHdrOsdComposition(false);
 }
 
 bool CRendererAML::Flush(bool saveBuffers)

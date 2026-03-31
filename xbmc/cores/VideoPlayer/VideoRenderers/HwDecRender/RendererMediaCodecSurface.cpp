@@ -146,6 +146,7 @@ void CRendererMediaCodecSurface::Reset()
   m_lastIndex = -1;
 
   CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(false);
+  CServiceBroker::GetWinSystem()->GetGfxContext().SetHdrOsdComposition(false);
 }
 
 void CRendererMediaCodecSurface::RenderUpdate(int index, int index2, bool clear, unsigned int flags, unsigned int alpha)

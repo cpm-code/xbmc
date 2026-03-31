@@ -25,6 +25,7 @@ CRendererStarfish::CRendererStarfish()
 CRendererStarfish::~CRendererStarfish()
 {
   CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(false);
+  CServiceBroker::GetWinSystem()->GetGfxContext().SetHdrOsdComposition(false);
 }
 
 CBaseRenderer* CRendererStarfish::Create(CVideoBuffer* buffer)

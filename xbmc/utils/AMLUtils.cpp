@@ -890,10 +890,18 @@ static void aml_set_display_pq(StreamHdrType hdrType, unsigned int bitDepth)
   CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(hdr);
 }
 
+static void aml_set_hdr_osd_composition(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  const bool enable = aml_is_hdr_osd(hdrType, bitDepth);
+
+  CServiceBroker::GetWinSystem()->GetGfxContext().SetHdrOsdComposition(enable);
+}
+
 void aml_update_hdr_mode_state(StreamHdrType hdrType, unsigned int bitDepth)
 {
   aml_set_dv_hdr10_graphics(hdrType);
   aml_set_display_pq(hdrType, bitDepth);
+  aml_set_hdr_osd_composition(hdrType, bitDepth);
   aml_set_osd_pq_bypass(aml_is_hdr_osd(hdrType, bitDepth));
 }
 

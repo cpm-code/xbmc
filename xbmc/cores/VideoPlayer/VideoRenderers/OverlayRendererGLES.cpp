@@ -40,9 +40,12 @@ ShaderMethodGLES GetOverlayTextureShaderMethod(bool isHdrPqAuthored)
 {
   if (!isHdrPqAuthored) return ShaderMethodGLES::SM_TEXTURE_NOBLEND;
 
-  const bool pqOutput = CServiceBroker::GetWinSystem()->GetGfxContext().IsTransferPQ();
-  return pqOutput ? ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT
-                  : ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_SDR_OUTPUT;
+  const auto& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
+  const bool hdrOsdComposition = gfxContext.IsHdrOsdComposition();
+  const bool pqOutput = gfxContext.IsTransferPQ();
+
+  return (hdrOsdComposition || pqOutput) ? ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT
+                                         : ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_SDR_OUTPUT;
 }
 } // namespace
 
