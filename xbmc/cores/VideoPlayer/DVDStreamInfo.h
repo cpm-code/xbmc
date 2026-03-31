@@ -36,6 +36,7 @@ struct DOVIFrameMetadata
 {
   double pts;
   std::string meta_version = "";
+  std::string source_meta_version = "";
   uint16_t level1_min_pq = 0;
   uint16_t level1_max_pq = 0;
   uint16_t level1_avg_pq = 0;

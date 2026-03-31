@@ -730,6 +730,9 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     case PLAYER_PROCESS_VIDEO_SOURCE_DOVI_EL_TYPE:
       value = DoViELTypeToString(CServiceBroker::GetDataCacheCore().GetVideoSourceDoViStreamInfo().dovi_el_type);
       return true;
+    case PLAYER_PROCESS_VIDEO_SOURCE_DOVI_META_VERSION:
+      value = CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().source_meta_version;
+      return true;
 
     case PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC:
       value = CServiceBroker::GetDataCacheCore().GetVideoDoViCodecFourCC();
@@ -742,7 +745,7 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
       value = DoViELTypeToString(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo().dovi_el_type);
       return true;
     case PLAYER_PROCESS_VIDEO_DOVI_META_VERSION:
-      value = CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().meta_version;
+      value = CServiceBroker::GetDataCacheCore().GetVideoDoViFrameMetadata().meta_version;
       return true;
 
     case PLAYER_PROCESS_VIDEO_DOVI_HAS_HEADER:

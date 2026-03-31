@@ -1169,7 +1169,7 @@ constexpr std::array<InfoMap, 10> player_times = {{
 ///
 /// -----------------------------------------------------------------------------
 // clang-format off
-constexpr std::array<InfoMap, 116> player_process = {{
+constexpr std::array<InfoMap, 117> player_process = {{
     {"videodecoder",        PLAYER_PROCESS_VIDEODECODER},
     {"deintmethod",         PLAYER_PROCESS_DEINTMETHOD},
     {"pixformat",           PLAYER_PROCESS_PIXELFORMAT},
@@ -1248,6 +1248,7 @@ constexpr std::array<InfoMap, 116> player_process = {{
     {"video.source.dovi.el.present", PLAYER_PROCESS_VIDEO_SOURCE_DOVI_EL_PRESENT},
     {"video.source.dovi.el.type", PLAYER_PROCESS_VIDEO_SOURCE_DOVI_EL_TYPE},
     {"video.source.dovi.bl.signal.compatibility", PLAYER_PROCESS_VIDEO_SOURCE_DOVI_BL_SIGNAL_COMPATIBILITY},
+    {"video.source.dovi.meta.version", PLAYER_PROCESS_VIDEO_SOURCE_DOVI_META_VERSION},
     {"video.dovi.codec.fourcc", PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC},
     {"video.dovi.codec.string", PLAYER_PROCESS_VIDEO_DOVI_CODEC_STRING},
     {"video.dovi.el.type", PLAYER_PROCESS_VIDEO_DOVI_EL_TYPE},
