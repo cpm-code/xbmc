@@ -35,6 +35,7 @@ enum DOVIELType : int
 struct DOVIFrameMetadata
 {
   double pts;
+  std::string meta_version = "";
   uint16_t level1_min_pq = 0;
   uint16_t level1_max_pq = 0;
   uint16_t level1_avg_pq = 0;
@@ -57,7 +58,7 @@ struct DOVIStreamMetadata
   uint16_t level6_max_cll = 0;
   uint16_t level6_max_fall = 0;
 
-  std::string meta_version = "";
+  std::string source_meta_version = "";
 };
 
 struct DOVIStreamInfo
