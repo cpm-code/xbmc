@@ -110,12 +110,15 @@ static void aml_dv_wait_dv_std_vsif_packet()
 
 void aml_dv_set_vs10_mode(unsigned int mode)
 {
+  const StreamHdrType hdrType = CServiceBroker::GetDataCacheCore().GetVideoHdrType();
+  const unsigned int bitDepth = static_cast<unsigned int>(CServiceBroker::GetDataCacheCore().GetVideoBitDepth());
+
+  aml_update_hdr_mode_state(hdrType, bitDepth);
+
   if (mode != DOLBY_VISION_OUTPUT_MODE_BYPASS) {
-    aml_set_osd_pq_bypass(StreamHdrType::HDR_TYPE_NONE);
     aml_dv_on(mode);
   }
   else if (aml_is_dv_enable()) {
-    aml_set_osd_pq_bypass(CServiceBroker::GetDataCacheCore().GetVideoHdrType());
     aml_dv_off(); // DV BYPASS, and it is on - then switch it off.
   }
 }
@@ -765,42 +768,118 @@ static StreamHdrType aml_get_final_hdr_type(StreamHdrType hdrType, unsigned int 
   }
 }
 
-static bool aml_should_use_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth)
+static bool aml_uses_dv_processing(StreamHdrType hdrType, unsigned int bitDepth)
 {
-  switch (aml_get_final_hdr_type(hdrType, bitDepth))
+  return (hdrType != StreamHdrType::HDR_TYPE_NONE) &&
+         (aml_dv_mode() != DV_MODE::OFF) &&
+         (aml_vs10_by_hdrtype(hdrType, bitDepth) != DOLBY_VISION_OUTPUT_MODE_BYPASS);
+}
+
+static bool aml_display_is_hdr_capable()
+{
+  return CServiceBroker::GetWinSystem()->IsHDRDisplay() || aml_display_support_dv();
+}
+
+static bool aml_is_hdr_output_type(StreamHdrType hdrType)
+{
+  switch (hdrType)
   {
-    case StreamHdrType::HDR_TYPE_NONE:
-    case StreamHdrType::HDR_TYPE_HLG: // HLG not PQ
+    case StreamHdrType::HDR_TYPE_DOLBYVISION:
+    case StreamHdrType::HDR_TYPE_HDR10:
+    case StreamHdrType::HDR_TYPE_HDR10PLUS:
+    case StreamHdrType::HDR_TYPE_HLG:
+      return true;
+    default:
       return false;
+  }
+}
+
+static bool aml_is_pq_output_type(StreamHdrType hdrType)
+{
+  switch (hdrType)
+  {
     case StreamHdrType::HDR_TYPE_DOLBYVISION:
     case StreamHdrType::HDR_TYPE_HDR10:
     case StreamHdrType::HDR_TYPE_HDR10PLUS:
       return true;
+    default:
+      return false;
   }
-
-  return false;
 }
 
-static bool aml_should_enable_osd_pq_bypass(StreamHdrType hdrType, unsigned int bitDepth)
+static bool aml_needs_display_pq(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  return aml_is_pq_output_type(aml_get_final_hdr_type(hdrType, bitDepth));
+}
+
+static bool aml_dovi_has_hdr10_base_layer(const DOVIStreamInfo& doviStreamInfo)
+{
+  if (!doviStreamInfo.has_config)
+    return false;
+
+  switch (doviStreamInfo.dovi.dv_profile)
+  {
+    case 7:
+      return true;
+    case 8:
+    case 10:
+      // Compatibility id 4 is HLG; 1 and 6 are HDR10-compatible base layers.
+      return doviStreamInfo.dovi.dv_bl_signal_compatibility_id == 1 ||
+             doviStreamInfo.dovi.dv_bl_signal_compatibility_id == 6;
+    default:
+      return false;
+  }
+}
+
+static bool aml_has_hdr10_graphics(StreamHdrType hdrType)
+{
+  switch (hdrType)
+  {
+    case StreamHdrType::HDR_TYPE_HDR10:
+    case StreamHdrType::HDR_TYPE_HDR10PLUS:
+      return true;
+    case StreamHdrType::HDR_TYPE_DOLBYVISION:
+      return aml_dovi_has_hdr10_base_layer(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo());
+    default:
+      return false;
+  }
+}
+
+static bool aml_needs_hdr10_graphics_processing(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  return aml_has_hdr10_graphics(hdrType) && aml_uses_dv_processing(hdrType, bitDepth);
+}
+
+static bool aml_is_hdr_output_osd(StreamHdrType hdrType, unsigned int bitDepth)
 {
   const StreamHdrType finalHdrType = aml_get_final_hdr_type(hdrType, bitDepth);
-  return (finalHdrType == StreamHdrType::HDR_TYPE_HDR10) ||
-         (finalHdrType == StreamHdrType::HDR_TYPE_HDR10PLUS);
+  return aml_display_is_hdr_capable() && aml_is_hdr_output_type(finalHdrType);
 }
 
-void aml_set_osd_pq_bypass(StreamHdrType hdrType, unsigned int bitDepth)
+static bool aml_is_hdr_osd(StreamHdrType hdrType, unsigned int bitDepth)
 {
-  const bool enable = aml_should_enable_osd_pq_bypass(hdrType, bitDepth);
+  return aml_needs_hdr10_graphics_processing(hdrType, bitDepth) ||
+         aml_is_hdr_output_osd(hdrType, bitDepth);
+}
 
+static void aml_set_dv_hdr10_graphics(StreamHdrType hdrType)
+{
+  const bool enable = aml_has_hdr10_graphics(hdrType);
+
+  CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_hdr10_graphics", enable);
+  logM(LOGINFO, "amdolby_vision hdr10_graphics [{}]", enable ? "enabled" : "disabled");
+}
+
+static void aml_set_osd_pq_bypass(bool enable)
+{
   CSysfsPath("/sys/module/am_vecm/parameters/osd_pq_bypass", enable);
   logM(LOGINFO, "am_vecm osd_pq_bypass [{}]", enable ? "enabled" : "disabled");
 }
 
-void aml_set_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth)
+static void aml_set_display_pq(StreamHdrType hdrType, unsigned int bitDepth)
 {
   const bool dv_on = (aml_dv_mode() != DV_MODE::OFF);
-  const bool hdr_display = CServiceBroker::GetWinSystem()->IsHDRDisplay() || aml_display_support_dv();
-  const bool hdr = hdr_display && aml_should_use_transfer_pq(hdrType, bitDepth);
+  const bool hdr = aml_display_is_hdr_capable() && aml_needs_display_pq(hdrType, bitDepth);
 
   logM(LOGINFO, "{}DV support, {}, HDR type is {}, transfer PQ is {}",
                 aml_support_dolby_vision() ? "" : "no ",
@@ -809,6 +888,13 @@ void aml_set_transfer_pq(StreamHdrType hdrType, unsigned int bitDepth)
                 hdr ? "set" : "not set");
 
   CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(hdr);
+}
+
+void aml_update_hdr_mode_state(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  aml_set_dv_hdr10_graphics(hdrType);
+  aml_set_display_pq(hdrType, bitDepth);
+  aml_set_osd_pq_bypass(aml_is_hdr_osd(hdrType, bitDepth));
 }
 
 bool aml_has_frac_rate_policy()
