@@ -875,6 +875,8 @@ constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_CLL       = 1745;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_FALL      = 1746;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L6_MIN_LUM       = 1747;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_LUM       = 1748;
+// Keep existing GUI info ids stable; this new label uses the next free id.
+constexpr uint32_t PLAYER_PROCESS_VIDEO_SOURCE_DOVI_META_VERSION = 1787;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_HAS_CLL           = 1749;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_MAX_CLL           = 1750;
 constexpr uint32_t PLAYER_PROCESS_VIDEO_HDR_MAX_FALL          = 1751;
