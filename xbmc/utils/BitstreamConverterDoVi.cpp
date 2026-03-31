@@ -88,150 +88,180 @@ bool CachedRpuInputMatches(const std::vector<uint8_t>& cachedNalu,
   return std::equal(cachedNalu.begin(), cachedSuffixBegin, nalBuf);
 }
 
-bool SupportsCMv40Append(const DoviVdrDmData* vdrDmData)
+std::string BuildMetaVersionString(const DoviVdrDmData* vdrDmData)
 {
-  if (!vdrDmData) return false;
+  if (vdrDmData && vdrDmData->dm_data.level254)
+  {
+    const unsigned int level8Count = vdrDmData->dm_data.level8.len;
+    if (level8Count > 0)
+      return fmt::format("CMv4.0 {}-{} {}-L8", vdrDmData->dm_data.level254->dm_version_index,
+                         vdrDmData->dm_data.level254->dm_mode, level8Count);
 
-  if (!vdrDmData->dm_data.level1) return false;
+    return fmt::format("CMv4.0 {}-{}", vdrDmData->dm_data.level254->dm_version_index,
+                       vdrDmData->dm_data.level254->dm_mode);
+  }
 
-  if (vdrDmData->dm_data.level254) return false;
+  if (vdrDmData && vdrDmData->dm_data.level1)
+  {
+    const unsigned int level2Count = vdrDmData->dm_data.level2.len;
+    if (level2Count > 0)
+      return fmt::format("CMv2.9 {}-L2", level2Count);
 
-  return true;
+    return "CMv2.9";
+  }
+
+  return "";
 }
 
-bool IsCMv29NoL2(const DoviVdrDmData* vdrDmData)
+inline void PopulateDoviFrameMetadata(const DoviVdrDmData* vdrDmData,
+                                      double pts,
+                                      CDataCacheCore& dataCacheCore,
+                                      DOVIFrameMetadata* outDoViFrameMetadata)
 {
-  if (!SupportsCMv40Append(vdrDmData)) return false;
+  DOVIFrameMetadata doviFrameMetadata;
+  doviFrameMetadata.pts = pts;
+  doviFrameMetadata.meta_version = BuildMetaVersionString(vdrDmData);
 
-  if (vdrDmData->dm_data.level2.len > 0) return false;
+  if (vdrDmData == nullptr)
+  {
+    dataCacheCore.SetVideoDoViFrameMetadata(doviFrameMetadata);
+    if (outDoViFrameMetadata)
+      *outDoViFrameMetadata = doviFrameMetadata;
+    return;
+  }
 
-  return true;
+  if (vdrDmData->dm_data.level1)
+  {
+    doviFrameMetadata.level1_min_pq = vdrDmData->dm_data.level1->min_pq;
+    doviFrameMetadata.level1_max_pq = vdrDmData->dm_data.level1->max_pq;
+    doviFrameMetadata.level1_avg_pq = vdrDmData->dm_data.level1->avg_pq;
+  }
+
+  if (vdrDmData->dm_data.level5)
+  {
+    doviFrameMetadata.has_level5_metadata = true;
+    doviFrameMetadata.level5_active_area_left_offset =
+        vdrDmData->dm_data.level5->active_area_left_offset;
+    doviFrameMetadata.level5_active_area_right_offset =
+        vdrDmData->dm_data.level5->active_area_right_offset;
+    doviFrameMetadata.level5_active_area_top_offset =
+        vdrDmData->dm_data.level5->active_area_top_offset;
+    doviFrameMetadata.level5_active_area_bottom_offset =
+        vdrDmData->dm_data.level5->active_area_bottom_offset;
+  }
+
+  dataCacheCore.SetVideoDoViFrameMetadata(doviFrameMetadata);
+  if (outDoViFrameMetadata)
+    *outDoViFrameMetadata = doviFrameMetadata;
 }
 
-inline void PopulateDoviRpuInfo(DoviRpuOpaque* opaque,
-                                bool firstFrame,
-                                DOVIELType& doviElType,
-                                AVDOVIDecoderConfigurationRecord& dovi,
+inline void PopulateDoviStreamMetadata(const DoviVdrDmData* vdrDmData,
+                                       const DoviVdrDmData* sourceVdrDmData,
+                                       CDataCacheCore& dataCacheCore)
+{
+  DOVIStreamMetadata doviStreamMetadata;
+
+  if (vdrDmData)
+  {
+    doviStreamMetadata.source_min_pq = vdrDmData->source_min_pq;
+    doviStreamMetadata.source_max_pq = vdrDmData->source_max_pq;
+  }
+
+  if (vdrDmData && vdrDmData->dm_data.level6)
+  {
+    doviStreamMetadata.has_level6_metadata = true;
+    doviStreamMetadata.level6_max_lum = vdrDmData->dm_data.level6->max_display_mastering_luminance;
+    doviStreamMetadata.level6_min_lum = vdrDmData->dm_data.level6->min_display_mastering_luminance;
+    doviStreamMetadata.level6_max_cll = vdrDmData->dm_data.level6->max_content_light_level;
+    doviStreamMetadata.level6_max_fall = vdrDmData->dm_data.level6->max_frame_average_light_level;
+  }
+
+  const std::string metaVersion = BuildMetaVersionString(vdrDmData);
+  const std::string sourceMetaVersion = BuildMetaVersionString(sourceVdrDmData);
+  bool hasLevel254 = false;
+  unsigned int level2Count = 0;
+  unsigned int level8Count = 0;
+  if (vdrDmData && vdrDmData->dm_data.level254)
+  {
+    hasLevel254 = true;
+    level8Count = vdrDmData->dm_data.level8.len;
+  }
+  else if (vdrDmData && vdrDmData->dm_data.level1)
+  {
+    level2Count = vdrDmData->dm_data.level2.len;
+  }
+
+  logM(LOGINFO, "Parsed DoVi metadata (first frame): meta [{}] source_meta [{}] has_l254 [{}] l2_count [{}] l8_count [{}]",
+                metaVersion, sourceMetaVersion, hasLevel254, level2Count, level8Count);
+
+  doviStreamMetadata.source_meta_version = sourceMetaVersion;
+  dataCacheCore.SetVideoDoViStreamMetadata(doviStreamMetadata);
+}
+
+inline DOVIELType GetDoviElType(const DoviRpuDataHeader* header)
+{
+  if (header && ((header->guessed_profile == 4) || (header->guessed_profile == 7)) && header->el_type)
+  {
+    if (StringUtils::EqualsNoCase(header->el_type, "FEL"))
+      return DOVIELType::TYPE_FEL;
+    if (StringUtils::EqualsNoCase(header->el_type, "MEL"))
+      return DOVIELType::TYPE_MEL;
+  }
+
+  return DOVIELType::TYPE_NONE;
+}
+
+inline void PopulateDoviStreamInfo(const DoviRpuDataHeader* header,
+                                   DOVIELType& doviElType,
+                                   const AVDOVIDecoderConfigurationRecord& dovi,
+                                   CDataCacheCore& dataCacheCore)
+{
+  DOVIStreamInfo doviStreamInfo;
+
+  doviElType = GetDoviElType(header);
+  doviStreamInfo.dovi_el_type = doviElType;
+  doviStreamInfo.dovi = dovi;
+  doviStreamInfo.has_config =
+      (memcmp(&dovi, &CDVDStreamInfo::empty_dovi, sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
+  doviStreamInfo.has_header = (header != nullptr);
+
+  dataCacheCore.SetVideoDoViStreamInfo(doviStreamInfo);
+}
+
+inline void PopulateDoviFirstFrameStreamInfo(DoviRpuOpaque* metadataOpaque,
+                                             DoviRpuOpaque* sourceOpaque,
+                                             DOVIELType& doviElType,
+                                             AVDOVIDecoderConfigurationRecord& dovi,
+                                             CDataCacheCore& dataCacheCore)
+{
+  const DoviVdrDmData* vdrDmData = dovi_rpu_get_vdr_dm_data(metadataOpaque);
+
+  const bool needsSeparateSourceFetch = sourceOpaque && sourceOpaque != metadataOpaque;
+  // When sourceOpaque == metadataOpaque we are reading the original unmodified metadata, so reuse
+  // the already-fetched vdrDmData allocation instead of requesting and freeing a duplicate copy.
+  const DoviVdrDmData* sourceVdrDmData =
+      needsSeparateSourceFetch ? dovi_rpu_get_vdr_dm_data(sourceOpaque) : vdrDmData;
+
+  PopulateDoviStreamMetadata(vdrDmData, sourceVdrDmData, dataCacheCore);
+
+  const DoviRpuDataHeader* header = dovi_rpu_get_header(metadataOpaque);
+  PopulateDoviStreamInfo(header, doviElType, dovi, dataCacheCore);
+  dovi_rpu_free_header(header);
+
+  // Only free sourceVdrDmData when it came from a separate sourceOpaque request above.
+  if (needsSeparateSourceFetch)
+    dovi_rpu_free_vdr_dm_data(sourceVdrDmData);
+
+  dovi_rpu_free_vdr_dm_data(vdrDmData);
+}
+
+inline void PopulateDoviRpuInfo(DoviRpuOpaque* metadataOpaque,
                                 double pts,
                                 CDataCacheCore& dataCacheCore,
                                 DOVIFrameMetadata* outDoViFrameMetadata = nullptr)
 {
-  const DoviVdrDmData* vdrDmData = dovi_rpu_get_vdr_dm_data(opaque);
-
-  if (vdrDmData)
-  {
-    DOVIFrameMetadata doviFrameMetadata;
-
-    if (vdrDmData->dm_data.level1)
-    {
-      doviFrameMetadata.level1_min_pq = vdrDmData->dm_data.level1->min_pq;
-      doviFrameMetadata.level1_max_pq = vdrDmData->dm_data.level1->max_pq;
-      doviFrameMetadata.level1_avg_pq = vdrDmData->dm_data.level1->avg_pq;
-      doviFrameMetadata.pts = pts;
-    }
-
-    if (vdrDmData->dm_data.level5)
-    {
-      doviFrameMetadata.has_level5_metadata = true;
-      doviFrameMetadata.level5_active_area_left_offset =
-          vdrDmData->dm_data.level5->active_area_left_offset;
-      doviFrameMetadata.level5_active_area_right_offset =
-          vdrDmData->dm_data.level5->active_area_right_offset;
-      doviFrameMetadata.level5_active_area_top_offset =
-          vdrDmData->dm_data.level5->active_area_top_offset;
-      doviFrameMetadata.level5_active_area_bottom_offset =
-          vdrDmData->dm_data.level5->active_area_bottom_offset;
-    }
-
-    dataCacheCore.SetVideoDoViFrameMetadata(doviFrameMetadata);
-    if (outDoViFrameMetadata)
-      *outDoViFrameMetadata = doviFrameMetadata;
-  }
-
-  if (firstFrame)
-  {
-    DOVIStreamMetadata doviStreamMetadata;
-
-    if (vdrDmData)
-    {
-      doviStreamMetadata.source_min_pq = vdrDmData->source_min_pq;
-      doviStreamMetadata.source_max_pq = vdrDmData->source_max_pq;
-    }
-
-    if (vdrDmData && vdrDmData->dm_data.level6)
-    {
-      doviStreamMetadata.has_level6_metadata = true;
-
-      doviStreamMetadata.level6_max_lum =
-          vdrDmData->dm_data.level6->max_display_mastering_luminance;
-      doviStreamMetadata.level6_min_lum =
-          vdrDmData->dm_data.level6->min_display_mastering_luminance;
-
-      doviStreamMetadata.level6_max_cll = vdrDmData->dm_data.level6->max_content_light_level;
-      doviStreamMetadata.level6_max_fall =
-          vdrDmData->dm_data.level6->max_frame_average_light_level;
-    }
-
-    std::string metaVersion;
-    bool hasLevel254 = false;
-    unsigned int level2Count = 0;
-    unsigned int level8Count = 0;
-    if (vdrDmData && vdrDmData->dm_data.level254)
-    {
-      hasLevel254 = true;
-      level8Count = vdrDmData->dm_data.level8.len;
-      const unsigned int noL8 = vdrDmData->dm_data.level8.len;
-      if (noL8 > 0)
-        metaVersion = fmt::format("CMv4.0 {}-{} {}-L8", vdrDmData->dm_data.level254->dm_version_index,
-                                 vdrDmData->dm_data.level254->dm_mode, noL8);
-      else
-        metaVersion = fmt::format("CMv4.0 {}-{}", vdrDmData->dm_data.level254->dm_version_index,
-                                 vdrDmData->dm_data.level254->dm_mode);
-    }
-    else if (vdrDmData && vdrDmData->dm_data.level1)
-    {
-      level2Count = vdrDmData->dm_data.level2.len;
-      const unsigned int noL2 = vdrDmData->dm_data.level2.len;
-      if (noL2 > 0)
-        metaVersion = fmt::format("CMv2.9 {}-L2", noL2);
-      else
-        metaVersion = "CMv2.9";
-    }
-
-    static bool loggedParsedMetadata = false;
-    if (!loggedParsedMetadata)
-    {
-      loggedParsedMetadata = true;
-      logM(LOGINFO, "Parsed DoVi metadata (first frame): meta='{}' has_l254={} l2_count={} l8_count={}",
-                    metaVersion, hasLevel254, level2Count, level8Count);
-    }
-
-    doviStreamMetadata.meta_version = metaVersion;
-    dataCacheCore.SetVideoDoViStreamMetadata(doviStreamMetadata);
-
-    DOVIStreamInfo doviStreamInfo;
-    const DoviRpuDataHeader* header = dovi_rpu_get_header(opaque);
-    doviElType = DOVIELType::TYPE_NONE;
-
-    if (header && ((header->guessed_profile == 4) || (header->guessed_profile == 7)) && header->el_type)
-    {
-      if (StringUtils::EqualsNoCase(header->el_type, "FEL"))
-        doviElType = DOVIELType::TYPE_FEL;
-      else if (StringUtils::EqualsNoCase(header->el_type, "MEL"))
-        doviElType = DOVIELType::TYPE_MEL;
-    }
-
-    doviStreamInfo.dovi_el_type = doviElType;
-    doviStreamInfo.dovi = dovi;
-
-    doviStreamInfo.has_config =
-        (memcmp(&dovi, &CDVDStreamInfo::empty_dovi, sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
-    doviStreamInfo.has_header = (header != nullptr);
-
-    dataCacheCore.SetVideoDoViStreamInfo(doviStreamInfo);
-    dovi_rpu_free_header(header);
-  }
-
+  const DoviVdrDmData* vdrDmData = dovi_rpu_get_vdr_dm_data(metadataOpaque);
+  PopulateDoviFrameMetadata(vdrDmData, pts, dataCacheCore, outDoViFrameMetadata);
   dovi_rpu_free_vdr_dm_data(vdrDmData);
 }
 
@@ -248,7 +278,9 @@ void GetDoviRpuInfo(uint8_t* nalBuf,
   DoviRpuOpaque* opaque = dovi_parse_unspec62_nalu(nalBuf, nalSize);
   if (opaque)
   {
-    PopulateDoviRpuInfo(opaque, firstFrame, doviElType, dovi, pts, dataCacheCore);
+    PopulateDoviRpuInfo(opaque, pts, dataCacheCore);
+    if (firstFrame)
+      PopulateDoviFirstFrameStreamInfo(opaque, opaque, doviElType, dovi, dataCacheCore);
     dovi_rpu_free(opaque);
   }
 }
@@ -321,10 +353,6 @@ bool CopyRbspBits(BitstreamIoWriter& writer,
   return true;
 }
 
-<<<<<<< HEAD
-bool GetCMv29PayloadInfo(DoviRpuOpaque* opaque,
-                         size_t& dmPayloadEndBit,
-                         size_t& remainingBitsStart,
 bool GetCMv29PayloadInfo(const DoviVdrDmData* vdrDmData, size_t& dmPayloadEndBit)
 {
   if (!vdrDmData || vdrDmData->cmv29_payload_end_bit == 0) return false;
@@ -387,9 +415,6 @@ DoviRpuOpaque* AppendCMv40ToRpuNalu(uint8_t* nalBuf,
 {
   if (!nalBuf || (nalSize <= 2)) return nullptr;
 
-  const uint8_t nal0 = nalBuf[0];
-  const uint8_t nal1 = nalBuf[1];
-
   std::vector<uint8_t> rbsp;
   HevcClearStartCodeEmulationPrevention3Byte(nalBuf + 2, static_cast<size_t>(nalSize - 2), rbsp);
 
@@ -405,8 +430,8 @@ DoviRpuOpaque* AppendCMv40ToRpuNalu(uint8_t* nalBuf,
 
   std::vector<uint8_t> naluOut;
   naluOut.reserve(2 + naluPayload.size());
-  naluOut.push_back(nal0);
-  naluOut.push_back(nal1);
+  naluOut.push_back(nalBuf[0]);
+  naluOut.push_back(nalBuf[1]);
   naluOut.insert(naluOut.end(), naluPayload.begin(), naluPayload.end());
 
   DoviRpuOpaque* opaque = ParseAndValidateCmv40Nalu(naluOut);
@@ -481,9 +506,14 @@ inline void AppendCMv40(DOVICMv40Mode cmv40Mode,
                         std::vector<uint8_t>& nalu,
                         DoviRpuOpaque*& opaque)
 {
-  if (!header || !SupportsCMv40Append(vdrDmData)) return;
+  if (!header || !vdrDmData) return;
 
-  const bool shouldAppend = (cmv40Mode == DOVICMv40Mode::CMV40_ALWAYS) || IsCMv29NoL2(vdrDmData);
+  const bool hasLevel254 = vdrDmData->dm_data.level254;
+  if (hasLevel254) return;
+
+  const bool level2IsEmpty = (vdrDmData->dm_data.level2.len == 0);
+  const bool shouldAppend =
+      (cmv40Mode == DOVICMv40Mode::CMV40_ALWAYS) || level2IsEmpty;
   if (!shouldAppend) return;
 
   opaque = AppendCMv40ToRpuNalu(nalBuf, nalSize, vdrDmData, nalu);
@@ -587,13 +617,10 @@ void CBitstreamConverter::ProcessDoViRpu(
     DoviRpuOpaque* metadataOpaque = appendOpaque ? appendOpaque : opaque;
     if (metadataOpaque)
     {
-      PopulateDoviRpuInfo(metadataOpaque,
-                          m_first_frame,
-                          m_hints.dovi_el_type,
-                          m_hints.dovi,
-                          pts,
-                          m_dataCacheCore,
-                          &m_cached_dovi_frame_metadata);
+      PopulateDoviRpuInfo(metadataOpaque, pts, m_dataCacheCore, &m_cached_dovi_frame_metadata);
+      if (m_first_frame)
+        PopulateDoviFirstFrameStreamInfo(
+            metadataOpaque, opaque, m_hints.dovi_el_type, m_hints.dovi, m_dataCacheCore);
     }
 
     if (header) dovi_rpu_free_header(header);
