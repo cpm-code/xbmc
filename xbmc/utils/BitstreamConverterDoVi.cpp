@@ -114,6 +114,7 @@ std::string BuildMetaVersionString(const DoviVdrDmData* vdrDmData)
 }
 
 inline void PopulateDoviFrameMetadata(const DoviVdrDmData* vdrDmData,
+                                      const DoviVdrDmData* sourceVdrDmData,
                                       double pts,
                                       CDataCacheCore& dataCacheCore,
                                       DOVIFrameMetadata* outDoViFrameMetadata)
@@ -121,6 +122,7 @@ inline void PopulateDoviFrameMetadata(const DoviVdrDmData* vdrDmData,
   DOVIFrameMetadata doviFrameMetadata;
   doviFrameMetadata.pts = pts;
   doviFrameMetadata.meta_version = BuildMetaVersionString(vdrDmData);
+  doviFrameMetadata.source_meta_version = BuildMetaVersionString(sourceVdrDmData);
 
   if (vdrDmData == nullptr)
   {
@@ -256,12 +258,24 @@ inline void PopulateDoviFirstFrameStreamInfo(DoviRpuOpaque* metadataOpaque,
 }
 
 inline void PopulateDoviRpuInfo(DoviRpuOpaque* metadataOpaque,
+                                DoviRpuOpaque* sourceOpaque,
                                 double pts,
                                 CDataCacheCore& dataCacheCore,
                                 DOVIFrameMetadata* outDoViFrameMetadata = nullptr)
 {
   const DoviVdrDmData* vdrDmData = dovi_rpu_get_vdr_dm_data(metadataOpaque);
-  PopulateDoviFrameMetadata(vdrDmData, pts, dataCacheCore, outDoViFrameMetadata);
+
+  const bool needsSeparateSourceFetch = sourceOpaque && sourceOpaque != metadataOpaque;
+  const DoviVdrDmData* sourceVdrDmData = needsSeparateSourceFetch
+                                          ? dovi_rpu_get_vdr_dm_data(sourceOpaque)
+                                          : vdrDmData;
+
+  PopulateDoviFrameMetadata(vdrDmData, sourceVdrDmData, pts, dataCacheCore,
+                            outDoViFrameMetadata);
+
+  if (needsSeparateSourceFetch)
+    dovi_rpu_free_vdr_dm_data(sourceVdrDmData);
+
   dovi_rpu_free_vdr_dm_data(vdrDmData);
 }
 
@@ -278,7 +292,7 @@ void GetDoviRpuInfo(uint8_t* nalBuf,
   DoviRpuOpaque* opaque = dovi_parse_unspec62_nalu(nalBuf, nalSize);
   if (opaque)
   {
-    PopulateDoviRpuInfo(opaque, pts, dataCacheCore);
+    PopulateDoviRpuInfo(opaque, opaque, pts, dataCacheCore);
     if (firstFrame)
       PopulateDoviFirstFrameStreamInfo(opaque, opaque, doviElType, dovi, dataCacheCore);
     dovi_rpu_free(opaque);
@@ -617,7 +631,8 @@ void CBitstreamConverter::ProcessDoViRpu(
     DoviRpuOpaque* metadataOpaque = appendOpaque ? appendOpaque : opaque;
     if (metadataOpaque)
     {
-      PopulateDoviRpuInfo(metadataOpaque, pts, m_dataCacheCore, &m_cached_dovi_frame_metadata);
+      PopulateDoviRpuInfo(metadataOpaque, opaque, pts, m_dataCacheCore,
+                          &m_cached_dovi_frame_metadata);
       if (m_first_frame)
         PopulateDoviFirstFrameStreamInfo(
             metadataOpaque, opaque, m_hints.dovi_el_type, m_hints.dovi, m_dataCacheCore);
