@@ -116,6 +116,9 @@ vec3 encodePQ(vec3 x)
 
 vec3 convertHdrPgsForPqOutput(vec3 pq)
 {
+  if (abs(m_hdrPgsPeak - 1.0) < 0.0001 && abs(m_hdrPgsSaturation - 1.0) < 0.0001)
+    return pq;
+
   vec3 linear = decodePQ(pq);
 
   vec3 luma = vec3(dot(linear, vec3(0.2627, 0.6780, 0.0593)));
