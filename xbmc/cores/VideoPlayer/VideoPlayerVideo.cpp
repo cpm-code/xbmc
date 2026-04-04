@@ -36,6 +36,7 @@
 #include <numeric>
 #include <sstream>
 #include <chrono>
+#include <string_view>
 
 using namespace std::chrono_literals;
 
@@ -820,22 +821,23 @@ bool CVideoPlayerVideo::ProcessDecoderOutput(double &frametime, double &pts)
     // set stereo mode if not set by decoder
     if (m_picture.stereoMode.empty())
     {
-      std::string stereoMode;
-      switch (static_cast<RenderStereoMode>(m_processInfo.GetVideoSettings().m_StereoMode))
+      const auto videoSettings = m_processInfo.GetVideoSettings();
+      std::string_view stereoMode;
+      switch (static_cast<RenderStereoMode>(videoSettings.m_StereoMode))
       {
         case RenderStereoMode::SPLIT_VERTICAL:
           stereoMode = "left_right";
-          if (m_processInfo.GetVideoSettings().m_StereoInvert)
+          if (videoSettings.m_StereoInvert)
             stereoMode = "right_left";
           break;
         case RenderStereoMode::SPLIT_HORIZONTAL:
           stereoMode = "top_bottom";
-          if (m_processInfo.GetVideoSettings().m_StereoInvert)
+          if (videoSettings.m_StereoInvert)
             stereoMode = "bottom_top";
           break;
         case RenderStereoMode::HARDWAREBASED:
           stereoMode = "block_lr";
-          if (m_processInfo.GetVideoSettings().m_StereoInvert)
+          if (videoSettings.m_StereoInvert)
             stereoMode = "block_rl";
           break;
         default:
@@ -975,6 +977,7 @@ void CVideoPlayerVideo::ProcessOverlays(const VideoPicture& picture, double pts)
 CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPicture& picture)
 {
   m_bAbortOutput = false;
+  const auto videoSettings = m_processInfo.GetVideoSettings();
 
   if (m_processInfo.GetVideoStereoMode() != picture.stereoMode)
   {
@@ -995,7 +998,7 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
       config_framerate = 59.94;
   }
 
-  int sorient = m_processInfo.GetVideoSettings().m_Orientation;
+  int sorient = videoSettings.m_Orientation;
   int orientation = sorient != 0 ? (sorient + m_hints.orientation) % 360
                                  : m_hints.orientation;
 
@@ -1081,8 +1084,7 @@ CVideoPlayerVideo::EOutputState CVideoPlayerVideo::OutputPicture(const VideoPict
 
   ProcessOverlays(picture, picture.pts);
 
-  EINTERLACEMETHOD deintMethod = EINTERLACEMETHOD::VS_INTERLACEMETHOD_NONE;
-  deintMethod = m_processInfo.GetVideoSettings().m_InterlaceMethod;
+  EINTERLACEMETHOD deintMethod = videoSettings.m_InterlaceMethod;
   if (!m_processInfo.Supports(deintMethod))
     deintMethod = m_processInfo.GetDeinterlacingMethodDefault();
 

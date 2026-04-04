@@ -671,15 +671,16 @@ bool CVideoPlayerAudio::ProcessDecoderOutput(DVDAudioFrame &audioframe)
         m_audioSink.Resume();
     }
 
+    const auto videoSettings = m_processInfo.GetVideoSettings();
     m_audioSink.SetDynamicRangeCompression(
-        static_cast<long>(m_processInfo.GetVideoSettings().m_VolumeAmplification * 100));
+      static_cast<long>(videoSettings.m_VolumeAmplification * 100));
 
     SetSyncType(audioframe.passthrough);
 
     // downmix
     double clev = audioframe.hasDownmix ? audioframe.centerMixLevel : M_SQRT1_2;
     double curDB = 20 * log10(clev);
-    audioframe.centerMixLevel = pow(10, (curDB + m_processInfo.GetVideoSettings().m_CenterMixLevel) / 20);
+    audioframe.centerMixLevel = pow(10, (curDB + videoSettings.m_CenterMixLevel) / 20);
     audioframe.hasDownmix = true;
   }
 
