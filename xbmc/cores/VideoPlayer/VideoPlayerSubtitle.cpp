@@ -19,11 +19,16 @@
 
 #include <mutex>
 
+using namespace std::chrono_literals;
+
 CVideoPlayerSubtitle::CVideoPlayerSubtitle(CDVDOverlayContainer* pOverlayContainer, CProcessInfo &processInfo)
-: IDVDStreamPlayer(processInfo)
+: CThread("VideoPlayerSubtitle")
+, IDVDStreamPlayer(processInfo)
+, m_messageQueue("subtitle")
 {
   m_pOverlayContainer = pOverlayContainer;
   m_lastPts = DVD_NOPTS_VALUE;
+  m_messageQueue.SetMaxDataSize(4 * 1024 * 1024);
 }
 
 CVideoPlayerSubtitle::~CVideoPlayerSubtitle()
@@ -35,6 +40,19 @@ CVideoPlayerSubtitle::~CVideoPlayerSubtitle()
 void CVideoPlayerSubtitle::Flush()
 {
   SendMessage(std::make_shared<CDVDMsg>(CDVDMsg::GENERAL_FLUSH), 0);
+}
+
+void CVideoPlayerSubtitle::UpdatePlaybackPosition(double pts, double offset)
+{
+  if (!m_messageQueue.IsInited() || !m_usesTimedParser.load(std::memory_order_relaxed))
+    return;
+
+  if (pts == DVD_NOPTS_VALUE) return;
+
+  m_latestPts.store(pts, std::memory_order_relaxed);
+  m_latestOffset.store(offset, std::memory_order_relaxed);
+  m_hasPendingTiming.store(true, std::memory_order_relaxed);
+  m_wakeEvent.Set();
 }
 
 namespace
@@ -53,6 +71,55 @@ std::shared_ptr<CDVDOverlayGroup> InitialiseNewOverlayGroup(std::shared_ptr<CDVD
 } // namespace
 
 void CVideoPlayerSubtitle::SendMessage(std::shared_ptr<CDVDMsg> pMsg, int priority)
+{
+  if (!m_messageQueue.IsInited()) return;
+
+  m_messageQueue.Put(std::move(pMsg), priority);
+  m_wakeEvent.Set();
+}
+
+void CVideoPlayerSubtitle::Process()
+{
+  std::shared_ptr<CDVDMsg> pMsg;
+
+  while (!m_bStop)
+  {
+    m_wakeEvent.Reset();
+
+    bool didWork = false;
+    while (true)
+    {
+      MsgQueueReturnCode ret = m_messageQueue.Get(pMsg, 0ms);
+      if (ret == MSGQ_TIMEOUT) break;
+
+      if (MSGQ_IS_ERROR(ret))
+      {
+        if (!m_messageQueue.ReceivedAbortRequest())
+          logM(LOGERROR, "message queue error ({})", ret);
+        return;
+      }
+
+      HandleMessage(pMsg);
+      didWork = true;
+    }
+
+    if (m_hasPendingTiming.exchange(false, std::memory_order_relaxed))
+    {
+      const double pts = m_latestPts.load(std::memory_order_relaxed);
+      const double offset = m_latestOffset.load(std::memory_order_relaxed);
+
+      std::unique_lock lock(m_section);
+      ProcessParser(pts, offset);
+      didWork = true;
+    }
+
+    if (didWork) continue;
+
+    m_wakeEvent.Wait(100ms);
+  }
+}
+
+void CVideoPlayerSubtitle::HandleMessage(const std::shared_ptr<CDVDMsg>& pMsg)
 {
   std::unique_lock lock(m_section);
 
@@ -141,7 +208,9 @@ bool CVideoPlayerSubtitle::OpenStream(CDVDStreamInfo &hints, std::string &filena
 {
   std::unique_lock lock(m_section);
 
+  lock.unlock();
   CloseStream(false);
+  lock.lock();
   m_streaminfo = hints;
 
   // okey check if this is a filesubtitle
@@ -164,17 +233,26 @@ bool CVideoPlayerSubtitle::OpenStream(CDVDStreamInfo &hints, std::string &filena
       return false;
     }
     m_pSubtitleFileParser->Reset();
+    m_usesTimedParser.store(true, std::memory_order_relaxed);
+    m_messageQueue.Init();
+    Create();
     return true;
   }
 
   // dvd's use special subtitle decoder
   if(hints.codec == AV_CODEC_ID_DVD_SUBTITLE && filename == "dvd")
+  {
+    m_messageQueue.Init();
+    Create();
     return true;
+  }
 
   m_pOverlayCodec = CDVDFactoryCodec::CreateOverlayCodec(hints);
   if (m_pOverlayCodec)
   {
     CLog::Log(LOGDEBUG, "Created subtitles overlay codec: {}", m_pOverlayCodec->GetName());
+    m_messageQueue.Init();
+    Create();
     return true;
   }
 
@@ -184,6 +262,13 @@ bool CVideoPlayerSubtitle::OpenStream(CDVDStreamInfo &hints, std::string &filena
 
 void CVideoPlayerSubtitle::CloseStream(bool bWaitForBuffers)
 {
+  m_usesTimedParser.store(false, std::memory_order_relaxed);
+  m_hasPendingTiming.store(false, std::memory_order_relaxed);
+  m_messageQueue.Abort();
+  m_wakeEvent.Set();
+  StopThread();
+  m_messageQueue.End();
+
   std::unique_lock lock(m_section);
 
   m_pSubtitleFileParser.reset();
@@ -193,12 +278,12 @@ void CVideoPlayerSubtitle::CloseStream(bool bWaitForBuffers)
 
   if (!bWaitForBuffers)
     m_pOverlayContainer->Clear();
+
+  m_lastPts = DVD_NOPTS_VALUE;
 }
 
-void CVideoPlayerSubtitle::Process(double pts, double offset)
+void CVideoPlayerSubtitle::ProcessParser(double pts, double offset)
 {
-  std::unique_lock lock(m_section);
-
   if (m_pSubtitleFileParser)
   {
     if(pts == DVD_NOPTS_VALUE)
@@ -232,6 +317,6 @@ void CVideoPlayerSubtitle::Process(double pts, double offset)
 bool CVideoPlayerSubtitle::AcceptsData() const
 {
   // FIXME : This may still be causing problems + magic number :(
-  return m_pOverlayContainer->GetSize() < 5;
+  return m_pOverlayContainer->GetSize() < 5 && !m_messageQueue.IsFull();
 }
 
