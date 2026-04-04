@@ -507,6 +507,7 @@ protected:
   virtual void UpdateContent();
   void UpdateContentState();
   void NotifyStreamsReady();
+  void QueueSubtitleSwitchSeek(const SelectionStream& stream);
 
   void UpdateFileItemStreamDetails(CFileItem& item, UpdateStreamDetails update);
   int GetPreviousChapter();

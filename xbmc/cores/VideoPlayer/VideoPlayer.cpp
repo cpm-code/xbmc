@@ -85,6 +85,11 @@ using namespace std::chrono_literals;
 
 namespace
 {
+// Backfill window for external subtitle demuxers only. This helps reopen a
+// separate subtitle stream near the current playback time without affecting
+// the main audio/video demux path.
+constexpr int SUBTITLE_DEMUX_BACKFILL_SECONDS = 30;
+
 // Clamp backward seeks to the start of the item, and clamp forward seeks so
 // they stay at least the configured minimum distance before the reported EOS.
 // If playback has already advanced into the final keep-out range, allow seeks
@@ -2694,6 +2699,27 @@ void CVideoPlayer::NotifyStreamsReady()
   m_State.streamsReady = true;
 }
 
+void CVideoPlayer::QueueSubtitleSwitchSeek(const SelectionStream& stream)
+{
+  const auto sourceMask = static_cast<StreamSource>(STREAM_SOURCE_MASK(stream.source));
+  if (sourceMask != STREAM_SOURCE_DEMUX)
+    return;
+
+  CDVDMsgPlayerSeek::CMode mode;
+  if ((m_CurrentVideo.syncState == IDVDStreamPlayer::SYNC_STARTING ||
+       m_CurrentAudio.syncState == IDVDStreamPlayer::SYNC_STARTING) &&
+      m_State.dts != DVD_NOPTS_VALUE)
+    mode.time = static_cast<double>(DVD_TIME_TO_MSEC(m_State.dts + m_State.time_offset));
+  else
+    mode.time = static_cast<double>(GetUpdatedTime());
+
+  mode.backward = true;
+  mode.accurate = true;
+  mode.trickplay = true;
+  mode.sync = true;
+  m_messenger.Put(std::make_shared<CDVDMsgPlayerSeek>(mode));
+}
+
 bool CVideoPlayer::CheckPlayerInit(CCurrentStream& current)
 {
   if (current.inited)
@@ -3426,7 +3452,8 @@ void CVideoPlayer::HandleMessages()
         else
         {
           CloseStream(m_CurrentSubtitle, false);
-          OpenStream(m_CurrentSubtitle, st.demuxerId, st.id, st.source);
+          if (OpenStream(m_CurrentSubtitle, st.demuxerId, st.id, st.source))
+            QueueSubtitleSwitchSeek(st);
         }
       }
     }
@@ -4237,8 +4264,11 @@ bool CVideoPlayer::OpenStream(CCurrentStream& current, int64_t demuxerId, int iS
     if(pts == DVD_NOPTS_VALUE)
       pts = 0;
     pts += m_offset_pts;
-    if (!m_pSubtitleDemuxer->SeekTime((int)(1000.0 * pts / (double)DVD_TIME_BASE)))
-      CLog::Log(LOGDEBUG, "{} - failed to start subtitle demuxing from: {:f}", __FUNCTION__, pts);
+    const double backfillPts = std::max(0.0, pts - DVD_SEC_TO_TIME(SUBTITLE_DEMUX_BACKFILL_SECONDS));
+    if (!m_pSubtitleDemuxer->SeekTime(
+            static_cast<int>(1000.0 * backfillPts / static_cast<double>(DVD_TIME_BASE))))
+      logM(LOGDEBUG, "failed to start subtitle demuxing from: {:f}", backfillPts);
+
     stream = m_pSubtitleDemuxer->GetStream(demuxerId, iStream);
     if(!stream || stream->disabled)
       return false;
