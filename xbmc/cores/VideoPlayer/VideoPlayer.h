@@ -471,6 +471,7 @@ protected:
 
   void HandleMessages();
   void HandlePlaySpeed();
+  void HandlePendingStreamSync();
   bool IsInMenuInternal() const;
   void SynchronizeDemuxer();
   void CheckAutoSceneSkip();
@@ -505,6 +506,7 @@ protected:
 
   virtual void UpdateContent();
   void UpdateContentState();
+  void NotifyStreamsReady();
 
   void UpdateFileItemStreamDetails(CFileItem& item, UpdateStreamDetails update);
   int GetPreviousChapter();
