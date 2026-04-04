@@ -30,6 +30,7 @@ extern "C" {
 typedef struct hdr_buf {
     char *data;
     int size;
+  int capacity;
 } hdr_buf_t;
 
 typedef struct am_packet {
