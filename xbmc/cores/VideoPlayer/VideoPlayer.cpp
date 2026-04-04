@@ -1784,7 +1784,9 @@ void CVideoPlayer::Process()
     UpdatePlayState(200);
 
     // make sure we run subtitle process here
-    m_VideoPlayerSubtitle->Process(m_clock.GetClock() + m_State.time_offset - m_VideoPlayerVideo->GetSubtitleDelay(), m_State.time_offset);
+    m_VideoPlayerSubtitle->UpdatePlaybackPosition(
+      m_clock.GetClock() + m_State.time_offset - m_VideoPlayerVideo->GetSubtitleDelay(),
+      m_State.time_offset);
 
     // tell demuxer if we want to fill buffers
     if (m_demuxerSpeed != DVD_PLAYSPEED_PAUSE)
@@ -3045,11 +3047,9 @@ void CVideoPlayer::OnExit()
   CloseStream(m_CurrentTeletext,!m_bAbortRequest);
   CloseStream(m_CurrentRadioRDS, !m_bAbortRequest);
   CloseStream(m_CurrentAudioID3, !m_bAbortRequest);
-  // the generalization principle was abused for subtitle player. actually it is not a stream player like
-  // video and audio. subtitle player does not run on its own thread, hence waitForBuffers makes
-  // no sense here. waitForBuffers is abused to clear overlay container (false clears container)
-  // subtitles are added from video player. after video player has finished, overlays have to be cleared.
-  CloseStream(m_CurrentSubtitle, false);  // clear overlay container
+  // Subtitles now run on their own worker, but we still close without waiting here so
+  // the overlay container is cleared immediately during teardown.
+  CloseStream(m_CurrentSubtitle, false);
 
   CServiceBroker::GetWinSystem()->UnregisterRenderLoop(this);
 
@@ -4510,6 +4510,10 @@ bool CVideoPlayer::OpenSubtitleStream(const CDVDStreamInfo& hint)
     if (!player->OpenStream(hint))
       return false;
   }
+
+  m_VideoPlayerSubtitle->UpdatePlaybackPosition(
+      m_clock.GetClock() + m_State.time_offset - m_VideoPlayerVideo->GetSubtitleDelay(),
+      m_State.time_offset);
 
   return true;
 }
