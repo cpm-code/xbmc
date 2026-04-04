@@ -841,19 +841,10 @@ static bool aml_backend_needs_dv_hdr10_graphics(StreamHdrType hdrType, unsigned 
 static bool aml_backend_needs_pq_osd(StreamHdrType hdrType, unsigned int bitDepth)
 {
   const StreamHdrType finalHdrType = aml_get_final_hdr_type(hdrType, bitDepth);
-  if (!aml_display_is_hdr_capable())
-    return false;
-
-  switch (finalHdrType)
-  {
-    case StreamHdrType::HDR_TYPE_DOLBYVISION:
-    case StreamHdrType::HDR_TYPE_HDR10:
-    case StreamHdrType::HDR_TYPE_HDR10PLUS:
-    case StreamHdrType::HDR_TYPE_HLG:
-      return true;
-    default:
-      return false;
-  }
+  // Keep Kodi GUI composition in SDR for HLG output and let the AML pipeline
+  // handle SDR->HLG conversion for the OSD. PQ-authored GUI composition is only
+  // needed for PQ-based output formats.
+  return aml_display_is_hdr_capable() && aml_output_type_is_pq(finalHdrType);
 }
 
 static bool aml_backend_needs_hdr_osd(StreamHdrType hdrType, unsigned int bitDepth)
