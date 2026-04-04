@@ -112,6 +112,157 @@ int64_t NormalizeTarget(int64_t seekTarget, int64_t currentTime, int64_t maxTime
 
   return maxSeekTarget;
 }
+
+enum class StreamSyncAction
+{
+  None,
+  ResyncAudioToCurrentClock,
+  ResyncVideoToCurrentClock,
+  ResyncBoth,
+  FlushStalledVideo,
+};
+
+struct StreamSyncSnapshot
+{
+  bool isRealtime{false};
+  int playSpeed{DVD_PLAYSPEED_NORMAL};
+  double currentClock{0.0};
+  double messageQueueTimeSize{0.0};
+
+  int audioId{-1};
+  int videoId{-1};
+  IDVDStreamPlayer::ESyncState audioSyncState{IDVDStreamPlayer::SYNC_STARTING};
+  IDVDStreamPlayer::ESyncState videoSyncState{IDVDStreamPlayer::SYNC_STARTING};
+  int audioAvSync{CCurrentStream::AV_SYNC_FORCE};
+  int videoAvSync{CCurrentStream::AV_SYNC_FORCE};
+  unsigned int audioPackets{0};
+  unsigned int videoPackets{0};
+  bool audioAcceptsData{false};
+  bool videoAcceptsData{false};
+  int audioLevel{0};
+  int videoLevel{0};
+  bool videoStalled{false};
+  double audioStartTime{DVD_NOPTS_VALUE};
+  double videoStartTime{DVD_NOPTS_VALUE};
+  double audioCacheTime{DVD_NOPTS_VALUE};
+  double audioCacheTotal{DVD_NOPTS_VALUE};
+  double videoCacheTotal{DVD_NOPTS_VALUE};
+};
+
+struct StreamSyncDecision
+{
+  StreamSyncAction action{StreamSyncAction::None};
+  double clock{0.0};
+  bool logAudioWaitState{false};
+  bool logVideoWaitState{false};
+  bool waitingForVideoPts{false};
+};
+
+class CVideoPlayerSyncController
+{
+public:
+  static StreamSyncDecision Evaluate(const StreamSyncSnapshot& snapshot)
+  {
+    StreamSyncDecision decision;
+
+    if ((snapshot.videoSyncState != IDVDStreamPlayer::SYNC_WAITSYNC) &&
+        (snapshot.audioSyncState != IDVDStreamPlayer::SYNC_WAITSYNC))
+      return decision;
+
+    const unsigned int threshold = snapshot.isRealtime ? 40 : 20;
+    const bool videoReady =
+        (snapshot.videoSyncState == IDVDStreamPlayer::SYNC_WAITSYNC) ||
+        (snapshot.videoPackets == 0 && snapshot.audioPackets > threshold) ||
+        (!snapshot.audioAcceptsData && snapshot.videoLevel < 10);
+    const bool audioReady =
+        snapshot.audioId < 0 || (snapshot.audioSyncState == IDVDStreamPlayer::SYNC_WAITSYNC) ||
+        (snapshot.audioPackets == 0 && snapshot.videoPackets > threshold) ||
+        (!snapshot.videoAcceptsData && snapshot.audioLevel < 10);
+
+    if (snapshot.audioSyncState == IDVDStreamPlayer::SYNC_WAITSYNC &&
+        (snapshot.audioAvSync == CCurrentStream::AV_SYNC_CONT ||
+         snapshot.videoSyncState == IDVDStreamPlayer::SYNC_INSYNC))
+    {
+      decision.action = StreamSyncAction::ResyncAudioToCurrentClock;
+      decision.clock = snapshot.currentClock;
+      return decision;
+    }
+
+    if (snapshot.videoSyncState == IDVDStreamPlayer::SYNC_WAITSYNC &&
+        (snapshot.videoAvSync == CCurrentStream::AV_SYNC_CONT ||
+         snapshot.audioSyncState == IDVDStreamPlayer::SYNC_INSYNC))
+    {
+      decision.action = StreamSyncAction::ResyncVideoToCurrentClock;
+      decision.clock = snapshot.currentClock;
+      return decision;
+    }
+
+    if (videoReady && audioReady)
+    {
+      decision.action = StreamSyncAction::ResyncBoth;
+      decision.logAudioWaitState = snapshot.audioSyncState == IDVDStreamPlayer::SYNC_WAITSYNC;
+      decision.logVideoWaitState = snapshot.videoSyncState == IDVDStreamPlayer::SYNC_WAITSYNC;
+      decision.waitingForVideoPts =
+          snapshot.videoId >= 0 && snapshot.videoStartTime == DVD_NOPTS_VALUE;
+      decision.clock = CalculateClock(snapshot);
+      return decision;
+    }
+
+    if (snapshot.audioId >= 0 && snapshot.videoId >= 0 && !snapshot.audioAcceptsData &&
+        snapshot.videoSyncState == IDVDStreamPlayer::SYNC_STARTING && snapshot.videoStalled &&
+        snapshot.videoPackets > 10)
+    {
+      decision.action = StreamSyncAction::FlushStalledVideo;
+    }
+
+    return decision;
+  }
+
+private:
+  static double CalculateClock(const StreamSyncSnapshot& snapshot)
+  {
+    double clock = 0.0;
+
+    if (snapshot.videoStartTime != DVD_NOPTS_VALUE && snapshot.videoPackets > 0 &&
+        snapshot.playSpeed == DVD_PLAYSPEED_PAUSE)
+    {
+      return snapshot.videoStartTime;
+    }
+
+    if (snapshot.audioStartTime != DVD_NOPTS_VALUE && snapshot.audioPackets > 0)
+    {
+      if (snapshot.isRealtime)
+        clock = snapshot.audioStartTime - snapshot.audioCacheTime - DVD_MSEC_TO_TIME(1000);
+      else
+        clock = snapshot.audioStartTime - snapshot.audioCacheTime;
+
+      if (snapshot.videoStartTime != DVD_NOPTS_VALUE && snapshot.videoPackets > 0)
+      {
+        if (snapshot.videoStartTime - snapshot.videoCacheTotal < clock)
+        {
+          clock = snapshot.videoStartTime - snapshot.videoCacheTotal;
+        }
+        else if (snapshot.videoStartTime > snapshot.audioStartTime && !snapshot.isRealtime)
+        {
+          const double audioTimeMs =
+              snapshot.messageQueueTimeSize * 1000.0 * snapshot.audioLevel / 100.0;
+          const double maxAudioTime = clock + DVD_MSEC_TO_TIME(audioTimeMs);
+          if ((snapshot.videoStartTime - snapshot.videoCacheTotal) > maxAudioTime)
+            clock = maxAudioTime;
+          else
+            clock = snapshot.videoStartTime - snapshot.videoCacheTotal;
+        }
+      }
+
+      return clock;
+    }
+
+    if (snapshot.videoStartTime != DVD_NOPTS_VALUE && snapshot.videoPackets > 0)
+      return snapshot.videoStartTime - snapshot.videoCacheTotal;
+
+    return clock;
+  }
+};
 }
 
 //------------------------------------------------------------------------------
@@ -2271,149 +2422,8 @@ void CVideoPlayer::HandlePlaySpeed()
     }
   }
 
-  // sync streams to clock
-  if ((m_CurrentVideo.syncState == IDVDStreamPlayer::SYNC_WAITSYNC) ||
-      (m_CurrentAudio.syncState == IDVDStreamPlayer::SYNC_WAITSYNC))
-  {
-    unsigned int threshold = 20;
-    if (m_pInputStream->IsRealtime())
-      threshold = 40;
-
-    bool video = (m_CurrentVideo.syncState == IDVDStreamPlayer::SYNC_WAITSYNC) ||
-                 (m_CurrentVideo.packets == 0 && m_CurrentAudio.packets > threshold) ||
-                 (!m_VideoPlayerAudio->AcceptsData() && (m_VideoPlayerVideo->GetLevel() < 10));
-    bool audio = m_CurrentAudio.id < 0 || (m_CurrentAudio.syncState == IDVDStreamPlayer::SYNC_WAITSYNC) ||
-                 (m_CurrentAudio.packets == 0 && m_CurrentVideo.packets > threshold) ||
-                 (!m_VideoPlayerVideo->AcceptsData() && (m_VideoPlayerAudio->GetLevel() < 10));
-
-    if (m_CurrentAudio.syncState == IDVDStreamPlayer::SYNC_WAITSYNC &&
-        (m_CurrentAudio.avsync == CCurrentStream::AV_SYNC_CONT ||
-         m_CurrentVideo.syncState == IDVDStreamPlayer::SYNC_INSYNC))
-    {
-      CLog::Log(LOGDEBUG, LOGAUDIO, "VideoPlayer::Sync - Audio - Waiting, clock: {:.3f}", m_clock.GetClock());
-      m_CurrentAudio.syncState = IDVDStreamPlayer::SYNC_INSYNC;
-      m_CurrentAudio.avsync = CCurrentStream::AV_SYNC_NONE;
-      m_VideoPlayerAudio->SendMessage(
-          std::make_shared<CDVDMsgDouble>(CDVDMsg::GENERAL_RESYNC, m_clock.GetClock()), 1);
-    }
-    else if (m_CurrentVideo.syncState == IDVDStreamPlayer::SYNC_WAITSYNC &&
-             (m_CurrentVideo.avsync == CCurrentStream::AV_SYNC_CONT ||
-             m_CurrentAudio.syncState == IDVDStreamPlayer::SYNC_INSYNC))
-    {
-      CLog::Log(LOGDEBUG, LOGVIDEO, "VideoPlayer::Sync - Video - Waiting, clock: {:.3f}", m_clock.GetClock());
-      m_CurrentVideo.syncState = IDVDStreamPlayer::SYNC_INSYNC;
-      m_CurrentVideo.avsync = CCurrentStream::AV_SYNC_NONE;
-      m_VideoPlayerVideo->SendMessage(
-          std::make_shared<CDVDMsgDouble>(CDVDMsg::GENERAL_RESYNC, m_clock.GetClock()), 1);
-    }
-    else if (video && audio)
-    {
-      double clock = 0;
-      if (m_CurrentAudio.syncState == IDVDStreamPlayer::SYNC_WAITSYNC)
-        CLog::Log(LOGDEBUG, "VideoPlayer::Sync - Audio - pts: {:.3f}, cache: {:.3f}, totalcache: {:.3f}, packets:{:d} level:{:d}",
-                             m_CurrentAudio.starttime / DVD_TIME_BASE, m_CurrentAudio.cachetime / DVD_TIME_BASE, m_CurrentAudio.cachetotal / DVD_TIME_BASE, m_CurrentAudio.packets, m_VideoPlayerAudio->GetLevel());
-      if (m_CurrentVideo.syncState == IDVDStreamPlayer::SYNC_WAITSYNC)
-        CLog::Log(LOGDEBUG, "VideoPlayer::Sync - Video - pts: {:.3f}, cache: {:.3f}, totalcache: {:.3f}, packets:{:d} level:{:d}",
-                             m_CurrentVideo.starttime / DVD_TIME_BASE, m_CurrentVideo.cachetime / DVD_TIME_BASE, m_CurrentVideo.cachetotal / DVD_TIME_BASE, m_CurrentVideo.packets, m_VideoPlayerVideo->GetLevel());
-
-      //========================================================================
-      // LAV-style A/V sync fix: Don't send RESYNC to audio until video PTS valid
-      //========================================================================
-      // At video start, video may take longer to decode than audio.
-      // If we send RESYNC to audio before video has valid PTS, audio syncs to
-      // a clock that doesn't account for video latency, causing A/V desync.
-      // We still process video normally - only audio RESYNC is delayed.
-      //========================================================================
-      const bool waitingForVideoPts = (m_CurrentVideo.id >= 0 && m_CurrentVideo.starttime == DVD_NOPTS_VALUE);
-
-      if (m_CurrentVideo.starttime != DVD_NOPTS_VALUE && m_CurrentVideo.packets > 0 &&
-          m_playSpeed == DVD_PLAYSPEED_PAUSE)
-      {
-        clock = m_CurrentVideo.starttime;
-      }
-      else if (m_CurrentAudio.starttime != DVD_NOPTS_VALUE && m_CurrentAudio.packets > 0)
-      {
-        if (m_pInputStream->IsRealtime())
-          clock = m_CurrentAudio.starttime - m_CurrentAudio.cachetime - DVD_MSEC_TO_TIME(1000);
-        else
-          clock = m_CurrentAudio.starttime - m_CurrentAudio.cachetime;
-
-        if (m_CurrentVideo.starttime != DVD_NOPTS_VALUE && (m_CurrentVideo.packets > 0))
-        {
-          if (m_CurrentVideo.starttime - m_CurrentVideo.cachetotal < clock)
-          {
-            clock = m_CurrentVideo.starttime - m_CurrentVideo.cachetotal;
-          }
-          else if (m_CurrentVideo.starttime > m_CurrentAudio.starttime &&
-                   !m_pInputStream->IsRealtime())
-          {
-            const int audioLevel = m_VideoPlayerAudio->GetLevel();
-            const double audioTimeMs = m_messageQueueTimeSize * 1000.0 * audioLevel / 100.0;
-            const double maxAudioTime = clock + DVD_MSEC_TO_TIME(audioTimeMs);
-            if ((m_CurrentVideo.starttime - m_CurrentVideo.cachetotal) > maxAudioTime)
-              clock = maxAudioTime;
-            else
-              clock = m_CurrentVideo.starttime - m_CurrentVideo.cachetotal;
-          }
-        }
-      }
-      else if (m_CurrentVideo.starttime != DVD_NOPTS_VALUE && m_CurrentVideo.packets > 0)
-      {
-        clock = m_CurrentVideo.starttime - m_CurrentVideo.cachetotal;
-      }
-
-      m_clock.Discontinuity(clock);
-      m_CurrentVideo.syncState = IDVDStreamPlayer::SYNC_INSYNC;
-      m_CurrentVideo.avsync = CCurrentStream::AV_SYNC_NONE;
-      m_VideoPlayerVideo->SendMessage(
-          std::make_shared<CDVDMsgDouble>(CDVDMsg::GENERAL_RESYNC, clock), 1);
-
-      // Only send RESYNC to audio if video PTS is valid
-      // This prevents audio from syncing to garbage during video startup
-      if (!waitingForVideoPts)
-      {
-        m_CurrentAudio.syncState = IDVDStreamPlayer::SYNC_INSYNC;
-        m_CurrentAudio.avsync = CCurrentStream::AV_SYNC_NONE;
-        m_VideoPlayerAudio->SendMessage(
-            std::make_shared<CDVDMsgDouble>(CDVDMsg::GENERAL_RESYNC, clock), 1);
-      }
-
-      SetCaching(CACHESTATE_DONE);
-      UpdatePlayState(0);
-
-      m_syncTimer.Set(3000ms);
-
-      if (!m_State.streamsReady)
-      {
-        if (m_playerOptions.fullscreen)
-        {
-          CServiceBroker::GetAppMessenger()->PostMsg(TMSG_SWITCHTOFULLSCREEN);
-        }
-
-        IPlayerCallback *cb = &m_callback;
-        CFileItem fileItem = m_item;
-        m_outboundEvents->Submit([=]() {
-          cb->OnAVStarted(fileItem);
-        });
-        m_State.streamsReady = true;
-      }
-    }
-    else
-    {
-      // exceptions for which stream players won't start properly
-      // 1. videoplayer has not detected a keyframe within length of demux buffers
-      if (m_CurrentAudio.id >= 0 && m_CurrentVideo.id >= 0 &&
-          !m_VideoPlayerAudio->AcceptsData() &&
-          m_CurrentVideo.syncState == IDVDStreamPlayer::SYNC_STARTING &&
-          m_VideoPlayerVideo->IsStalled() &&
-          m_CurrentVideo.packets > 10)
-      {
-        m_VideoPlayerAudio->AcceptsData();
-        CLog::Log(LOGWARNING, "VideoPlayer::Sync - stream player video does not start, flushing buffers");
-        FlushBuffers(DVD_NOPTS_VALUE, true, true);
-      }
-    }
-  }
+  // Sync streams to clock.
+  HandlePendingStreamSync();
 
   // handle ff/rw
   if (m_playSpeed != DVD_PLAYSPEED_NORMAL && m_playSpeed != DVD_PLAYSPEED_PAUSE)
@@ -2569,6 +2579,117 @@ void CVideoPlayer::HandlePlaySpeed()
       SetTempo(1.0f);
     }
   }
+}
+
+void CVideoPlayer::HandlePendingStreamSync()
+{
+  StreamSyncSnapshot snapshot;
+  snapshot.isRealtime = m_pInputStream->IsRealtime();
+  snapshot.playSpeed = m_playSpeed;
+  snapshot.currentClock = m_clock.GetClock();
+  snapshot.messageQueueTimeSize = m_messageQueueTimeSize;
+  snapshot.audioId = m_CurrentAudio.id;
+  snapshot.videoId = m_CurrentVideo.id;
+  snapshot.audioSyncState = m_CurrentAudio.syncState;
+  snapshot.videoSyncState = m_CurrentVideo.syncState;
+  snapshot.audioAvSync = m_CurrentAudio.avsync;
+  snapshot.videoAvSync = m_CurrentVideo.avsync;
+  snapshot.audioPackets = m_CurrentAudio.packets;
+  snapshot.videoPackets = m_CurrentVideo.packets;
+  snapshot.audioAcceptsData = m_VideoPlayerAudio->AcceptsData();
+  snapshot.videoAcceptsData = m_VideoPlayerVideo->AcceptsData();
+  snapshot.audioLevel = m_VideoPlayerAudio->GetLevel();
+  snapshot.videoLevel = m_VideoPlayerVideo->GetLevel();
+  snapshot.videoStalled = m_VideoPlayerVideo->IsStalled();
+  snapshot.audioStartTime = m_CurrentAudio.starttime;
+  snapshot.videoStartTime = m_CurrentVideo.starttime;
+  snapshot.audioCacheTime = m_CurrentAudio.cachetime;
+  snapshot.audioCacheTotal = m_CurrentAudio.cachetotal;
+  snapshot.videoCacheTotal = m_CurrentVideo.cachetotal;
+
+  const StreamSyncDecision decision = CVideoPlayerSyncController::Evaluate(snapshot);
+
+  switch (decision.action)
+  {
+    case StreamSyncAction::ResyncAudioToCurrentClock:
+      logComponentM(LOGDEBUG, LOGAUDIO, "Audio - Waiting, clock: {:.3f}", decision.clock);
+      m_CurrentAudio.syncState = IDVDStreamPlayer::SYNC_INSYNC;
+      m_CurrentAudio.avsync = CCurrentStream::AV_SYNC_NONE;
+      m_VideoPlayerAudio->SendMessage(
+          std::make_shared<CDVDMsgDouble>(CDVDMsg::GENERAL_RESYNC, decision.clock), 1);
+      return;
+
+    case StreamSyncAction::ResyncVideoToCurrentClock:
+      logComponentM(LOGDEBUG, LOGVIDEO, "Video - Waiting, clock: {:.3f}", decision.clock);
+      m_CurrentVideo.syncState = IDVDStreamPlayer::SYNC_INSYNC;
+      m_CurrentVideo.avsync = CCurrentStream::AV_SYNC_NONE;
+      m_VideoPlayerVideo->SendMessage(
+          std::make_shared<CDVDMsgDouble>(CDVDMsg::GENERAL_RESYNC, decision.clock), 1);
+      return;
+
+    case StreamSyncAction::ResyncBoth:
+      if (decision.logAudioWaitState)
+      {
+        logComponentM(LOGDEBUG, LOGAUDIO, "Audio - pts: {:.3f}, cache: {:.3f}, totalcache: {:.3f}, packets:{:d} level:{:d}",
+                      m_CurrentAudio.starttime / DVD_TIME_BASE, m_CurrentAudio.cachetime / DVD_TIME_BASE,
+                      m_CurrentAudio.cachetotal / DVD_TIME_BASE, m_CurrentAudio.packets,
+                      snapshot.audioLevel);
+      }
+      if (decision.logVideoWaitState)
+      {
+        logComponentM(LOGDEBUG, LOGVIDEO, "Video - pts: {:.3f}, cache: {:.3f}, totalcache: {:.3f}, packets:{:d} level:{:d}",
+                      m_CurrentVideo.starttime / DVD_TIME_BASE, m_CurrentVideo.cachetime / DVD_TIME_BASE,
+                      m_CurrentVideo.cachetotal / DVD_TIME_BASE, m_CurrentVideo.packets,
+                      snapshot.videoLevel);
+      }
+
+      m_clock.Discontinuity(decision.clock);
+      m_CurrentVideo.syncState = IDVDStreamPlayer::SYNC_INSYNC;
+      m_CurrentVideo.avsync = CCurrentStream::AV_SYNC_NONE;
+      m_VideoPlayerVideo->SendMessage(
+          std::make_shared<CDVDMsgDouble>(CDVDMsg::GENERAL_RESYNC, decision.clock), 1);
+
+      // LAV-style A/V sync fix: do not resync audio until video has reported
+      // a valid start PTS. Otherwise audio can lock to a clock that does not
+      // yet account for video startup latency, which causes A/V desync.
+      if (!decision.waitingForVideoPts)
+      {
+        m_CurrentAudio.syncState = IDVDStreamPlayer::SYNC_INSYNC;
+        m_CurrentAudio.avsync = CCurrentStream::AV_SYNC_NONE;
+        m_VideoPlayerAudio->SendMessage(
+            std::make_shared<CDVDMsgDouble>(CDVDMsg::GENERAL_RESYNC, decision.clock), 1);
+      }
+
+      SetCaching(CACHESTATE_DONE);
+      UpdatePlayState(0);
+      m_syncTimer.Set(3000ms);
+      NotifyStreamsReady();
+      return;
+
+    case StreamSyncAction::FlushStalledVideo:
+      // Exception: video can fail to start if no usable keyframe appears within
+      // the buffered demux window. Flush and retry to force a fresh start.
+      m_VideoPlayerAudio->AcceptsData();
+      logM(LOGWARNING, "stream player video does not start, flushing buffers");
+      FlushBuffers(DVD_NOPTS_VALUE, true, true);
+      return;
+
+    case StreamSyncAction::None:
+      return;
+  }
+}
+
+void CVideoPlayer::NotifyStreamsReady()
+{
+  if (m_State.streamsReady) return;
+
+  if (m_playerOptions.fullscreen)
+    CServiceBroker::GetAppMessenger()->PostMsg(TMSG_SWITCHTOFULLSCREEN);
+
+  IPlayerCallback* cb = &m_callback;
+  CFileItem fileItem = m_item;
+  m_outboundEvents->Submit([=]() { cb->OnAVStarted(fileItem); });
+  m_State.streamsReady = true;
 }
 
 bool CVideoPlayer::CheckPlayerInit(CCurrentStream& current)
