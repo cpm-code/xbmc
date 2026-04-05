@@ -26,6 +26,22 @@ extern "C"
 #include <libavutil/dict.h>
 }
 
+namespace
+{
+bool PgsIsPqAuthored(const CDVDStreamInfo& hints)
+{
+  switch (hints.hdrType)
+  {
+    case StreamHdrType::HDR_TYPE_HDR10:
+    case StreamHdrType::HDR_TYPE_HDR10PLUS:
+    case StreamHdrType::HDR_TYPE_DOLBYVISION:
+      return true;
+    default:
+      return false;
+  }
+}
+} // namespace
+
 CDVDOverlayCodecFFmpeg::CDVDOverlayCodecFFmpeg() : CDVDOverlayCodec("FFmpeg Subtitle Decoder")
 {
   m_pCodecContext = NULL;
@@ -118,12 +134,7 @@ bool CDVDOverlayCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &optio
   if (m_pCodecContext->codec_id == AV_CODEC_ID_HDMV_PGS_SUBTITLE)
   {
     // UHD-BD HDR PGS is BT.2020 PQ, SDR PGS is SDR BT.709 or SDR BT.2020.
-    StreamHdrType videoHdrType = hints.hdrType;
-
-    // Note: HDR10+ is not identified currently upstream - will though be caught as HDR10.
-    m_pgsIsPqAuthored = (videoHdrType == StreamHdrType::HDR_TYPE_HDR10 ||
-                         videoHdrType == StreamHdrType::HDR_TYPE_HDR10PLUS ||
-                         videoHdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
+    m_pgsIsPqAuthored = PgsIsPqAuthored(hints);
 
     // TODO: identify SDR BT.2020 and do the right thing for the PGS matrix, currently will treat as BT.709.
     const char* matrix = m_pgsIsPqAuthored ? "bt2020" : "auto";
