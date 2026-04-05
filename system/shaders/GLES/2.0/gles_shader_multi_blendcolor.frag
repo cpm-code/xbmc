@@ -39,6 +39,26 @@ highp float rand(highp vec2 co)
   return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
+vec3 adjustGuiForHdrOutput(vec3 x)
+{
+  x = max(x, vec3(0.0));
+  x = pow(x, vec3(1.0 / 0.45));
+
+  vec3 luma = vec3(dot(x, vec3(0.2126, 0.7152, 0.0722)));
+  x = mix(luma, x, m_sdrSaturation);
+  x = max(x, vec3(0.0));
+
+  float gain = max(m_sdrPeak, 0.0);
+  vec3 boosted = x * gain;
+
+  if (gain > 1.0)
+    x = boosted / (vec3(1.0) + x * (gain - 1.0));
+  else
+    x = boosted;
+
+  return clamp(pow(x, vec3(0.45)), vec3(0.0), vec3(1.0));
+}
+
 vec3 convertGuiForPqOutput(vec3 x)
 {
   const float ST2084_m1 = 2610.0 / (4096.0 * 4.0);
@@ -90,6 +110,8 @@ void main ()
 
 #if defined(KODI_TRANSFER_PQ)
   rgb.rgb = convertGuiForPqOutput(rgb.rgb);
+#elif defined(KODI_TRANSFER_HDR)
+  rgb.rgb = adjustGuiForHdrOutput(rgb.rgb);
 #endif
 
 #if defined(KODI_LIMITED_RANGE)
