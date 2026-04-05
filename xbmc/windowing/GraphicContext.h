@@ -62,6 +62,13 @@ enum RENDER_ORDER
   RENDER_ORDER_FRONT_TO_BACK,
 };
 
+enum class GuiHdr : int
+{
+  SDR = 0,
+  HDR,
+  HDR_PQ,
+};
+
 class CGraphicContext : public CCriticalSection
 {
 public:
@@ -221,8 +228,10 @@ public:
   const std::string& GetMediaDir() const;
   void SetMediaDir(const std::string& strMediaDir);
 
-  void SetTransferPQ(bool PQ) { m_isTransferPQ = PQ; }
-  bool IsTransferPQ() const { return m_isTransferPQ; }
+  void SetGuiHdr(GuiHdr hdr) { m_guiHdr = hdr; }
+  GuiHdr GetGuiHdr() const { return m_guiHdr; }
+  void SetTransferPQ(bool PQ) { m_guiHdr = PQ ? GuiHdr::HDR_PQ : GuiHdr::SDR; }
+  bool IsTransferPQ() const { return m_guiHdr == GuiHdr::HDR_PQ; }
 
 protected:
 
@@ -275,7 +284,7 @@ protected:
   RenderStereoMode m_stereoMode = RenderStereoMode::OFF;
   StreamHdrType m_hdrType;
 
-  bool m_isTransferPQ{false};
+  GuiHdr m_guiHdr{GuiHdr::SDR};
   RENDER_ORDER m_renderOrder{RENDER_ORDER_ALL_BACK_TO_FRONT};
   uint32_t m_layer{2};
 };

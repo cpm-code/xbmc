@@ -131,6 +131,7 @@ void aml_dv_set_xbmc_osd();
 void aml_update_hdr_mode_state(StreamHdrType hdrType, unsigned int bitDepth);
 bool aml_dv_use_active_area();
 enum DV_MODE aml_dv_mode();
+bool aml_dv_mode_off();
 enum DV_TYPE aml_dv_type();
 unsigned int aml_vs10_by_setting(const std::string setting);
 void aml_dv_enable_fel();

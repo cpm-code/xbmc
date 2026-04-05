@@ -331,7 +331,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       m_bitstream->Open(true);
 
       // check for hevc-hvcC and convert to h265-annex-b - and DV is on.
-      if (m_hints.extradata && !m_hints.cryptoSession && m_bitstream && (aml_dv_mode() != DV_MODE::OFF))
+      if (m_hints.extradata && !m_hints.cryptoSession && m_bitstream && !aml_dv_mode_off())
       {
         auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
 

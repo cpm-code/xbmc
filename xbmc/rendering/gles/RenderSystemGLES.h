@@ -12,6 +12,7 @@
 #include "rendering/RenderSystem.h"
 #include "utils/ColorUtils.h"
 #include "utils/Map.h"
+#include "windowing/GraphicContext.h"
 
 #include <array>
 #include <string>
@@ -165,6 +166,7 @@ protected:
   std::unique_ptr<CGLESShader>& shaderSlot(ShaderMethodGLES m) { return m_pShader[static_cast<size_t>(m)]; }
 
   GLint      m_viewPort[4];
+  GuiHdr m_guiHdr{GuiHdr::SDR};
 };
 
 namespace KODI::GLES
