@@ -75,27 +75,8 @@ bool CWinSystemAmlogic::InitWindowSystem()
 
   const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
 
-  if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_NOISEREDUCTION))
-  {
-     CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- disabling noise reduction");
-     CSysfsPath("/sys/module/di/parameters/nr2_en", 0);
-  }
-
-  int sdr2hdr = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_SDR2HDR);
-  if (sdr2hdr)
-  {
-    CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- setting sdr2hdr mode to {:d}", sdr2hdr);
-    CSysfsPath("/sys/module/am_vecm/parameters/sdr_mode", 1);
-    CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_policy", 0);
-    CSysfsPath("/sys/module/am_vecm/parameters/hdr_policy", 0);
-  }
-
-  int hdr2sdr = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_HDR2SDR);
-  if (hdr2sdr)
-  {
-    CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- setting hdr2sdr mode to {:d}", hdr2sdr);
-    CSysfsPath("/sys/module/am_vecm/parameters/hdr_mode", 1);
-  }
+  CLog::Log(LOGDEBUG, "CWinSystemAmlogic::InitWindowSystem -- disabling noise reduction");
+  CSysfsPath("/sys/module/di/parameters/nr2_en", 0);
 
   if (((LINUX_VERSION_CODE >> 16) & 0xFF) < 5)
   {
@@ -124,6 +105,13 @@ bool CWinSystemAmlogic::InitWindowSystem()
   {
     setting->SetVisible(false);
     settings->SetBool(CSettings::SETTING_VIDEOPLAYER_USEDISPLAYASCLOCK, false);
+  }
+
+  setting = settings->GetSetting(CSettings::SETTING_VIDEOSCREEN_NOOFBUFFERS);
+  if (setting)
+  {
+    setting->SetVisible(false);
+    settings->SetInt(CSettings::SETTING_VIDEOSCREEN_NOOFBUFFERS, 3);
   }
 
   // kill a running animation
