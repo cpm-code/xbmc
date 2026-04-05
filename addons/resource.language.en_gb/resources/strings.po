@@ -8906,36 +8906,6 @@ msgid "This category contains settings added for CoreELEC."
 msgstr ""
 
 #: system/settings/settings.xml
-msgctxt "#14402"
-msgid "Disable noise reduction"
-msgstr ""
-
-#: system/settings/settings.xml
-msgctxt "#14403"
-msgid "Enable this to disable noise reduction. Requires reboot."
-msgstr ""
-
-#: system/settings/settings.xml
-msgctxt "#14404"
-msgid "Tone map SDR to HDR"
-msgstr ""
-
-#: system/settings/settings.xml
-msgctxt "#14405"
-msgid "Intended for HDR enabled displays - not recommended. Turn this On to have HDR mode always on. GUI and SDR content will be tone mapped. Requires reboot."
-msgstr ""
-
-#: system/settings/settings.xml
-msgctxt "#14406"
-msgid "Tone map HDR to SDR"
-msgstr ""
-
-#: system/settings/settings.xml
-msgctxt "#14407"
-msgid "Intended for SDR displays. Turn this On to have HDR content tone mapped to SDR. This improves color saturation and contrast of HDR content on SDR displays. Requires reboot."
-msgstr ""
-
-#: system/settings/settings.xml
 msgctxt "#14408"
 msgid "Force display colour depth"
 msgstr ""

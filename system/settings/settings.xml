@@ -3994,30 +3994,6 @@
       </group>
     </category>
     <category id="coreelec" label="14400" help="14401">
-      <group id="1" label="131">
-        <setting id="coreelec.amlogic.noisereduction" type="boolean" label="14402" help="14403">
-          <requirement>HAVE_AMCODEC</requirement>
-          <level>3</level>
-          <default>false</default>
-          <control type="toggle" />
-        </setting>
-        <setting id="coreelec.amlogic.sdr2hdr" type="boolean" label="14404" help="14405">
-          <requirement>HAVE_AMCODEC</requirement>
-          <default>false</default>
-          <control type="toggle" />
-          <dependencies>
-            <dependency type="enable" setting="coreelec.amlogic.hdr2sdr" operator="is">false</dependency>
-          </dependencies>
-        </setting>
-        <setting id="coreelec.amlogic.hdr2sdr" type="boolean" label="14406" help="14407">
-          <requirement>HAVE_AMCODEC</requirement>
-          <default>false</default>
-          <control type="toggle" />
-          <dependencies>
-            <dependency type="enable" setting="coreelec.amlogic.sdr2hdr" operator="is">false</dependency>
-          </dependencies>
-        </setting>
-      </group>
       <group id="2" label="50001">
         <setting id="coreelec.amlogic.dolbyvision.mode" type="integer" label="50011" help="50012">
           <requirement>HAVE_AMCODEC</requirement>
