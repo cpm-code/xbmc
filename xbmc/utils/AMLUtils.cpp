@@ -108,12 +108,14 @@ static void aml_dv_wait_dv_std_vsif_packet()
   }
 }
 
+static void aml_update_hdr_mode(StreamHdrType hdrType, unsigned int bitDepth, int vs10Override = -1);
+
 void aml_dv_set_vs10_mode(unsigned int mode)
 {
   const StreamHdrType hdrType = CServiceBroker::GetDataCacheCore().GetVideoHdrType();
   const unsigned int bitDepth = static_cast<unsigned int>(CServiceBroker::GetDataCacheCore().GetVideoBitDepth());
 
-  aml_update_hdr_mode_state(hdrType, bitDepth);
+  aml_update_hdr_mode(hdrType, bitDepth, static_cast<int>(mode));
 
   if (mode != DOLBY_VISION_OUTPUT_MODE_BYPASS) {
     aml_dv_on(mode);
@@ -181,6 +183,14 @@ static unsigned int aml_vs10_by_hdrtype(StreamHdrType hdrType, unsigned int bitD
       break;
   }
   return vs10_mode;
+}
+
+static unsigned int aml_vs10_for(StreamHdrType hdrType, unsigned int bitDepth, int vs10Override = -1)
+{
+  if (vs10Override >= 0)
+    return static_cast<unsigned int>(vs10Override);
+
+  return aml_vs10_by_hdrtype(hdrType, bitDepth);
 }
 
 static void aml_dv_trigger_update_resolution(StreamHdrType hdrType)
@@ -748,12 +758,14 @@ void aml_dv_enable_fel()
   CSysfsPath("/sys/class/amdolby_vision/debug", "enable_fel 1");
 }
 
-static StreamHdrType aml_get_final_hdr_type(StreamHdrType hdrType, unsigned int bitDepth)
+static StreamHdrType aml_get_final_hdr_type(StreamHdrType hdrType,
+                                            unsigned int bitDepth,
+                                            int vs10Override = -1)
 {
   if ((hdrType == StreamHdrType::HDR_TYPE_NONE) || (aml_dv_mode() == DV_MODE::OFF))
     return hdrType;
 
-  switch (aml_vs10_by_hdrtype(hdrType, bitDepth))
+  switch (aml_vs10_for(hdrType, bitDepth, vs10Override))
   {
     case DOLBY_VISION_OUTPUT_MODE_IPT:
     case DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL:
@@ -768,37 +780,7 @@ static StreamHdrType aml_get_final_hdr_type(StreamHdrType hdrType, unsigned int 
   }
 }
 
-static bool aml_uses_dv_processing(StreamHdrType hdrType, unsigned int bitDepth)
-{
-  return (hdrType != StreamHdrType::HDR_TYPE_NONE) &&
-         (aml_dv_mode() != DV_MODE::OFF) &&
-         (aml_vs10_by_hdrtype(hdrType, bitDepth) != DOLBY_VISION_OUTPUT_MODE_BYPASS);
-}
-
-static bool aml_display_is_hdr_capable()
-{
-  return CServiceBroker::GetWinSystem()->IsHDRDisplay() || aml_display_support_dv();
-}
-
-static bool aml_output_type_is_pq(StreamHdrType hdrType)
-{
-  switch (hdrType)
-  {
-    case StreamHdrType::HDR_TYPE_DOLBYVISION:
-    case StreamHdrType::HDR_TYPE_HDR10:
-    case StreamHdrType::HDR_TYPE_HDR10PLUS:
-      return true;
-    default:
-      return false;
-  }
-}
-
-static bool aml_display_needs_pq(StreamHdrType hdrType, unsigned int bitDepth)
-{
-  return aml_output_type_is_pq(aml_get_final_hdr_type(hdrType, bitDepth));
-}
-
-static bool aml_dovi_stream_has_hdr10_compatible_base_layer(const DOVIStreamInfo& doviStreamInfo)
+static bool aml_dv_has_hdr10_graphics(const DOVIStreamInfo& doviStreamInfo)
 {
   if (!doviStreamInfo.has_config)
     return false;
@@ -817,7 +799,7 @@ static bool aml_dovi_stream_has_hdr10_compatible_base_layer(const DOVIStreamInfo
   }
 }
 
-static bool aml_backend_has_hdr10_compatible_graphics(StreamHdrType hdrType)
+static bool aml_has_hdr10_graphics(StreamHdrType hdrType)
 {
   switch (hdrType)
   {
@@ -825,67 +807,79 @@ static bool aml_backend_has_hdr10_compatible_graphics(StreamHdrType hdrType)
     case StreamHdrType::HDR_TYPE_HDR10PLUS:
       return true;
     case StreamHdrType::HDR_TYPE_DOLBYVISION:
-      return aml_dovi_stream_has_hdr10_compatible_base_layer(
+      return aml_dv_has_hdr10_graphics(
           CServiceBroker::GetDataCacheCore().GetVideoDoViStreamInfo());
     default:
       return false;
   }
 }
 
-static bool aml_backend_needs_dv_hdr10_graphics(StreamHdrType hdrType, unsigned int bitDepth)
+static GuiHdr aml_gui_hdr(StreamHdrType hdrType, unsigned int bitDepth, int vs10Override = -1)
 {
-  return aml_backend_has_hdr10_compatible_graphics(hdrType) &&
-         aml_uses_dv_processing(hdrType, bitDepth);
+  if (aml_has_hdr10_graphics(hdrType))
+    return GuiHdr::HDR_PQ;
+
+  if ((hdrType != StreamHdrType::HDR_TYPE_NONE) ||
+      (aml_get_final_hdr_type(hdrType, bitDepth, vs10Override) != StreamHdrType::HDR_TYPE_NONE))
+    return GuiHdr::HDR;
+
+  return GuiHdr::SDR;
 }
 
-static bool aml_backend_needs_pq_osd(StreamHdrType hdrType, unsigned int bitDepth)
+static std::string aml_gui_hdr_to_string(GuiHdr guiHdr)
 {
-  const StreamHdrType finalHdrType = aml_get_final_hdr_type(hdrType, bitDepth);
-  // Keep Kodi GUI composition in SDR for HLG output and let the AML pipeline
-  // handle SDR->HLG conversion for the OSD. PQ-authored GUI composition is only
-  // needed for PQ-based output formats.
-  return aml_display_is_hdr_capable() && aml_output_type_is_pq(finalHdrType);
+  switch (guiHdr)
+  {
+    case GuiHdr::HDR: return "HDR";
+    case GuiHdr::HDR_PQ: return "HDR_PQ";
+    case GuiHdr::SDR:
+    default:
+      return "SDR";
+  }
 }
 
-static bool aml_backend_needs_hdr_osd(StreamHdrType hdrType, unsigned int bitDepth)
+static void aml_set_dv_hdr10_graphics(StreamHdrType hdrType)
 {
-  return aml_backend_needs_dv_hdr10_graphics(hdrType, bitDepth) ||
-         aml_backend_needs_pq_osd(hdrType, bitDepth);
-}
-
-static void aml_backend_update_dv_hdr10_graphics(StreamHdrType hdrType)
-{
-  const bool enable = aml_backend_has_hdr10_compatible_graphics(hdrType);
+  const bool enable = aml_has_hdr10_graphics(hdrType);
 
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_hdr10_graphics", enable);
   logM(LOGINFO, "amdolby_vision hdr10_graphics [{}]", enable ? "enabled" : "disabled");
 }
 
-static void aml_backend_update_osd_pq_bypass(bool enable)
+static void aml_set_osd_pq_bypass(GuiHdr guiHdr)
 {
+  const bool enable = guiHdr == GuiHdr::HDR_PQ;
+
   CSysfsPath("/sys/module/am_vecm/parameters/osd_pq_bypass", enable);
   logM(LOGINFO, "am_vecm osd_pq_bypass [{}]", enable ? "enabled" : "disabled");
 }
 
-static void aml_display_update_pq(StreamHdrType hdrType, unsigned int bitDepth)
+static GuiHdr aml_set_gui_hdr(StreamHdrType hdrType, unsigned int bitDepth, int vs10Override = -1)
 {
   const bool dv_on = (aml_dv_mode() != DV_MODE::OFF);
-  const bool hdr = aml_display_is_hdr_capable() && aml_display_needs_pq(hdrType, bitDepth);
+  const GuiHdr guiHdr = aml_gui_hdr(hdrType, bitDepth, vs10Override);
 
-  logM(LOGINFO, "{}DV support, {}, HDR type is {}, transfer PQ is {}",
+  logM(LOGINFO, "{}DV support, {}, HDR type is {}, GUI HDR is {}",
                 aml_support_dolby_vision() ? "" : "no ",
                 dv_on ? "enabled" : "disabled",
                 CStreamDetails::HdrTypeToString(hdrType),
-                hdr ? "set" : "not set");
+                aml_gui_hdr_to_string(guiHdr));
 
-  CServiceBroker::GetWinSystem()->GetGfxContext().SetTransferPQ(hdr);
+  CServiceBroker::GetWinSystem()->GetGfxContext().SetGuiHdr(guiHdr);
+  return guiHdr;
+}
+
+static void aml_update_hdr_mode(StreamHdrType hdrType, unsigned int bitDepth, int vs10Override)
+{
+  const GuiHdr guiHdr = aml_set_gui_hdr(hdrType, bitDepth, vs10Override);
+
+  aml_set_dv_hdr10_graphics(hdrType);
+  aml_set_osd_pq_bypass(guiHdr);
 }
 
 void aml_update_hdr_mode_state(StreamHdrType hdrType, unsigned int bitDepth)
 {
-  aml_backend_update_dv_hdr10_graphics(hdrType);
-  aml_display_update_pq(hdrType, bitDepth);
-  aml_backend_update_osd_pq_bypass(aml_backend_needs_hdr_osd(hdrType, bitDepth));
+  aml_update_hdr_mode(hdrType, bitDepth);
 }
 
 bool aml_has_frac_rate_policy()

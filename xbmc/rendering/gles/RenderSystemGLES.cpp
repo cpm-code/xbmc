@@ -179,14 +179,14 @@ bool CRenderSystemGLES::BeginRender()
     return false;
 
   const bool useLimited = CServiceBroker::GetWinSystem()->UseLimitedColor();
-  const bool usePQ = CServiceBroker::GetWinSystem()->GetGfxContext().IsTransferPQ();
+  const GuiHdr useGuiHdr = CServiceBroker::GetWinSystem()->GetGfxContext().GetGuiHdr();
 
-  if (m_limitedColorRange != useLimited || m_transferPQ != usePQ)
+  if (m_limitedColorRange != useLimited || m_guiHdr != useGuiHdr)
   {
     ReleaseShaders();
 
     m_limitedColorRange = useLimited;
-    m_transferPQ = usePQ;
+    m_guiHdr = useGuiHdr;
 
     InitialiseShaders();
   }
@@ -448,6 +448,7 @@ void CRenderSystemGLES::InitialiseShaders()
 {
   std::string defines;
   std::string definesHdrPgsPqOutput;
+  m_guiHdr = CServiceBroker::GetWinSystem()->GetGfxContext().GetGuiHdr();
   m_limitedColorRange = CServiceBroker::GetWinSystem()->UseLimitedColor();
   if (m_limitedColorRange)
   {
@@ -458,10 +459,10 @@ void CRenderSystemGLES::InitialiseShaders()
   // HDR-authored PQ overlays need a dedicated PQ output shader variant.
   definesHdrPgsPqOutput += "#define KODI_HDR_PGS_PQ_OUTPUT 1\n";
 
-  if (m_transferPQ)
-  {
+  if (m_guiHdr == GuiHdr::HDR_PQ)
     defines += "#define KODI_TRANSFER_PQ 1\n";
-  }
+  else if (m_guiHdr == GuiHdr::HDR)
+    defines += "#define KODI_TRANSFER_HDR 1\n";
 
   shaderSlot(ShaderMethodGLES::SM_DEFAULT) =
       std::make_unique<CGLESShader>("gles_shader.vert", "gles_shader_default.frag", defines);
