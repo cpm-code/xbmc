@@ -232,6 +232,7 @@ public:
 
 private:
   void SurfaceAttrib();
+  EGLint GetSurfaceHeight();
 
   EGLenum m_platform{EGL_NONE};
   bool m_platformSupported{false};
@@ -247,4 +248,6 @@ private:
   bool m_partialUpdateSupport{false};
   bool m_bufferAgeSupport{false};
   bool m_damageRegionError{false};
+  EGLint m_surfaceHeight{0};
+  std::vector<std::array<EGLint, 4>> m_damageRects;
 };
