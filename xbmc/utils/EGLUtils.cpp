@@ -424,9 +424,13 @@ bool CEGLContextUtils::CreateContext(CEGLAttributesVec contextAttribs)
 
   if (CEGLUtils::HasExtension(m_eglDisplay, "EGL_KHR_partial_update"))
   {
-    m_partialUpdateSupport = true;
-    m_eglSetDamageRegionKHR =
-        reinterpret_cast<PFNEGLSETDAMAGEREGIONKHRPROC>(eglGetProcAddress("eglSetDamageRegionKHR"));
+    m_eglSetDamageRegionKHR = reinterpret_cast<PFNEGLSETDAMAGEREGIONKHRPROC>(eglGetProcAddress("eglSetDamageRegionKHR"));
+
+    if (m_eglSetDamageRegionKHR != nullptr)
+      m_partialUpdateSupport = true;
+    else
+      logM(LOGWARNING,
+           "EGL_KHR_partial_update advertised without eglSetDamageRegionKHR; disabling partial update support");
   }
 
   return true;
@@ -465,6 +469,27 @@ void CEGLContextUtils::SurfaceAttrib(EGLint attribute, EGLint value)
   }
 }
 
+EGLint CEGLContextUtils::GetSurfaceHeight()
+{
+  if (m_surfaceHeight > 0)
+    return m_surfaceHeight;
+
+  EGLint height = 0;
+  if (eglQuerySurface(m_eglDisplay, m_eglSurface, EGL_HEIGHT, &height) == EGL_TRUE)
+  {
+    m_surfaceHeight = height;
+    return height;
+  }
+
+  if (!m_damageRegionError)
+  {
+    logM(LOGERROR, "eglQuerySurface failed ({:#x})", eglGetError());
+    m_damageRegionError = true;
+  }
+
+  return 0;
+}
+
 bool CEGLContextUtils::CreateSurface(EGLNativeWindowType nativeWindow, EGLint HDRcolorSpace /* = EGL_NONE */)
 {
   if (m_eglDisplay == EGL_NO_DISPLAY)
@@ -496,6 +521,8 @@ bool CEGLContextUtils::CreateSurface(EGLNativeWindowType nativeWindow, EGLint HD
   }
 
   SurfaceAttrib();
+  m_surfaceHeight = 0;
+  GetSurfaceHeight();
 
   return true;
 }
@@ -531,6 +558,8 @@ bool CEGLContextUtils::CreatePlatformSurface(void* nativeWindow, EGLNativeWindow
   }
 
   SurfaceAttrib();
+  m_surfaceHeight = 0;
+  GetSurfaceHeight();
 
   return true;
 }
@@ -570,6 +599,7 @@ void CEGLContextUtils::DestroySurface()
     eglMakeCurrent(m_eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     eglDestroySurface(m_eglDisplay, m_eglSurface);
     m_eglSurface = EGL_NO_SURFACE;
+    m_surfaceHeight = 0;
   }
 }
 
@@ -642,7 +672,7 @@ bool CEGLContextUtils::HasContext()
 
 void CEGLContextUtils::SetDamagedRegions(const CDirtyRegionList& dirtyRegions)
 {
-  if (!m_partialUpdateSupport)
+  if (!m_partialUpdateSupport || m_eglSetDamageRegionKHR == nullptr)
     return;
 
   using Rect = std::array<EGLint, 4>;
@@ -655,16 +685,12 @@ void CEGLContextUtils::SetDamagedRegions(const CDirtyRegionList& dirtyRegions)
   }
   else
   {
-    EGLint height = 1080;
-    if (eglQuerySurface(m_eglDisplay, m_eglSurface, EGL_HEIGHT, &height) != EGL_TRUE &&
-        !m_damageRegionError)
-    {
-      CLog::LogF(LOGERROR, "eglQuerySurface failed ({:#x})", eglGetError());
-      m_damageRegionError = true;
-    }
+    const EGLint height = GetSurfaceHeight();
+    if (height <= 0)
+      return;
 
-    std::vector<Rect> rects;
-    rects.reserve(dirtyRegions.size());
+    m_damageRects.resize(dirtyRegions.size());
+    std::size_t rectIndex = 0;
     for (const auto& region : dirtyRegions)
     {
       const EGLint x1 = static_cast<EGLint>(std::floor(region.x1));
@@ -672,10 +698,11 @@ void CEGLContextUtils::SetDamagedRegions(const CDirtyRegionList& dirtyRegions)
       const EGLint x2 = static_cast<EGLint>(std::ceil(region.x2));
       const EGLint y2 = static_cast<EGLint>(std::ceil(region.y2));
 
-      rects.push_back({x1, height - y2, x2 - x1, y2 - y1});
+      m_damageRects[rectIndex++] = {x1, height - y2, x2 - x1, y2 - y1};
     }
     damageRegionsResult = m_eglSetDamageRegionKHR(
-        m_eglDisplay, m_eglSurface, reinterpret_cast<EGLint*>(rects.data()), rects.size());
+        m_eglDisplay, m_eglSurface, reinterpret_cast<EGLint*>(m_damageRects.data()),
+        m_damageRects.size());
   }
 
   if (damageRegionsResult != EGL_TRUE && !m_damageRegionError)
@@ -690,17 +717,21 @@ int CEGLContextUtils::GetBufferAge()
 #ifdef EGL_BUFFER_AGE_KHR
   if (m_partialUpdateSupport)
   {
-    EGLint age;
-    eglQuerySurface(m_eglDisplay, m_eglSurface, EGL_BUFFER_AGE_KHR, &age);
-    return static_cast<int>(age);
+    EGLint age = 0;
+    if (eglQuerySurface(m_eglDisplay, m_eglSurface, EGL_BUFFER_AGE_KHR, &age) == EGL_TRUE)
+      return static_cast<int>(age);
+
+    return 0;
   }
 #endif
 #ifdef EGL_BUFFER_AGE_EXT
   if (m_bufferAgeSupport)
   {
-    EGLint age;
-    eglQuerySurface(m_eglDisplay, m_eglSurface, EGL_BUFFER_AGE_EXT, &age);
-    return static_cast<int>(age);
+    EGLint age = 0;
+    if (eglQuerySurface(m_eglDisplay, m_eglSurface, EGL_BUFFER_AGE_EXT, &age) == EGL_TRUE)
+      return static_cast<int>(age);
+
+    return 0;
   }
 #endif
   return 2;
