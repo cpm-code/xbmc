@@ -22,6 +22,7 @@
 #include <deque>
 #include <atomic>
 #include <cstdint>
+#include <vector>
 
 extern "C" {
 #include <amcodec/codec.h>
@@ -211,6 +212,7 @@ typedef struct am_private_t
   unsigned int      video_rotation_degree;
   int               extrasize;
   FFmpegExtraData   extradata;
+  std::vector<uint8_t> av1_source_copy;
   DllLibAmCodec     *m_dll;
 
   int               dumpfile;
