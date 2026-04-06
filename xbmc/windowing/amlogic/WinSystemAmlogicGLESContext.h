@@ -45,12 +45,19 @@ public:
   }
   int GetBufferAge() override
   {
-    // Workaround: disable preserved-buffer reuse on AML.
-    // Partial update / buffer-age preservation can leave visible seams at
-    // dirty-region boundaries during GUI animation. Revisit this if the AML
-    // damaged-region path is fixed and dirty-region performance can be safely
-    // restored.
-    return 0;
+    int bufferAge = m_pGLContext.GetBufferAge();
+    if (bufferAge <= 0) return bufferAge;
+
+    // DirtyRegionTracker already keeps one extra frame of history. AML only
+    // needs a small additional guard in case the preserved GUI buffer age is
+    // reported one frame younger than the recycled buffer actually is.
+    constexpr int AML_GUI_BUFFER_AGE_MARGIN{1};
+    constexpr int AML_GUI_BUFFER_AGE_CAP{4};
+    bufferAge += AML_GUI_BUFFER_AGE_MARGIN;
+
+    return (bufferAge > AML_GUI_BUFFER_AGE_CAP)
+      ? AML_GUI_BUFFER_AGE_CAP
+      : bufferAge;
   }
 
   bool BindTextureUploadContext() override;
