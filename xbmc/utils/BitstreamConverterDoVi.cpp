@@ -678,7 +678,7 @@ void CBitstreamConverter::AddDoViRpuNaluWrap(const Hdr10PlusMetadata& meta,
 void CBitstreamConverter::AddDoViRpuNalu(const Hdr10PlusMetadata& meta,
                                         uint8_t** poutbuf,
                                         int* poutbufSize,
-                                        double pts) const
+                                        double pts)
 {
   auto nalu = create_dovi_rpu_nalu_from_hdr10plus(meta, m_convert_Hdr10Plus_peak_brightness_source,
                                                   m_hdrStaticMetadataInfo);
