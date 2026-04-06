@@ -1013,12 +1013,11 @@ int av1_add_frame_dec_info(am_private_t *para)
   const int requiredSize = originalSize + 4096;
   const bool sourceIsScratch = (pkt.data == pkt.buf);
 
-  std::vector<uint8_t> sourceCopy;
   const uint8_t* sourceData = pkt.data;
   if (sourceIsScratch)
   {
-    sourceCopy.assign(pkt.data, pkt.data + originalSize);
-    sourceData = sourceCopy.data();
+    para->av1_source_copy.assign(pkt.data, pkt.data + originalSize);
+    sourceData = para->av1_source_copy.data();
   }
 
   int ret = EnsurePacketScratch(pkt, requiredSize);
