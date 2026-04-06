@@ -8,8 +8,9 @@
 
 #include <math.h>
 
+#include <utility>
+
 #include "DVDCodecs/DVDFactoryCodec.h"
-#include "utils/MemUtils.h"
 #include "DVDVideoCodecAmlogic.h"
 #include "cores/VideoPlayer/Interface/TimingConstants.h"
 #include "DVDStreamInfo.h"
@@ -487,7 +488,7 @@ void CDVDVideoCodecAmlogic::ClearBitstreamCommon(void)
 {
   while (!m_packages.empty())
   {
-    KODI::MEMORY::AlignedFree(std::get<0>(m_packages.front()));
+    RecycleDualLayerPacket(std::move(m_packages.front()));
     m_packages.pop_front();
   }
 
@@ -496,6 +497,31 @@ void CDVDVideoCodecAmlogic::ClearBitstreamCommon(void)
   m_last_iSize = 0;
 
   if (m_bitstream) m_bitstream->ResetStartDecode();
+}
+
+DLDemuxPacket CDVDVideoCodecAmlogic::AcquireDualLayerPacket(std::size_t requiredCapacity)
+{
+  DLDemuxPacket packet;
+  if (!m_freePackages.empty())
+  {
+    packet = std::move(m_freePackages.back());
+    m_freePackages.pop_back();
+  }
+
+  if (packet.buffer.GetSize() < requiredCapacity)
+    packet.buffer = FFmpegExtraData(requiredCapacity);
+
+  return packet;
+}
+
+void CDVDVideoCodecAmlogic::RecycleDualLayerPacket(DLDemuxPacket&& packet)
+{
+  packet.size = 0;
+  packet.isELPackage = false;
+  packet.dts = 0.0;
+
+  if (m_freePackages.size() < MAX_CACHED_DUAL_LAYER_PACKETS)
+    m_freePackages.emplace_back(std::move(packet));
 }
 
 bool CDVDVideoCodecAmlogic::CanStartDecode() const
@@ -518,35 +544,38 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
   if (!m_packages.empty())
   {
     // convert bl and el package to single package
-    DLDemuxPacket dual_layer_packet = m_packages.front();
-    auto const& [pDataBackup, iSizeBackup, isELPackageBackup, dts] = dual_layer_packet;
+    DLDemuxPacket& dualLayerPacket = m_packages.front();
 
-    if (isELPackageBackup != packet.isELPackage)
+    if (dualLayerPacket.isELPackage != packet.isELPackage)
     {
       logComponentM(LOGDEBUG, LOGVIDEO, "found DT-DL {} package with dts: {:.3f} in list",
-                                        packet.isELPackage ? "BL" : "EL", dts/DVD_TIME_BASE);
+                                        packet.isELPackage ? "BL" : "EL", dualLayerPacket.dts/DVD_TIME_BASE);
 
-      if (packet.dts < dts) // prior dts arrived - out of step - remove and attempt next.
+      if (packet.dts < dualLayerPacket.dts) // prior dts arrived - out of step - remove and attempt next.
       {
         logComponentM(LOGDEBUG, LOGVIDEO, "discarding DT-DL {} package with dts {:.3f} as before package in list with dts: {:.3f}",
                                           packet.isELPackage ? "EL" : "BL",
-                                          (packet.dts/DVD_TIME_BASE), (dts/DVD_TIME_BASE));
+                                          (packet.dts/DVD_TIME_BASE), (dualLayerPacket.dts/DVD_TIME_BASE));
 
         return false;
       }
 
       if (packet.isELPackage)
-        dual_layer_converted = m_bitstream->Convert(pDataBackup, iSizeBackup, pData, iSize, packet.pts);
+        dual_layer_converted = m_bitstream->Convert(dualLayerPacket.buffer.GetData(), dualLayerPacket.size, pData, iSize, packet.pts);
       else
-        dual_layer_converted = m_bitstream->Convert(pData, iSize, pDataBackup, iSizeBackup, packet.pts);
+        dual_layer_converted = m_bitstream->Convert(pData, iSize, dualLayerPacket.buffer.GetData(), dualLayerPacket.size, packet.pts);
     }
   }
 
   if (!dual_layer_converted) // backup package and don't send to decoder yet
   {
-    auto pDataBackup = static_cast<uint8_t*>(KODI::MEMORY::AlignedMalloc(packet.iSize + AV_INPUT_BUFFER_PADDING_SIZE, 16));
-    memcpy(pDataBackup, packet.pData, packet.iSize);
-    m_packages.emplace_back(pDataBackup, iSize, packet.isELPackage, packet.dts);
+    DLDemuxPacket queuedPacket = AcquireDualLayerPacket(packet.iSize + AV_INPUT_BUFFER_PADDING_SIZE);
+    memcpy(queuedPacket.buffer.GetData(), packet.pData, packet.iSize);
+    memset(queuedPacket.buffer.GetData() + packet.iSize, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+    queuedPacket.size = iSize;
+    queuedPacket.isELPackage = packet.isELPackage;
+    queuedPacket.dts = packet.dts;
+    m_packages.emplace_back(std::move(queuedPacket));
 
     logComponentM(LOGDEBUG, LOGVIDEO, "did add DT-DL {} package with dts: {:.3f}, pts: {:.3f} and size {} in list",
                                       packet.isELPackage ? "EL" : "BL",
@@ -560,7 +589,7 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
                                       (packet.dts/DVD_TIME_BASE), (packet.pts/DVD_TIME_BASE));
 
     // All good can remove the backed up package
-    KODI::MEMORY::AlignedFree(std::get<0>(m_packages.front()));
+    RecycleDualLayerPacket(std::move(m_packages.front()));
     m_packages.pop_front();
 
     if (!CanStartDecode())
