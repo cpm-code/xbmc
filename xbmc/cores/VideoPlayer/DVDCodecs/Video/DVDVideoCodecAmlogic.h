@@ -15,9 +15,12 @@
 #include "cores/VideoPlayer/Buffers/VideoBuffer.h"
 #include "utils/BitstreamConverter.h"
 
-#include <set>
+#include <cstddef>
 #include <atomic>
+#include <list>
 #include <memory>
+#include <set>
+#include <vector>
 
 class CAMLCodec;
 struct mpeg2_sequence;
@@ -29,7 +32,13 @@ class CSetting;
 
 class CDVDVideoCodecAmlogic;
 
-typedef std::tuple<uint8_t*, uint32_t, bool, double> DLDemuxPacket;
+struct DLDemuxPacket
+{
+  FFmpegExtraData buffer;
+  uint32_t size{0};
+  bool isELPackage{false};
+  double dts{0.0};
+};
 
 class CAMLVideoBuffer : public CVideoBuffer
 {
@@ -113,9 +122,13 @@ protected:
   CBitstreamConverter* m_bitstream = nullptr;
 
 private:
+  static constexpr std::size_t MAX_CACHED_DUAL_LAYER_PACKETS = 2;
+
   bool CanStartDecode() const;
   bool DualLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet);
   bool SingleLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet) const;
+  DLDemuxPacket AcquireDualLayerPacket(std::size_t requiredCapacity);
+  void RecycleDualLayerPacket(DLDemuxPacket&& packet);
   void ClearBitstreamCommon(void);
   void UpdateAppendCMv40SettingCache();
   void ApplyDynamicDoViSettings();
@@ -124,6 +137,7 @@ private:
   static std::atomic<bool> m_InstanceGuard;
 
   std::list<DLDemuxPacket> m_packages;
+  std::vector<DLDemuxPacket> m_freePackages;
 
   bool      m_last_added = true;
   uint8_t  *m_last_pData = nullptr;
