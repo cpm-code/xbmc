@@ -386,6 +386,7 @@ CBitstreamConverter::CBitstreamConverter(CDVDStreamInfo& hints)
   m_convert_bitstream = false;
   m_convertBuffer = NULL;
   m_convertSize = 0;
+  m_convertBufferCapacity = 0;
   m_inputBuffer = NULL;
   m_inputSize = 0;
   m_to_annexb = false;
@@ -592,6 +593,7 @@ void CBitstreamConverter::Close()
   if (m_convertBuffer)
     av_free(m_convertBuffer), m_convertBuffer = NULL;
   m_convertSize = 0;
+  m_convertBufferCapacity = 0;
 
   m_extraData = {};
   InvalidateDoViCache();
@@ -607,11 +609,6 @@ void CBitstreamConverter::Close()
 
 bool CBitstreamConverter::Convert(uint8_t* pData, int iSize, double pts)
 {
-  if (m_convertBuffer)
-  {
-    av_free(m_convertBuffer);
-    m_convertBuffer = NULL;
-  }
   m_inputSize = 0;
   m_convertSize = 0;
   m_inputBuffer = NULL;
@@ -628,21 +625,17 @@ bool CBitstreamConverter::Convert(uint8_t* pData, int iSize, double pts)
         if (m_convert_bitstream)
         {
           // convert demuxer packet from bitstream to bytestream (AnnexB)
-          int bytestream_size = 0;
-          uint8_t* bytestream_buff = NULL;
-
-          BitstreamConvert(demuxer_content, demuxer_bytes, &bytestream_buff, &bytestream_size, pts);
-          if (bytestream_buff && (bytestream_size > 0))
+          BitstreamConvert(demuxer_content, demuxer_bytes, &m_convertBuffer, &m_convertSize, pts);
+          if (m_convertBuffer && (m_convertSize > 0))
           {
-            m_convertSize = bytestream_size;
-            m_convertBuffer = bytestream_buff;
             return true;
           }
           else
           {
             m_convertSize = 0;
             m_convertBuffer = NULL;
-            CLog::Log(LOGERROR, "CBitstreamConverter::Convert: error converting.");
+            m_convertBufferCapacity = 0;
+            logM(LOGERROR, "error converting.");
             return false;
           }
         }
@@ -667,6 +660,7 @@ bool CBitstreamConverter::Convert(uint8_t* pData, int iSize, double pts)
             m_convertBuffer = NULL;
           }
           m_convertSize = 0;
+          m_convertBufferCapacity = 0;
 
           // convert demuxer packet from bytestream (AnnexB) to bitstream
           AVIOContext* pb;
@@ -677,6 +671,7 @@ bool CBitstreamConverter::Convert(uint8_t* pData, int iSize, double pts)
           }
           m_convertSize = avc_parse_nal_units(pb, pData, iSize);
           m_convertSize = avio_close_dyn_buf(pb, &m_convertBuffer);
+          m_convertBufferCapacity = m_convertBuffer ? static_cast<uint32_t>(m_convertSize) : 0;
         }
         else if (m_convert_3byteTo4byteNALSize)
         {
@@ -686,6 +681,7 @@ bool CBitstreamConverter::Convert(uint8_t* pData, int iSize, double pts)
             m_convertBuffer = NULL;
           }
           m_convertSize = 0;
+          m_convertBufferCapacity = 0;
 
           // convert demuxer packet from 3 byte NAL sizes to 4 byte
           AVIOContext* pb;
@@ -705,6 +701,7 @@ bool CBitstreamConverter::Convert(uint8_t* pData, int iSize, double pts)
           }
 
           m_convertSize = avio_close_dyn_buf(pb, &m_convertBuffer);
+          m_convertBufferCapacity = m_convertBuffer ? static_cast<uint32_t>(m_convertSize) : 0;
         }
         return true;
       }
@@ -767,11 +764,6 @@ bool CBitstreamConverter::Convert(uint8_t* pData, int iSize, double pts)
 
 bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pData_el, int iSize_el, double pts)
 {
-  if (m_convertBuffer)
-  {
-    av_free(m_convertBuffer);
-    m_convertBuffer = NULL;
-  }
   m_inputSize = 0;
   m_convertSize = 0;
   m_inputBuffer = NULL;
@@ -831,7 +823,9 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
       // Make sure bl_present_flag is set.
       m_hints.dovi.bl_present_flag = true;
 
-      CLog::Log(LOGDEBUG, LOGVIDEO, "CBitstreamConverter::Convert: DT-DL BL nal_type: [{}], size: [{}]", nal_type, size);
+      logComponentM(LOGDEBUG, LOGVIDEO,
+            "CBitstreamConverter::Convert: DT-DL BL nal_type: [{}], size: [{}]",
+            nal_type, size);
 
       buf += size;
     }
@@ -865,7 +859,9 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
       // Make sure el_present_flag is set.
       m_hints.dovi.el_present_flag = true;
 
-      CLog::Log(LOGDEBUG, LOGVIDEO, "CBitstreamConverter::Convert: DT-DL EL nal_type: [{}], size: [{}]", nal_type, size);
+      logComponentM(LOGDEBUG, LOGVIDEO,
+            "CBitstreamConverter::Convert: DT-DL EL nal_type: [{}], size: [{}]",
+            nal_type, size);
 
       buf += size;
     }
@@ -1422,6 +1418,22 @@ void CBitstreamConverter::ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8
   if (copy) BitstreamAllocAndCopy(poutbuf, poutbuf_size, nullptr, 0, buf, nal_size, HEVC_NAL_SEI_PREFIX);
 }
 
+bool CBitstreamConverter::EnsureOutputBufferCapacity(uint8_t** poutbuf, uint32_t requiredSize)
+{
+  if (poutbuf == nullptr) return false;
+
+  uint32_t* capacity = (poutbuf == &m_convertBuffer) ? &m_convertBufferCapacity : nullptr;
+  if (capacity != nullptr && *capacity >= requiredSize) return true;
+
+  void* tmp = av_realloc(*poutbuf, requiredSize);
+  if (!tmp) return false;
+
+  *poutbuf = static_cast<uint8_t*>(tmp);
+  if (capacity != nullptr) *capacity = requiredSize;
+
+  return true;
+}
+
 bool CBitstreamConverter::BitstreamConvert(uint8_t* pData, int iSize, uint8_t **poutbuf, int *poutbuf_size, double pts)
 {
   // based on h264_mp4toannexb_bsf.c (ffmpeg)
@@ -1542,6 +1554,8 @@ bool CBitstreamConverter::BitstreamConvert(uint8_t* pData, int iSize, uint8_t **
 fail:
   av_free(*poutbuf), *poutbuf = NULL;
   *poutbuf_size = 0;
+  if (poutbuf == &m_convertBuffer)
+    m_convertBufferCapacity = 0;
   return false;
 }
 
@@ -1559,7 +1573,6 @@ void CBitstreamConverter::BitstreamAllocAndCopy(uint8_t** poutbuf,
 
   uint32_t offset = *poutbuf_size;
   uint8_t nal_header_size = offset ? 3 : 4;
-  void* tmp;
 
   // According to x265, this type is always encoded with four-sized header
   // https://bitbucket.org/multicoreware/x265_git/src/4bf31dc15fb6d1f93d12ecf21fad5e695f0db5c0/source/encoder/nal.cpp#lines-100
@@ -1567,10 +1580,8 @@ void CBitstreamConverter::BitstreamAllocAndCopy(uint8_t** poutbuf,
     nal_header_size = 4;
 
   *poutbuf_size += sps_pps_size + in_size + nal_header_size;
-  tmp = av_realloc(*poutbuf, *poutbuf_size);
-  if (!tmp)
+  if (!EnsureOutputBufferCapacity(poutbuf, static_cast<uint32_t>(*poutbuf_size)))
     return;
-  *poutbuf = (uint8_t*)tmp;
   if (sps_pps)
     memcpy(*poutbuf + offset, sps_pps, sps_pps_size);
 
@@ -1602,7 +1613,6 @@ void CBitstreamConverter::BitstreamAllocAndCopy(uint8_t** poutbuf,
 {
   uint32_t offset = *poutbuf_size;
   uint8_t nal_header_size = offset ? 3 : 4;
-  void *tmp;
 
   if (nal_type == HEVC_NAL_UNSPEC62)
     nal_header_size = 4;
@@ -1610,10 +1620,8 @@ void CBitstreamConverter::BitstreamAllocAndCopy(uint8_t** poutbuf,
     nal_header_size = 5;
 
   *poutbuf_size += in_size + nal_header_size;
-  tmp = av_realloc(*poutbuf, *poutbuf_size);
-  if (!tmp)
+  if (!EnsureOutputBufferCapacity(poutbuf, *poutbuf_size))
     return;
-  *poutbuf = (uint8_t*)tmp;
 
   memcpy(*poutbuf + nal_header_size + offset, in, in_size);
 

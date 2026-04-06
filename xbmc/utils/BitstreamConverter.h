@@ -178,25 +178,26 @@ protected:
   bool BitstreamConvertInitHEVC(void* in_extradata, int in_extrasize);
   bool BitstreamConvertInitVVC(void* in_extradata, int in_extrasize);
   bool BitstreamConvert(uint8_t* pData, int iSize, uint8_t** poutbuf, int* poutbuf_size, double pts);
-  static void BitstreamAllocAndCopy(uint8_t** poutbuf,
-                                    int* poutbuf_size,
-                                    const uint8_t* sps_pps,
-                                    uint32_t sps_pps_size,
-                                    const uint8_t* in,
-                                    uint32_t in_size,
-                                    uint8_t nal_type);
-  static void BitstreamAllocAndCopy(uint8_t** poutbuf,
-                                    uint32_t* poutbuf_size,
-                                    const uint8_t* in,
-                                    uint32_t in_size,
-                                    uint8_t nal_type);
+  bool EnsureOutputBufferCapacity(uint8_t** poutbuf, uint32_t requiredSize);
+  void BitstreamAllocAndCopy(uint8_t** poutbuf,
+                             int* poutbuf_size,
+                             const uint8_t* sps_pps,
+                             uint32_t sps_pps_size,
+                             const uint8_t* in,
+                             uint32_t in_size,
+                             uint8_t nal_type);
+  void BitstreamAllocAndCopy(uint8_t** poutbuf,
+                             uint32_t* poutbuf_size,
+                             const uint8_t* in,
+                             uint32_t in_size,
+                             uint8_t nal_type);
   void ApplyMasteringDisplayColourVolume(const MasteringDisplayColourVolume& metadata, bool& update);
   void ApplyContentLightLevel(const ContentLightLevel& metadata, bool& update);
   void ApplyAlternativeTransferCharacteristics(uint8_t transfer);
   void UpdateHdrStaticMetadata() const;
 
   void AddDoViRpuNaluWrap(const Hdr10PlusMetadata& meta, uint8_t **poutbuf, uint32_t& poutbuf_size, double pts);
-  void AddDoViRpuNalu(const Hdr10PlusMetadata& meta, uint8_t **poutbuf, int *poutbuf_size, double pts) const;
+  void AddDoViRpuNalu(const Hdr10PlusMetadata& meta, uint8_t **poutbuf, int *poutbuf_size, double pts);
 
   void ProcessSeiPrefixWrap(uint8_t *buf, int32_t nal_size, uint8_t **poutbuf, uint32_t& poutbuf_size, Hdr10PlusMetadata& meta, bool& convert_hdr10plus_meta);
   void ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8_t **poutbuf, int *poutbuf_size, Hdr10PlusMetadata& meta, bool& convert_hdr10plus_meta);
@@ -214,6 +215,7 @@ protected:
 
   uint8_t* m_convertBuffer;
   int m_convertSize;
+  uint32_t m_convertBufferCapacity{0};
   uint8_t* m_inputBuffer;
   int m_inputSize;
 
