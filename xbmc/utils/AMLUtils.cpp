@@ -1698,6 +1698,23 @@ struct fb_vsync_early_request
   int64_t next_vsync_ts;
 };
 
+struct fb_vsync_window_request
+{
+  int32_t offset_us;
+  uint32_t status;
+  int64_t wake_ts;
+  int64_t next_vsync_ts;
+  int64_t period_ns;
+};
+
+#ifndef FB_VSYNC_WINDOW_STATUS_WAITED
+#define FB_VSYNC_WINDOW_STATUS_WAITED (1U << 0)
+#endif
+
+#ifndef FB_VSYNC_WINDOW_STATUS_ALREADY_IN_WINDOW
+#define FB_VSYNC_WINDOW_STATUS_ALREADY_IN_WINDOW (1U << 1)
+#endif
+
 struct fb_vsync_timing_request
 {
   int64_t now_ts;
@@ -1710,6 +1727,10 @@ struct fb_vsync_timing_request
 
 #ifndef FBIO_WAITFORVSYNC_EARLY_64
 #define FBIO_WAITFORVSYNC_EARLY_64 _IOWR('F', 0x24, struct fb_vsync_early_request)
+#endif
+
+#ifndef FBIO_WAITFORVSYNC_WINDOW_64
+#define FBIO_WAITFORVSYNC_WINDOW_64 _IOWR('F', 0x26, struct fb_vsync_window_request)
 #endif
 
 #ifndef FBIO_GET_VSYNC_TIMING_64
@@ -1733,26 +1754,58 @@ std::string GetFramebufferDevicePath()
 
   return "/dev/fb0";
 }
+
+bool GetFramebufferDevice(int& fbFd, std::string& fbPath)
+{
+  static int cachedFd{-1};
+  static std::string cachedPath;
+
+  if (cachedFd >= 0)
+  {
+    fbFd = cachedFd;
+    fbPath = cachedPath;
+    return true;
+  }
+
+  cachedPath = GetFramebufferDevicePath();
+  cachedFd = open(cachedPath.c_str(), O_RDWR | O_CLOEXEC);
+  if (cachedFd < 0)
+  {
+    logM(LOGWARNING, "failed to open {}: {}", cachedPath, strerror(errno));
+    return false;
+  }
+
+  logM(LOGINFO, "opened {} fd:{}", cachedPath, cachedFd);
+
+  fbFd = cachedFd;
+  fbPath = cachedPath;
+  return true;
+}
+
+const char* GetVsyncWindowStatusName(uint32_t status)
+{
+  switch (status)
+  {
+    case FB_VSYNC_WINDOW_STATUS_WAITED:
+      return "waited";
+    case FB_VSYNC_WINDOW_STATUS_ALREADY_IN_WINDOW:
+      return "in-window";
+    case FB_VSYNC_WINDOW_STATUS_WAITED | FB_VSYNC_WINDOW_STATUS_ALREADY_IN_WINDOW:
+      return "waited|in-window";
+    default:
+      return "unknown";
+  }
+}
 } // namespace
 
 bool aml_get_time_to_next_vsync_us(int& timeToNextVsyncUs)
 {
   timeToNextVsyncUs = 0;
 
-  static int fbFd{-1};
-  static std::string fbPath;
-  if (fbFd < 0)
-  {
-    fbPath = GetFramebufferDevicePath();
-    fbFd = open(fbPath.c_str(), O_RDWR | O_CLOEXEC);
-    if (fbFd < 0)
-    {
-      logM(LOGWARNING, "failed to open {}: {}", fbPath, strerror(errno));
-      return false;
-    }
-
-    logM(LOGINFO, "opened {} fd:{}", fbPath, fbFd);
-  }
+  int fbFd{-1};
+  std::string fbPath;
+  if (!GetFramebufferDevice(fbFd, fbPath))
+    return false;
 
   fb_vsync_timing_request req{};
   if (ioctl(fbFd, FBIO_GET_VSYNC_TIMING_64, &req) < 0)
@@ -1766,6 +1819,71 @@ bool aml_get_time_to_next_vsync_us(int& timeToNextVsyncUs)
 
   const int64_t deltaNs = req.next_vsync_ts - req.now_ts;
   timeToNextVsyncUs = static_cast<int>(std::min<int64_t>(deltaNs / 1000, std::numeric_limits<int>::max()));
+
+  return true;
+}
+
+bool aml_wait_until_next_vsync_window_us(int offsetUs, int& timeToNextVsyncUs)
+{
+  timeToNextVsyncUs = 0;
+
+  static constexpr uint64_t LOG_THRESHOLD_US = 500;
+
+  int fbFd{-1};
+  std::string fbPath;
+  if (!GetFramebufferDevice(fbFd, fbPath))
+    return false;
+
+  static bool hasKernelWindowWait{true};
+  if (!hasKernelWindowWait)
+    return false;
+
+  fb_vsync_window_request req{};
+  req.offset_us = offsetUs;
+
+  if (ioctl(fbFd, FBIO_WAITFORVSYNC_WINDOW_64, &req) < 0)
+  {
+    if (errno == ENOTTY || errno == EINVAL)
+    {
+      hasKernelWindowWait = false;
+      logM(LOGINFO, "vsync window wait ioctl unavailable on {}", fbPath);
+    }
+    else if (errno != EAGAIN)
+    {
+      logM(LOGDEBUG, "ioctl failed on {}: {}", fbPath, strerror(errno));
+    }
+
+    return false;
+  }
+
+  if (req.wake_ts <= 0 || req.next_vsync_ts <= 0)
+    return false;
+
+  int64_t offsetNs = std::max<int64_t>(0, static_cast<int64_t>(offsetUs) * 1000);
+  if (req.period_ns > 0 && offsetNs >= req.period_ns)
+    offsetNs = req.period_ns - 1;
+
+  const int64_t windowStartNs = req.next_vsync_ts - offsetNs;
+  const uint64_t lateUs = req.wake_ts > windowStartNs ? static_cast<uint64_t>((req.wake_ts - windowStartNs) / 1000) : 0;
+
+  const int64_t deltaNs = req.next_vsync_ts - req.wake_ts;
+  timeToNextVsyncUs = static_cast<int>(std::max<int64_t>(
+      0, std::min<int64_t>(deltaNs / 1000, std::numeric_limits<int>::max())));
+
+  if (lateUs > LOG_THRESHOLD_US)
+  {
+    char name[16] = {0};
+    pthread_getname_np(pthread_self(), name, sizeof(name));
+
+    logM(LOGINFO,
+         "kernel vsync wait late: status:{} offset:{}us late:{}us remain:{}us period:{}us thread:{}",
+         GetVsyncWindowStatusName(req.status),
+         offsetUs,
+         static_cast<unsigned long long>(lateUs),
+         timeToNextVsyncUs,
+         static_cast<unsigned long long>(req.period_ns > 0 ? req.period_ns / 1000 : 0),
+         name);
+  }
 
   return true;
 }
