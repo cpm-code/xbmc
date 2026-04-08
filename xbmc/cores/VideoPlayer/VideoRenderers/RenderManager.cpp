@@ -72,6 +72,34 @@ const char* PresentStepToString(CRenderManager::EPRESENTSTEP step)
   }
   return "unknown";
 }
+
+struct WaitDebugInfo
+{
+  bool used = false;
+  bool usedSlice = false;
+  bool gui = false;
+  bool kernelWindow = false;
+  bool gotNextIn = false;
+  bool gotNextInAfter = false;
+  double waitUs = 0.0;
+  double sleepUs = 0.0;
+  double sliceSleepUs = 0.0;
+  double frameTimeUs = 0.0;
+  int nextInUs = 0;
+  int nextInAfterUs = 0;
+  int guardUs = 0;
+  bool clamped = false;
+};
+
+const char* GetWaitMode(const WaitDebugInfo& waitDbg)
+{
+  if (!waitDbg.used) return "none";
+  if (waitDbg.gui) return "gui";
+  if (waitDbg.usedSlice) return "slice";
+  if (waitDbg.kernelWindow) return "video-kernel";
+
+  return "video";
+}
 } // namespace
 
 void CRenderManager::CClockSync::Reset()
@@ -805,22 +833,7 @@ void CRenderManager::ClockAlign()
 
   double speed = static_cast<double>(std::abs(m_dataCacheCore.GetSpeed()));
 
-  struct WaitDebugInfo
-  {
-    bool used = false;
-    bool usedSlice = false;
-    bool gui = false;
-    bool gotNextIn = false;
-    bool gotNextInAfter = false;
-    double waitUs = 0.0;
-    double sleepUs = 0.0;
-    double sliceSleepUs = 0.0;
-    double frameTimeUs = 0.0;
-    int nextInUs = 0;
-    int nextInAfterUs = 0;
-    int guardUs = 0;
-    bool clamped = false;
-  } waitDbg;
+  WaitDebugInfo waitDbg;
 
   const auto WaitSlice = [&](double waitUs)
   {
@@ -882,6 +895,21 @@ void CRenderManager::ClockAlign()
     {
       // pts is before the upcoming vsync: stop early if we'd land inside the guard window.
       const int maxBeforeGuardUs = std::max(0, nextInUs - vsyncGuardUs);
+
+      if (remainingWaitUs > maxBeforeGuardUs)
+      {
+        int nextInAfterUs{0};
+        if (aml_wait_until_next_vsync_window_us(vsyncGuardUs, nextInAfterUs))
+        {
+          waitDbg.kernelWindow = true;
+          waitDbg.sleepUs = static_cast<double>(maxBeforeGuardUs);
+          waitDbg.clamped = true;
+          waitDbg.gotNextInAfter = true;
+          waitDbg.nextInAfterUs = nextInAfterUs;
+          return;
+        }
+      }
+
       sleepUs = std::min(remainingWaitUs, static_cast<double>(maxBeforeGuardUs));
     }
 
@@ -927,7 +955,7 @@ void CRenderManager::ClockAlign()
     logM(LOGDEBUG, "gapInit:[{:.0f}] gapFinal:[{:.0f}] ft:[{:.0f}] wait:[{:.0f}] mode:[{}] nextIn:[{}] guard:[{}] sleep:[{:.0f}] clamped:[{}] nextAfter:[{}] sliceSleep:[{:.0f}] presenting:[{:02d}] queued:[{}] skip:[{:02d}]",
                    initialGapUs, finalGapUs, m_presentframetime,
                    waitDbg.used ? waitDbg.waitUs : wait,
-                   waitDbg.used ? (waitDbg.gui ? "gui" : (waitDbg.usedSlice ? "slice" : "video")) : "none",
+                   GetWaitMode(waitDbg),
                    waitDbg.gotNextIn ? waitDbg.nextInUs : -1,
                    waitDbg.guardUs,
                    waitDbg.usedSlice ? 0 : waitDbg.sleepUs,
@@ -941,7 +969,7 @@ void CRenderManager::ClockAlign()
       logM(LOGWARNING, "late gapFinal:[{:.0f}] ft:[{:.0f}] wait:[{:.0f}] mode:[{}] nextIn:[{}] guard:[{}] sleep:[{:.0f}] clamped:[{}] nextAfter:[{}]",
                        finalGapUs, m_presentframetime,
                        waitDbg.waitUs,
-                       waitDbg.used ? (waitDbg.gui ? "gui" : (waitDbg.usedSlice ? "slice" : "video")) : "none",
+                       GetWaitMode(waitDbg),
                        waitDbg.gotNextIn ? waitDbg.nextInUs : -1,
                        waitDbg.guardUs,
                        waitDbg.usedSlice ? 0 : waitDbg.sleepUs,

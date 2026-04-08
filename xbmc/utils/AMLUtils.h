@@ -159,6 +159,7 @@ std::string aml_video_fps_drop();
 void aml_pin_thread_to_core(unsigned int core_id);
 void aml_wait(double waitUs);
 bool aml_get_time_to_next_vsync_us(int& timeToNextVsyncUs);
+bool aml_wait_until_next_vsync_window_us(int offsetUs, int& timeToNextVsyncUs);
 bool aml_try_set_thread_nice(int niceLevel);
 bool aml_set_timer_slack_ns(long slackNs);
 bool aml_video_started();
