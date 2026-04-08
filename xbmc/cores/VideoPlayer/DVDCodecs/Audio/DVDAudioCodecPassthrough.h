@@ -52,8 +52,14 @@ public:
 
 private:
   void UpdateDialNormSettings();
-  void ResetDtsHdMaStartupJitter();
+  void ResetPassthroughStartupState(double resyncJitterIgnoreUntil);
+  bool ShouldIgnoreJitterAfterResync();
   double EvaluateDtsHdMaStartupCorrection(double jitter);
+  bool ApplyDtsHdMaStartupCorrection(double jitter, DVDAudioFrame& frame);
+  void ApplyPassthroughJitterCorrection(double correction,
+                                        bool resetTracker,
+                                        bool signalDiscontinuity,
+                                        DVDAudioFrame& frame);
 
   int GetData(uint8_t** dst);
   unsigned int PackTrueHD();
@@ -135,6 +141,12 @@ private:
   static constexpr double DTSHD_MA_STARTUP_MAX_CORRECTION = 120000.0;  // 120ms
   static constexpr double DTSHD_MA_STARTUP_MAX_SPREAD = 10000.0;      // 10ms
 
+  // After an explicit coordinated RESYNC from VideoPlayerAudio, trust that
+  // clock for a short settling window so stale demuxer PTS values from a
+  // display-reset reopen do not immediately trigger a large passthrough jitter
+  // correction that undoes the resync.
+  static constexpr double PASSTHROUGH_RESYNC_JITTER_HOLDOFF = 250000.0;  // 250ms
+
   // Runtime jitter threshold - set based on codec in Open()
   double m_jitterThreshold{JITTER_THRESHOLD_DEFAULT};
 
@@ -142,6 +154,8 @@ private:
   size_t m_dtsHdMaStartupWarmupSamples{0};
   bool m_dtsHdMaStartupCorrectionApplied{false};
   bool m_dtsHdMaStartupRejectionLogged{false};
+  double m_resyncJitterIgnoreUntil{LOCAL_NOPTS};
+  bool m_resyncJitterHoldoffLogged{false};
 
   // Cached settings (updated via callback, read in hot path)
   std::atomic<bool> m_defeatAC3DialNorm{false};
