@@ -52,6 +52,8 @@ public:
 
 private:
   void UpdateDialNormSettings();
+  void ResetDtsHdMaStartupJitter();
+  double EvaluateDtsHdMaStartupCorrection(double jitter);
 
   int GetData(uint8_t** dst);
   unsigned int PackTrueHD();
@@ -117,12 +119,29 @@ private:
   AudioSync::CFloatingAverage<double, JITTER_WINDOW_SIZE> m_jitterTracker;
 
   // Jitter correction thresholds (in DVD_TIME_BASE units = microseconds)
-  // LAV Filters: TrueHD/DTS use 10x threshold for bitstreaming tolerance
+  // LAV Filters: TrueHD/DTS use a larger threshold for bitstreaming tolerance.
   static constexpr double JITTER_THRESHOLD_TRUEHD_DTS = 100000.0;  // 100ms
   static constexpr double JITTER_THRESHOLD_DEFAULT = 10000.0;      // 10ms
 
+  // DTS-HD MA can carry track-specific startup offsets that are smaller than the
+  // coarse passthrough jitter threshold above. Learn a stable baseline from the
+  // first few post-resync jitter samples and apply it once.
+  static constexpr size_t DTSHD_MA_STARTUP_WINDOW_SIZE = 8;
+  static constexpr size_t DTSHD_MA_STARTUP_WARMUP_SAMPLES = 2;
+  static constexpr double DTSHD_MA_STARTUP_MIN_CORRECTION = 10000.0;  // 10ms
+
+  // Keep this slightly above the coarse 100ms passthrough jitter gate so
+  // stable startup offsets around that boundary do not fall into a dead zone.
+  static constexpr double DTSHD_MA_STARTUP_MAX_CORRECTION = 120000.0;  // 120ms
+  static constexpr double DTSHD_MA_STARTUP_MAX_SPREAD = 10000.0;      // 10ms
+
   // Runtime jitter threshold - set based on codec in Open()
   double m_jitterThreshold{JITTER_THRESHOLD_DEFAULT};
+
+  AudioSync::CFloatingAverage<double, DTSHD_MA_STARTUP_WINDOW_SIZE> m_dtsHdMaStartupJitter;
+  size_t m_dtsHdMaStartupWarmupSamples{0};
+  bool m_dtsHdMaStartupCorrectionApplied{false};
+  bool m_dtsHdMaStartupRejectionLogged{false};
 
   // Cached settings (updated via callback, read in hot path)
   std::atomic<bool> m_defeatAC3DialNorm{false};

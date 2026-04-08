@@ -42,6 +42,64 @@ inline bool IsValidPts(double pts)
 }
 }
 
+void CDVDAudioCodecPassthrough::ResetDtsHdMaStartupJitter()
+{
+  m_dtsHdMaStartupJitter.Reset();
+  m_dtsHdMaStartupWarmupSamples = 0;
+  m_dtsHdMaStartupCorrectionApplied = false;
+  m_dtsHdMaStartupRejectionLogged = false;
+}
+
+double CDVDAudioCodecPassthrough::EvaluateDtsHdMaStartupCorrection(double jitter)
+{
+  if (m_dtsHdMaStartupCorrectionApplied) return 0.0;
+
+  if (m_dtsHdMaStartupWarmupSamples < DTSHD_MA_STARTUP_WARMUP_SAMPLES)
+  {
+    m_dtsHdMaStartupWarmupSamples++;
+    return 0.0;
+  }
+
+  m_dtsHdMaStartupJitter.Sample(jitter);
+  if (!m_dtsHdMaStartupJitter.IsFull()) return 0.0;
+
+  const double minJitter = m_dtsHdMaStartupJitter.Minimum();
+  const double maxJitter = m_dtsHdMaStartupJitter.Maximum();
+  const double averageJitter = m_dtsHdMaStartupJitter.Average();
+  const double spread = maxJitter - minJitter;
+  const bool consistentSign = (minJitter > 0.0 && maxJitter > 0.0) ||
+                              (minJitter < 0.0 && maxJitter < 0.0);
+  const bool minCorrectionOk = std::abs(averageJitter) >= DTSHD_MA_STARTUP_MIN_CORRECTION;
+  const bool maxCorrectionOk = std::abs(averageJitter) <= DTSHD_MA_STARTUP_MAX_CORRECTION;
+  const bool spreadOk = spread <= DTSHD_MA_STARTUP_MAX_SPREAD;
+
+  if (!consistentSign || !spreadOk || !minCorrectionOk || !maxCorrectionOk)
+  {
+    if (!m_dtsHdMaStartupRejectionLogged)
+    {
+      m_dtsHdMaStartupRejectionLogged = true;
+
+      logM(LOGDEBUG, "DTS-HD MA startup baseline rejected "
+                     "(avg {:.2f}ms, min {:.2f}ms, max {:.2f}ms, spread {:.2f}ms, sign:{:d}, minOk:{:d}, maxOk:{:d}, spreadOk:{:d})",
+                     (averageJitter / 1000.0), (minJitter / 1000.0), (maxJitter / 1000.0),
+                     (spread / 1000.0), consistentSign ? 1 : 0, minCorrectionOk ? 1 : 0,
+                     maxCorrectionOk ? 1 : 0, spreadOk ? 1 : 0);
+    }
+
+    return 0.0;
+  }
+
+  m_dtsHdMaStartupCorrectionApplied = true;
+
+  logM(LOGDEBUG, "DTS-HD MA startup baseline correction {:.2f}ms "
+                 "(avg {:.2f}ms, min {:.2f}ms, max {:.2f}ms, spread {:.2f}ms)",
+                 (averageJitter / 1000.0), (averageJitter / 1000.0), (minJitter / 1000.0),
+                 (maxJitter / 1000.0), (spread / 1000.0));
+
+  return averageJitter;
+}
+
+
 CDVDAudioCodecPassthrough::CDVDAudioCodecPassthrough(CProcessInfo &processInfo, CAEStreamInfo::DataType streamType) :
   CDVDAudioCodec(processInfo)
 {
@@ -160,6 +218,7 @@ bool CDVDAudioCodecPassthrough::Open(CDVDStreamInfo &hints, CDVDCodecOptions &op
   m_currentPts = LOCAL_NOPTS;
   m_nextPts = LOCAL_NOPTS;
   m_lastOutputPts = LOCAL_NOPTS;
+  ResetDtsHdMaStartupJitter();
   return true;
 }
 
@@ -379,6 +438,7 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
 
   const CAEStreamInfo::DataType streamType = m_format.m_streamInfo.m_type;
   const bool isTrueHD = (streamType == CAEStreamInfo::STREAM_TYPE_TRUEHD);
+  const bool isDtsHdMa = (streamType == CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
 
   // TrueHD-specific: Get samples offset for drift calculation (LAV-style)
   double samplesOffsetTime = 0.0;
@@ -409,9 +469,9 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
     m_internalClock = demuxerPts;
     m_needsResync = false;
     m_jitterTracker.Reset();  // Clear jitter history on resync
+    ResetDtsHdMaStartupJitter();
 
-    CLog::Log(LOGDEBUG, "CDVDAudioCodecPassthrough: Internal clock synced to demuxer PTS {:.3f}s",
-              demuxerPts / DVD_TIME_BASE);
+    logM(LOGDEBUG, "Internal clock synced to demuxer PTS {:.3f}s", (demuxerPts / DVD_TIME_BASE));
   }
 
   //============================================================================
@@ -429,36 +489,53 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
     // Jitter = our_clock - demuxer_pts (+ samplesOffset for TrueHD MAT compensation)
     // Positive jitter = we're ahead of demuxer, negative = we're behind
     double jitter = m_internalClock - demuxerPts + samplesOffsetTime;
-    m_jitterTracker.Sample(jitter);
+    bool startupCorrectionApplied = false;
 
-    // Use AbsMinimum for correction (most stable value in the window)
-    double absMinJitter = m_jitterTracker.AbsMinimum();
-
-    if (std::abs(absMinJitter) > m_jitterThreshold)
+    if (isDtsHdMa)
     {
-      // Correct internal clock by the jitter amount (like LAV Filters)
-      m_internalClock -= absMinJitter;
-      m_jitterTracker.OffsetValues(-absMinJitter);
-
-      if (!isTrueHD)
+      const double startupCorrection = EvaluateDtsHdMaStartupCorrection(jitter);
+      if (startupCorrection != 0.0)
       {
-        // Signal discontinuity to downstream
         frame.hasDiscontinuity = true;
-        frame.discontinuityCorrection = absMinJitter;
+        frame.discontinuityCorrection = startupCorrection;
+        m_internalClock -= startupCorrection;
+        m_jitterTracker.Reset();
+        startupCorrectionApplied = true;
       }
+    }
 
-      CLog::Log(LOGDEBUG,
-                "CDVDAudioCodecPassthrough: Jitter correction {:.2f}ms (threshold {:.0f}ms)",
-                absMinJitter / 1000.0,
-                m_jitterThreshold / 1000.0);
+    if (!startupCorrectionApplied)
+    {
+      m_jitterTracker.Sample(jitter);
 
-      if (isTrueHD)
+      // Use AbsMinimum for correction (most stable value in the window)
+      double absMinJitter = m_jitterTracker.AbsMinimum();
+
+      if (std::abs(absMinJitter) > m_jitterThreshold)
       {
-        logM(LOGDEBUG, "TrueHD jitter details corr={:.2f}ms "
-                       "jitter={:.2f}ms samplesOffset={:.2f}ms internal={:.3f}s demux={:.3f}s",
-                       (absMinJitter / 1000.0),
-                       (jitter / 1000.0), (samplesOffsetTime / 1000.0),
-                       (m_internalClock / DVD_TIME_BASE), (demuxerPts / DVD_TIME_BASE));
+        // Correct internal clock by the jitter amount (like LAV Filters)
+        m_internalClock -= absMinJitter;
+        m_jitterTracker.OffsetValues(-absMinJitter);
+
+        if (!isTrueHD)
+        {
+          frame.hasDiscontinuity = true;
+          frame.discontinuityCorrection = absMinJitter;
+        }
+
+        if (isDtsHdMa)
+          ResetDtsHdMaStartupJitter();
+
+        logM(LOGDEBUG, "Jitter correction {:.2f}ms (threshold {:.0f}ms)",
+                       (absMinJitter / 1000.0), (m_jitterThreshold / 1000.0));
+
+        if (isTrueHD)
+        {
+          logM(LOGDEBUG, "TrueHD jitter details corr={:.2f}ms "
+                         "jitter={:.2f}ms samplesOffset={:.2f}ms internal={:.3f}s demux={:.3f}s",
+                         (absMinJitter / 1000.0), (jitter / 1000.0), (samplesOffsetTime / 1000.0),
+                         (m_internalClock / DVD_TIME_BASE), (demuxerPts / DVD_TIME_BASE));
+        }
       }
     }
   }
@@ -486,9 +563,9 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
     m_internalClock += frame.duration;
     m_lastOutputPts = frame.pts;
     m_needsResync = false;
+    ResetDtsHdMaStartupJitter();
 
-    CLog::Log(LOGDEBUG, "CDVDAudioCodecPassthrough: Late init of internal clock to {:.3f}s",
-              frame.pts / DVD_TIME_BASE);
+    logM(LOGDEBUG, "Late init of internal clock to {:.3f}s", (frame.pts / DVD_TIME_BASE));
   }
   else
   {
@@ -535,6 +612,7 @@ void CDVDAudioCodecPassthrough::Reset()
   m_internalClock = LOCAL_NOPTS;
   m_needsResync = true;
   m_jitterTracker.Reset();
+  ResetDtsHdMaStartupJitter();
 
   CLog::Log(LOGDEBUG, "CDVDAudioCodecPassthrough::Reset - Internal clock reset, will resync");
 
@@ -556,6 +634,7 @@ void CDVDAudioCodecPassthrough::ResetLavSyncState()
   m_internalClock = LOCAL_NOPTS;
   m_needsResync = true;
   m_jitterTracker.Reset();
+  ResetDtsHdMaStartupJitter();
 
   CLog::Log(LOGDEBUG, "CDVDAudioCodecPassthrough::ResetLavSyncState - Internal clock reset, will resync");
 }
@@ -573,6 +652,7 @@ void CDVDAudioCodecPassthrough::SyncToResyncPts(double pts)
     m_internalClock = pts;
     m_needsResync = false;
     m_jitterTracker.Reset();
+    ResetDtsHdMaStartupJitter();
 
     CLog::Log(LOGDEBUG, "CDVDAudioCodecPassthrough::SyncToResyncPts - Internal clock set to RESYNC pts {:.3f}s",
               pts / DVD_TIME_BASE);
