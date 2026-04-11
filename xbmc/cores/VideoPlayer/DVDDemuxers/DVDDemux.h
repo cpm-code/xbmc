@@ -12,6 +12,7 @@
 #include "cores/FFmpeg.h"
 
 #include <chrono>
+#include <deque>
 #include <memory>
 #include <string>
 #include <vector>
@@ -235,7 +236,7 @@ public:
     : m_demuxerId(NewGuid())
   {
   }
-  virtual ~CDVDDemux() = default;
+  virtual ~CDVDDemux();
 
 
   /*
@@ -259,6 +260,12 @@ public:
    *
    */
   virtual DemuxPacket* Read() = 0;
+
+  static CDVDDemux* Wrap(std::unique_ptr<CDVDDemux> demux);
+
+  void ReplayPacket(DemuxPacket* pkt);
+  void ReplayPackets(std::deque<DemuxPacket*>& pkts);
+  void ClearReplay();
 
   /*
    * Seek, time in msec calculated from stream start
@@ -383,6 +390,9 @@ protected:
   virtual CDemuxStream* GetStream(int iStreamId) const = 0;
   virtual std::string GetStreamCodecName(int iStreamId) { return ""; }
 
+  DemuxPacket* ReadReplay();
+  void SetDemuxerId(int64_t demuxerId) { m_demuxerId = demuxerId; }
+
   int GetNrOfStreams(StreamType streamType) const;
 
 private:
@@ -393,4 +403,5 @@ private:
   }
 
   int64_t m_demuxerId{0};
+  std::deque<DemuxPacket*> m_replay;
 };
