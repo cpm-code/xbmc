@@ -160,6 +160,13 @@ public:
                                    h264_sequence *sequence);
 
 protected:
+  enum class HevcNaluStreamType
+  {
+    SingleLayer,
+    DualLayerBase,
+    DualLayerEnhancement,
+  };
+
   void InvalidateDoViCache() {
     m_cached_dovi_rpu_in_nal.clear();
     m_cached_dovi_rpu_out_nal.clear();
@@ -177,6 +184,27 @@ protected:
   bool BitstreamConvertInitAVC(void* in_extradata, int in_extrasize);
   bool BitstreamConvertInitHEVC(void* in_extradata, int in_extrasize);
   bool BitstreamConvertInitVVC(void* in_extradata, int in_extrasize);
+  bool ConvertHevcAnnexBPacket(uint8_t* pData, int iSize, double pts);
+  void ProcessHevcNalu(uint8_t* buf,
+                       uint32_t size,
+                       uint8_t nal_type,
+                       HevcNaluStreamType streamType,
+                       uint32_t& offset,
+                       Hdr10PlusMetadata& hdr10plus_meta,
+                       bool& convert_hdr10plus_meta,
+                       double pts,
+                       uint8_t** eos_buf = nullptr,
+                       uint32_t* eos_size = nullptr);
+  void ProcessHevcNaluStream(uint8_t* buf,
+                             uint32_t buf_size,
+                             HevcNaluStreamType streamType,
+                             uint32_t& offset,
+                             Hdr10PlusMetadata& hdr10plus_meta,
+                             bool& convert_hdr10plus_meta,
+                             double pts,
+                             uint8_t** eos_buf = nullptr,
+                             uint32_t* eos_size = nullptr,
+                             const char* logLayerLabel = nullptr);
   bool BitstreamConvert(uint8_t* pData, int iSize, uint8_t** poutbuf, int* poutbuf_size, double pts);
   bool EnsureOutputBufferCapacity(uint8_t** poutbuf, uint32_t requiredSize);
   void BitstreamAllocAndCopy(uint8_t** poutbuf,

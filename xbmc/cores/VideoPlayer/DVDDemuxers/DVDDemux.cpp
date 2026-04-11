@@ -8,11 +8,170 @@
 
 #include "DVDDemux.h"
 
+#include "DVDDemuxUtils.h"
+
 #include "ServiceBroker.h"
 #include "resources/LocalizeStrings.h"
 #include "resources/ResourcesComponent.h"
 #include "utils/StreamUtils.h"
 #include "utils/StringUtils.h"
+
+namespace
+{
+class CDVDDemuxReplay final : public CDVDDemux
+{
+public:
+  explicit CDVDDemuxReplay(std::unique_ptr<CDVDDemux> demux)
+    : m_demux(std::move(demux))
+  {
+    SetDemuxerId(m_demux->GetDemuxerId());
+  }
+
+  bool Reset() override
+  {
+    ClearReplay();
+    return m_demux->Reset();
+  }
+
+  void Abort() override
+  {
+    m_demux->Abort();
+  }
+
+  void Flush() override
+  {
+    ClearReplay();
+    m_demux->Flush();
+  }
+
+  DemuxPacket* Read() override
+  {
+    if (DemuxPacket* pkt = ReadReplay())
+      return pkt;
+
+    return m_demux->Read();
+  }
+
+  bool SeekTime(double time, bool backwards = false, double* startpts = nullptr) override
+  {
+    return m_demux->SeekTime(time, backwards, startpts);
+  }
+
+  bool SeekChapter(int chapter, double* startpts = nullptr) override
+  {
+    return m_demux->SeekChapter(chapter, startpts);
+  }
+
+  int GetChapterCount() override
+  {
+    return m_demux->GetChapterCount();
+  }
+
+  int GetChapter() override
+  {
+    return m_demux->GetChapter();
+  }
+
+  void GetChapterName(std::string& strChapterName, int chapterIdx = -1) override
+  {
+    m_demux->GetChapterName(strChapterName, chapterIdx);
+  }
+
+  std::chrono::milliseconds GetChapterPos(int chapterIdx = -1) override
+  {
+    return m_demux->GetChapterPos(chapterIdx);
+  }
+
+  void SetSpeed(int iSpeed) override
+  {
+    m_demux->SetSpeed(iSpeed);
+  }
+
+  void FillBuffer(bool mode) override
+  {
+    m_demux->FillBuffer(mode);
+  }
+
+  int GetStreamLength() override
+  {
+    return m_demux->GetStreamLength();
+  }
+
+  CDemuxStream* GetStream(int64_t demuxerId, int iStreamId) const override
+  {
+    return m_demux->GetStream(demuxerId, iStreamId);
+  }
+
+  std::vector<CDemuxStream*> GetStreams() const override
+  {
+    return m_demux->GetStreams();
+  }
+
+  int GetNrOfStreams() const override
+  {
+    return m_demux->GetNrOfStreams();
+  }
+
+  int GetPrograms(std::vector<ProgramInfo>& programs) override
+  {
+    return m_demux->GetPrograms(programs);
+  }
+
+  void SetProgram(int progId) override
+  {
+    m_demux->SetProgram(progId);
+  }
+
+  std::string GetFileName() override
+  {
+    return m_demux->GetFileName();
+  }
+
+  std::string GetStreamCodecName(int64_t demuxerId, int iStreamId) override
+  {
+    return m_demux->GetStreamCodecName(demuxerId, iStreamId);
+  }
+
+  void EnableStream(int64_t demuxerId, int id, bool enable) override
+  {
+    m_demux->EnableStream(demuxerId, id, enable);
+  }
+
+  void OpenStream(int64_t demuxerId, int id) override
+  {
+    m_demux->OpenStream(demuxerId, id);
+  }
+
+  void SetVideoResolution(unsigned int width, unsigned int height) override
+  {
+    m_demux->SetVideoResolution(width, height);
+  }
+
+protected:
+  void EnableStream(int id, bool enable) override
+  {
+    m_demux->EnableStream(m_demux->GetDemuxerId(), id, enable);
+  }
+
+  void OpenStream(int id) override
+  {
+    m_demux->OpenStream(m_demux->GetDemuxerId(), id);
+  }
+
+  CDemuxStream* GetStream(int iStreamId) const override
+  {
+    return m_demux->GetStream(m_demux->GetDemuxerId(), iStreamId);
+  }
+
+  std::string GetStreamCodecName(int iStreamId) override
+  {
+    return m_demux->GetStreamCodecName(m_demux->GetDemuxerId(), iStreamId);
+  }
+
+private:
+  std::unique_ptr<CDVDDemux> m_demux;
+};
+}
 
 std::string CDemuxStreamAudio::GetStreamType() const
 {
@@ -156,6 +315,51 @@ int CDVDDemux::GetNrOfStreams(StreamType streamType) const
   }
 
   return iCounter;
+}
+
+CDVDDemux::~CDVDDemux()
+{
+  ClearReplay();
+}
+
+CDVDDemux* CDVDDemux::Wrap(std::unique_ptr<CDVDDemux> demux)
+{
+  if (!demux)
+    return nullptr;
+
+  return new CDVDDemuxReplay(std::move(demux));
+}
+
+void CDVDDemux::ReplayPacket(DemuxPacket* pkt)
+{
+  if (pkt) m_replay.emplace_back(pkt);
+}
+
+void CDVDDemux::ReplayPackets(std::deque<DemuxPacket*>& pkts)
+{
+  while (!pkts.empty())
+  {
+    ReplayPacket(pkts.front());
+    pkts.pop_front();
+  }
+}
+
+void CDVDDemux::ClearReplay()
+{
+  while (!m_replay.empty())
+  {
+    CDVDDemuxUtils::FreeDemuxPacket(m_replay.front());
+    m_replay.pop_front();
+  }
+}
+
+DemuxPacket* CDVDDemux::ReadReplay()
+{
+  if (m_replay.empty()) return nullptr;
+
+  DemuxPacket* pkt = m_replay.front();
+  m_replay.pop_front();
+  return pkt;
 }
 
 int CDVDDemux::GetNrOfSubtitleStreams() const

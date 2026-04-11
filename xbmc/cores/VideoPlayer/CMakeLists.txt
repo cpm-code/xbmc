@@ -17,6 +17,7 @@ set(SOURCES AudioSinkAE.cpp
             VideoPlayer.cpp
             VideoPlayerAudio.cpp
             VideoPlayerAudioID3.cpp
+            VideoPlayerProbe.cpp
             VideoPlayerRadioRDS.cpp
             VideoPlayerSubtitle.cpp
             VideoPlayerTeletext.cpp
@@ -25,6 +26,7 @@ set(SOURCES AudioSinkAE.cpp
 
 set(HEADERS AudioSinkAE.h
             DVDClock.h
+            DualLayerPairing.h
             DVDDemuxSPU.h
             DVDFileInfo.h
             DVDMessage.h
@@ -45,6 +47,7 @@ set(HEADERS AudioSinkAE.h
             VideoPlayer.h
             VideoPlayerAudio.h
             VideoPlayerAudioID3.h
+            VideoPlayerProbe.h
             VideoPlayerRadioRDS.h
             VideoPlayerSubtitle.h
             VideoPlayerTeletext.h
