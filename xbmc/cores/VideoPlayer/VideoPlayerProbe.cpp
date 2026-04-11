@@ -1,0 +1,187 @@
+/*
+ *  Copyright (C) 2005-2018 Team Kodi
+ *  This file is part of Kodi - https://kodi.tv
+ *
+ *  SPDX-License-Identifier: GPL-2.0-or-later
+ *  See LICENSES/README.md for more information.
+ */
+
+#include "VideoPlayerProbe.h"
+#include "DualLayerPairing.h"
+
+#include "DVDDemuxers/DVDDemux.h"
+#include "Interface/DemuxPacket.h"
+#include "ServiceBroker.h"
+#include "cores/DataCacheCore.h"
+#include "utils/BitstreamConverter.h"
+
+#include <cstring>
+
+namespace
+{
+constexpr unsigned int PROBE_MAX_PACKETS = 96;
+constexpr unsigned int PROBE_MAX_VIDEO_PACKETS = 16;
+constexpr size_t PROBE_MAX_DUAL_PACKETS = 4;
+
+void InitializeVideoSourceProbeState(const CDVDStreamInfo& hint)
+{
+  auto& dataCache = CServiceBroker::GetDataCacheCore();
+  dataCache.SetVideoSourceHdrType(hint.hdrType);
+  dataCache.SetVideoSourceAdditionalHdrType(StreamHdrType::HDR_TYPE_NONE);
+
+  DOVIStreamInfo doviStreamInfo;
+  doviStreamInfo.dovi = hint.dovi;
+  doviStreamInfo.dovi_el_type = hint.dovi_el_type;
+  doviStreamInfo.has_config =
+      (memcmp(&hint.dovi, &CDVDStreamInfo::empty_dovi, sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
+
+  dataCache.SetVideoSourceDoViStreamInfo(doviStreamInfo);
+}
+
+void SyncProbedDoViSourceInfo()
+{
+  auto& dataCache = CServiceBroker::GetDataCacheCore();
+  const auto doviStreamInfo = dataCache.GetVideoDoViStreamInfo();
+
+  if (doviStreamInfo.has_config ||
+      doviStreamInfo.has_header ||
+      (doviStreamInfo.dovi_el_type != DOVIELType::TYPE_NONE))
+    dataCache.SetVideoSourceDoViStreamInfo(doviStreamInfo);
+}
+
+bool IsRelevantHdrProbePacket(const CDVDStreamInfo& hint,
+                              const CDemuxStream& stream,
+                              const DemuxPacket& packet)
+{
+  if ((stream.type != StreamType::VIDEO) || (stream.source != STREAM_SOURCE_DEMUX))
+    return false;
+
+  if (packet.demuxerId != hint.demuxerId)
+    return false;
+
+  if (packet.isDualStream)
+    return true;
+
+  return packet.iStreamId == hint.uniqueId;
+}
+
+bool IsHdrProbeResolved(const CDVDStreamInfo& hint, StreamHdrType initialHdrType)
+{
+  auto& dataCache = CServiceBroker::GetDataCacheCore();
+  const auto sourceHdrType = dataCache.GetVideoSourceHdrType();
+  const auto sourceAdditionalHdrType = dataCache.GetVideoSourceAdditionalHdrType();
+
+  if ((hint.hdrType != initialHdrType) ||
+      (sourceAdditionalHdrType != StreamHdrType::HDR_TYPE_NONE))
+    return true;
+
+  if ((sourceHdrType == StreamHdrType::HDR_TYPE_HLG) ||
+      (sourceHdrType == StreamHdrType::HDR_TYPE_HDR10PLUS))
+    return true;
+
+  if (sourceHdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
+  {
+    const auto doviStreamInfo = dataCache.GetVideoSourceDoViStreamInfo();
+
+    if (hint.dovi.el_present_flag &&
+        !doviStreamInfo.has_header &&
+        (doviStreamInfo.dovi_el_type == DOVIELType::TYPE_NONE))
+      return false;
+
+    return doviStreamInfo.has_config ||
+           doviStreamInfo.has_header ||
+           (doviStreamInfo.dovi_el_type != DOVIELType::TYPE_NONE) ||
+           hint.dovi.rpu_present_flag ||
+           hint.dovi.el_present_flag ||
+           hint.dovi.bl_present_flag;
+  }
+
+  return false;
+}
+
+bool Supports(const CDVDStreamInfo& hint)
+{
+  return (hint.source == STREAM_SOURCE_DEMUX) && (hint.codec == AV_CODEC_ID_HEVC);
+}
+}
+
+namespace VideoPlayerProbe
+{
+bool Run(CDVDDemux& demuxer,
+         CDVDStreamInfo& hint,
+         const std::atomic<bool>& abortRequested)
+{
+  if (!Supports(hint))
+    return false;
+
+  InitializeVideoSourceProbeState(hint);
+  if (IsHdrProbeResolved(hint, hint.hdrType))
+    return false;
+
+  CBitstreamConverter bitstream(hint);
+  bitstream.Open(true);
+
+  const StreamHdrType initialHdrType = hint.hdrType;
+  bool probed = false;
+  unsigned int packetCount = 0;
+  unsigned int videoPacketCount = 0;
+  std::deque<DemuxPacket*> rdPkts;
+  std::deque<DemuxPacket*> dualLayerPackets;
+
+  while (!abortRequested.load(std::memory_order_relaxed) &&
+         packetCount < PROBE_MAX_PACKETS &&
+         videoPacketCount < PROBE_MAX_VIDEO_PACKETS)
+  {
+    DemuxPacket* packet = demuxer.Read();
+    if (!packet) break;
+
+    rdPkts.emplace_back(packet);
+    packetCount++;
+
+    if (packet->iStreamId == DMX_SPECIALID_STREAMCHANGE) break;
+
+    if (packet->iStreamId < 0 || packet->pData == nullptr || packet->iSize <= 0)
+      continue;
+
+    CDemuxStream* stream = demuxer.GetStream(packet->demuxerId, packet->iStreamId);
+    if (!stream || !IsRelevantHdrProbePacket(hint, *stream, *packet))
+      continue;
+
+    probed = true;
+
+    if (packet->isDualStream)
+    {
+      if (VideoPlayerDualLayer::CanPairWithFront(dualLayerPackets, packet->isELPackage,
+                                                 packet->dts))
+      {
+        DemuxPacket* peer = dualLayerPackets.front();
+        if (packet->isELPackage)
+          bitstream.Convert(peer->pData, peer->iSize, packet->pData, packet->iSize, packet->pts);
+        else
+          bitstream.Convert(packet->pData, packet->iSize, peer->pData, peer->iSize, packet->pts);
+
+        dualLayerPackets.pop_front();
+        videoPacketCount++;
+        SyncProbedDoViSourceInfo();
+      }
+      else
+      {
+        VideoPlayerDualLayer::QueuePendingPacket(dualLayerPackets, packet,
+                                                 PROBE_MAX_DUAL_PACKETS);
+      }
+    }
+    else
+    {
+      bitstream.Convert(packet->pData, packet->iSize, packet->pts);
+      videoPacketCount++;
+      SyncProbedDoViSourceInfo();
+    }
+
+    if (IsHdrProbeResolved(hint, initialHdrType))
+      break;
+  }
+
+  demuxer.ReplayPackets(rdPkts);
+  return probed;
+}
+}
