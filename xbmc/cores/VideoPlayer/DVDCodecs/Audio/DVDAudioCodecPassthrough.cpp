@@ -40,85 +40,135 @@ inline bool IsValidPts(double pts)
 {
   return (pts >= 0.0) && (pts <= MAX_REASONABLE_PTS);
 }
+
+inline double ClampMagnitude(double value, double limit)
+{
+  return std::clamp(value, -limit, limit);
+}
+}
+
+void CDVDAudioCodecPassthrough::ResetStartupJitterState(
+    CDVDAudioCodecPassthrough::StartupJitterState& state)
+{
+  state.tracker.Reset();
+  state.warmupSamples = 0;
+  state.correctionApplied = false;
+  state.rejectionLogged = false;
 }
 
 void CDVDAudioCodecPassthrough::ResetPassthroughStartupState(double resyncJitterIgnoreUntil)
 {
-  m_dtsHdMaStartupJitter.Reset();
-  m_dtsHdMaStartupWarmupSamples = 0;
-  m_dtsHdMaStartupCorrectionApplied = false;
-  m_dtsHdMaStartupRejectionLogged = false;
-  m_resyncJitterIgnoreUntil = resyncJitterIgnoreUntil;
-  m_resyncJitterHoldoffLogged = false;
+  ResetStartupJitterState(m_startupJitterState);
+  m_trueHdCorrectionCooldown.until = LOCAL_NOPTS;
+  m_trueHdCorrectionCooldown.logged = false;
+  m_resyncJitterHoldoff.until = resyncJitterIgnoreUntil;
+  m_resyncJitterHoldoff.logged = false;
 }
 
-bool CDVDAudioCodecPassthrough::ShouldIgnoreJitterAfterResync()
+bool CDVDAudioCodecPassthrough::ShouldIgnoreWindow(
+    CDVDAudioCodecPassthrough::IgnoreWindowState& state,
+    CDVDAudioCodecPassthrough::IgnoreWindowKind kind)
 {
-  if (!IsValidPts(m_resyncJitterIgnoreUntil) ||
-      (m_internalClock >= m_resyncJitterIgnoreUntil))
+  if (!IsValidPts(state.until) || m_internalClock >= state.until)
   {
-    m_resyncJitterIgnoreUntil = LOCAL_NOPTS;
-    m_resyncJitterHoldoffLogged = false;
+    state.until = LOCAL_NOPTS;
+    state.logged = false;
     return false;
   }
 
-  if (!m_resyncJitterHoldoffLogged)
+  if (!state.logged)
   {
-    m_resyncJitterHoldoffLogged = true;
-    logM(LOGDEBUG, "Ignoring passthrough jitter for {:.2f}ms after RESYNC",
-                   (m_resyncJitterIgnoreUntil - m_internalClock) / 1000.0);
+    state.logged = true;
+    const double remainingMs = (state.until - m_internalClock) / 1000.0;
+
+    switch (kind)
+    {
+      case IgnoreWindowKind::PassthroughResync:
+        logM(LOGDEBUG, "Ignoring passthrough jitter for {:.2f}ms after RESYNC", remainingMs);
+        break;
+
+      case IgnoreWindowKind::TrueHdCorrection:
+        logM(LOGDEBUG, "Ignoring TrueHD jitter for {:.2f}ms after {} correction",
+             remainingMs, GetPassthroughPathLabel());
+        break;
+    }
   }
+
+  return true;
+}
+
+bool CDVDAudioCodecPassthrough::EvaluateStartupJitterState(
+    CDVDAudioCodecPassthrough::StartupJitterState& state,
+    double jitter,
+    double minCorrection,
+    double maxCorrection,
+    double maxSpread,
+    CDVDAudioCodecPassthrough::StartupJitterEvaluation& evaluation)
+{
+  if (state.correctionApplied)
+    return false;
+
+  if (state.warmupSamples < STARTUP_WARMUP_SAMPLES)
+  {
+    state.warmupSamples++;
+    return false;
+  }
+
+  state.tracker.Sample(jitter);
+  if (!state.tracker.IsFull())
+    return false;
+
+  evaluation.minimum = state.tracker.Minimum();
+  evaluation.maximum = state.tracker.Maximum();
+  evaluation.average = state.tracker.Average();
+  evaluation.spread = evaluation.maximum - evaluation.minimum;
+  evaluation.consistentSign = (evaluation.minimum > 0.0 && evaluation.maximum > 0.0) ||
+                              (evaluation.minimum < 0.0 && evaluation.maximum < 0.0);
+  evaluation.minCorrectionOk = std::abs(evaluation.average) >= minCorrection;
+  evaluation.maxCorrectionOk = std::abs(evaluation.average) <= maxCorrection;
+  evaluation.spreadOk = evaluation.spread <= maxSpread;
+
+  if (evaluation.Accepted())
+    state.correctionApplied = true;
 
   return true;
 }
 
 double CDVDAudioCodecPassthrough::EvaluateDtsHdMaStartupCorrection(double jitter)
 {
-  if (m_dtsHdMaStartupCorrectionApplied) return 0.0;
-
-  if (m_dtsHdMaStartupWarmupSamples < DTSHD_MA_STARTUP_WARMUP_SAMPLES)
-  {
-    m_dtsHdMaStartupWarmupSamples++;
+  StartupJitterEvaluation evaluation;
+  if (!EvaluateStartupJitterState(m_startupJitterState,
+                                  jitter,
+                                  DTSHD_MA_STARTUP_MIN_CORRECTION,
+                                  DTSHD_MA_STARTUP_MAX_CORRECTION,
+                                  DTSHD_MA_STARTUP_MAX_SPREAD,
+                                  evaluation))
     return 0.0;
-  }
 
-  m_dtsHdMaStartupJitter.Sample(jitter);
-  if (!m_dtsHdMaStartupJitter.IsFull()) return 0.0;
-
-  const double minJitter = m_dtsHdMaStartupJitter.Minimum();
-  const double maxJitter = m_dtsHdMaStartupJitter.Maximum();
-  const double averageJitter = m_dtsHdMaStartupJitter.Average();
-  const double spread = maxJitter - minJitter;
-  const bool consistentSign = (minJitter > 0.0 && maxJitter > 0.0) ||
-                              (minJitter < 0.0 && maxJitter < 0.0);
-  const bool minCorrectionOk = std::abs(averageJitter) >= DTSHD_MA_STARTUP_MIN_CORRECTION;
-  const bool maxCorrectionOk = std::abs(averageJitter) <= DTSHD_MA_STARTUP_MAX_CORRECTION;
-  const bool spreadOk = spread <= DTSHD_MA_STARTUP_MAX_SPREAD;
-
-  if (!consistentSign || !spreadOk || !minCorrectionOk || !maxCorrectionOk)
+  if (!evaluation.Accepted())
   {
-    if (!m_dtsHdMaStartupRejectionLogged)
+    if (!m_startupJitterState.rejectionLogged)
     {
-      m_dtsHdMaStartupRejectionLogged = true;
+      m_startupJitterState.rejectionLogged = true;
 
       logM(LOGDEBUG, "DTS-HD MA startup baseline rejected "
                      "(avg {:.2f}ms, min {:.2f}ms, max {:.2f}ms, spread {:.2f}ms, sign:{:d}, minOk:{:d}, maxOk:{:d}, spreadOk:{:d})",
-                     (averageJitter / 1000.0), (minJitter / 1000.0), (maxJitter / 1000.0),
-                     (spread / 1000.0), consistentSign ? 1 : 0, minCorrectionOk ? 1 : 0,
-                     maxCorrectionOk ? 1 : 0, spreadOk ? 1 : 0);
+                     (evaluation.average / 1000.0), (evaluation.minimum / 1000.0),
+                     (evaluation.maximum / 1000.0), (evaluation.spread / 1000.0),
+                     evaluation.consistentSign ? 1 : 0, evaluation.minCorrectionOk ? 1 : 0,
+                     evaluation.maxCorrectionOk ? 1 : 0, evaluation.spreadOk ? 1 : 0);
     }
 
     return 0.0;
   }
 
-  m_dtsHdMaStartupCorrectionApplied = true;
-
   logM(LOGDEBUG, "DTS-HD MA startup baseline correction {:.2f}ms "
                  "(avg {:.2f}ms, min {:.2f}ms, max {:.2f}ms, spread {:.2f}ms)",
-                 (averageJitter / 1000.0), (averageJitter / 1000.0), (minJitter / 1000.0),
-                 (maxJitter / 1000.0), (spread / 1000.0));
+                 (evaluation.average / 1000.0), (evaluation.average / 1000.0),
+                 (evaluation.minimum / 1000.0), (evaluation.maximum / 1000.0),
+                 (evaluation.spread / 1000.0));
 
-  return averageJitter;
+  return evaluation.average;
 }
 
 bool CDVDAudioCodecPassthrough::ApplyDtsHdMaStartupCorrection(double jitter, DVDAudioFrame& frame)
@@ -127,6 +177,63 @@ bool CDVDAudioCodecPassthrough::ApplyDtsHdMaStartupCorrection(double jitter, DVD
   if (startupCorrection == 0.0) return false;
 
   ApplyPassthroughJitterCorrection(startupCorrection, true, true, frame);
+  return true;
+}
+
+double CDVDAudioCodecPassthrough::EvaluateTrueHdStartupCorrection(double jitter,
+                                                                  double samplesOffsetTime)
+{
+  StartupJitterEvaluation evaluation;
+  if (!EvaluateStartupJitterState(m_startupJitterState,
+                                  jitter,
+                                  TRUEHD_STARTUP_MIN_CORRECTION,
+                                  TRUEHD_STARTUP_MAX_CORRECTION,
+                                  TRUEHD_STARTUP_MAX_SPREAD,
+                                  evaluation))
+    return 0.0;
+
+  if (!evaluation.Accepted())
+  {
+    if (!m_startupJitterState.rejectionLogged)
+    {
+      m_startupJitterState.rejectionLogged = true;
+
+      logM(LOGDEBUG, "TrueHD startup baseline rejected "
+                     "(avg {:.2f}ms, min {:.2f}ms, max {:.2f}ms, spread {:.2f}ms, "
+                     "clock {:.2f}ms, MAT {:.2f}ms, path {}, sign:{:d}, minOk:{:d}, "
+                     "maxOk:{:d}, spreadOk:{:d})",
+                     (evaluation.average / 1000.0), (evaluation.minimum / 1000.0),
+                     (evaluation.maximum / 1000.0), (evaluation.spread / 1000.0),
+                     ((evaluation.average - samplesOffsetTime) / 1000.0),
+                     (samplesOffsetTime / 1000.0), GetPassthroughPathLabel(),
+                     evaluation.consistentSign ? 1 : 0, evaluation.minCorrectionOk ? 1 : 0,
+                     evaluation.maxCorrectionOk ? 1 : 0, evaluation.spreadOk ? 1 : 0);
+    }
+
+    return 0.0;
+  }
+
+  logM(LOGDEBUG, "TrueHD startup baseline correction {:.2f}ms "
+                 "(min {:.2f}ms, max {:.2f}ms, spread {:.2f}ms, "
+                 "clock {:.2f}ms, MAT {:.2f}ms, path {})",
+                 (evaluation.average / 1000.0), (evaluation.minimum / 1000.0),
+                 (evaluation.maximum / 1000.0), (evaluation.spread / 1000.0),
+                 ((evaluation.average - samplesOffsetTime) / 1000.0),
+               (samplesOffsetTime / 1000.0), GetPassthroughPathLabel());
+
+  return evaluation.average;
+}
+
+bool CDVDAudioCodecPassthrough::ApplyTrueHdStartupCorrection(double jitter,
+                                                             double samplesOffsetTime,
+                                                             DVDAudioFrame& frame)
+{
+  const double startupCorrection = EvaluateTrueHdStartupCorrection(jitter, samplesOffsetTime);
+  if (startupCorrection == 0.0) return false;
+
+  ApplyPassthroughJitterCorrection(startupCorrection, true, false, frame);
+  m_trueHdCorrectionCooldown.until = m_internalClock + GetTrueHdCorrectionCooldown();
+  m_trueHdCorrectionCooldown.logged = false;
   return true;
 }
 
@@ -229,7 +336,7 @@ bool CDVDAudioCodecPassthrough::Open(CDVDStreamInfo &hints, CDVDCodecOptions &op
 
     case CAEStreamInfo::STREAM_TYPE_DTSHD_MA:
       m_codecName = "pt-dtshd_ma";
-      // LAV Filters: TrueHD/DTS use 10x threshold (1 second) for bitstreaming tolerance
+      // Bitstreaming codecs use a coarser 100ms jitter correction gate.
       m_jitterThreshold = JITTER_THRESHOLD_TRUEHD_DTS;
       break;
 
@@ -246,7 +353,7 @@ bool CDVDAudioCodecPassthrough::Open(CDVDStreamInfo &hints, CDVDCodecOptions &op
 
     case CAEStreamInfo::STREAM_TYPE_TRUEHD:
       m_codecName = "pt-truehd";
-      // LAV Filters: TrueHD/DTS use 10x threshold (1 second) for bitstreaming tolerance
+      // Bitstreaming codecs use a coarser 100ms jitter correction gate.
       m_jitterThreshold = JITTER_THRESHOLD_TRUEHD_DTS;
       m_parser.SetDefeatTrueHDDialNorm(m_defeatTrueHDDialNorm.load());
 
@@ -535,40 +642,89 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
 
   if (IsValidPts(m_internalClock) && haveDemuxerPts)
   {
-    if (!ShouldIgnoreJitterAfterResync())
+    if (!ShouldIgnoreWindow(m_resyncJitterHoldoff, IgnoreWindowKind::PassthroughResync))
     {
-      // Jitter = our_clock - demuxer_pts (+ samplesOffset for TrueHD MAT compensation)
-      // Positive jitter = we're ahead of demuxer, negative = we're behind
-      double jitter = m_internalClock - demuxerPts + samplesOffsetTime;
+      // Jitter = clock delta + TrueHD MAT sample offset compensation.
+      // Positive jitter = we're ahead of demuxer, negative = we're behind.
+      const double clockDelta = m_internalClock - demuxerPts;
+      const double jitter = clockDelta + samplesOffsetTime;
+      const double absJitter = std::abs(jitter);
       bool startupCorrectionApplied = false;
+      bool trueHdStartupPending = false;
 
-      if (isDtsHdMa)
-        startupCorrectionApplied = ApplyDtsHdMaStartupCorrection(jitter, frame);
-
-      if (!startupCorrectionApplied)
+      if (absJitter >= PASSTHROUGH_ABNORMAL_JITTER)
       {
-        m_jitterTracker.Sample(jitter);
+        m_internalClock = demuxerPts;
+        m_jitterTracker.Reset();
+        ResetPassthroughStartupState(LOCAL_NOPTS);
 
-        // Use AbsMinimum for correction (most stable value in the window)
-        double absMinJitter = m_jitterTracker.AbsMinimum();
-
-        if (std::abs(absMinJitter) > m_jitterThreshold)
+        if (!isTrueHD)
         {
-          // Correct internal clock by the jitter amount (like LAV Filters)
-          ApplyPassthroughJitterCorrection(absMinJitter, false, !isTrueHD, frame);
+          frame.hasDiscontinuity = true;
+          frame.discontinuityCorrection = jitter;
+        }
 
-          if (isDtsHdMa)
-            ResetPassthroughStartupState(LOCAL_NOPTS);
+        logM(LOGDEBUG,
+             "Abnormal passthrough jitter {:.2f}ms, resyncing internal clock "
+             "(samplesOffset={:.2f}ms, threshold {:.0f}ms)",
+             (jitter / 1000.0), (samplesOffsetTime / 1000.0),
+             (PASSTHROUGH_ABNORMAL_JITTER / 1000.0));
+      }
+      else
+      {
+        if (isDtsHdMa)
+          startupCorrectionApplied = ApplyDtsHdMaStartupCorrection(jitter, frame);
+        else if (isTrueHD)
+        {
+          startupCorrectionApplied = ApplyTrueHdStartupCorrection(jitter, samplesOffsetTime, frame);
+          trueHdStartupPending =
+              !m_startupJitterState.correctionApplied &&
+              ((m_startupJitterState.warmupSamples < STARTUP_WARMUP_SAMPLES) ||
+               !m_startupJitterState.tracker.IsFull());
+        }
 
-          logM(LOGDEBUG, "Jitter correction {:.2f}ms (threshold {:.0f}ms)",
-                         (absMinJitter / 1000.0), (m_jitterThreshold / 1000.0));
+        if (!startupCorrectionApplied && !(isTrueHD && trueHdStartupPending) &&
+            !(isTrueHD && ShouldIgnoreWindow(m_trueHdCorrectionCooldown,
+                                             IgnoreWindowKind::TrueHdCorrection)))
+        {
+          m_jitterTracker.Sample(jitter);
 
-          if (isTrueHD)
+          // Use AbsMinimum for correction (most stable value in the window)
+          const double absMinJitter = m_jitterTracker.AbsMinimum();
+
+          if (std::abs(absMinJitter) > m_jitterThreshold)
           {
-            logM(LOGDEBUG, "TrueHD jitter details corr={:.2f}ms "
-                           "jitter={:.2f}ms samplesOffset={:.2f}ms internal={:.3f}s demux={:.3f}s",
-                           (absMinJitter / 1000.0), (jitter / 1000.0), (samplesOffsetTime / 1000.0),
-                           (m_internalClock / DVD_TIME_BASE), (demuxerPts / DVD_TIME_BASE));
+            const double correction =
+                isTrueHD ? ClampMagnitude(absMinJitter, GetTrueHdCorrectionClamp()) : absMinJitter;
+            const double trackerMin = m_jitterTracker.Minimum();
+            const double trackerMax = m_jitterTracker.Maximum();
+            const double trackerAvg = m_jitterTracker.Average();
+            const double trackerSpread = trackerMax - trackerMin;
+
+            ApplyPassthroughJitterCorrection(correction, false, !isTrueHD, frame);
+
+            if (isDtsHdMa)
+              ResetPassthroughStartupState(LOCAL_NOPTS);
+            else if (isTrueHD)
+            {
+              m_trueHdCorrectionCooldown.until = m_internalClock + GetTrueHdCorrectionCooldown();
+              m_trueHdCorrectionCooldown.logged = false;
+
+              logM(LOGDEBUG,
+                   "TrueHD staged jitter correction {:.2f}ms of {:.2f}ms "
+                   "(clock {:.2f}ms, MAT {:.2f}ms, avg {:.2f}ms, min {:.2f}ms, "
+                   "max {:.2f}ms, spread {:.2f}ms, internal {:.3f}s, demux {:.3f}s, path {})",
+                   (correction / 1000.0), (absMinJitter / 1000.0), (clockDelta / 1000.0),
+                   (samplesOffsetTime / 1000.0), (trackerAvg / 1000.0),
+                   (trackerMin / 1000.0), (trackerMax / 1000.0), (trackerSpread / 1000.0),
+                   (m_internalClock / DVD_TIME_BASE), (demuxerPts / DVD_TIME_BASE),
+                     GetPassthroughPathLabel());
+            }
+            else
+            {
+              logM(LOGDEBUG, "Jitter correction {:.2f}ms (threshold {:.0f}ms)",
+                             (correction / 1000.0), (m_jitterThreshold / 1000.0));
+            }
           }
         }
       }
