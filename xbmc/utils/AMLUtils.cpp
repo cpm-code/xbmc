@@ -931,8 +931,7 @@ AMLHdrSetupPolicy aml_get_hdr_setup_policy(StreamHdrType fallbackHdr,
 
 static bool aml_dv_has_hdr10_graphics(const DOVIStreamInfo& doviStreamInfo)
 {
-  if (!doviStreamInfo.has_config)
-    return false;
+  if (!doviStreamInfo.has_config) return false;
 
   switch (doviStreamInfo.dovi.dv_profile)
   {
@@ -940,8 +939,8 @@ static bool aml_dv_has_hdr10_graphics(const DOVIStreamInfo& doviStreamInfo)
       return true;
     case 8:
     case 10:
-      return aml_dv_bl_signal_compatibility_hdr_type(doviStreamInfo) ==
-             StreamHdrType::HDR_TYPE_HDR10;
+      return (aml_dv_bl_signal_compatibility_hdr_type(doviStreamInfo) ==
+              StreamHdrType::HDR_TYPE_HDR10);
     default:
       return false;
   }

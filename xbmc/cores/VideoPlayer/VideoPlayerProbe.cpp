@@ -23,19 +23,22 @@ constexpr unsigned int PROBE_MAX_PACKETS = 96;
 constexpr unsigned int PROBE_MAX_VIDEO_PACKETS = 16;
 constexpr size_t PROBE_MAX_DUAL_PACKETS = 4;
 
+bool HasDoviStreamInfo(const DOVIStreamInfo& doviStreamInfo)
+{
+  return doviStreamInfo.has_config ||
+         doviStreamInfo.has_header ||
+         (doviStreamInfo.dovi_el_type != DOVIELType::TYPE_NONE) ||
+         (memcmp(&doviStreamInfo.dovi, &CDVDStreamInfo::empty_dovi,
+                 sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
+}
+
 void InitializeVideoSourceProbeState(const CDVDStreamInfo& hint)
 {
   auto& dataCache = CServiceBroker::GetDataCacheCore();
   dataCache.SetVideoSourceHdrType(hint.hdrType);
   dataCache.SetVideoSourceAdditionalHdrType(StreamHdrType::HDR_TYPE_NONE);
-
-  DOVIStreamInfo doviStreamInfo;
-  doviStreamInfo.dovi = hint.dovi;
-  doviStreamInfo.dovi_el_type = hint.dovi_el_type;
-  doviStreamInfo.has_config =
-      (memcmp(&hint.dovi, &CDVDStreamInfo::empty_dovi, sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
-
-  dataCache.SetVideoSourceDoViStreamInfo(doviStreamInfo);
+  dataCache.SetVideoDoViStreamInfo({});
+  dataCache.SetVideoSourceDoViStreamInfo({});
 }
 
 void SyncProbedDoViSourceInfo()
@@ -43,9 +46,7 @@ void SyncProbedDoViSourceInfo()
   auto& dataCache = CServiceBroker::GetDataCacheCore();
   const auto doviStreamInfo = dataCache.GetVideoDoViStreamInfo();
 
-  if (doviStreamInfo.has_config ||
-      doviStreamInfo.has_header ||
-      (doviStreamInfo.dovi_el_type != DOVIELType::TYPE_NONE))
+  if (HasDoviStreamInfo(doviStreamInfo))
     dataCache.SetVideoSourceDoViStreamInfo(doviStreamInfo);
 }
 
@@ -81,19 +82,14 @@ bool IsHdrProbeResolved(const CDVDStreamInfo& hint, StreamHdrType initialHdrType
 
   if (sourceHdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
   {
-    const auto doviStreamInfo = dataCache.GetVideoSourceDoViStreamInfo();
+    const auto doviStreamInfo = dataCache.GetVideoDoViStreamInfo();
 
     if (hint.dovi.el_present_flag &&
         !doviStreamInfo.has_header &&
         (doviStreamInfo.dovi_el_type == DOVIELType::TYPE_NONE))
       return false;
 
-    return doviStreamInfo.has_config ||
-           doviStreamInfo.has_header ||
-           (doviStreamInfo.dovi_el_type != DOVIELType::TYPE_NONE) ||
-           hint.dovi.rpu_present_flag ||
-           hint.dovi.el_present_flag ||
-           hint.dovi.bl_present_flag;
+    return HasDoviStreamInfo(doviStreamInfo);
   }
 
   return false;
