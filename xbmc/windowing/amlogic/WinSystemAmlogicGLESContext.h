@@ -45,6 +45,9 @@ public:
   }
   int GetBufferAge() override
   {
+    // keep at 0 for now, cost seems higher if trying to just do partial updates.
+    return 0;
+
     int bufferAge = m_pGLContext.GetBufferAge();
     if (bufferAge <= 0) return bufferAge;
 
