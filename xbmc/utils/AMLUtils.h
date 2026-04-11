@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "cores/VideoPlayer/DVDStreamInfo.h"
 #include "rendering/RenderSystemTypes.h"
 #include "windowing/Resolution.h"
 #include "utils/StreamDetails.h"
@@ -94,6 +95,20 @@ enum class DV_COLORIMETRY : int
 #define DOLBY_VISION_OUTPUT_MODE_SDR10      (unsigned int)(3)
 #define DOLBY_VISION_OUTPUT_MODE_BYPASS     (unsigned int)(5)
 
+struct AMLHdrSetupPolicy
+{
+  StreamHdrType srcHdr{StreamHdrType::HDR_TYPE_NONE};
+  StreamHdrType srcAltHdr{StreamHdrType::HDR_TYPE_NONE};
+  DOVIStreamInfo srcDvInfo{};
+  StreamHdrType resolvedHdr{StreamHdrType::HDR_TYPE_NONE};
+  StreamHdrType finalHdr{StreamHdrType::HDR_TYPE_NONE};
+  bool dvAvail{false};
+  bool dualPri10Plus{false};
+  bool convHdr10Plus{false};
+  bool prefConv10Plus{false};
+  bool rmHdr10PlusForVs10{false};
+};
+
 int  aml_get_cpufamily_id();
 std::string aml_get_cpufamily_name(int cpuid = -1);
 bool aml_display_support_hdr_pq();
@@ -116,6 +131,8 @@ std::string aml_dv_type_to_string(enum DV_TYPE type);
 void aml_dv_set_vs10_mode(unsigned int mode);
 void aml_dv_wait_video_off(int timeout);
 int aml_blackout_policy(int new_blackout);
+unsigned int aml_dv_target_mode(StreamHdrType hdrType, unsigned int bitDepth);
+bool aml_dv_target_enabled(StreamHdrType hdrType, unsigned int bitDepth);
 unsigned int aml_dv_on(unsigned int mode);
 void aml_dv_off();
 unsigned int aml_dv_dolby_vision_mode();
@@ -128,6 +145,14 @@ void aml_dv_display_auto_now();
 void aml_dv_start();
 void aml_dv_set_subtitles(bool visible);
 void aml_dv_set_xbmc_osd();
+AMLHdrSetupPolicy aml_get_hdr_setup_policy(StreamHdrType fallbackHdr,
+                                           const DOVIStreamInfo& fallbackDvInfo,
+                                           unsigned int bitDepth);
+StreamHdrType aml_get_final_hdr_type(StreamHdrType hdrType, unsigned int bitDepth);
+void aml_apply_display_transition(StreamHdrType sourceHdrType,
+                                  StreamHdrType resolvedHdrType,
+                                  unsigned int bitDepth,
+                                  bool resolutionChangePending);
 void aml_update_hdr_mode_state(StreamHdrType hdrType, unsigned int bitDepth);
 bool aml_dv_use_active_area();
 enum DV_MODE aml_dv_mode();

@@ -92,6 +92,7 @@ struct SPlayerState
 };
 
 class CDVDInputStream;
+struct DemuxPacket;
 
 class CDVDDemux;
 class CDemuxStreamVideo;
@@ -472,6 +473,7 @@ protected:
   void HandleMessages();
   void HandlePlaySpeed();
   void HandlePendingStreamSync();
+  bool ProbeVideoHdr(CDVDStreamInfo& hint);
   bool IsInMenuInternal() const;
   void SynchronizeDemuxer();
   void CheckAutoSceneSkip();

@@ -7,6 +7,7 @@
  */
 
 #include "VideoPlayer.h"
+#include "VideoPlayerProbe.h"
 
 #include "DVDCodecs/DVDCodecUtils.h"
 #include "DVDDemuxers/DVDDemux.h"
@@ -66,6 +67,7 @@
 #include "video/Bookmark.h"
 #include "video/VideoInfoTag.h"
 #include "windowing/GraphicContext.h"
+#include "windowing/Resolution.h"
 #include "windowing/WinSystem.h"
 
 #include <algorithm>
@@ -1216,6 +1218,14 @@ void CVideoPlayer::CloseDemuxer()
   CServiceBroker::GetDataCacheCore().SignalAudioInfoChange();
   CServiceBroker::GetDataCacheCore().SignalVideoInfoChange();
   CServiceBroker::GetDataCacheCore().SignalSubtitleInfoChange();
+}
+
+bool CVideoPlayer::ProbeVideoHdr(CDVDStreamInfo& hint)
+{
+  if (!m_pDemuxer) return false;
+
+  m_pDemuxer->ClearReplay();
+  return VideoPlayerProbe::Run(*m_pDemuxer, hint, m_bAbortRequest);
 }
 
 void CVideoPlayer::OpenDefaultStreams(bool reset)
@@ -4419,6 +4429,19 @@ bool CVideoPlayer::OpenAudioStream(CDVDStreamInfo& hint, bool reset)
 
 bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
 {
+  const bool firstOpen = (m_CurrentVideo.id < 0);
+
+  if (firstOpen || (m_CurrentVideo.hint != hint) || !reset)
+    ProbeVideoHdr(hint);
+
+  DOVIStreamInfo hintDvInfo;
+  hintDvInfo.dovi = hint.dovi;
+  hintDvInfo.dovi_el_type = hint.dovi_el_type;
+  hintDvInfo.has_config = (memcmp(&hint.dovi, &CDVDStreamInfo::empty_dovi,
+                                  sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
+
+  const auto hdrPolicy = aml_get_hdr_setup_policy(hint.hdrType, hintDvInfo, hint.bitdepth);
+
   m_processInfo->SetVideoInterlaced((hint.codecOptions & CODEC_INTERLACED) == CODEC_INTERLACED);
   if (m_pInputStream && m_pInputStream->IsStreamType(DVDSTREAM_TYPE_DVD))
   {
@@ -4449,10 +4472,18 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
   if (hint.flags & AV_DISPOSITION_ATTACHED_PIC)
     return false;
 
+  auto& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
+
+  const bool startupDisplayTransitionAllowed = firstOpen &&
+                                               m_playerOptions.fullscreen &&
+                                               gfxContext.IsFullScreenRoot();
+
+  RESOLUTION desiredRes = gfxContext.GetVideoResolution();
+
   // set desired refresh rate
-  if (m_CurrentVideo.id < 0 && m_playerOptions.fullscreen &&
-      CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot() && hint.fpsrate != 0 &&
-      hint.fpsscale != 0)
+  if (startupDisplayTransitionAllowed &&
+      (hint.fpsrate != 0) &&
+      (hint.fpsscale != 0))
   {
     if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_ADJUSTREFRESHRATE) != ADJUST_REFRESHRATE_OFF)
     {
@@ -4471,8 +4502,32 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
       }
       m_processInfo->SetVideoFps(static_cast<float>(framerate));
       m_renderManager.TriggerUpdateResolution(framerate, hint.width, hint.height, hint.stereo_mode);
+
+      desiredRes = CResolutionUtils::ChooseBestResolution(
+          static_cast<float>(framerate), hint.width, hint.height, !hint.stereo_mode.empty());
     }
   }
+
+  if (startupDisplayTransitionAllowed)
+  {
+    const bool resolutionChangePending = gfxContext.GetVideoResolution() != desiredRes;
+    const bool hdrChangePending = gfxContext.GetHDRType() != hdrPolicy.finalHdr;
+
+    if (resolutionChangePending || hdrChangePending)
+    {
+      logM(LOGINFO, "Startup AML display transition before audio - width [{}] height [{}] hdr type [{}]",
+                    hint.width, hint.height, CStreamDetails::DynamicRangeToString(hdrPolicy.finalHdr));
+
+      gfxContext.SetHDRType(hdrPolicy.finalHdr);
+      aml_apply_display_transition(hdrPolicy.srcHdr, hdrPolicy.resolvedHdr, hint.bitdepth,
+                                   resolutionChangePending);
+
+      if (resolutionChangePending)
+        gfxContext.SetVideoResolution(desiredRes, false);
+    }
+  }
+
+  m_renderManager.TriggerUpdateResolutionHdr(hdrPolicy.finalHdr);
 
   IDVDStreamPlayer* player = GetStreamPlayer(m_CurrentVideo.player);
   if(player == nullptr)
@@ -5998,12 +6053,16 @@ void CVideoPlayer::OnResetDisplay()
     return;
 
   CLog::Log(LOGINFO, "VideoPlayer: OnResetDisplay received");
-  m_VideoPlayerAudio->SendMessage(std::make_shared<CDVDMsgBool>(CDVDMsg::GENERAL_PAUSE, false), 1);
-  m_VideoPlayerVideo->SendMessage(std::make_shared<CDVDMsgBool>(CDVDMsg::GENERAL_PAUSE, false), 1);
+  if (m_VideoPlayerAudio->IsInited())
+    m_VideoPlayerAudio->SendMessage(std::make_shared<CDVDMsgBool>(CDVDMsg::GENERAL_PAUSE, false), 1);
+  if (m_VideoPlayerVideo->IsInited())
+    m_VideoPlayerVideo->SendMessage(std::make_shared<CDVDMsgBool>(CDVDMsg::GENERAL_PAUSE, false), 1);
   m_clock.Pause(false);
   m_displayLost = false;
-  m_VideoPlayerAudio->SendMessage(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_DISPLAY_RESET), 1);
-  m_VideoPlayerVideo->SendMessage(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_DISPLAY_RESET), 1);
+  if (m_VideoPlayerAudio->IsInited())
+    m_VideoPlayerAudio->SendMessage(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_DISPLAY_RESET), 1);
+  if (m_VideoPlayerVideo->IsInited())
+    m_VideoPlayerVideo->SendMessage(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_DISPLAY_RESET), 1);
 }
 
 void CVideoPlayer::UpdateFileItemStreamDetails(CFileItem& item, UpdateStreamDetails update)
