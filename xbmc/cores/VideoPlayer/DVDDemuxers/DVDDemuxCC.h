@@ -26,7 +26,7 @@ public:
 
   bool Reset() override { return true; }
   void Flush() override {};
-  DemuxPacket* Read() override { return NULL; }
+  DemuxPacket* Read() override { return ReadReplay(); }
   bool SeekTime(double time, bool backwards = false, double* startpts = NULL) override
   {
     return true;
