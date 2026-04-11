@@ -51,15 +51,82 @@ public:
   void OnSettingChanged(const std::shared_ptr<const CSetting>& setting) override;
 
 private:
+  // Internal sentinel for "no valid PTS" - use -1.0 instead of DVD_NOPTS_VALUE
+  // to avoid confusion with garbage values during seamless branching.
+  static constexpr double LOCAL_NOPTS = -1.0;
+
+  static constexpr size_t STARTUP_JITTER_WINDOW_SIZE = 8;
+  static constexpr size_t STARTUP_WARMUP_SAMPLES = 2;
+
+  struct StartupJitterState
+  {
+    AudioSync::CFloatingAverage<double, STARTUP_JITTER_WINDOW_SIZE> tracker;
+    size_t warmupSamples{0};
+    bool correctionApplied{false};
+    bool rejectionLogged{false};
+  };
+
+  struct StartupJitterEvaluation
+  {
+    double minimum{0.0};
+    double maximum{0.0};
+    double average{0.0};
+    double spread{0.0};
+    bool consistentSign{false};
+    bool minCorrectionOk{false};
+    bool maxCorrectionOk{false};
+    bool spreadOk{false};
+
+    bool Accepted() const
+    {
+      return consistentSign && minCorrectionOk && maxCorrectionOk && spreadOk;
+    }
+  };
+
+  struct IgnoreWindowState
+  {
+    double until{LOCAL_NOPTS};
+    bool logged{false};
+  };
+
+  enum class IgnoreWindowKind
+  {
+    PassthroughResync,
+    TrueHdCorrection,
+  };
+
   void UpdateDialNormSettings();
+  void ResetStartupJitterState(StartupJitterState& state);
   void ResetPassthroughStartupState(double resyncJitterIgnoreUntil);
-  bool ShouldIgnoreJitterAfterResync();
+  bool ShouldIgnoreWindow(IgnoreWindowState& state, IgnoreWindowKind kind);
+  bool EvaluateStartupJitterState(StartupJitterState& state,
+                                  double jitter,
+                                  double minCorrection,
+                                  double maxCorrection,
+                                  double maxSpread,
+                                  StartupJitterEvaluation& evaluation);
   double EvaluateDtsHdMaStartupCorrection(double jitter);
   bool ApplyDtsHdMaStartupCorrection(double jitter, DVDAudioFrame& frame);
+  double EvaluateTrueHdStartupCorrection(double jitter, double samplesOffsetTime);
+  bool ApplyTrueHdStartupCorrection(double jitter,
+                                    double samplesOffsetTime,
+                                    DVDAudioFrame& frame);
   void ApplyPassthroughJitterCorrection(double correction,
                                         bool resetTracker,
                                         bool signalDiscontinuity,
                                         DVDAudioFrame& frame);
+  double GetTrueHdCorrectionClamp() const
+  {
+    return m_deviceIsRAW ? TRUEHD_CORRECTION_CHUNK_RAW : TRUEHD_CORRECTION_CHUNK_IEC;
+  }
+  double GetTrueHdCorrectionCooldown() const
+  {
+    return m_deviceIsRAW ? TRUEHD_CORRECTION_COOLDOWN_RAW : TRUEHD_CORRECTION_COOLDOWN_IEC;
+  }
+  const char* GetPassthroughPathLabel() const
+  {
+    return m_deviceIsRAW ? "RAW" : "IEC";
+  }
 
   int GetData(uint8_t** dst);
   unsigned int PackTrueHD();
@@ -71,10 +138,6 @@ private:
   uint8_t *m_backlogBuffer = nullptr;
   unsigned int m_backlogBufferSize = 0;
   unsigned int m_backlogSize = 0;
-
-  // Internal sentinel for "no valid PTS" - use -1.0 instead of DVD_NOPTS_VALUE
-  // to avoid confusion with garbage values during seamless branching
-  static constexpr double LOCAL_NOPTS = -1.0;
 
   double m_currentPts{LOCAL_NOPTS};   // Current demuxer PTS
   double m_nextPts{LOCAL_NOPTS};      // Next expected PTS
@@ -125,21 +188,31 @@ private:
   AudioSync::CFloatingAverage<double, JITTER_WINDOW_SIZE> m_jitterTracker;
 
   // Jitter correction thresholds (in DVD_TIME_BASE units = microseconds)
-  // LAV Filters: TrueHD/DTS use a larger threshold for bitstreaming tolerance.
-  static constexpr double JITTER_THRESHOLD_TRUEHD_DTS = 100000.0;  // 100ms
-  static constexpr double JITTER_THRESHOLD_DEFAULT = 10000.0;      // 10ms
+  // Bitstreaming codecs use a coarser 100ms correction gate than PCM to avoid
+  // reacting to minor receiver or packetization timing noise.
+  static constexpr double JITTER_THRESHOLD_TRUEHD_DTS = 100000.0;   // 100ms
+  static constexpr double JITTER_THRESHOLD_DEFAULT = 10000.0;       // 10ms
+  static constexpr double PASSTHROUGH_ABNORMAL_JITTER = 1000000.0;  // 1s
 
   // DTS-HD MA can carry track-specific startup offsets that are smaller than the
   // coarse passthrough jitter threshold above. Learn a stable baseline from the
   // first few post-resync jitter samples and apply it once.
-  static constexpr size_t DTSHD_MA_STARTUP_WINDOW_SIZE = 8;
-  static constexpr size_t DTSHD_MA_STARTUP_WARMUP_SAMPLES = 2;
   static constexpr double DTSHD_MA_STARTUP_MIN_CORRECTION = 10000.0;  // 10ms
 
   // Keep this slightly above the coarse 100ms passthrough jitter gate so
   // stable startup offsets around that boundary do not fall into a dead zone.
   static constexpr double DTSHD_MA_STARTUP_MAX_CORRECTION = 120000.0;  // 120ms
   static constexpr double DTSHD_MA_STARTUP_MAX_SPREAD = 10000.0;      // 10ms
+
+  // TrueHD via MAT can expose a stable startup offset that should be learned
+  // once before enabling coarse residual-drift correction.
+  static constexpr double TRUEHD_STARTUP_MIN_CORRECTION = 10000.0;   // 10ms
+  static constexpr double TRUEHD_STARTUP_MAX_CORRECTION = 150000.0;  // 150ms
+  static constexpr double TRUEHD_STARTUP_MAX_SPREAD = 5000.0;        // 5ms
+  static constexpr double TRUEHD_CORRECTION_CHUNK_RAW = 25000.0;     // 25ms
+  static constexpr double TRUEHD_CORRECTION_CHUNK_IEC = 15000.0;     // 15ms
+  static constexpr double TRUEHD_CORRECTION_COOLDOWN_RAW = 100000.0; // 100ms
+  static constexpr double TRUEHD_CORRECTION_COOLDOWN_IEC = 150000.0; // 150ms
 
   // After an explicit coordinated RESYNC from VideoPlayerAudio, trust that
   // clock for a short settling window so stale demuxer PTS values from a
@@ -150,12 +223,9 @@ private:
   // Runtime jitter threshold - set based on codec in Open()
   double m_jitterThreshold{JITTER_THRESHOLD_DEFAULT};
 
-  AudioSync::CFloatingAverage<double, DTSHD_MA_STARTUP_WINDOW_SIZE> m_dtsHdMaStartupJitter;
-  size_t m_dtsHdMaStartupWarmupSamples{0};
-  bool m_dtsHdMaStartupCorrectionApplied{false};
-  bool m_dtsHdMaStartupRejectionLogged{false};
-  double m_resyncJitterIgnoreUntil{LOCAL_NOPTS};
-  bool m_resyncJitterHoldoffLogged{false};
+  StartupJitterState m_startupJitterState;
+  IgnoreWindowState m_trueHdCorrectionCooldown;
+  IgnoreWindowState m_resyncJitterHoldoff;
 
   // Cached settings (updated via callback, read in hot path)
   std::atomic<bool> m_defeatAC3DialNorm{false};
