@@ -1790,16 +1790,14 @@ bool CAMLCodec::OpenDecoder(bool restart)
   am_private->gcodec.dec_mode    = STREAM_TYPE_FRAME;
   am_private->gcodec.video_path  = FRAME_BASE_PATH_AMLVIDEO_AMVIDEO;
 
-  if (!restart) aml_dv_open(m_hints.hdrType, m_hints.bitdepth);
+  const bool enableDvDecoder =
+      (m_hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) &&
+      aml_dv_target_enabled(m_hints.hdrType, m_hints.bitdepth);
 
   SetProcessInfoVideoDetails();
 
-  // Now have the HDRType resolved, ok to set the transfer pq
-  // so renderer can set the shaders as needed.
-  aml_update_hdr_mode_state(m_hints.hdrType, m_hints.bitdepth);
-
   // Setup Codec for DV Content
-  if ((m_hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) && aml_is_dv_enable())
+  if (enableDvDecoder)
   {
     am_private->gcodec.dv_enable = 1;
     if (((m_hints.dovi.dv_profile == 4) || (m_hints.dovi.dv_profile == 7)) && (m_hints.dovi_el_type == DOVIELType::TYPE_FEL))

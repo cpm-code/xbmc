@@ -12,6 +12,7 @@
 
 #include "DVDCodecs/DVDFactoryCodec.h"
 #include "DVDVideoCodecAmlogic.h"
+#include "cores/VideoPlayer/DualLayerPairing.h"
 #include "cores/VideoPlayer/Interface/TimingConstants.h"
 #include "DVDStreamInfo.h"
 #include "AMLCodec.h"
@@ -334,9 +335,17 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       // check for hevc-hvcC and convert to h265-annex-b - and DV is on.
       if (m_hints.extradata && !m_hints.cryptoSession && m_bitstream && !aml_dv_mode_off())
       {
-        auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+        DOVIStreamInfo hintDvInfo;
+        hintDvInfo.dovi = m_hints.dovi;
+        hintDvInfo.dovi_el_type = m_hints.dovi_el_type;
+        hintDvInfo.has_config =
+            (memcmp(&m_hints.dovi, &CDVDStreamInfo::empty_dovi,
+                    sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
 
-        bool dualPriorityHdr10Plus = (settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_DUAL_PRIORITY) == 1);
+        const auto hdrPolicy =
+          aml_get_hdr_setup_policy(m_hints.hdrType, hintDvInfo, m_hints.bitdepth);
+
+        auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
 
         if (m_hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
         {
@@ -351,17 +360,16 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
           }
           m_appendCMv40ModeApplied = cmv40Mode;
 
-          if (dualPriorityHdr10Plus)
+          if (hdrPolicy.dualPri10Plus)
           {
             logM(LOGINFO, "DV HEVC bitstream - if stream also contains HDR10+, native HDR10+ has priority.");
             m_bitstream->SetDualPriorityHdr10Plus(true);
           }
-          else if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_CONVERT))
+          else if (hdrPolicy.convHdr10Plus)
           {
-            bool preferConvertHdr10Plus = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_PREFER_CONVERT);
-            m_bitstream->SetPreferCovertHdr10Plus(preferConvertHdr10Plus);
+            m_bitstream->SetPreferCovertHdr10Plus(hdrPolicy.prefConv10Plus);
 
-            if (preferConvertHdr10Plus)
+            if (hdrPolicy.prefConv10Plus)
               logM(LOGINFO, "DV HEVC bitstream - if stream also contains HDR10+, conversion will be preferred over original Dolby Vision.");
           }
 
@@ -377,7 +385,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
         }
 
         // Potential HDR10+ (Cannot tell at this point)
-        if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_CONVERT))
+        if (hdrPolicy.convHdr10Plus)
         {
           auto peakBrightnessSource = static_cast<PeakBrightnessSource>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_PEAK_BRIGHTNESS_SOURCE));
           logM(LOGINFO, "HEVC bitstream - if also HDR10+ then will be considered for conversion to Dolby Vision P8.1 with brightness source [{:d}]",
@@ -386,17 +394,11 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
           m_bitstream->SetConvertHdr10PlusPeakBrightnessSource(peakBrightnessSource);
         }
 
-        // If HDR10 or Dual Priority HDR10+ and doing VS10 - remove the HDR10+ and DV if present to avoid conflict with VS10.
-        if ((m_hints.hdrType == StreamHdrType::HDR_TYPE_HDR10) || dualPriorityHdr10Plus)
+        if (hdrPolicy.rmHdr10PlusForVs10)
         {
-          unsigned int mode(aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS));
-          if (mode < DOLBY_VISION_OUTPUT_MODE_BYPASS)
-          {
-            // for VS10 conversion need to remove the HDR10plus metadata.
-            logM(LOGINFO, "HDR10 HEVC bitstream - if HDR10+ then metadata will be removed to allow correct VS10 processing");
-            m_bitstream->SetRemoveHdr10Plus(true);
-            m_bitstream->SetRemoveDovi(true);
-          }
+          logM(LOGINFO, "HDR10 HEVC bitstream - if HDR10+ then metadata will be removed to allow correct VS10 processing");
+          m_bitstream->SetRemoveHdr10Plus(true);
+          m_bitstream->SetRemoveDovi(true);
         }
       }
 
@@ -546,12 +548,12 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
     // convert bl and el package to single package
     DLDemuxPacket& dualLayerPacket = m_packages.front();
 
-    if (dualLayerPacket.isELPackage != packet.isELPackage)
+    if (VideoPlayerDualLayer::HasOppositeLayerFront(m_packages, packet.isELPackage))
     {
       logComponentM(LOGDEBUG, LOGVIDEO, "found DT-DL {} package with dts: {:.3f} in list",
                                         packet.isELPackage ? "BL" : "EL", dualLayerPacket.dts/DVD_TIME_BASE);
 
-      if (packet.dts < dualLayerPacket.dts) // prior dts arrived - out of step - remove and attempt next.
+      if (VideoPlayerDualLayer::IncomingPacketPrecedesFront(m_packages, packet.dts)) // prior dts arrived - out of step - remove and attempt next.
       {
         logComponentM(LOGDEBUG, LOGVIDEO, "discarding DT-DL {} package with dts {:.3f} as before package in list with dts: {:.3f}",
                                           packet.isELPackage ? "EL" : "BL",
@@ -560,10 +562,13 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
         return false;
       }
 
-      if (packet.isELPackage)
-        dual_layer_converted = m_bitstream->Convert(dualLayerPacket.buffer.GetData(), dualLayerPacket.size, pData, iSize, packet.pts);
-      else
-        dual_layer_converted = m_bitstream->Convert(pData, iSize, dualLayerPacket.buffer.GetData(), dualLayerPacket.size, packet.pts);
+      if (VideoPlayerDualLayer::CanPairWithFront(m_packages, packet.isELPackage, packet.dts))
+      {
+        if (packet.isELPackage)
+          dual_layer_converted = m_bitstream->Convert(dualLayerPacket.buffer.GetData(), dualLayerPacket.size, pData, iSize, packet.pts);
+        else
+          dual_layer_converted = m_bitstream->Convert(pData, iSize, dualLayerPacket.buffer.GetData(), dualLayerPacket.size, packet.pts);
+      }
     }
   }
 
@@ -575,7 +580,7 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
     queuedPacket.size = iSize;
     queuedPacket.isELPackage = packet.isELPackage;
     queuedPacket.dts = packet.dts;
-    m_packages.emplace_back(std::move(queuedPacket));
+    VideoPlayerDualLayer::QueuePendingPacket(m_packages, std::move(queuedPacket), 0);
 
     logComponentM(LOGDEBUG, LOGVIDEO, "did add DT-DL {} package with dts: {:.3f}, pts: {:.3f} and size {} in list",
                                       packet.isELPackage ? "EL" : "BL",
