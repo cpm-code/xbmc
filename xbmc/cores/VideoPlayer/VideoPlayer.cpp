@@ -4518,12 +4518,24 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
       logM(LOGINFO, "Startup AML display transition before audio - width [{}] height [{}] hdr type [{}]",
                     hint.width, hint.height, CStreamDetails::DynamicRangeToString(hdrPolicy.finalHdr));
 
-      gfxContext.SetHDRType(hdrPolicy.finalHdr);
-      aml_apply_display_transition(hdrPolicy.srcHdr, hdrPolicy.resolvedHdr, hint.bitdepth,
-                                   resolutionChangePending);
+      PlaybackDisplayTransition transition;
+      transition.active = true;
+      transition.resolutionChangePending = resolutionChangePending;
+      transition.sourceHdrType = hdrPolicy.srcHdr;
+      transition.resolvedHdrType = hdrPolicy.resolvedHdr;
+      transition.finalHdrType = hdrPolicy.finalHdr;
+      transition.bitDepth = hint.bitdepth;
+      transition.targetResolution = desiredRes;
 
-      if (resolutionChangePending)
-        gfxContext.SetVideoResolution(desiredRes, false);
+      if (!CServiceBroker::GetWinSystem()->ApplyVideoPlaybackDisplayTransition(transition))
+      {
+        gfxContext.SetHDRType(hdrPolicy.finalHdr);
+        aml_apply_display_transition(hdrPolicy.srcHdr, hdrPolicy.resolvedHdr, hint.bitdepth,
+                                     resolutionChangePending);
+
+        if (resolutionChangePending)
+          gfxContext.SetVideoResolution(desiredRes, false);
+      }
     }
   }
 

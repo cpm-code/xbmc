@@ -13,6 +13,7 @@
 #include "Resolution.h"
 #include "VideoSync.h"
 #include "WinEvents.h"
+#include "cores/VideoPlayer/Interface/StreamInfo.h"
 #include "cores/VideoPlayer/VideoRenderers/DebugInfo.h"
 #include "guilib/DirtyRegion.h"
 #include "guilib/DispResource.h"
@@ -55,6 +56,17 @@ class CVideoReferenceClock;
 
 struct VideoPicture;
 
+struct PlaybackDisplayTransition
+{
+  bool active{false};
+  bool resolutionChangePending{false};
+  StreamHdrType sourceHdrType{StreamHdrType::HDR_TYPE_NONE};
+  StreamHdrType resolvedHdrType{StreamHdrType::HDR_TYPE_NONE};
+  StreamHdrType finalHdrType{StreamHdrType::HDR_TYPE_NONE};
+  unsigned int bitDepth{0};
+  RESOLUTION targetResolution{RES_INVALID};
+};
+
 class CWinSystemBase
 {
 public:
@@ -75,6 +87,7 @@ public:
   virtual bool DestroyWindow(){ return false; }
   virtual bool ResizeWindow(int newWidth, int newHeight, int newLeft, int newTop) = 0;
   virtual bool SetFullScreen(bool fullScreen, RESOLUTION_INFO& res, bool blankOtherDisplays) = 0;
+  virtual bool ApplyVideoPlaybackDisplayTransition(const PlaybackDisplayTransition& transition) { return false; }
   virtual void SetDirtyRegions(const CDirtyRegionList& dirtyRegionsList) {}
   virtual int GetBufferAge() { return 2; }
   virtual bool MoveWindow(int topLeft, int topRight){return false;}

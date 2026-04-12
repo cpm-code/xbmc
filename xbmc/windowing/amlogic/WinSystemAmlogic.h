@@ -30,6 +30,7 @@ public:
   bool CreateNewWindow(const std::string& name,
                        bool fullScreen,
                        RESOLUTION_INFO& res) override;
+  bool ApplyVideoPlaybackDisplayTransition(const PlaybackDisplayTransition& transition) override;
 
   bool DestroyWindow() override;
   void UpdateResolutions() override;
@@ -44,6 +45,10 @@ public:
   virtual void Register(IDispResource *resource);
   virtual void Unregister(IDispResource *resource);
 protected:
+  void BeginModeSwitchBlank();
+  void EndModeSwitchBlank();
+  void ExecuteVideoPlaybackDisplayTransition(const PlaybackDisplayTransition& transition);
+
   std::string m_framebuffer_name;
   EGLDisplay m_nativeDisplay;
   fbdev_window *m_nativeWindow;
@@ -58,6 +63,10 @@ protected:
   std::unique_ptr<CLibInputHandler> m_libinput;
   CHDRCapabilities m_hdr_caps;
   bool m_force_mode_switch;
+  bool m_modeSwitchBlanked;
+  int m_modeSwitchFb0Blank;
+  int m_modeSwitchFb1Blank;
+  PlaybackDisplayTransition m_pendingPlaybackDisplayTransition;
 
 private:
   std::unique_ptr<CDolbyVisionAML> m_dolbyVisionAML;
