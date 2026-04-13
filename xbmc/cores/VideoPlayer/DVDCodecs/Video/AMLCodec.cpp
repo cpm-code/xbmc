@@ -1994,36 +1994,45 @@ bool CAMLCodec::OpenDecoder(CDVDStreamInfo &hints, enum ELType dovi_el_type)
   am_private->video_ratio      = ((int32_t)video_ratio.num << 16) | video_ratio.den;
   am_private->video_ratio64    = ((int64_t)video_ratio.num << 32) | video_ratio.den;
 
-  // handle video rate
+  // handle video rate — UNIT_FREQ (96000) / fps gives the decoder tick count
+  // per frame.  Common values:
+  //   23.976fps → 4004,  24fps → 4000,  25fps → 3840,
+  //   29.97fps  → 3203,  30fps → 3200,  50fps → 1920,  59.94fps → 1602
   if (hints.fpsrate > 0 && hints.fpsscale != 0)
   {
-    // then ffmpeg avg_frame_rate next
     am_private->video_rate = 0.5f + (float)UNIT_FREQ * hints.fpsscale / hints.fpsrate;
   }
   else
-    am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 30000;
+    am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 30000; // ~29.97fps fallback
 
-  // check for 1920x1080, interlaced, 25 fps
-  // incorrectly reported as 50 fps (yes, video_rate == 1920)
-  if (hints.width == 1920 && am_private->video_rate == 1920)
+  // Interlaced content reported at field rate needs converting to frame rate
+  // for the decoder firmware.  video_rate <= 1920 means >~48 fields/s:
+  //   PAL  50i:    1920 → 3840  (25fps)
+  //   NTSC 59.94i: 1602 → 3203  (29.97fps)
+  //   NTSC 60i:    1600 → 3200  (30fps)
+  // Recalculate from source (fpsscale * 2) to avoid rounding error from
+  // doubling the already-rounded field rate.  Gate on hints.interlaced to
+  // avoid halving genuine progressive content (720p50, 1080p50, etc.).
+  if (hints.interlaced && am_private->video_rate <= 1920)
   {
     CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
-    am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 25000;
+    am_private->video_rate = 0.5f + (float)UNIT_FREQ * hints.fpsscale * 2 / hints.fpsrate;
   }
 
-  // check for SD h264 content incorrectly reported as 60 fsp
-  // mp4/avi containers :(
-  if (hints.codec == AV_CODEC_ID_H264 && hints.width <= 720 && am_private->video_rate == 1602)
+  // SD H.264 in mp4/avi containers can report wrong fps due to unreliable
+  // container-level timing metadata (60fps or 30fps instead of 23.976fps).
+  // Gate on codec_tag != 0: mp4 ('avc1') and avi ('H264') set a FourCC,
+  // while MKV/TS leave it at 0 and derive timing from the stream itself.
+  if (hints.codec == AV_CODEC_ID_H264 && hints.codec_tag != 0 && hints.width <= 720)
   {
-    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
-    am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 24000;
-  }
-
-  // check for SD h264 content incorrectly reported as some form of 30 fsp
-  // mp4/avi containers :(
-  if (hints.codec == AV_CODEC_ID_H264 && hints.width <= 720)
-  {
-    if (am_private->video_rate >= 3200 && am_private->video_rate <= 3210)
+    // 59.94fps (video_rate 1602) → actually 23.976fps (video_rate 4004)
+    if (am_private->video_rate == 1602)
+    {
+      CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
+      am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 24000;
+    }
+    // ~29.97-30fps (video_rate 3200-3210) → actually 23.976fps (video_rate 4004)
+    else if (am_private->video_rate >= 3200 && am_private->video_rate <= 3210)
     {
       CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
       am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 24000;

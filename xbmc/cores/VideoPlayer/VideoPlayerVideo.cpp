@@ -351,7 +351,7 @@ void CVideoPlayerVideo::Process()
   int iDropDirective;
   bool onlyPrioMsgs = false;
 
-  std::string vfmt;
+  m_vfmt.clear();
   int vfmtCheckCount = 0;
 
   m_videoStats.Start();
@@ -646,10 +646,10 @@ void CVideoPlayerVideo::Process()
         {
           CSysfsPath frame_format{"/sys/class/deinterlace/di0/frame_format"};
           if (frame_format.Exists())
-            vfmt = frame_format.Get<std::string>().value();
-          if (vfmt.size() > 4)
-            m_processInfo.SetVideoInterlaced(vfmt.compare("progressive"));
-          CLog::Log(LOGDEBUG, "CVideoPlayerVideo - CDVDMsg::DEMUXER_PACKET - checking interlace vfmt: {}", vfmt);
+            m_vfmt = frame_format.Get<std::string>().value();
+          if (m_vfmt.size() > 4)
+            m_processInfo.SetVideoInterlaced(m_vfmt.compare("progressive"));
+          CLog::Log(LOGDEBUG, "CVideoPlayerVideo - CDVDMsg::DEMUXER_PACKET - checking interlace vfmt: {}", m_vfmt);
         }
       }
       else
@@ -735,7 +735,12 @@ bool CVideoPlayerVideo::ProcessDecoderOutput(double &frametime, double &pts)
   {
     bool hasTimestamp = true;
 
-    if (m_processInfo.GetVideoInterlaced() &&
+    // Detect progressive content misidentified as interlaced: if picture
+    // duration consistently equals double what the fps implies, halve fps.
+    // Skip when the hardware deinterlace module has confirmed interlaced
+    // content (vfmt) — MBAFF streams legitimately mix field and frame
+    // output, and the full-frame duration would falsely trigger this.
+    if (m_processInfo.GetVideoInterlaced() && m_vfmt != "interlace" &&
         MathUtils::FloatEquals(static_cast<float>(m_picture.iDuration), static_cast<float>(2 * DVD_TIME_BASE) / m_processInfo.GetVideoFps(), 700.0f))
     {
       if (++m_retryProgressive > 3)
@@ -846,7 +851,26 @@ bool CVideoPlayerVideo::ProcessDecoderOutput(double &frametime, double &pts)
       msg.player = VideoPlayer_VIDEO;
       msg.cachetime = DVD_MSEC_TO_TIME(50); //! @todo implement
       msg.cachetotal = DVD_MSEC_TO_TIME(100); //! @todo implement
-      msg.timestamp = hasTimestamp ? (pts + m_renderManager.GetDelay() * 1000) : DVD_NOPTS_VALUE;
+
+      // Amlogic hardware deinterlace pipeline latency compensation.
+      // When interlaced content is decoded by AML hardware, the VFM pipeline
+      // includes a deinterlace module (di0) that buffers multiple fields before
+      // producing output (buffer_keep_count=3, start_frame_drop=2, plus post-
+      // processing). Kodi captures PTS via V4L2 DQBUF *before* the DI stage,
+      // so the frame appears on screen ~240ms later than Kodi's sync expects.
+      // Shift the video start timestamp forward to delay audio accordingly.
+      double diCompensation = 0;
+      if (m_processInfo.GetVideoInterlaced() && m_processInfo.IsVideoHwDecoder() &&
+          CSysfsPath{"/sys/class/deinterlace/di0/frame_format"}.Exists())
+      {
+        constexpr int DI_PIPELINE_FIELDS = 12;
+        diCompensation = DI_PIPELINE_FIELDS * DVD_TIME_BASE / m_fFrameRate;
+        CLog::Log(LOGDEBUG, "CVideoPlayerVideo - DI pipeline latency compensation: "
+                  "{:.0f}ms ({} fields at {:.1f}Hz)",
+                  diCompensation / (DVD_TIME_BASE / 1000), DI_PIPELINE_FIELDS, m_fFrameRate);
+      }
+
+      msg.timestamp = hasTimestamp ? (pts + m_renderManager.GetDelay() * 1000 + diCompensation) : DVD_NOPTS_VALUE;
       m_messageParent.Put(std::make_shared<CDVDMsgType<SStartMsg>>(CDVDMsg::PLAYER_STARTED, msg));
     }
 

@@ -109,6 +109,7 @@ protected:
   double m_iSubtitleDelay;
 
   int m_retryProgressive;
+  std::string m_vfmt;
   int m_iLateFrames;
   int m_iDroppedFrames;
   int m_iDroppedRequest;
