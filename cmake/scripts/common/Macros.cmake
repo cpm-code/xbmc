@@ -192,15 +192,17 @@ endfunction()
 #   Files is mirrored to the build tree and added to ${install_data}
 #   (if NO_INSTALL is not given).
 function(copy_file_to_buildtree file)
+  cmake_parse_arguments(arg "NO_INSTALL;ALLOW_XBT" "DIRECTORY;KEEP_DIR_STRUCTURE" "" ${ARGN})
+
   # Exclude autotools build artifacts and other blacklisted files in source tree.
-  if(file MATCHES "(Makefile|\\.in|\\.xbt|\\.so|\\.dylib|\\.gitignore)$")
+  if(file MATCHES "(Makefile|\\.in|\\.so|\\.dylib|\\.gitignore)$" OR
+     (file MATCHES "\\.xbt$" AND NOT arg_ALLOW_XBT))
     if(VERBOSE)
       message(STATUS "copy_file_to_buildtree - ignoring file: ${file}")
     endif()
     return()
   endif()
 
-  cmake_parse_arguments(arg "NO_INSTALL" "DIRECTORY;KEEP_DIR_STRUCTURE" "" ${ARGN})
   if(arg_DIRECTORY)
     set(outdir ${arg_DIRECTORY})
     if(arg_KEEP_DIR_STRUCTURE)
