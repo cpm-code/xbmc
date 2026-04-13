@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window type="dialog" id="1101">
+	<defaultcontrol always="true">11000</defaultcontrol>
+	<include>Animation_DialogPopupOpenClose</include>
+	<onunload>ClearProperty(settingsdialog_header,Home)</onunload>
+	<onunload>ClearProperty(settingsdialog_content,Home)</onunload>
+	<controls>
+		<control type="group">
+			<visible>!String.IsEqual(window(home).Property(settingsdialog_content),streamselection)</visible>
+			<include>SettingsDialogLayout</include>
+		</control>
+		<control type="group">
+			<visible>String.IsEqual(window(home).Property(settingsdialog_content),streamselection)</visible>
+			<include content="SettingsDialogLayout">
+				<param name="width" value="1000" />
+			</include>
+		</control>
+	</controls>
+</window>
