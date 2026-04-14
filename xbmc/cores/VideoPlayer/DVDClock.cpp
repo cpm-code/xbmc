@@ -15,9 +15,39 @@
 #include "utils/log.h"
 
 #include <inttypes.h>
-#include <math.h>
+#include <cmath>
+#include <limits>
 #include <memory>
 #include <mutex>
+
+namespace
+{
+// Delay startup alignment slightly past the vsync edge so playback does not begin
+// exactly on the boundary where timing jitter is most visible.
+constexpr int64_t MASTER_CLOCK_VSYNC_DELAY_MS{5};
+constexpr int64_t MS_PER_SECOND{1000};
+
+int64_t GetMasterClockStartupVSyncDelay(int64_t systemFrequency)
+{
+  const double delay = static_cast<double>(systemFrequency) *
+                       MASTER_CLOCK_VSYNC_DELAY_MS / MS_PER_SECOND;
+
+  if (delay >= static_cast<double>(std::numeric_limits<int64_t>::max()))
+    return std::numeric_limits<int64_t>::max();
+
+  return static_cast<int64_t>(std::llround(delay));
+}
+
+int64_t AlignMasterClockStartupToVSync(const std::unique_ptr<CVideoReferenceClock>& videoRefClock,
+                                       int64_t startClock,
+                                       int64_t systemFrequency)
+{
+  if (!videoRefClock) return startClock;
+
+  return startClock +
+         videoRefClock->GetTimeUntilVsyncPhase(GetMasterClockStartupVSyncDelay(systemFrequency));
+}
+} // namespace
 
 CDVDClock::CDVDClock()
 {
@@ -212,6 +242,8 @@ void CDVDClock::Discontinuity(double clock, double absolute)
 {
   std::unique_lock lock(m_critSection);
   m_startClock = AbsoluteToSystem(absolute);
+  if (m_bReset)
+    m_startClock = AlignMasterClockStartupToVSync(m_videoRefClock, m_startClock, m_systemFrequency);
   if(m_pauseClock)
     m_pauseClock = m_startClock;
   m_iDisc = clock;
@@ -282,7 +314,7 @@ double CDVDClock::SystemToPlaying(int64_t system)
 
   if (m_bReset)
   {
-    m_startClock = system;
+    m_startClock = AlignMasterClockStartupToVSync(m_videoRefClock, system, m_systemFrequency);
     m_systemUsed = m_systemFrequency;
     if(m_pauseClock)
       m_pauseClock = m_startClock;
