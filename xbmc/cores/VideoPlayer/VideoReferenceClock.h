@@ -25,6 +25,7 @@ class CVideoReferenceClock : CThread
     int64_t GetTime(bool interpolated = true);
     void    SetSpeed(double Speed);
     double  GetSpeed();
+    int64_t GetTimeUntilVsyncPhase(int64_t afterVsync) const;
     double  GetRefreshRate(double* interval = nullptr);
     bool    GetClockInfo(int& MissedVblanks, double& ClockSpeed, double& RefreshRate) const;
 
