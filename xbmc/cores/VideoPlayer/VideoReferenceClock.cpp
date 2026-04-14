@@ -17,7 +17,67 @@
 #include "windowing/VideoSync.h"
 #include "windowing/WinSystem.h"
 
+#if defined(HAS_LIBAMCODEC)
+#include "utils/AMLUtils.h"
+#endif
+
+#include <cmath>
+#include <limits>
 #include <mutex>
+
+namespace
+{
+#if defined(HAS_LIBAMCODEC)
+constexpr int64_t US_PER_SECOND{1000000};
+constexpr int64_t NS_PER_US{1000};
+// Keep the AML microsecond phase small enough that AMLUtils can safely convert it to
+// nanoseconds before reducing it to the display period.
+constexpr int64_t MAX_AML_VSYNC_PHASE_US{std::numeric_limits<int>::max() / NS_PER_US};
+
+bool ConvertClockUnits(int64_t value,
+                       int64_t fromUnitsPerSecond,
+                       int64_t toUnitsPerSecond,
+                       int64_t upperBound,
+                       int64_t& result)
+{
+  result = 0;
+
+  if (value < 0 || fromUnitsPerSecond <= 0 || toUnitsPerSecond <= 0 || upperBound < 0)
+    return false;
+
+  const double scaled = static_cast<double>(value) * toUnitsPerSecond / fromUnitsPerSecond;
+  if (scaled < 0.0 || scaled > static_cast<double>(upperBound))
+    return false;
+
+  result = static_cast<int64_t>(std::llround(scaled));
+  return result >= 0 && result <= upperBound;
+}
+
+bool GetAmlTimeUntilVsyncPhase(int64_t afterVsync,
+                               int64_t systemFrequency,
+                               int64_t& timeUntilPhase)
+{
+  timeUntilPhase = 0;
+
+  if (afterVsync < 0 || systemFrequency <= 0) return false;
+
+  int64_t afterVsyncUs{0};
+  if (!ConvertClockUnits(afterVsync, systemFrequency, US_PER_SECOND, MAX_AML_VSYNC_PHASE_US,
+                         afterVsyncUs))
+    return false;
+
+  int timeUntilPhaseUs{0};
+  if (!aml_get_time_until_vsync_phase_us(static_cast<int>(afterVsyncUs), timeUntilPhaseUs))
+    return false;
+
+  if (!ConvertClockUnits(timeUntilPhaseUs, US_PER_SECOND, systemFrequency,
+                         std::numeric_limits<int64_t>::max(), timeUntilPhase))
+    return false;
+
+  return true;
+}
+#endif
+} // namespace
 
 CVideoReferenceClock::CVideoReferenceClock() : CThread("RefClock")
 {
@@ -226,6 +286,35 @@ double CVideoReferenceClock::GetSpeed()
     return m_ClockSpeed;
   else
     return 1.0;
+}
+
+int64_t CVideoReferenceClock::GetTimeUntilVsyncPhase(int64_t afterVsync) const
+{
+  std::unique_lock SingleLock(m_CritSection);
+
+#if defined(HAS_LIBAMCODEC)
+  int64_t timeUntilPhase{0};
+  if (GetAmlTimeUntilVsyncPhase(afterVsync, m_SystemFrequency, timeUntilPhase))
+    return timeUntilPhase;
+#endif
+
+  if (!m_UseVblank || m_RefreshRate <= 0.0) return 0;
+
+  // This rounding stays in range because it converts a single display interval derived
+  // from the current host clock frequency and refresh rate.
+  const int64_t interval = static_cast<int64_t>(static_cast<double>(m_SystemFrequency) / m_RefreshRate + 0.5);
+  if (interval <= 0) return 0;
+
+  const int64_t now = CurrentHostCounter();
+  int64_t target = m_VblankTime + afterVsync;
+  if (target <= now)
+  {
+    const int64_t elapsed = now - target;
+    const int64_t missedIntervals = elapsed / interval + 1;
+    target += missedIntervals * interval;
+  }
+
+  return target - now;
 }
 
 void CVideoReferenceClock::UpdateRefreshrate()
