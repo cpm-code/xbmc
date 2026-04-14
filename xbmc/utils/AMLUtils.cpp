@@ -879,6 +879,31 @@ StreamHdrType aml_get_final_hdr_type(StreamHdrType hdrType, unsigned int bitDept
   return aml_get_final_hdr_type_impl(hdrType, bitDepth, -1);
 }
 
+namespace
+{
+bool has_dovi_decoder_config(const AVDOVIDecoderConfigurationRecord& dovi)
+{
+  return (memcmp(&dovi, &CDVDStreamInfo::empty_dovi,
+                 sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
+}
+
+DOVIStreamInfo extract_dovi_stream_info(const CDVDStreamInfo& streamInfo)
+{
+  DOVIStreamInfo doviStreamInfo;
+  doviStreamInfo.dovi = streamInfo.dovi;
+  doviStreamInfo.dovi_el_type = streamInfo.dovi_el_type;
+  doviStreamInfo.has_config = has_dovi_decoder_config(streamInfo.dovi);
+  return doviStreamInfo;
+}
+}
+
+AMLHdrSetupPolicy aml_get_hdr_setup_policy(const CDVDStreamInfo& fallbackInfo)
+{
+  return aml_get_hdr_setup_policy(fallbackInfo.hdrType,
+                                  extract_dovi_stream_info(fallbackInfo),
+                                  fallbackInfo.bitdepth);
+}
+
 AMLHdrSetupPolicy aml_get_hdr_setup_policy(StreamHdrType fallbackHdr,
                                            const DOVIStreamInfo& fallbackDvInfo,
                                            unsigned int bitDepth)

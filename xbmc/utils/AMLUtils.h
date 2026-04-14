@@ -107,6 +107,12 @@ struct AMLHdrSetupPolicy
   bool convHdr10Plus{false};
   bool prefConv10Plus{false};
   bool rmHdr10PlusForVs10{false};
+
+  bool HasDolbyVisionSource() const
+  {
+    return ((srcHdr == StreamHdrType::HDR_TYPE_DOLBYVISION) ||
+            (srcAltHdr == StreamHdrType::HDR_TYPE_DOLBYVISION));
+  }
 };
 
 int  aml_get_cpufamily_id();
@@ -146,6 +152,7 @@ void aml_dv_display_auto_now();
 void aml_dv_start();
 void aml_dv_set_subtitles(bool visible);
 void aml_dv_set_xbmc_osd();
+AMLHdrSetupPolicy aml_get_hdr_setup_policy(const CDVDStreamInfo& fallbackInfo);
 AMLHdrSetupPolicy aml_get_hdr_setup_policy(StreamHdrType fallbackHdr,
                                            const DOVIStreamInfo& fallbackDvInfo,
                                            unsigned int bitDepth);
