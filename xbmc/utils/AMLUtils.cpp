@@ -1815,7 +1815,7 @@ bool aml_get_time_to_next_vsync_us(int& timeToNextVsyncUs)
   fb_vsync_timing_request req{};
   if (ioctl(fbFd, FBIO_GET_VSYNC_TIMING_64, &req) < 0)
   {
-    logM(LOGDEBUG, "ioctl failed on {}: {}", fbPath, strerror(errno));
+    logM(LOGERROR, "ioctl failed on {}: {}", fbPath, strerror(errno));
     return false;
   }
 
@@ -1824,6 +1824,53 @@ bool aml_get_time_to_next_vsync_us(int& timeToNextVsyncUs)
 
   const int64_t deltaNs = req.next_vsync_ts - req.now_ts;
   timeToNextVsyncUs = static_cast<int>(std::min<int64_t>(deltaNs / 1000, std::numeric_limits<int>::max()));
+
+  return true;
+}
+
+bool aml_get_time_until_vsync_phase_us(int afterVsyncUs, int& timeUntilPhaseUs)
+{
+  constexpr int64_t NS_PER_US{1000};
+
+  timeUntilPhaseUs = 0;
+
+  int fbFd{-1};
+  std::string fbPath;
+  if (!GetFramebufferDevice(fbFd, fbPath))
+    return false;
+
+  fb_vsync_timing_request req{};
+  if (ioctl(fbFd, FBIO_GET_VSYNC_TIMING_64, &req) < 0)
+  {
+    logM(LOGERROR, "ioctl failed on {}: {}", fbPath, strerror(errno));
+    return false;
+  }
+
+  if (req.now_ts <= 0 || req.last_vsync_ts <= 0 || req.next_vsync_ts <= 0)
+    return false;
+
+  int64_t periodNs = req.period_ns;
+  if (periodNs <= 0)
+  {
+    if (req.next_vsync_ts <= req.last_vsync_ts)
+      return false;
+
+    periodNs = req.next_vsync_ts - req.last_vsync_ts;
+  }
+
+  int64_t phaseNs = std::max<int64_t>(0, static_cast<int64_t>(afterVsyncUs) * NS_PER_US);
+  if (phaseNs >= periodNs) phaseNs %= periodNs;
+
+  int64_t targetNs = req.last_vsync_ts + phaseNs;
+  if (targetNs <= req.now_ts)
+  {
+    const int64_t elapsedNs = req.now_ts - targetNs;
+    targetNs += (elapsedNs / periodNs + 1) * periodNs;
+  }
+
+  const int64_t deltaNs = targetNs - req.now_ts;
+  timeUntilPhaseUs = static_cast<int>(std::max<int64_t>(
+      0, std::min<int64_t>(deltaNs / NS_PER_US, std::numeric_limits<int>::max())));
 
   return true;
 }
@@ -1855,7 +1902,7 @@ bool aml_wait_until_next_vsync_window_us(int offsetUs, int& timeToNextVsyncUs)
     }
     else if (errno != EAGAIN)
     {
-      logM(LOGDEBUG, "ioctl failed on {}: {}", fbPath, strerror(errno));
+      logM(LOGERROR, "ioctl failed on {}: {}", fbPath, strerror(errno));
     }
 
     return false;
