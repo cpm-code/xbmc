@@ -4434,13 +4434,8 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
   if (firstOpen || (m_CurrentVideo.hint != hint) || !reset)
     ProbeVideoHdr(hint);
 
-  DOVIStreamInfo hintDvInfo;
-  hintDvInfo.dovi = hint.dovi;
-  hintDvInfo.dovi_el_type = hint.dovi_el_type;
-  hintDvInfo.has_config = (memcmp(&hint.dovi, &CDVDStreamInfo::empty_dovi,
-                                  sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
-
-  const auto hdrPolicy = aml_get_hdr_setup_policy(hint.hdrType, hintDvInfo, hint.bitdepth);
+  const auto hdrPolicy = aml_get_hdr_setup_policy(hint);
+  CServiceBroker::GetDataCacheCore().SetVideoHdrSetupPolicy(hdrPolicy);
 
   m_processInfo->SetVideoInterlaced((hint.codecOptions & CODEC_INTERLACED) == CODEC_INTERLACED);
   if (m_pInputStream && m_pInputStream->IsStreamType(DVDSTREAM_TYPE_DVD))

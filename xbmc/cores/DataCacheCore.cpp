@@ -459,6 +459,20 @@ DOVIStreamInfo CDataCacheCore::GetVideoSourceDoViStreamInfo()
   return m_playerVideoInfo.sourceDoViStreamInfo;
 }
 
+void CDataCacheCore::SetVideoHdrSetupPolicy(AMLHdrSetupPolicy value)
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  m_playerVideoInfo.hdrSetupPolicy = std::move(value);
+}
+
+AMLHdrSetupPolicy CDataCacheCore::GetVideoHdrSetupPolicy()
+{
+  std::lock_guard lock(m_videoPlayerSection);
+
+  return m_playerVideoInfo.hdrSetupPolicy;
+}
+
 void CDataCacheCore::SetVideoDoViCodecFourCC(std::string codecFourCC)
 {
   std::lock_guard lock(m_videoPlayerSection);
