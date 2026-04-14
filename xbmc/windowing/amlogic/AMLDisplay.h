@@ -75,7 +75,7 @@ private:
   void CleanAndClose();
   void aml_init_drmDevice_display();
   void aml_set_framebuffer_resolution(unsigned int width,
-    unsigned int height, std::string framebuffer_name);
+    unsigned int height, std::string framebuffer_name, bool blank);
   int aml_get_drmDevice();
   int get_drmProp(unsigned int id, std::string name, unsigned int obj_type);
   void set_drmProp(unsigned int id, std::string name,

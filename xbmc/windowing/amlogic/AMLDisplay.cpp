@@ -353,14 +353,19 @@ void CAMLDRMUtils::aml_init_drmDevice_display()
 }
 
 void CAMLDRMUtils::aml_set_framebuffer_resolution(unsigned int width,
-  unsigned int height, std::string framebuffer_name)
+  unsigned int height, std::string framebuffer_name, bool blank)
 {
   int fd0;
   std::string framebuffer = "/dev/" + framebuffer_name;
+  std::string sysfsfb = "/sys/class/graphics/" + framebuffer_name + "/blank";
 
   if ((fd0 = open(framebuffer.c_str(), O_RDWR)) >= 0)
   {
     struct fb_var_screeninfo vinfo;
+
+    if (blank)
+      CSysfsPath(sysfsfb, 1);
+
     if (ioctl(fd0, FBIOGET_VSCREENINFO, &vinfo) == 0)
     {
       if (width != vinfo.xres || height != vinfo.yres)
@@ -375,6 +380,9 @@ void CAMLDRMUtils::aml_set_framebuffer_resolution(unsigned int width,
       }
     }
     close(fd0);
+
+    if (blank)
+      CSysfsPath(sysfsfb, 0);
   }
 }
 
@@ -475,7 +483,6 @@ std::string CAMLDRMUtils::aml_get_drmDevice_modes(void)
 bool CAMLDRMUtils::aml_set_drmDevice_mode(const RESOLUTION_INFO &res, std::string mode,
   std::string framebuffer_name, bool force_mode_switch)
 {
-  std::string current_mode = aml_get_drmDevice_mode();
   bool ret = false;
 
   m_width = res.iWidth;
@@ -490,38 +497,14 @@ bool CAMLDRMUtils::aml_set_drmDevice_mode(const RESOLUTION_INFO &res, std::strin
     return ret;
   }
 
-  if (!m_crtc->buffer_id)
-  {
-    CLog::Log(LOGWARNING, "CAMLDRMUtils::{} - current crtc do not have frame buffer", __FUNCTION__);
-    ret = true;
-    return ret;
-  }
+  ret = aml_set_drmDevice_active(mode, true);
 
-  for (int i = 0; i < m_connector->count_modes; i++)
-  {
-    if (StringUtils::EqualsNoCase(m_connector->modes[i].name, mode))
-    {
-      CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - found mode in connector mode list: [{:d}]:{}", __FUNCTION__, i, mode);
-      drmModeFBPtr drm_fb = drmModeGetFB(m_fd, m_crtc->buffer_id);
+  if (!CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING))
+    aml_set_framebuffer_resolution(res.iWidth, res.iHeight, framebuffer_name, !ret);
+  else
+    aml_set_framebuffer_resolution(res.iScreenWidth, res.iScreenHeight, framebuffer_name, !ret);
 
-      aml_set_framebuffer_resolution(res.iScreenWidth, res.iScreenHeight, framebuffer_name);
-
-      ret = drmModeSetCrtc(m_fd, m_crtc->crtc_id, drm_fb->fb_id, 0, 0,
-        m_resources->connectors, 1, &m_connector->modes[i]);
-      m_crtc->mode = m_connector->modes[i];
-
-      if (!CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING))
-        aml_set_framebuffer_resolution(res.iWidth, res.iHeight, framebuffer_name);
-      else
-        aml_set_framebuffer_resolution(res.iScreenWidth, res.iScreenHeight, framebuffer_name);
-
-      if (force_mode_switch)
-        set_drmProp(m_connector->connector_id, "UPDATE", DRM_MODE_OBJECT_CONNECTOR, 1, NULL);
-
-      drmModeFreeFB(drm_fb);
-      break;
-    }
-  }
+  CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - finished set drmDevice mode", __FUNCTION__);
 
   return ret;
 }
@@ -741,10 +724,7 @@ bool CAMLDRMUtils::aml_set_drmDevice_active(std::string mode, bool active)
     if (req)
     {
       if (!m_crtc)
-      {
         m_crtc = drmModeGetCrtc(m_fd, m_resources->crtcs[0]);
-        m_crtc->mode = *drmDevicemode;
-      }
 
       set_drmProp(m_connector->connector_id, "CRTC_ID", DRM_MODE_OBJECT_CONNECTOR, m_crtc->crtc_id, req);
 
@@ -753,14 +733,18 @@ bool CAMLDRMUtils::aml_set_drmDevice_active(std::string mode, bool active)
       set_drmProp(m_crtc->crtc_id, "MODE_ID", DRM_MODE_OBJECT_CRTC, mode_blobid, req);
       set_drmProp(m_crtc->crtc_id, "ACTIVE", DRM_MODE_OBJECT_CRTC, active ? 1 : 0, req);
 
-      ret = drmModeAtomicCommit(m_fd, req, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
-      if (ret)
+      ret = (drmModeAtomicCommit(m_fd, req, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL) == 0);
+      if (!ret)
         CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - failed to set drmDevice mode: {}", __FUNCTION__, drmDevicemode->name);
+      else
+        m_crtc->mode = *drmDevicemode;
 
       drmModeAtomicFree(req);
       drmModeDestroyPropertyBlob(m_fd, mode_blobid);
     }
   }
+  else
+    CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - mode {} is already set", __FUNCTION__, mode);
 
   return ret;
 }
@@ -905,7 +889,6 @@ bool CAMLDisplay::set_display_resolution(const RESOLUTION_INFO &res, std::string
   bool force_mode_switch)
 {
   std::string mode = res.strId.c_str();
-  std::string cur_mode;
   std::vector<std::string> _mode = StringUtils::Split(mode, ' ');
   std::string mode_options;
 
@@ -924,8 +907,6 @@ bool CAMLDisplay::set_display_resolution(const RESOLUTION_INFO &res, std::string
   }
   else
     CLog::Log(LOGDEBUG, "CAMLDisplay::{}: try to set mode: {}", __FUNCTION__, mode.c_str());
-
-  cur_mode = m_amlDRMUtils->aml_get_drmDevice_mode();
 
   int fractional_rate = (res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1;
 

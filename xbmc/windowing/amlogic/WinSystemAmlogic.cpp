@@ -356,16 +356,6 @@ bool CWinSystemAmlogic::CreateNewWindow(const std::string& name,
   // reset force mode switch
   m_force_mode_switch = false;
 
-  if (!m_delayDispReset)
-  {
-    std::unique_lock<CCriticalSection> lock(m_resourceSection);
-    // tell any shared resources
-    for (std::vector<IDispResource *>::iterator i = m_resources.begin(); i != m_resources.end(); ++i)
-    {
-      (*i)->OnResetDisplay();
-    }
-  }
-
   m_bWindowCreated = true;
   return true;
 }
