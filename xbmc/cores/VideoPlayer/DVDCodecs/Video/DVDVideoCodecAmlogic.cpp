@@ -28,6 +28,11 @@
 
 #define __MODULE_NAME__ "DVDVideoCodecAmlogic"
 
+namespace
+{
+constexpr uint8_t DOLBY_VISION_PROFILE_7 = 7;
+}
+
 CAMLVideoBufferPool::~CAMLVideoBufferPool()
 {
   CLog::Log(LOGDEBUG, "CAMLVideoBufferPool::~CAMLVideoBufferPool: Deleting {:d} buffers", static_cast<unsigned int>(m_videoBuffers.size()) );
@@ -335,19 +340,11 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       // check for hevc-hvcC and convert to h265-annex-b - and DV is on.
       if (m_hints.extradata && !m_hints.cryptoSession && m_bitstream && !aml_dv_mode_off())
       {
-        DOVIStreamInfo hintDvInfo;
-        hintDvInfo.dovi = m_hints.dovi;
-        hintDvInfo.dovi_el_type = m_hints.dovi_el_type;
-        hintDvInfo.has_config =
-            (memcmp(&m_hints.dovi, &CDVDStreamInfo::empty_dovi,
-                    sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
-
-        const auto hdrPolicy =
-          aml_get_hdr_setup_policy(m_hints.hdrType, hintDvInfo, m_hints.bitdepth);
+        const auto hdrPolicy = m_dataCacheCore.GetVideoHdrSetupPolicy();
 
         auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
 
-        if (m_hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
+        if (hdrPolicy.HasDolbyVisionSource())
         {
           auto cmv40Mode = static_cast<DOVICMv40Mode>(m_appendCMv40ModeSetting.load());
           if (cmv40Mode != DOVICMv40Mode::CMV40_NONE)
@@ -373,7 +370,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
               logM(LOGINFO, "DV HEVC bitstream - if stream also contains HDR10+, conversion will be preferred over original Dolby Vision.");
           }
 
-          if (m_hints.dovi.dv_profile == 7)
+          if (hdrPolicy.srcDvInfo.dovi.dv_profile == DOLBY_VISION_PROFILE_7)
           {
             auto convertDovi = static_cast<DOVIMode>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_RPU_CONVERT));
             if (convertDovi)
