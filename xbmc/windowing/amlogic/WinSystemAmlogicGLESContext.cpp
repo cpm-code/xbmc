@@ -47,7 +47,10 @@ bool CWinSystemAmlogicGLESContext::InitWindowSystem()
   if (m_amlGBMUtils)
   {
     if (!m_pGLContext->CreatePlatformDisplay(m_amlGBMUtils->GetDevice(), m_amlGBMUtils->GetDevice()))
+    {
+      m_pGLContext->Destroy();
       return false;
+    }
 
     if (m_amlDisplay->aml_get_display_connected())
       m_amlDisplay->aml_set_drmDevice_active(true);
@@ -55,24 +58,35 @@ bool CWinSystemAmlogicGLESContext::InitWindowSystem()
   else
   {
     if (!m_pGLContext->CreateDisplay(m_nativeDisplay))
+    {
+      m_pGLContext->Destroy();
       return false;
+    }
   }
 
   if (!m_pGLContext->InitializeDisplay(EGL_OPENGL_ES_API))
   {
+    m_pGLContext->Destroy();
     return false;
   }
 
-  if (!m_pGLContext->ChooseConfig(EGL_OPENGL_ES2_BIT))
+  EGLint renderableType{EGL_OPENGL_ES3_BIT};
+  if (!m_pGLContext->ChooseConfig(renderableType))
   {
-    return false;
+    renderableType = EGL_OPENGL_ES2_BIT;
+    if (!m_pGLContext->ChooseConfig(renderableType))
+    {
+      m_pGLContext->Destroy();
+      return false;
+    }
   }
 
   CEGLAttributesVec contextAttribs;
-  contextAttribs.Add({{EGL_CONTEXT_CLIENT_VERSION, 2}});
+  contextAttribs.Add({{EGL_CONTEXT_CLIENT_VERSION, (renderableType == EGL_OPENGL_ES3_BIT) ? 3 : 2}});
 
   if (!m_pGLContext->CreateContext(contextAttribs))
   {
+    m_pGLContext->Destroy();
     return false;
   }
 
