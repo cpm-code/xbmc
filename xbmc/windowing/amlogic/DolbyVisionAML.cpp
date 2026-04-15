@@ -246,6 +246,7 @@ bool CDolbyVisionAML::Setup()
   settingsManager->RegisterSettingOptionsFiller("DolbyVisionVS10DV", vs10_dv_filler);
 
   set_visible(CSettings::SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE, true);
+  set_visible(CSettings::SETTING_COREELEC_AMLOGIC_DV_MASTERCLOCK_VSYNC_OFFSET, true);
   set_visible(CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE, true);
   set_visible(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_INJECT, true);
   set_visible(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_PAYLOAD, true);
