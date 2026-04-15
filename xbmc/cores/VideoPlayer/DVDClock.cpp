@@ -8,12 +8,16 @@
 
 #include "DVDClock.h"
 
+#include "ServiceBroker.h"
 #include "VideoReferenceClock.h"
 #include "cores/VideoPlayer/Interface/TimingConstants.h"
+#include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
 #include "utils/MathUtils.h"
 #include "utils/TimeUtils.h"
 #include "utils/log.h"
 
+#include <algorithm>
 #include <inttypes.h>
 #include <cmath>
 #include <limits>
@@ -24,18 +28,56 @@ namespace
 {
 // Delay startup alignment slightly past the vsync edge so playback does not begin
 // exactly on the boundary where timing jitter is most visible.
-constexpr int64_t MASTER_CLOCK_VSYNC_DELAY_MS{5};
+constexpr int MASTER_CLOCK_VSYNC_DELAY_MS{5};
+constexpr int MIN_MASTER_CLOCK_VSYNC_DELAY_MS{0};
+constexpr int MAX_MASTER_CLOCK_VSYNC_DELAY_MS{15};
 constexpr int64_t MS_PER_SECOND{1000};
 
-int64_t GetMasterClockStartupVSyncDelay(int64_t systemFrequency)
+int GetMasterClockStartupVSyncDelayMs()
+{
+  const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+  if (!settingsComponent)
+    return MASTER_CLOCK_VSYNC_DELAY_MS;
+
+  const auto settings = settingsComponent->GetSettings();
+  if (!settings)
+    return MASTER_CLOCK_VSYNC_DELAY_MS;
+
+  return std::clamp(
+      settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_MASTERCLOCK_VSYNC_OFFSET),
+      MIN_MASTER_CLOCK_VSYNC_DELAY_MS, MAX_MASTER_CLOCK_VSYNC_DELAY_MS);
+}
+
+int64_t NormalizeMasterClockStartupVSyncDelay(
+    const std::unique_ptr<CVideoReferenceClock>& videoRefClock,
+    int64_t delay,
+    int64_t systemFrequency)
+{
+  if (!videoRefClock || delay <= 0 || systemFrequency <= 0)
+    return std::max<int64_t>(0, delay);
+
+  double intervalSeconds{0.0};
+  if (videoRefClock->GetRefreshRate(&intervalSeconds) <= 0.0 || intervalSeconds <= 0.0)
+    return delay;
+
+  const int64_t interval = static_cast<int64_t>(std::llround(intervalSeconds * systemFrequency));
+  if (interval <= 0)
+    return delay;
+
+  return delay % interval;
+}
+
+int64_t GetMasterClockStartupVSyncDelay(const std::unique_ptr<CVideoReferenceClock>& videoRefClock,
+                                        int64_t systemFrequency)
 {
   const double delay = static_cast<double>(systemFrequency) *
-                       MASTER_CLOCK_VSYNC_DELAY_MS / MS_PER_SECOND;
+                       GetMasterClockStartupVSyncDelayMs() / MS_PER_SECOND;
 
   if (delay >= static_cast<double>(std::numeric_limits<int64_t>::max()))
     return std::numeric_limits<int64_t>::max();
 
-  return static_cast<int64_t>(std::llround(delay));
+  return NormalizeMasterClockStartupVSyncDelay(
+      videoRefClock, static_cast<int64_t>(std::llround(delay)), systemFrequency);
 }
 
 int64_t AlignMasterClockStartupToVSync(const std::unique_ptr<CVideoReferenceClock>& videoRefClock,
@@ -45,7 +87,8 @@ int64_t AlignMasterClockStartupToVSync(const std::unique_ptr<CVideoReferenceCloc
   if (!videoRefClock) return startClock;
 
   return startClock +
-         videoRefClock->GetTimeUntilVsyncPhase(GetMasterClockStartupVSyncDelay(systemFrequency));
+         videoRefClock->GetTimeUntilVsyncPhase(
+             GetMasterClockStartupVSyncDelay(videoRefClock, systemFrequency));
 }
 } // namespace
 

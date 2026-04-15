@@ -4024,6 +4024,21 @@
           </constraints>
           <control type="slider" format="integer" />
         </setting>
+        <setting id="coreelec.amlogic.dolbyvision.masterclock.vsync.offset" type="integer" label="50325" help="50326" parent="coreelec.amlogic.dolbyvision.mode">
+          <requirement>HAVE_AMCODEC</requirement>
+          <visible>false</visible>
+          <level>2</level>
+          <default>5</default>
+          <dependencies>
+            <dependency type="visible" setting="coreelec.amlogic.dolbyvision.mode" operator="!is">2</dependency>
+          </dependencies>
+          <constraints>
+            <minimum>0</minimum>
+            <step>1</step>
+            <maximum>15</maximum>
+          </constraints>
+          <control type="spinner" format="integer" />
+        </setting>
         <setting id="coreelec.amlogic.dolbyvision.type" type="integer" label="50021" help="50022">
           <requirement>HAVE_AMCODEC</requirement>
           <visible>false</visible>

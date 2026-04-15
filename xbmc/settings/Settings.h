@@ -464,6 +464,7 @@ public:
   static constexpr auto SETTING_COREELEC_AMLOGIC_DISABLEGUISCALING = "coreelec.amlogic.disableguiscaling";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_MODE = "coreelec.amlogic.dolbyvision.mode";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE = "coreelec.amlogic.dolbyvision.mode.on.luminance";
+    static constexpr auto SETTING_COREELEC_AMLOGIC_DV_MASTERCLOCK_VSYNC_OFFSET = "coreelec.amlogic.dolbyvision.masterclock.vsync.offset";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_TYPE = "coreelec.amlogic.dolbyvision.type";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_COLORIMETRY_FOR_STD = "coreelec.amlogic.dolbyvision.colorimtry.for.std";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_STD_SOURCE_LEVELS_METADATA = "coreelec.amlogic.dolbyvision.std.source.levels.metadata";

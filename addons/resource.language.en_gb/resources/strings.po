@@ -25685,6 +25685,18 @@ msgctxt "#50324"
 msgid "Always"
 msgstr ""
 
+#. Title of master clock start offset setting
+#: system/settings/settings.xml
+msgctxt "#50325"
+msgid "Master clock start offset (ms)"
+msgstr ""
+
+#. Help text for setting "Master clock start offset (ms)" of label #50325
+#: system/settings/settings.xml
+msgctxt "#50326"
+msgid "Offsets the vsync-aligned master clock startup by the selected number of milliseconds. 0 starts on the next vsync edge; higher values delay startup slightly for sync testing."
+msgstr ""
+
 #. Setting label for TrueHD Atmos dialogue normalisation defeat
 #: system/settings/settings.xml
 msgctxt "#55001"
