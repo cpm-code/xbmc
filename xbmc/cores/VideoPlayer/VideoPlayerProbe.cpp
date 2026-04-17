@@ -23,30 +23,44 @@ constexpr unsigned int PROBE_MAX_PACKETS = 96;
 constexpr unsigned int PROBE_MAX_VIDEO_PACKETS = 16;
 constexpr size_t PROBE_MAX_DUAL_PACKETS = 4;
 
-void InitializeVideoSourceProbeState(const CDVDStreamInfo& hint)
+bool HasDoviStreamInfo(const DOVIStreamInfo& doviStreamInfo)
 {
-  auto& dataCache = CServiceBroker::GetDataCacheCore();
-  dataCache.SetVideoSourceHdrType(hint.hdrType);
-  dataCache.SetVideoSourceAdditionalHdrType(StreamHdrType::HDR_TYPE_NONE);
-
-  DOVIStreamInfo doviStreamInfo;
-  doviStreamInfo.dovi = hint.dovi;
-  doviStreamInfo.dovi_el_type = hint.dovi_el_type;
-  doviStreamInfo.has_config =
-      (memcmp(&hint.dovi, &CDVDStreamInfo::empty_dovi, sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
-
-  dataCache.SetVideoSourceDoViStreamInfo(doviStreamInfo);
+  return doviStreamInfo.has_config ||
+         doviStreamInfo.has_header ||
+         (doviStreamInfo.dovi_el_type != DOVIELType::TYPE_NONE) ||
+         (memcmp(&doviStreamInfo.dovi, &CDVDStreamInfo::empty_dovi,
+                 sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
 }
 
-void SyncProbedDoViSourceInfo()
+void InitializeVideoSourceProbeState(CDVDStreamInfo& hint)
+{
+  hint.amlVideoOpen.sourceHdrType = hint.hdrType;
+  hint.amlVideoOpen.sourceAdditionalHdrType = StreamHdrType::HDR_TYPE_NONE;
+  hint.amlVideoOpen.sourceDoViStreamInfo = {};
+
+  auto& dataCache = CServiceBroker::GetDataCacheCore();
+  dataCache.SetVideoSourceHdrType(hint.amlVideoOpen.sourceHdrType);
+  dataCache.SetVideoSourceAdditionalHdrType(hint.amlVideoOpen.sourceAdditionalHdrType);
+  dataCache.SetVideoDoViStreamInfo({});
+  dataCache.SetVideoSourceDoViStreamInfo(hint.amlVideoOpen.sourceDoViStreamInfo);
+}
+
+void SyncProbedSourceInfo(CDVDStreamInfo& hint)
 {
   auto& dataCache = CServiceBroker::GetDataCacheCore();
-  const auto doviStreamInfo = dataCache.GetVideoDoViStreamInfo();
+  hint.amlVideoOpen.sourceHdrType = dataCache.GetVideoSourceHdrType();
+  hint.amlVideoOpen.sourceAdditionalHdrType = dataCache.GetVideoSourceAdditionalHdrType();
 
-  if (doviStreamInfo.has_config ||
-      doviStreamInfo.has_header ||
-      (doviStreamInfo.dovi_el_type != DOVIELType::TYPE_NONE))
+  auto doviStreamInfo = dataCache.GetVideoSourceDoViStreamInfo();
+  const auto currentDoViStreamInfo = dataCache.GetVideoDoViStreamInfo();
+
+  if (HasDoviStreamInfo(currentDoViStreamInfo))
+  {
+    doviStreamInfo = currentDoViStreamInfo;
     dataCache.SetVideoSourceDoViStreamInfo(doviStreamInfo);
+  }
+
+  hint.amlVideoOpen.sourceDoViStreamInfo = doviStreamInfo;
 }
 
 bool IsRelevantHdrProbePacket(const CDVDStreamInfo& hint,
@@ -67,9 +81,8 @@ bool IsRelevantHdrProbePacket(const CDVDStreamInfo& hint,
 
 bool IsHdrProbeResolved(const CDVDStreamInfo& hint, StreamHdrType initialHdrType)
 {
-  auto& dataCache = CServiceBroker::GetDataCacheCore();
-  const auto sourceHdrType = dataCache.GetVideoSourceHdrType();
-  const auto sourceAdditionalHdrType = dataCache.GetVideoSourceAdditionalHdrType();
+  const auto sourceHdrType = hint.amlVideoOpen.sourceHdrType;
+  const auto sourceAdditionalHdrType = hint.amlVideoOpen.sourceAdditionalHdrType;
 
   if ((hint.hdrType != initialHdrType) ||
       (sourceAdditionalHdrType != StreamHdrType::HDR_TYPE_NONE))
@@ -81,19 +94,14 @@ bool IsHdrProbeResolved(const CDVDStreamInfo& hint, StreamHdrType initialHdrType
 
   if (sourceHdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
   {
-    const auto doviStreamInfo = dataCache.GetVideoSourceDoViStreamInfo();
+    const auto& doviStreamInfo = hint.amlVideoOpen.sourceDoViStreamInfo;
 
     if (hint.dovi.el_present_flag &&
         !doviStreamInfo.has_header &&
         (doviStreamInfo.dovi_el_type == DOVIELType::TYPE_NONE))
       return false;
 
-    return doviStreamInfo.has_config ||
-           doviStreamInfo.has_header ||
-           (doviStreamInfo.dovi_el_type != DOVIELType::TYPE_NONE) ||
-           hint.dovi.rpu_present_flag ||
-           hint.dovi.el_present_flag ||
-           hint.dovi.bl_present_flag;
+    return HasDoviStreamInfo(doviStreamInfo);
   }
 
   return false;
@@ -162,7 +170,7 @@ bool Run(CDVDDemux& demuxer,
 
         dualLayerPackets.pop_front();
         videoPacketCount++;
-        SyncProbedDoViSourceInfo();
+        SyncProbedSourceInfo(hint);
       }
       else
       {
@@ -174,7 +182,7 @@ bool Run(CDVDDemux& demuxer,
     {
       bitstream.Convert(packet->pData, packet->iSize, packet->pts);
       videoPacketCount++;
-      SyncProbedDoViSourceInfo();
+      SyncProbedSourceInfo(hint);
     }
 
     if (IsHdrProbeResolved(hint, initialHdrType))

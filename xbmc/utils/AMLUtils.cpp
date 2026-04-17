@@ -185,6 +185,29 @@ static unsigned int aml_vs10_by_hdrtype(StreamHdrType hdrType, unsigned int bitD
   return vs10_mode;
 }
 
+static unsigned int aml_dv_target_mode_impl(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  const enum DV_MODE dv_mode(aml_dv_mode());
+  if (dv_mode != DV_MODE::ON && dv_mode != DV_MODE::ON_DEMAND)
+    return DOLBY_VISION_OUTPUT_MODE_BYPASS;
+
+  return aml_vs10_by_hdrtype(hdrType, bitDepth);
+}
+
+static StreamHdrType aml_dv_bl_signal_compatibility_hdr_type(const DOVIStreamInfo& doviStreamInfo)
+{
+  switch (doviStreamInfo.dovi.dv_bl_signal_compatibility_id)
+  {
+    case 1:
+    case 6:
+      return StreamHdrType::HDR_TYPE_HDR10;
+    case 4:
+      return StreamHdrType::HDR_TYPE_HLG;
+    default:
+      return StreamHdrType::HDR_TYPE_NONE;
+  }
+}
+
 static unsigned int aml_vs10_for(StreamHdrType hdrType, unsigned int bitDepth, int vs10Override = -1)
 {
   if (vs10Override >= 0)
@@ -517,7 +540,9 @@ std::string aml_dv_type_to_string(enum DV_TYPE type)
   return type_string;
 }
 
-unsigned int aml_dv_on(unsigned int mode)
+static unsigned int aml_dv_apply_on(unsigned int mode,
+                                    bool retriggerResolution,
+                                    bool triggerDisplayAuto)
 {
 
   // set the DV-LL Dolby VSVDB limit to latest value from user.
@@ -611,15 +636,17 @@ unsigned int aml_dv_on(unsigned int mode)
       aml_dv_wait_dv_std_vsif_packet();
 
     if ((mode == DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) || (mode == DOLBY_VISION_OUTPUT_MODE_IPT)) {
-      aml_dv_trigger_update_resolution(StreamHdrType::HDR_TYPE_DOLBYVISION); // Required for 60Hz VS10 > DV.
-      aml_dv_display_auto_now();
+      if (retriggerResolution)
+        aml_dv_trigger_update_resolution(StreamHdrType::HDR_TYPE_DOLBYVISION); // Required for 60Hz VS10 > DV.
+      if (triggerDisplayAuto)
+        aml_dv_display_auto_now();
     }
   }
 
   return mode;
 }
 
-void aml_dv_off()
+static void aml_dv_apply_off(bool triggerDisplayAuto)
 {
   // change mode and disable.
   CSysfsPath dolby_vision_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_mode"};
@@ -641,7 +668,27 @@ void aml_dv_off()
   if (modeChange) CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_mode", DOLBY_VISION_OUTPUT_MODE_BYPASS);
 
   // Do set_disp_mode_auto on kernel.
-  if (modeChange) aml_dv_display_auto_now();
+  if (modeChange && triggerDisplayAuto) aml_dv_display_auto_now();
+}
+
+unsigned int aml_dv_target_mode(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  return aml_dv_target_mode_impl(hdrType, bitDepth);
+}
+
+bool aml_dv_target_enabled(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  return aml_dv_target_mode_impl(hdrType, bitDepth) != DOLBY_VISION_OUTPUT_MODE_BYPASS;
+}
+
+unsigned int aml_dv_on(unsigned int mode)
+{
+  return aml_dv_apply_on(mode, true, true);
+}
+
+void aml_dv_off()
+{
+  aml_dv_apply_off(true);
 }
 
 unsigned int aml_dv_dolby_vision_mode()
@@ -656,12 +703,12 @@ void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
   logM(LOGINFO, "Checking DV for DV mode: [{}], DV type: [{}]", aml_dv_mode_to_string(dv_mode), aml_dv_type_to_string(aml_dv_type()));
   if (dv_mode == DV_MODE::ON || dv_mode == DV_MODE::ON_DEMAND) {
 
-    unsigned int vs10_mode = aml_vs10_by_hdrtype(hdrType, bitDepth);
+    unsigned int vs10_mode = aml_dv_target_mode_impl(hdrType, bitDepth);
 
     if (vs10_mode != DOLBY_VISION_OUTPUT_MODE_BYPASS)
-      vs10_mode = aml_dv_on(vs10_mode);
+      vs10_mode = aml_dv_apply_on(vs10_mode, true, true);
     else if (aml_is_dv_enable()) // DV BYPASS, and it is on - then switch it off.
-      aml_dv_off();
+      aml_dv_apply_off(true);
 
     bool content_is_dv(hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
     logM(LOGINFO, "DV is [{}], requested with vs10 mode: [{}], set for: [{}]",
@@ -763,9 +810,9 @@ void aml_dv_enable_fel()
   CSysfsPath("/sys/class/amdolby_vision/debug", "enable_fel 1");
 }
 
-static StreamHdrType aml_get_final_hdr_type(StreamHdrType hdrType,
-                                            unsigned int bitDepth,
-                                            int vs10Override = -1)
+static StreamHdrType aml_get_final_hdr_type_impl(StreamHdrType hdrType,
+                                                 unsigned int bitDepth,
+                                                 int vs10Override)
 {
   if ((hdrType == StreamHdrType::HDR_TYPE_NONE) || aml_dv_mode_off())
     return hdrType;
@@ -785,10 +832,107 @@ static StreamHdrType aml_get_final_hdr_type(StreamHdrType hdrType,
   }
 }
 
+StreamHdrType aml_get_final_hdr_type(StreamHdrType hdrType, unsigned int bitDepth)
+{
+  return aml_get_final_hdr_type_impl(hdrType, bitDepth, -1);
+}
+
+namespace
+{
+bool has_dovi_decoder_config(const AVDOVIDecoderConfigurationRecord& dovi)
+{
+  return (memcmp(&dovi, &CDVDStreamInfo::empty_dovi,
+                 sizeof(AVDOVIDecoderConfigurationRecord)) != 0);
+}
+
+DOVIStreamInfo extract_dovi_stream_info(const CDVDStreamInfo& streamInfo)
+{
+  DOVIStreamInfo doviStreamInfo;
+  doviStreamInfo.dovi = streamInfo.dovi;
+  doviStreamInfo.dovi_el_type = streamInfo.dovi_el_type;
+  doviStreamInfo.has_config = has_dovi_decoder_config(streamInfo.dovi);
+  return doviStreamInfo;
+}
+}
+
+AMLHdrSetupPolicy aml_get_hdr_setup_policy(const CDVDStreamInfo& fallbackInfo)
+{
+  return aml_get_hdr_setup_policy(fallbackInfo.amlVideoOpen.sourceHdrType,
+                                  fallbackInfo.amlVideoOpen.sourceAdditionalHdrType,
+                                  fallbackInfo.amlVideoOpen.sourceDoViStreamInfo,
+                                  fallbackInfo.hdrType,
+                                  extract_dovi_stream_info(fallbackInfo),
+                                  fallbackInfo.bitdepth);
+}
+
+AMLHdrSetupPolicy aml_get_hdr_setup_policy(StreamHdrType sourceHdr,
+                                           StreamHdrType sourceAltHdr,
+                                           const DOVIStreamInfo& sourceDvInfo,
+                                           StreamHdrType fallbackHdr,
+                                           const DOVIStreamInfo& fallbackDvInfo,
+                                           unsigned int bitDepth)
+{
+  AMLHdrSetupPolicy policy;
+  policy.srcHdr = sourceHdr;
+  policy.srcAltHdr = sourceAltHdr;
+  policy.srcDvInfo = sourceDvInfo;
+
+  if (policy.srcHdr == StreamHdrType::HDR_TYPE_NONE)
+    policy.srcHdr = fallbackHdr;
+
+  if (!policy.srcDvInfo.has_config && !policy.srcDvInfo.has_header &&
+      policy.srcDvInfo.dovi_el_type == DOVIELType::TYPE_NONE)
+    policy.srcDvInfo = fallbackDvInfo;
+
+  policy.dvAvail = aml_dv_mode() != DV_MODE::OFF;
+  policy.dualPri10Plus =
+      settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_DUAL_PRIORITY) == 1;
+  policy.convHdr10Plus =
+      policy.dvAvail &&
+      settings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_CONVERT);
+  policy.prefConv10Plus =
+      policy.convHdr10Plus &&
+      settings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_PREFER_CONVERT);
+
+  if ((fallbackHdr == StreamHdrType::HDR_TYPE_HDR10) || policy.dualPri10Plus)
+  {
+    const unsigned int mode = aml_vs10_by_setting(CSettings::SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10PLUS);
+    policy.rmHdr10PlusForVs10 = mode < DOLBY_VISION_OUTPUT_MODE_BYPASS;
+  }
+
+  const bool hasDv = policy.srcHdr == StreamHdrType::HDR_TYPE_DOLBYVISION ||
+                     policy.srcAltHdr == StreamHdrType::HDR_TYPE_DOLBYVISION;
+  const bool hasHdr10Plus = policy.srcHdr == StreamHdrType::HDR_TYPE_HDR10PLUS ||
+                            policy.srcAltHdr == StreamHdrType::HDR_TYPE_HDR10PLUS;
+
+  if (hasHdr10Plus)
+  {
+    if (policy.dualPri10Plus)
+      policy.resolvedHdr = StreamHdrType::HDR_TYPE_HDR10PLUS;
+    else if (policy.convHdr10Plus &&
+             (policy.srcHdr == StreamHdrType::HDR_TYPE_HDR10PLUS || policy.prefConv10Plus))
+      policy.resolvedHdr = StreamHdrType::HDR_TYPE_DOLBYVISION;
+    else if (policy.srcHdr == StreamHdrType::HDR_TYPE_HDR10PLUS || !hasDv || !policy.dvAvail)
+      policy.resolvedHdr = StreamHdrType::HDR_TYPE_HDR10PLUS;
+  }
+
+  if (policy.resolvedHdr == StreamHdrType::HDR_TYPE_NONE)
+  {
+    if (!hasDv)
+      policy.resolvedHdr = policy.srcHdr;
+    else if (policy.dvAvail)
+      policy.resolvedHdr = StreamHdrType::HDR_TYPE_DOLBYVISION;
+    else
+      policy.resolvedHdr = aml_dv_bl_signal_compatibility_hdr_type(policy.srcDvInfo);
+  }
+
+  policy.finalHdr = aml_get_final_hdr_type_impl(policy.resolvedHdr, bitDepth, -1);
+  return policy;
+}
+
 static bool aml_dv_has_hdr10_graphics(const DOVIStreamInfo& doviStreamInfo)
 {
-  if (!doviStreamInfo.has_config)
-    return false;
+  if (!doviStreamInfo.has_config) return false;
 
   switch (doviStreamInfo.dovi.dv_profile)
   {
@@ -796,9 +940,8 @@ static bool aml_dv_has_hdr10_graphics(const DOVIStreamInfo& doviStreamInfo)
       return true;
     case 8:
     case 10:
-      // Compatibility id 4 is HLG; 1 and 6 are HDR10-compatible base layers.
-      return doviStreamInfo.dovi.dv_bl_signal_compatibility_id == 1 ||
-             doviStreamInfo.dovi.dv_bl_signal_compatibility_id == 6;
+      return (aml_dv_bl_signal_compatibility_hdr_type(doviStreamInfo) ==
+              StreamHdrType::HDR_TYPE_HDR10);
     default:
       return false;
   }
@@ -825,7 +968,8 @@ static GuiHdr aml_gui_hdr(StreamHdrType hdrType, unsigned int bitDepth, int vs10
     return GuiHdr::HDR_PQ;
 
   if ((hdrType != StreamHdrType::HDR_TYPE_NONE) ||
-      (aml_get_final_hdr_type(hdrType, bitDepth, vs10Override) != StreamHdrType::HDR_TYPE_NONE))
+      (aml_get_final_hdr_type_impl(hdrType, bitDepth, vs10Override) !=
+       StreamHdrType::HDR_TYPE_NONE))
     return GuiHdr::HDR;
 
   return GuiHdr::SDR;

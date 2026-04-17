@@ -86,9 +86,9 @@ public:
   void Render(bool clear, DWORD flags = 0, DWORD alpha = 255, bool gui = true);
   bool IsVideoLayer();
   RESOLUTION GetResolution() const;
-  void UpdateResolution(bool force = false);
-  void TriggerUpdateResolution(float fps, int width, int height, std::string &stereomode);
-  void TriggerUpdateResolutionHdr(StreamHdrType m_hdrType);
+  void UpdateResolution();
+  void TriggerUpdateResolution(float fps, int width, int height, std::string& stereo);
+  void TriggerUpdateResolutionHdr(StreamHdrType hdr);
   void SetViewMode(int iViewMode);
   void PreInit();
   void UnInit();
@@ -197,6 +197,7 @@ protected:
   void UpdateVideoLatencyTweak();
   void CheckEnableClockSync();
 
+
   CBaseRenderer *m_pRenderer = nullptr;
   OVERLAY::CRenderer m_overlays;
   CDebugRenderer m_debugRenderer;
@@ -255,6 +256,7 @@ protected:
   unsigned int m_orientation = 0;
   StreamHdrType m_hdrType = StreamHdrType::HDR_TYPE_NONE;
   StreamHdrType m_hdrType_override = StreamHdrType::HDR_TYPE_NONE;
+  bool m_hasHdrTypeOverride = false;
   int m_NumberBuffers = 0;
   std::atomic<int> m_lateframes{-1};
   // Written under m_presentlock; read lock-free from render thread (ClockAlign,

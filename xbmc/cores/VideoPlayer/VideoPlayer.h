@@ -92,6 +92,8 @@ struct SPlayerState
 };
 
 class CDVDInputStream;
+struct DemuxPacket;
+struct AMLHdrSetupPolicy;
 
 class CDVDDemux;
 class CDemuxStreamVideo;
@@ -408,6 +410,7 @@ protected:
   bool OpenStream(CCurrentStream& current, int64_t demuxerId, int iStream, int source, bool reset = true);
   bool OpenAudioStream(CDVDStreamInfo& hint, bool reset = true);
   bool OpenVideoStream(CDVDStreamInfo& hint, bool reset = true);
+  AMLHdrSetupPolicy ProbeAndCacheVideoHdrSetupPolicy(CDVDStreamInfo& hint, bool reset);
   bool OpenSubtitleStream(const CDVDStreamInfo& hint);
   bool OpenTeletextStream(CDVDStreamInfo& hint);
   bool OpenRadioRDSStream(CDVDStreamInfo& hint);
@@ -472,6 +475,7 @@ protected:
   void HandleMessages();
   void HandlePlaySpeed();
   void HandlePendingStreamSync();
+  bool ProbeVideoHdr(CDVDStreamInfo& hint);
   bool IsInMenuInternal() const;
   void SynchronizeDemuxer();
   void CheckAutoSceneSkip();

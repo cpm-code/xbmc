@@ -7,6 +7,7 @@
  */
 
 #include "VideoPlayer.h"
+#include "VideoPlayerProbe.h"
 
 #include "DVDCodecs/DVDCodecUtils.h"
 #include "DVDDemuxers/DVDDemux.h"
@@ -1216,6 +1217,14 @@ void CVideoPlayer::CloseDemuxer()
   CServiceBroker::GetDataCacheCore().SignalAudioInfoChange();
   CServiceBroker::GetDataCacheCore().SignalVideoInfoChange();
   CServiceBroker::GetDataCacheCore().SignalSubtitleInfoChange();
+}
+
+bool CVideoPlayer::ProbeVideoHdr(CDVDStreamInfo& hint)
+{
+  if (!m_pDemuxer) return false;
+
+  m_pDemuxer->ClearReplay();
+  return VideoPlayerProbe::Run(*m_pDemuxer, hint, m_bAbortRequest);
 }
 
 void CVideoPlayer::OpenDefaultStreams(bool reset)
@@ -4417,8 +4426,23 @@ bool CVideoPlayer::OpenAudioStream(CDVDStreamInfo& hint, bool reset)
   return true;
 }
 
+AMLHdrSetupPolicy CVideoPlayer::ProbeAndCacheVideoHdrSetupPolicy(CDVDStreamInfo& hint,
+                                                                 bool reset)
+{
+  const bool firstOpen = (m_CurrentVideo.id < 0);
+
+  if (firstOpen || (m_CurrentVideo.hint != hint) || !reset)
+    ProbeVideoHdr(hint);
+
+  const auto hdrPolicy = aml_get_hdr_setup_policy(hint);
+  CServiceBroker::GetDataCacheCore().SetVideoHdrSetupPolicy(hdrPolicy);
+  return hdrPolicy;
+}
+
 bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
 {
+  const auto hdrPolicy = ProbeAndCacheVideoHdrSetupPolicy(hint, reset);
+
   m_processInfo->SetVideoInterlaced((hint.codecOptions & CODEC_INTERLACED) == CODEC_INTERLACED);
   if (m_pInputStream && m_pInputStream->IsStreamType(DVDSTREAM_TYPE_DVD))
   {
@@ -4473,6 +4497,8 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
       m_renderManager.TriggerUpdateResolution(framerate, hint.width, hint.height, hint.stereo_mode);
     }
   }
+
+  m_renderManager.TriggerUpdateResolutionHdr(hdrPolicy.finalHdr);
 
   IDVDStreamPlayer* player = GetStreamPlayer(m_CurrentVideo.player);
   if(player == nullptr)

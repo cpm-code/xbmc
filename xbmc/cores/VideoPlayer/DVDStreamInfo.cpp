@@ -10,8 +10,20 @@
 
 #include "DVDDemuxers/DVDDemux.h"
 #include "cores/VideoPlayer/Interface/DemuxCrypto.h"
+#include "utils/AMLUtils.h"
 
 #include <cstring>
+
+void AMLVideoOpenInfo::UpdateFromHdrPolicy(const AMLHdrSetupPolicy& hdrPolicy)
+{
+  sourceHdrType = hdrPolicy.srcHdr;
+  sourceAdditionalHdrType = hdrPolicy.srcAltHdr;
+  sourceDoViStreamInfo = hdrPolicy.srcDvInfo;
+  dualPriorityHdr10Plus = hdrPolicy.dualPri10Plus;
+  convertHdr10Plus = hdrPolicy.convHdr10Plus;
+  preferConvertHdr10Plus = hdrPolicy.prefConv10Plus;
+  removeHdr10PlusForVs10 = hdrPolicy.rmHdr10PlusForVs10;
+}
 
 CDVDStreamInfo::CDVDStreamInfo() : extradata{}
 {
@@ -69,6 +81,7 @@ void CDVDStreamInfo::Clear()
   contentLightMetadata = nullptr;
   stereo_mode.clear();
   dovi = {};
+  amlVideoOpen = {};
 
   channels   = 0;
   samplerate = 0;
@@ -240,6 +253,7 @@ void CDVDStreamInfo::Assign(const CDVDStreamInfo& right, bool withextradata)
   contentLightMetadata = right.contentLightMetadata;
   stereo_mode = right.stereo_mode;
   dovi = right.dovi;
+  amlVideoOpen = right.amlVideoOpen;
 
   // AUDIO
   channels      = right.channels;
