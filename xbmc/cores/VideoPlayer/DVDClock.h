@@ -10,6 +10,8 @@
 
 #include "threads/CriticalSection.h"
 
+#include <atomic>
+
 #include <memory>
 #include <stdint.h>
 
@@ -55,6 +57,11 @@ public:
   void Pause(bool pause);
   void Advance(double time);
 
+  // Pending sync correction in ms from the video path. The audio engine
+  // picks this up and directly adjusts its output position.
+  void SetSyncCorrection(double ms) { m_syncCorrectionMs.store(ms); }
+  double GetAndClearSyncCorrection() { return m_syncCorrectionMs.exchange(0.0); }
+
 protected:
   double SystemToAbsolute(int64_t system);
   int64_t AbsoluteToSystem(double absolute);
@@ -82,4 +89,6 @@ protected:
 
   double m_maxspeedadjust;
   CCriticalSection m_speedsection;
+
+  std::atomic<double> m_syncCorrectionMs{0.0};
 };

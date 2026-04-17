@@ -125,6 +125,9 @@ public:
   void SetDelay(int delay) { m_videoDelay = delay; }
   int GetDelay() { return m_videoDelay; }
 
+  void SetDeinterlaceDelay(int delay) { m_deinterlaceDelay = delay; }
+  int GetDeinterlaceDelay() { return m_deinterlaceDelay; }
+
   void SetVideoSettings(const CVideoSettings& settings);
 
 protected:
@@ -190,6 +193,7 @@ protected:
   /// Display latency updated in PrepareNextRender in DVD clock units, includes m_latencyTweak
   double m_displayLatency = 0.0;
   std::atomic_int m_videoDelay = {};
+  std::atomic_int m_deinterlaceDelay = {};
 
   int m_QueueSize = 2;
   int m_QueueSkip = 0;
