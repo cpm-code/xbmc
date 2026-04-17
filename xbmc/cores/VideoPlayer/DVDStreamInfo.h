@@ -24,6 +24,7 @@ extern "C"
 
 class CDemuxStream;
 struct DemuxCryptoSession;
+struct AMLHdrSetupPolicy;
 
 enum DOVIELType : int
 {
@@ -80,6 +81,26 @@ struct HDRStaticMetadataInfo
   bool has_cll_metadata = false;
   uint16_t max_cll = 0;
   uint16_t max_fall = 0;
+};
+
+struct AMLVideoOpenInfo
+{
+  bool useEarlyTransition = false;
+  StreamHdrType sourceHdrType = StreamHdrType::HDR_TYPE_NONE;
+  StreamHdrType sourceAdditionalHdrType = StreamHdrType::HDR_TYPE_NONE;
+  DOVIStreamInfo sourceDoViStreamInfo{};
+  bool dualPriorityHdr10Plus = false;
+  bool convertHdr10Plus = false;
+  bool preferConvertHdr10Plus = false;
+  bool removeHdr10PlusForVs10 = false;
+
+  void UpdateFromHdrPolicy(const AMLHdrSetupPolicy& hdrPolicy);
+
+  bool HasDolbyVisionSource() const
+  {
+    return sourceHdrType == StreamHdrType::HDR_TYPE_DOLBYVISION ||
+           sourceAdditionalHdrType == StreamHdrType::HDR_TYPE_DOLBYVISION;
+  }
 };
 
 class CDVDStreamInfo
@@ -141,6 +162,7 @@ public:
   std::string stereo_mode; // stereoscopic 3d mode
   AVDOVIDecoderConfigurationRecord dovi{};
   DOVIELType dovi_el_type = DOVIELType::TYPE_NONE;
+  AMLVideoOpenInfo amlVideoOpen{};
   CDVDClock *pClock;
 
   static constexpr AVDOVIDecoderConfigurationRecord empty_dovi{}; // For comparison
