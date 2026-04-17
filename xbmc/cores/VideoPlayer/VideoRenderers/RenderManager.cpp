@@ -342,8 +342,6 @@ bool CRenderManager::Configure()
 
     m_renderState = STATE_CONFIGURED;
 
-    UpdateResolution(true);
-
     CLog::Log(LOGDEBUG, "CRenderManager::Configure - {}", m_QueueSize.load());
   }
   else
@@ -1204,84 +1202,89 @@ void CRenderManager::UpdateVideoLatencyTweak()
   m_videoLatencyTweak = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->GetVideoLatencyTweak(refresh, res.iScreenHeight);
 }
 
-void CRenderManager::UpdateResolution(bool force)
+void CRenderManager::UpdateResolution()
 {
-  std::unique_lock<CCriticalSection> lock(m_resolutionlock);
+  if (!m_bTriggerUpdateResolution) return;
+
+  auto& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
+
+  if (!(gfxContext.IsFullScreenVideo() &&
+        gfxContext.IsFullScreenRoot())) return;
+
+  const RenderStereoMode user_stereo_mode =
+      CServiceBroker::GetGUI()->GetStereoscopicsManager().GetStereoModeByUser();
+  auto playbackMode = static_cast<STEREOSCOPIC_PLAYBACK_MODE>(
+      CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
+          CSettings::SETTING_VIDEOPLAYER_STEREOSCOPICPLAYBACKMODE));
+
+  if (!m_picture.stereoMode.empty() &&
+      playbackMode == STEREOSCOPIC_PLAYBACK_MODE_ASK &&
+      user_stereo_mode == RenderStereoMode::UNDEFINED)
+    m_bTriggerUpdateResolution = false;
 
   if (m_bTriggerUpdateResolution)
   {
-    if (force ||
-        (CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenVideo() &&
-         CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot()))
+    // Some platforms send a follow-up "reassert" trigger with no params
+    // (fps/width/height = 0) after a mode switch/reset. In that case, prefer
+    // keeping the currently applied HDR type (if any) to avoid an unnecessary
+    // second mode switch (e.g. VS10 HDR10->DV mapping).
+    StreamHdrType desiredHdrType = m_hasHdrTypeOverride ? m_hdrType_override : m_picture.hdrType;
+    if (!m_hasHdrTypeOverride && m_bTriggerUpdateResolutionNoParams)
     {
-      const RenderStereoMode user_stereo_mode =
-        CServiceBroker::GetGUI()->GetStereoscopicsManager().GetStereoModeByUser();
-      auto playbackMode =
-        static_cast<STEREOSCOPIC_PLAYBACK_MODE>(CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_STEREOSCOPICPLAYBACKMODE));
-      if (!m_picture.stereoMode.empty() &&
-          playbackMode == STEREOSCOPIC_PLAYBACK_MODE_ASK &&
-          user_stereo_mode == RenderStereoMode::UNDEFINED)
-        m_bTriggerUpdateResolution = false;
-      if (m_bTriggerUpdateResolution &&
-          CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_ADJUSTREFRESHRATE) != ADJUST_REFRESHRATE_OFF && m_fps > 0.0f)
-      {
-        auto& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
+      const auto currentHdrType = gfxContext.GetHDRType();
+      if (currentHdrType != StreamHdrType::HDR_TYPE_NONE)
+        desiredHdrType = currentHdrType;
+    }
 
-        // Some platforms send a follow-up "reassert" trigger with no params (fps/width/height = 0)
-        // after a mode switch/reset. In that case, prefer keeping the currently applied HDR type
-        // (if any) to avoid an unnecessary second mode switch (e.g. VS10 HDR10->DV mapping).
-        StreamHdrType desiredHdrType = (m_hdrType_override != StreamHdrType::HDR_TYPE_NONE)
-                                           ? m_hdrType_override
-                                           : m_picture.hdrType;
-        if (m_hdrType_override == StreamHdrType::HDR_TYPE_NONE && m_bTriggerUpdateResolutionNoParams)
-        {
-          const auto currentHdrType = gfxContext.GetHDRType();
-          if (currentHdrType != StreamHdrType::HDR_TYPE_NONE)
-            desiredHdrType = currentHdrType;
-        }
+    RESOLUTION desiredRes = gfxContext.GetVideoResolution();
+    if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
+            CSettings::SETTING_VIDEOPLAYER_ADJUSTREFRESHRATE) != ADJUST_REFRESHRATE_OFF &&
+        m_fps > 0.0f)
+    {
+      desiredRes = CResolutionUtils::ChooseBestResolution(
+          m_fps, m_picture.iWidth, m_picture.iHeight, !m_picture.stereoMode.empty());
+    }
 
-        const RESOLUTION desiredRes = CResolutionUtils::ChooseBestResolution(
-            m_fps, m_picture.iWidth, m_picture.iHeight, !m_picture.stereoMode.empty());
+    const bool needsApply = gfxContext.GetHDRType() != desiredHdrType ||
+                gfxContext.GetVideoResolution() != desiredRes;
 
-        const bool needsApply = force || gfxContext.GetHDRType() != desiredHdrType ||
-                                gfxContext.GetVideoResolution() != desiredRes;
+    if (needsApply)
+    {
+      logM(LOGINFO, "Before - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
+                    m_fps, m_picture.iWidth, m_picture.iHeight, m_picture.stereoMode.empty(),
+                    CStreamDetails::DynamicRangeToString(desiredHdrType));
 
-        if (needsApply)
-        {
-          logM(LOGINFO, "Before - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
-                        m_fps, m_picture.iWidth, m_picture.iHeight, m_picture.stereoMode.empty(),
-                        CStreamDetails::DynamicRangeToString(desiredHdrType));
+      gfxContext.SetHDRType(desiredHdrType);
+      gfxContext.SetVideoResolution(desiredRes, false);
+      UpdateVideoLatencyTweak();
 
-          gfxContext.SetHDRType(desiredHdrType);
-          gfxContext.SetVideoResolution(desiredRes, false);
-          UpdateVideoLatencyTweak();
+      logM(LOGINFO, "After - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
+                    m_fps, m_picture.iWidth, m_picture.iHeight, m_picture.stereoMode.empty(),
+                    CStreamDetails::DynamicRangeToString(desiredHdrType));
 
-          logM(LOGINFO, "After - Set fps [{}] width [{}] height [{}] stereomode empty [{}] hdr type [{}]",
-                        m_fps, m_picture.iWidth, m_picture.iHeight, m_picture.stereoMode.empty(),
-                        CStreamDetails::DynamicRangeToString(desiredHdrType));
-
-          if (m_pRenderer)
-            m_pRenderer->Update();
-        }
-      }
-      m_bTriggerUpdateResolution = false;
-      m_bTriggerUpdateResolutionNoParams = false;
-      m_hdrType_override = StreamHdrType::HDR_TYPE_NONE;
-      m_playerPort->VideoParamsChange();
+      if (m_pRenderer)
+        m_pRenderer->Update();
     }
   }
+
+  m_bTriggerUpdateResolution = false;
+  m_bTriggerUpdateResolutionNoParams = false;
+  m_hdrType_override = StreamHdrType::HDR_TYPE_NONE;
+  m_hasHdrTypeOverride = false;
+  m_playerPort->VideoParamsChange();
 }
 
-void CRenderManager::TriggerUpdateResolutionHdr(StreamHdrType hdrType)
+void CRenderManager::TriggerUpdateResolutionHdr(StreamHdrType hdr)
 {
   logM(LOGINFO, "hdr type [{}] current trigger [{}]",
-                CStreamDetails::DynamicRangeToString(hdrType), m_bTriggerUpdateResolution);
+                CStreamDetails::DynamicRangeToString(hdr), m_bTriggerUpdateResolution);
 
-  m_hdrType_override = hdrType;
+  m_hdrType_override = hdr;
+  m_hasHdrTypeOverride = true;
   m_bTriggerUpdateResolution = true;
 }
 
-void CRenderManager::TriggerUpdateResolution(float fps, int width, int height, std::string &stereomode)
+void CRenderManager::TriggerUpdateResolution(float fps, int width, int height, std::string& stereo)
 {
   logM(LOGINFO, "fps [{}] width [{}] height [{}] stereomode empty [{}] current trigger [{}]",
                 fps, width, height, m_picture.stereoMode.empty(), m_bTriggerUpdateResolution);
@@ -1292,7 +1295,7 @@ void CRenderManager::TriggerUpdateResolution(float fps, int width, int height, s
     m_fps = fps;
     m_picture.iWidth = width;
     m_picture.iHeight = height;
-    m_picture.stereoMode = stereomode;
+    m_picture.stereoMode = stereo;
   }
   m_bTriggerUpdateResolution = true;
 }

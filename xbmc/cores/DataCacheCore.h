@@ -12,6 +12,7 @@
 #include "EdlEdit.h"
 #include "cores/AudioEngine/Utils/AEStreamInfo.h"
 #include "threads/CriticalSection.h"
+#include "utils/AMLUtils.h"
 #include "utils/AgedMap.h"
 #include "utils/BitstreamConverter.h"
 
@@ -82,6 +83,8 @@ public:
   DOVIStreamInfo GetVideoDoViStreamInfo();
   void SetVideoSourceDoViStreamInfo(DOVIStreamInfo value);
   DOVIStreamInfo GetVideoSourceDoViStreamInfo();
+  void SetVideoHdrSetupPolicy(AMLHdrSetupPolicy value);
+  AMLHdrSetupPolicy GetVideoHdrSetupPolicy();
   void SetVideoDoViCodecFourCC(std::string value);
   std::string GetVideoDoViCodecFourCC();
   void SetVideoHDRStaticMetadataInfo(HDRStaticMetadataInfo value);
@@ -305,6 +308,7 @@ protected:
     DOVIStreamMetadata doviStreamMetadata = {};
     DOVIStreamInfo doviStreamInfo = {};
     DOVIStreamInfo sourceDoViStreamInfo = {};
+    AMLHdrSetupPolicy hdrSetupPolicy = {};
 
     std::string doviCodecFourCC = "";
 
