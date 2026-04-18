@@ -730,6 +730,34 @@ void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
   }
 }
 
+void aml_apply_display_transition(StreamHdrType sourceHdrType,
+                                  StreamHdrType resolvedHdrType,
+                                  unsigned int bitDepth,
+                                  bool resolutionChangePending)
+{
+  const bool triggerDisplayAuto = !resolutionChangePending;
+  const enum DV_MODE dv_mode(aml_dv_mode());
+
+  if (dv_mode == DV_MODE::ON || dv_mode == DV_MODE::ON_DEMAND)
+  {
+    unsigned int vs10_mode = aml_dv_target_mode_impl(resolvedHdrType, bitDepth);
+
+    if (vs10_mode != DOLBY_VISION_OUTPUT_MODE_BYPASS)
+      vs10_mode = aml_dv_apply_on(vs10_mode, false, triggerDisplayAuto);
+    else if (aml_is_dv_enable())
+      aml_dv_apply_off(triggerDisplayAuto);
+
+    logM(LOGINFO, "DV transition [{}], requested with vs10 mode: [{}], resolution change pending [{}]",
+                  aml_is_dv_enable(), aml_dv_output_mode_to_string(vs10_mode), resolutionChangePending);
+  }
+  else if (aml_is_dv_enable())
+  {
+    aml_dv_apply_off(triggerDisplayAuto);
+  }
+
+  aml_update_hdr_mode_state(sourceHdrType, bitDepth);
+}
+
 void aml_dv_close()
 {
   if (aml_is_dv_enable() && (aml_dv_mode() == DV_MODE::ON_DEMAND)) aml_dv_off();
