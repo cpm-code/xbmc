@@ -137,6 +137,7 @@ std::string aml_dv_type_to_string(enum DV_TYPE type);
 void aml_dv_set_vs10_mode(unsigned int mode);
 void aml_dv_wait_video_off(int timeout);
 int aml_blackout_policy(int new_blackout);
+int aml_osd_blank(int fbIndex, int blankMode);
 unsigned int aml_dv_target_mode(StreamHdrType hdrType, unsigned int bitDepth);
 bool aml_dv_target_enabled(StreamHdrType hdrType, unsigned int bitDepth);
 unsigned int aml_dv_on(unsigned int mode);
