@@ -159,6 +159,20 @@ int aml_blackout_policy(int new_blackout)
   return 0;
 }
 
+int aml_osd_blank(int fbIndex, int blankMode)
+{
+  const std::string blankPath = StringUtils::Format("/sys/class/graphics/fb{}/blank", fbIndex);
+  CSysfsPath osd_blank{blankPath};
+  if (osd_blank.Exists())
+  {
+    const int existingBlank = osd_blank.Get<int>().value();
+    osd_blank.Set(blankMode);
+    return existingBlank;
+  }
+
+  return 0;
+}
+
 static unsigned int aml_vs10_by_hdrtype(StreamHdrType hdrType, unsigned int bitDepth)
 {
   unsigned int vs10_mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
