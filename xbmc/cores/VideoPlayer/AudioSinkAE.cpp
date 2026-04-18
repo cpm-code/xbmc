@@ -341,9 +341,9 @@ double CAudioSinkAE::GetClockSpeed()
     return 1.0;
 }
 
-CAEStreamInfo::DataType CAudioSinkAE::GetPassthroughStreamType(AVCodecID codecId,
-                                                               int samplerate,
-                                                               int profile)
+CAEStreamInfo::DataType CAudioSinkAE::ResolvePassthroughType(AVCodecID codecId,
+                                                             int samplerate,
+                                                             int profile)
 {
   AEAudioFormat format;
   format.m_dataFormat = AE_FMT_RAW;
@@ -395,4 +395,11 @@ CAEStreamInfo::DataType CAudioSinkAE::GetPassthroughStreamType(AVCodecID codecId
     return format.m_streamInfo.m_type;
   else
     return CAEStreamInfo::DataType::STREAM_TYPE_NULL;
+}
+
+CAEStreamInfo::DataType CAudioSinkAE::GetPassthroughStreamType(AVCodecID codecId,
+                                                               int samplerate,
+                                                               int profile)
+{
+  return ResolvePassthroughType(codecId, samplerate, profile);
 }

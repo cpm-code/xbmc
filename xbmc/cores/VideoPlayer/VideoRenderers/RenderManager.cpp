@@ -1202,13 +1202,16 @@ void CRenderManager::UpdateVideoLatencyTweak()
   m_videoLatencyTweak = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->GetVideoLatencyTweak(refresh, res.iScreenHeight);
 }
 
-void CRenderManager::UpdateResolution()
+void CRenderManager::UpdateResolution(bool force)
 {
+  std::unique_lock<CCriticalSection> lock(m_resolutionlock);
+
   if (!m_bTriggerUpdateResolution) return;
 
   auto& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
 
-  if (!(gfxContext.IsFullScreenVideo() &&
+  if (!force ||
+      !(gfxContext.IsFullScreenVideo() &&
         gfxContext.IsFullScreenRoot())) return;
 
   const RenderStereoMode user_stereo_mode =

@@ -23,6 +23,7 @@ void AMLVideoOpenInfo::UpdateFromHdrPolicy(const AMLHdrSetupPolicy& hdrPolicy)
   convertHdr10Plus = hdrPolicy.convHdr10Plus;
   preferConvertHdr10Plus = hdrPolicy.prefConv10Plus;
   removeHdr10PlusForVs10 = hdrPolicy.rmHdr10PlusForVs10;
+  earlySwitch = false;
 }
 
 CDVDStreamInfo::CDVDStreamInfo() : extradata{}

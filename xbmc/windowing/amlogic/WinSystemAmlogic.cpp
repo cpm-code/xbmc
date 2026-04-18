@@ -153,8 +153,6 @@ bool CWinSystemAmlogic::CreateNewWindow(const std::string& name,
     m_dispResetTimer.Set(std::chrono::milliseconds(static_cast<unsigned int>(delay * 100)));
   }
 
-  BeginModeSwitchBlank();
-
   {
     std::lock_guard lock(m_resourceSection);
 
