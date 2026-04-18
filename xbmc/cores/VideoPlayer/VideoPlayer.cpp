@@ -30,6 +30,7 @@
 #include "ServiceBroker.h"
 #include "URL.h"
 #include "Util.h"
+#include "AudioSinkAE.h"
 #include "VideoPlayerAudio.h"
 #include "VideoPlayerRadioRDS.h"
 #include "VideoPlayerVideo.h"
@@ -641,7 +642,7 @@ const SelectionStream& CSelectionStreams::Get(StreamType type, int index) const
   return m_invalid;
 }
 
-std::vector<SelectionStream> CSelectionStreams::Get(StreamType type)
+std::vector<SelectionStream> CSelectionStreams::Get(StreamType type) const
 {
   std::vector<SelectionStream> streams;
   std::ranges::copy_if(m_Streams, std::back_inserter(streams),
@@ -851,6 +852,7 @@ void CSelectionStreams::Update(const std::shared_ptr<CDVDInputStream>& input,
       {
         s.codecDesc = static_cast<CDemuxStreamAudio*>(stream)->GetStreamType();
         s.channels = static_cast<CDemuxStreamAudio*>(stream)->iChannels;
+        s.sampleRate = static_cast<CDemuxStreamAudio*>(stream)->iSampleRate;
         s.bitrate = static_cast<CDemuxStreamAudio*>(stream)->iBitRate;
       }
       Update(s);
@@ -4426,8 +4428,8 @@ bool CVideoPlayer::OpenAudioStream(CDVDStreamInfo& hint, bool reset)
   return true;
 }
 
-AMLHdrSetupPolicy CVideoPlayer::ProbeAndCacheVideoHdrSetupPolicy(CDVDStreamInfo& hint,
-                                                                 bool reset)
+AMLHdrSetupPolicy CVideoPlayer::SetupVideoHdrPolicy(CDVDStreamInfo& hint,
+                                                    bool reset)
 {
   const bool firstOpen = (m_CurrentVideo.id < 0);
 
@@ -4435,13 +4437,39 @@ AMLHdrSetupPolicy CVideoPlayer::ProbeAndCacheVideoHdrSetupPolicy(CDVDStreamInfo&
     ProbeVideoHdr(hint);
 
   const auto hdrPolicy = aml_get_hdr_setup_policy(hint);
-  CServiceBroker::GetDataCacheCore().SetVideoHdrSetupPolicy(hdrPolicy);
+  hint.amlVideoOpen.UpdateFromHdrPolicy(hdrPolicy);
   return hdrPolicy;
+}
+
+CAEStreamInfo::DataType CVideoPlayer::GetStartupPassthroughType() const
+{
+  if (m_playerOptions.videoOnly)
+    return CAEStreamInfo::STREAM_TYPE_NULL;
+
+  PredicateAudioFilter af(m_processInfo->GetVideoSettings().m_AudioStream,
+                          m_playerOptions.preferStereo);
+  for (const auto& stream : m_SelectionStreams.Get(StreamType::AUDIO, af))
+  {
+    if (stream.sampleRate <= 0)
+      return CAEStreamInfo::STREAM_TYPE_NULL;
+
+    return CAudioSinkAE::ResolvePassthroughType(stream.codecId, stream.sampleRate,
+                                                stream.profile);
+  }
+
+  return CAEStreamInfo::STREAM_TYPE_NULL;
+}
+
+bool CVideoPlayer::CanEarlyUpdate(CAEStreamInfo::DataType passthroughType)
+{
+  return((passthroughType == CAEStreamInfo::STREAM_TYPE_NULL) ||
+         (passthroughType == CAEStreamInfo::STREAM_TYPE_TRUEHD) ||
+         (passthroughType == CAEStreamInfo::STREAM_TYPE_DTSHD_MA));
 }
 
 bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
 {
-  const auto hdrPolicy = ProbeAndCacheVideoHdrSetupPolicy(hint, reset);
+  const auto hdrPolicy = SetupVideoHdrPolicy(hint, reset);
 
   m_processInfo->SetVideoInterlaced((hint.codecOptions & CODEC_INTERLACED) == CODEC_INTERLACED);
   if (m_pInputStream && m_pInputStream->IsStreamType(DVDSTREAM_TYPE_DVD))
@@ -4473,10 +4501,15 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
   if (hint.flags & AV_DISPOSITION_ATTACHED_PIC)
     return false;
 
+  const bool firstOpen = (m_CurrentVideo.id < 0);
+  const bool allowEarlyTransition = firstOpen &&
+                                    m_playerOptions.fullscreen &&
+                                    CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot();
+
   // set desired refresh rate
-  if (m_CurrentVideo.id < 0 && m_playerOptions.fullscreen &&
-      CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot() && hint.fpsrate != 0 &&
-      hint.fpsscale != 0)
+  if (allowEarlyTransition &&
+      (hint.fpsrate != 0) &&
+      (hint.fpsscale != 0))
   {
     if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_ADJUSTREFRESHRATE) != ADJUST_REFRESHRATE_OFF)
     {
@@ -4499,6 +4532,14 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
   }
 
   m_renderManager.TriggerUpdateResolutionHdr(hdrPolicy.finalHdr);
+
+  if (allowEarlyTransition && CanEarlyUpdate(GetStartupPassthroughType()))
+  {
+    m_renderManager.UpdateResolution(true);
+    aml_dv_open(hint.hdrType, hint.bitdepth);
+    hint.amlVideoOpen.earlySwitch = true;
+  }
+  aml_update_hdr_mode_state(hdrPolicy.resolvedHdr, hint.bitdepth);
 
   IDVDStreamPlayer* player = GetStreamPlayer(m_CurrentVideo.player);
   if(player == nullptr)

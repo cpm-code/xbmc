@@ -13,6 +13,7 @@
 #include "Resolution.h"
 #include "VideoSync.h"
 #include "WinEvents.h"
+#include "cores/VideoPlayer/Interface/StreamInfo.h"
 #include "cores/VideoPlayer/VideoRenderers/DebugInfo.h"
 #include "guilib/DirtyRegion.h"
 #include "guilib/DispResource.h"

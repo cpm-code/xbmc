@@ -85,7 +85,6 @@ struct HDRStaticMetadataInfo
 
 struct AMLVideoOpenInfo
 {
-  bool useEarlyTransition = false;
   StreamHdrType sourceHdrType = StreamHdrType::HDR_TYPE_NONE;
   StreamHdrType sourceAdditionalHdrType = StreamHdrType::HDR_TYPE_NONE;
   DOVIStreamInfo sourceDoViStreamInfo{};
@@ -93,6 +92,7 @@ struct AMLVideoOpenInfo
   bool convertHdr10Plus = false;
   bool preferConvertHdr10Plus = false;
   bool removeHdr10PlusForVs10 = false;
+  bool earlySwitch = false;
 
   void UpdateFromHdrPolicy(const AMLHdrSetupPolicy& hdrPolicy);
 
