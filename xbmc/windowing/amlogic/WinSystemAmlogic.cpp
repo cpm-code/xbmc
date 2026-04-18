@@ -48,6 +48,9 @@ CWinSystemAmlogic::CWinSystemAmlogic()
 :  m_nativeWindow(nullptr)
 ,  m_libinput(new CLibInputHandler)
 ,  m_force_mode_switch(false)
+,  m_modeSwitchBlanked(false)
+,  m_modeSwitchFb0Blank(0)
+,  m_modeSwitchFb1Blank(0)
 {
   const char *env_framebuffer = getenv("FRAMEBUFFER");
 
@@ -150,6 +153,8 @@ bool CWinSystemAmlogic::CreateNewWindow(const std::string& name,
     m_dispResetTimer.Set(std::chrono::milliseconds(static_cast<unsigned int>(delay * 100)));
   }
 
+  BeginModeSwitchBlank();
+
   {
     std::lock_guard lock(m_resourceSection);
 
@@ -179,6 +184,28 @@ bool CWinSystemAmlogic::CreateNewWindow(const std::string& name,
 
   m_bWindowCreated = true;
   return true;
+}
+
+void CWinSystemAmlogic::BeginModeSwitchBlank()
+{
+  if (m_modeSwitchBlanked)
+    return;
+
+  m_modeSwitchFb0Blank = aml_osd_blank(0, 1);
+  m_modeSwitchFb1Blank = aml_osd_blank(1, 1);
+  m_modeSwitchBlanked = true;
+}
+
+void CWinSystemAmlogic::EndModeSwitchBlank()
+{
+  if (!m_modeSwitchBlanked)
+    return;
+
+  aml_osd_blank(0, m_modeSwitchFb0Blank);
+  aml_osd_blank(1, m_modeSwitchFb1Blank);
+  m_modeSwitchBlanked = false;
+  m_modeSwitchFb0Blank = 0;
+  m_modeSwitchFb1Blank = 0;
 }
 
 bool CWinSystemAmlogic::DestroyWindow()
