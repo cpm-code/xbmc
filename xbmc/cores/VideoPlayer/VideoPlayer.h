@@ -17,6 +17,7 @@
 #include "VideoPlayerRadioRDS.h"
 #include "VideoPlayerSubtitle.h"
 #include "VideoPlayerTeletext.h"
+#include "cores/AudioEngine/Utils/AEStreamInfo.h"
 #include "cores/IPlayer.h"
 #include "cores/MenuType.h"
 #include "cores/VideoPlayer/Interface/TimingConstants.h"
@@ -195,6 +196,7 @@ struct SelectionStream
   AVCodecID codecId = AV_CODEC_ID_NONE;
   int profile = AV_PROFILE_UNKNOWN;
   int channels = 0;
+  int sampleRate = 0;
   int bitrate = 0;
   int width = 0;
   int height = 0;
@@ -228,8 +230,8 @@ public:
               CDVDDemux* demuxer,
               const std::string& filename2);
 
-  std::vector<SelectionStream> Get(StreamType type);
-  template<typename Compare> std::vector<SelectionStream> Get(StreamType type, Compare compare)
+  std::vector<SelectionStream> Get(StreamType type) const;
+  template<typename Compare> std::vector<SelectionStream> Get(StreamType type, Compare compare) const
   {
     std::vector<SelectionStream> streams = Get(type);
     std::stable_sort(streams.begin(), streams.end(), std::move(compare));
@@ -410,7 +412,10 @@ protected:
   bool OpenStream(CCurrentStream& current, int64_t demuxerId, int iStream, int source, bool reset = true);
   bool OpenAudioStream(CDVDStreamInfo& hint, bool reset = true);
   bool OpenVideoStream(CDVDStreamInfo& hint, bool reset = true);
-  AMLHdrSetupPolicy ProbeAndCacheVideoHdrSetupPolicy(CDVDStreamInfo& hint, bool reset);
+  AMLHdrSetupPolicy SetupVideoHdrPolicy(CDVDStreamInfo& hint, bool reset);
+  CAEStreamInfo::DataType GetStartupPassthroughType() const;
+  static bool IsHbrTransitionType(CAEStreamInfo::DataType passthroughType);
+  bool ShouldUseEarlyTransition() const;
   bool OpenSubtitleStream(const CDVDStreamInfo& hint);
   bool OpenTeletextStream(CDVDStreamInfo& hint);
   bool OpenRadioRDSStream(CDVDStreamInfo& hint);

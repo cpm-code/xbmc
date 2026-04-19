@@ -61,6 +61,9 @@ public:
   double GetClock() override;
   double GetClockSpeed() override;
 
+  static CAEStreamInfo::DataType ResolvePassthroughType(AVCodecID codecId,
+                                                        int samplerate,
+                                                        int profile);
   CAEStreamInfo::DataType GetPassthroughStreamType(AVCodecID codecId, int samplerate, int profile);
 
 protected:

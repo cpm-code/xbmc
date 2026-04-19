@@ -1279,6 +1279,10 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
   int frames_written = 0;
   int burstResets = 0; // prevent infinite reset loops
   int zeroWriteRetries = 0;
+  const bool isAmlHbrPassthrough =
+      m_passthrough && m_isAmlDevice &&
+      (m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD ||
+       m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
 
   while (data_left > 0)
   {
@@ -1287,12 +1291,10 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
     else // take care as we can come here a second time if the sink does not eat all data
       amount = (unsigned int) data_left;
 
-    // For passthrough on AML: wait for ALSA to have space BEFORE calling snd_pcm_writei.
-    // Without this, snd_pcm_writei blocks inside the kernel for a variable duration
-    // (depends on exactly how full the ring buffer is), causing irregular write timing.
-    // snd_pcm_wait returns when at least avail_min frames are free, giving us deterministic
-    // timing and allowing the write to complete immediately without kernel-side blocking.
-    if (m_passthrough && m_isAmlDevice && snd_pcm_state(m_pcm) == SND_PCM_STATE_RUNNING)
+    // Restrict the AML pre-write wait to HBR passthrough. AC3/E-AC3/DTS core
+    // bursts are smaller than the generic AML avail_min/period sizing and can
+    // stall or fragment when we force the wait path.
+    if (isAmlHbrPassthrough && snd_pcm_state(m_pcm) == SND_PCM_STATE_RUNNING)
     {
       // Wait up to half the buffer time — generous but bounded
       const int waitTimeout = std::max(m_timeout / 2, 20);
@@ -1392,7 +1394,7 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
       }
     }
 
-    if (ret == 0 && m_passthrough)
+    if (ret == 0 && isAmlHbrPassthrough)
     {
       if (zeroWriteRetries < 3)
       {
