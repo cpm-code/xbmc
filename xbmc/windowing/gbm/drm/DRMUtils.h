@@ -40,7 +40,7 @@ struct drm_fb
   uint32_t format;
 };
 
-struct guiformat
+struct outputformat
 {
   uint32_t drm;
   uint8_t bpp;
@@ -68,7 +68,7 @@ public:
   CDRMPlane* GetGuiPlane() const { return m_gui_plane; }
   CDRMCrtc* GetCrtc() const { return m_crtc; }
   CDRMConnector* GetConnector() const { return m_connector; }
-  std::vector<guiformat>& GetGuiFormats() { return m_gui_formats; }
+  std::vector<outputformat>& GetOutputFormats() { return m_output_formats; }
   bool FindGuiPlane(uint32_t format, uint64_t modifier);
   bool FindVideoAndGuiPlane(uint32_t format, uint64_t modifier, uint64_t width, uint64_t height);
   bool HasQuirk(int quirk) const { return m_drm_quirks & quirk; }
@@ -124,8 +124,8 @@ private:
   std::vector<std::unique_ptr<CDRMConnector>> m_connectors;
   std::vector<std::unique_ptr<CDRMEncoder>> m_encoders;
   std::vector<std::unique_ptr<CDRMCrtc>> m_crtcs;
-  std::vector<guiformat> m_gui_formats = {{DRM_FORMAT_ARGB8888, 8, 8, false, {}},
-                                          {DRM_FORMAT_XRGB8888, 8, 0, false, {}}};
+  std::vector<outputformat> m_output_formats = {{DRM_FORMAT_ARGB8888, 8, 8, false, {}},
+                                                {DRM_FORMAT_XRGB8888, 8, 0, false, {}}};
 };
 
 } // namespace GBM

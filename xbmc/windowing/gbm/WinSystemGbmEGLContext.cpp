@@ -33,9 +33,11 @@ bool CWinSystemGbmEGLContext::InitWindowSystemEGL(EGLint renderableType, EGLint 
     return false;
   }
 
-  auto guiformats = m_DRM->GetGuiFormats();
+  // InitWindowSystemEGL runs only at boot for GUI init, so the output
+  // surface is always the gui surface here.
+  auto guiformats = m_DRM->GetOutputFormats();
   if (!std::ranges::any_of(guiformats,
-                           [&](struct guiformat format)
+                           [&](struct outputformat format)
                            {
                              return format.active &&
                                     m_eglContext.ChooseConfig(renderableType, format.drm, false,
@@ -94,7 +96,7 @@ bool CWinSystemGbmEGLContext::CreateNewWindow(const std::string& name,
   std::vector<uint64_t> fallbackModifiers = {DRM_FORMAT_MOD_LINEAR};
   std::vector<uint64_t>* modifiers = &fallbackModifiers;
 
-  for (auto& fmt : m_DRM->GetGuiFormats())
+  for (auto& fmt : m_DRM->GetOutputFormats())
   {
     if (fmt.drm == format && fmt.active)
     {
