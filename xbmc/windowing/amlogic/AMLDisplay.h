@@ -61,7 +61,6 @@ public:
   int aml_get_drmDevice_modes_count(drmModeConnection *connection);
   std::string aml_get_drmDevice_preferred_mode();
   bool aml_set_drmDevice_active(std::string mode, bool active);
-  bool aml_set_drmDevice_hotplug_mode(std::string mode);
   bool aml_get_drmDevice_connected() const { return m_connection == DRM_MODE_CONNECTED; }
   void FlipPage(uint32_t fb_id, bool async);
 
@@ -116,7 +115,6 @@ public:
   int aml_get_display_modes_count(drmModeConnection *connection) const
     { return m_amlDRMUtils->aml_get_drmDevice_modes_count(connection); }
   std::string aml_get_preferred_mode();
-  bool aml_set_hotplug_mode(std::string mode);
   bool aml_get_native_resolution(RESOLUTION_INFO *res);
   bool aml_probe_resolutions(std::vector<RESOLUTION_INFO> &resolutions);
   int aml_get_drmProperty(std::string name, unsigned int obj_type) const
@@ -127,7 +125,11 @@ public:
 
   void SetInFenceFd(int fd) { m_amlDRMUtils->SetInFenceFd(fd); }
   int TakeOutFenceFd() const { return m_amlDRMUtils->TakeOutFenceFd(); }
+
+  bool GetHotPlug() { bool ret = m_bHotPlug; m_bHotPlug = false; return ret; }
+  void SetHotPlug() { m_bHotPlug = true; }
 private:
   std::unique_ptr<CAMLDRMUtils> m_amlDRMUtils;
   bool aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res);
+  bool m_bHotPlug = false;
 };

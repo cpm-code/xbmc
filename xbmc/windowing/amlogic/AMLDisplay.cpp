@@ -167,6 +167,14 @@ CAMLDRMUtils::CAMLDRMUtils()
     throw std::runtime_error("failed to set universal planes capability");
   }
 
+  ret = drmSetClientCap(m_fd, DRM_CLIENT_CAP_ATOMIC, 1);
+  if (ret)
+  {
+    CLog::Log(LOGERROR, "CAMLDRMUtils::{} - failed to enable DRM client cap of drmDevice: {}",
+              __FUNCTION__, strerror(errno));
+    throw std::runtime_error("failed to enable DRM client cap");
+  }
+
   aml_init_drmDevice();
 
   if (aml_get_drmDevice_connected())
@@ -490,6 +498,19 @@ bool CAMLDRMUtils::aml_set_drmDevice_mode(const RESOLUTION_INFO &res, std::strin
   m_ScreenWidth = res.iScreenWidth;
   m_ScreenHeight = res.iScreenHeight;
 
+  if (force_mode_switch)
+  {
+    // force connected
+    m_connection = DRM_MODE_CONNECTED;
+
+    if (!m_crtc)
+      m_crtc = drmModeGetCrtc(m_fd, m_resources->crtcs[0]);
+
+    CLog::Log(LOGDEBUG, "CAMLDRMUtils::{}: try to set mode: {} (forced mode switch)", __FUNCTION__, mode.c_str());
+  }
+  else
+    CLog::Log(LOGDEBUG, "CAMLDisplay::{}: try to set mode: {}", __FUNCTION__, mode.c_str());
+
   if (!aml_get_drmDevice_connected())
   {
     CLog::Log(LOGWARNING, "CAMLDRMUtils::{} - connector of drmDevice is not connected", __FUNCTION__);
@@ -698,14 +719,17 @@ bool CAMLDRMUtils::aml_set_drmDevice_active(std::string mode, bool active)
   bool ret = false;
   drmModeModeInfoPtr drmDevicemode = NULL;
 
-  for (int i = 0; i < m_connector->count_modes; i++)
+  if (!StringUtils::EqualsNoCase(aml_get_drmDevice_mode(), mode))
   {
-    std::string connector_mode = static_cast<std::string>(m_connector->modes[i].name);
-    if (StringUtils::EqualsNoCase(connector_mode, mode))
+    for (int i = 0; i < m_connector->count_modes; i++)
     {
-      CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - use mode[{:d}]: {}", __FUNCTION__, i, connector_mode);
-      drmDevicemode = &m_connector->modes[i];
-      break;
+      std::string connector_mode = static_cast<std::string>(m_connector->modes[i].name);
+      if (StringUtils::EqualsNoCase(connector_mode, mode))
+      {
+        CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - use mode[{:d}]: {}", __FUNCTION__, i, connector_mode);
+        drmDevicemode = &m_connector->modes[i];
+        break;
+      }
     }
   }
 
@@ -714,18 +738,8 @@ bool CAMLDRMUtils::aml_set_drmDevice_active(std::string mode, bool active)
     uint32_t mode_blobid = 0;
     drmModeAtomicReqPtr req = drmModeAtomicAlloc();
 
-    int res = drmSetClientCap(m_fd, DRM_CLIENT_CAP_ATOMIC, 1);
-    if (res)
-    {
-      CLog::Log(LOGERROR, "CAMLDRMUtils::{} - failed to set client cap of drmDevice ({:d})", __FUNCTION__, res);
-      return ret;
-    }
-
     if (req)
     {
-      if (!m_crtc)
-        m_crtc = drmModeGetCrtc(m_fd, m_resources->crtcs[0]);
-
       set_drmProp(m_connector->connector_id, "CRTC_ID", DRM_MODE_OBJECT_CONNECTOR, m_crtc->crtc_id, req);
 
       drmModeCreatePropertyBlob(m_fd, drmDevicemode, sizeof(*drmDevicemode), &mode_blobid);
@@ -745,30 +759,6 @@ bool CAMLDRMUtils::aml_set_drmDevice_active(std::string mode, bool active)
   }
   else
     CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - mode {} is already set", __FUNCTION__, mode);
-
-  return ret;
-}
-
-bool CAMLDRMUtils::aml_set_drmDevice_hotplug_mode(std::string mode)
-{
-  std::string current_mode = aml_get_drmDevice_mode();
-  bool ret = false;
-
-  CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - current mode: {}, new mode: {}", __FUNCTION__,
-    current_mode, mode);
-
-  if (StringUtils::EqualsNoCase(current_mode, mode))
-  {
-    CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - hotplug mode already changed: {}", __FUNCTION__, mode);
-    ret = true;
-    return ret;
-  }
-
-  ret = aml_set_drmDevice_active(mode, true);
-  // force connected
-  m_connection = DRM_MODE_CONNECTED;
-
-  CLog::Log(LOGDEBUG, "CAMLDRMUtils::{} - reset of drmDevice finished", __FUNCTION__);
 
   return ret;
 }
@@ -953,11 +943,6 @@ std::string CAMLDisplay::aml_get_preferred_mode()
   CLog::Log(LOGDEBUG, "CAMLDisplay::{} - preferred mode: {}", __FUNCTION__, mode);
 
   return mode;
-}
-
-bool CAMLDisplay::aml_set_hotplug_mode(std::string mode)
-{
-  return m_amlDRMUtils->aml_set_drmDevice_hotplug_mode(mode);
 }
 
 bool CAMLDisplay::aml_mode_to_resolution(const char *mode, RESOLUTION_INFO *res)

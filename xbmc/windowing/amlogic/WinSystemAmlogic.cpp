@@ -170,6 +170,7 @@ void CWinSystemAmlogic::HotplugEvent()
 {
   m_amlDisplay->aml_init_drmDevice();
   std::string preferred_mode = m_amlDisplay->aml_get_preferred_mode();
+  RESOLUTION res = static_cast<RESOLUTION>(RES_DESKTOP);
 
   CDisplaySettings::GetInstance().ClearCustomResolutions();
   RefreshResolutions();
@@ -177,20 +178,25 @@ void CWinSystemAmlogic::HotplugEvent()
 
   if (!preferred_mode.empty())
   {
-    m_amlDisplay->aml_set_hotplug_mode(preferred_mode);
+    for (size_t resolution = RES_DESKTOP; resolution < CDisplaySettings::GetInstance().ResolutionInfoSize(); resolution++)
+    {
+      RESOLUTION_INFO resinfo = CDisplaySettings::GetInstance().GetResolutionInfo(resolution);
+      if (StringUtils::EqualsNoCase(resinfo.strId, preferred_mode))
+      {
+        res = static_cast<RESOLUTION>(resolution);
+        break;
+      }
+    }
 
-    // clear screen by fb blank
-    usleep(500 * 1000);
-    CSysfsPath("/sys/class/graphics/fb0/blank", 1);
-    usleep(500 * 1000);
-    CSysfsPath("/sys/class/graphics/fb0/blank", 0);
+    CLog::Log(LOGDEBUG, "CWinSystemAmlogic - HotplugEvent, preferred mode: {}, display mode: {}",
+      preferred_mode, CDisplaySettings::GetInstance().GetResolutionInfo(res).strId);
   }
+    CLog::Log(LOGWARNING, "CWinSystemAmlogic - HotplugEvent, no preferred mode defined, use display mode: {}",
+      CDisplaySettings::GetInstance().GetResolutionInfo(res).strId);
 
-  RESOLUTION res = CDisplaySettings::GetInstance().GetDisplayResolution();
-  CLog::Log(LOGDEBUG, "CWinSystemAmlogic - HotplugEvent, preferred mode: {}, display mode: {}",
-    preferred_mode, CDisplaySettings::GetInstance().GetResolutionInfo(res).strId);
-
-  CServiceBroker::GetWinSystem()->GetGfxContext().SetVideoResolution(res, false);
+  m_amlDisplay->SetHotPlug();
+  CServiceBroker::GetWinSystem()->GetGfxContext().SetVideoResolution(res, true);
+  CServiceBroker::GetWinSystem()->GetGfxContext().ApplyModeChange(res);
 }
 
 void CWinSystemAmlogic::FDEventCallback(int id, int fd, short revents, void *data)

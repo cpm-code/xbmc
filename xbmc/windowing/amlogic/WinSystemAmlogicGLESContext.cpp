@@ -51,9 +51,6 @@ bool CWinSystemAmlogicGLESContext::InitWindowSystem()
       m_pGLContext->Destroy();
       return false;
     }
-
-    if (m_amlDisplay->aml_get_display_connected())
-      m_amlDisplay->aml_set_drmDevice_active(true);
   }
   else
   {
@@ -126,6 +123,7 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
 
   StreamHdrType hdrType = CServiceBroker::GetWinSystem()->GetGfxContext().GetHDRType();
   bool force_mode_switch_by_dv = false;
+  bool force_mode_switch_by_hotplug = m_amlDisplay->GetHotPlug();
   if (aml_dolby_vision_enabled() &&
      ((m_hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION && hdrType != StreamHdrType::HDR_TYPE_DOLBYVISION) ||
       (m_hdrType != StreamHdrType::HDR_TYPE_DOLBYVISION && hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)))
@@ -147,7 +145,8 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
     __FUNCTION__,
     m_bWindowCreated,
     fractional_rate, cur_fractional_rate,
-    new_hdrStr.empty() ? "none" : new_hdrStr, old_hdrStr.empty() ? "none" : old_hdrStr, force_mode_switch_by_dv);
+    new_hdrStr.empty() ? "none" : new_hdrStr, old_hdrStr.empty() ? "none" : old_hdrStr,
+    force_mode_switch_by_dv ? "by DV" : force_mode_switch_by_hotplug ? "by HotPlug" : "no");
   CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: "
     "cur: iWidth: {:04d}, iHeight: {:04d}, iScreenWidth: {:04d}, iScreenHeight: {:04d}, fRefreshRate: {:02.2f}, dwFlags: {:02x}, nativeGUI: {}",
     __FUNCTION__,
@@ -164,7 +163,7 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
       m_bFullScreen == fullScreen && current_resolution.fRefreshRate == res.fRefreshRate &&
       (current_resolution.dwFlags & D3DPRESENTFLAG_MODEMASK) == (res.dwFlags & D3DPRESENTFLAG_MODEMASK) &&
       m_stereo_mode == stereo_mode && m_bWindowCreated &&
-      !force_mode_switch_by_dv &&
+      !force_mode_switch_by_dv && !force_mode_switch_by_hotplug &&
       (fractional_rate == cur_fractional_rate) &&
       nativeGUI == m_nativeGUI)
   {
@@ -176,17 +175,22 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
   DestroyWindow();
 
   // check if a forced mode switch is required
+  if (force_mode_switch_by_hotplug)
+  {
+    m_force_mode_switch = true;
+  }
+  else
   if (current_resolution.iWidth == res.iWidth && current_resolution.iHeight == res.iHeight &&
       current_resolution.iScreenWidth == res.iScreenWidth && current_resolution.iScreenHeight == res.iScreenHeight &&
       MathUtils::FloatEquals(current_resolution.fRefreshRate, res.fRefreshRate, 0.06f))
   {
     // same resolution, check frac rate and other parameter
     if ((cur_fractional_rate != fractional_rate) || force_mode_switch_by_dv || (m_stereo_mode != stereo_mode))
-    {
       m_force_mode_switch = true;
-      CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: force mode switch", __FUNCTION__);
-    }
   }
+
+  if (m_force_mode_switch)
+    CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: force mode switch", __FUNCTION__);
 
   // refresh backup data
   m_hdrType = hdrType;
