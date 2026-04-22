@@ -194,6 +194,7 @@ bool CDRMUtils::FindGuiPlane(uint32_t format, uint64_t modifier)
       plane->SetModifier(modifier);
       m_old_crtc = m_crtc;
       m_crtc = crtc;
+      m_video_plane = nullptr;
       m_gui_plane = plane.get();
       CLog::LogF(LOGINFO, "Using gui plane [{}x{}] id:{}, format:{}, modifier:{}, crtc id:{}",
                  res.iWidth, res.iHeight, m_gui_plane->GetId(), DRMHELPERS::FourCCToString(format),
@@ -236,9 +237,13 @@ bool CDRMUtils::FindVideoAndGuiPlane(uint32_t format,
   const RESOLUTION_INFO res = GetCurrentMode();
 
   // check if current config already satisfies
-  if (m_video_plane != nullptr &&
-      m_video_plane->Check(width, height, format, modifier, m_crtc, PLANE_TYPE_ANY))
-    return true;
+  if (m_video_plane != nullptr)
+  {
+    if (m_video_plane == m_gui_plane)
+      CLog::LogF(LOGERROR, "m_video_plane and m_gui_plane are identical");
+    else if (m_video_plane->Check(width, height, format, modifier, m_crtc, PLANE_TYPE_ANY))
+      return true;
+  }
 
   for (auto& crtc : m_encoder->GetPossibleCrtcs(m_crtcs, m_crtc))
   {

@@ -102,8 +102,8 @@ const std::string CWinSystemGbm::GetName()
   auto gui_plane = m_DRM->GetGuiPlane();
   if (gui_plane == nullptr)
     return "gbm";
-  return "gbm (" + DRMHELPERS::FourCCToString(m_DRM->GetGuiPlane()->GetFormat()) + " " +
-         DRMHELPERS::ModifierToString(m_DRM->GetGuiPlane()->GetModifier()) + ")";
+  return "gbm (" + DRMHELPERS::FourCCToString(gui_plane->GetFormat()) + " " +
+         DRMHELPERS::ModifierToString(gui_plane->GetModifier()) + ")";
 }
 
 bool CWinSystemGbm::InitWindowSystem()

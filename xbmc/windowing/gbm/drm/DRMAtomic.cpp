@@ -234,6 +234,8 @@ bool CDRMAtomic::SetActive(bool active)
 
 bool CDRMAtomic::AddProperty(CDRMObject* object, const char* name, uint64_t value)
 {
+  if (!object)
+    return false;
   return m_req->AddProperty(object, name, value);
 }
 
