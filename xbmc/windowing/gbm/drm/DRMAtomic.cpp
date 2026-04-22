@@ -83,23 +83,29 @@ void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool video
       return;
   }
 
+  // In Direct-To-Plane (dual plane) mode m_gui_plane is the output
+  // (gui overlay on top of m_video_plane). In single-plane flip-flop mode
+  // FindVideoPlane has made m_video_plane the output and nulled m_gui_plane.
+  // Pick whichever is live.
+  CDRMPlane* outputPlane = m_gui_plane ? m_gui_plane : m_video_plane;
+
   if (rendered)
   {
-    AddProperty(m_gui_plane, "FB_ID", fb_id);
-    AddProperty(m_gui_plane, "CRTC_ID", m_crtc->GetCrtcId());
-    AddProperty(m_gui_plane, "SRC_X", 0);
-    AddProperty(m_gui_plane, "SRC_Y", 0);
-    AddProperty(m_gui_plane, "SRC_W", m_width << 16);
-    AddProperty(m_gui_plane, "SRC_H", m_height << 16);
-    AddProperty(m_gui_plane, "CRTC_X", 0);
-    AddProperty(m_gui_plane, "CRTC_Y", 0);
-    AddProperty(m_gui_plane, "CRTC_W", m_mode->hdisplay);
-    AddProperty(m_gui_plane, "CRTC_H", m_mode->vdisplay);
+    AddProperty(outputPlane, "FB_ID", fb_id);
+    AddProperty(outputPlane, "CRTC_ID", m_crtc->GetCrtcId());
+    AddProperty(outputPlane, "SRC_X", 0);
+    AddProperty(outputPlane, "SRC_Y", 0);
+    AddProperty(outputPlane, "SRC_W", m_width << 16);
+    AddProperty(outputPlane, "SRC_H", m_height << 16);
+    AddProperty(outputPlane, "CRTC_X", 0);
+    AddProperty(outputPlane, "CRTC_Y", 0);
+    AddProperty(outputPlane, "CRTC_W", m_mode->hdisplay);
+    AddProperty(outputPlane, "CRTC_H", m_mode->vdisplay);
 
     if (m_inFenceFd != -1)
     {
       AddProperty(m_crtc, "OUT_FENCE_PTR", reinterpret_cast<uint64_t>(&m_outFenceFd));
-      AddProperty(m_gui_plane, "IN_FENCE_FD", m_inFenceFd);
+      AddProperty(outputPlane, "IN_FENCE_FD", m_inFenceFd);
     }
   }
   else if (videoLayer && !CServiceBroker::GetGUI()->GetWindowManager().HasVisibleControls() &&
@@ -129,7 +135,7 @@ void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool video
 
     // update the old atomic request with the new fb id to avoid tearing
     if (rendered)
-      AddProperty(m_gui_plane, "FB_ID", fb_id);
+      AddProperty(outputPlane, "FB_ID", fb_id);
   }
 
   ret = drmModeAtomicCommit(m_fd, m_req->Get(), flags, nullptr);

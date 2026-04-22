@@ -70,6 +70,7 @@ public:
   CDRMConnector* GetConnector() const { return m_connector; }
   std::vector<outputformat>& GetOutputFormats() { return m_output_formats; }
   bool FindGuiPlane(uint32_t format, uint64_t modifier);
+  bool FindVideoPlane(uint32_t format, uint64_t modifier);
   bool FindVideoAndGuiPlane(uint32_t format, uint64_t modifier, uint64_t width, uint64_t height);
   bool HasQuirk(int quirk) const { return m_drm_quirks & quirk; }
 
