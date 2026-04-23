@@ -720,9 +720,9 @@ void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
     unsigned int vs10_mode = aml_dv_target_mode_impl(hdrType, bitDepth);
 
     if (vs10_mode != DOLBY_VISION_OUTPUT_MODE_BYPASS)
-      vs10_mode = aml_dv_apply_on(vs10_mode, false, false);
+      vs10_mode = aml_dv_apply_on(vs10_mode, true, true);
     else if (aml_is_dv_enable()) // DV BYPASS, and it is on - then switch it off.
-      aml_dv_apply_off(false);
+      aml_dv_apply_off(true);
 
     bool content_is_dv(hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
     logM(LOGINFO, "DV is [{}], requested with vs10 mode: [{}], set for: [{}]",

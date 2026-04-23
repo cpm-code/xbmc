@@ -4460,13 +4460,11 @@ CAEStreamInfo::DataType CVideoPlayer::GetStartupPassthroughType() const
   return CAEStreamInfo::STREAM_TYPE_NULL;
 }
 
-bool CVideoPlayer::CanEarlyUpdate()
+bool CVideoPlayer::CanEarlyUpdate(CAEStreamInfo::DataType passthroughType)
 {
-  const auto passthroughType = GetStartupPassthroughType();
-
-  return passthroughType == CAEStreamInfo::STREAM_TYPE_NULL ||
-         passthroughType == CAEStreamInfo::STREAM_TYPE_TRUEHD ||
-         passthroughType == CAEStreamInfo::STREAM_TYPE_DTSHD_MA;
+  return((passthroughType == CAEStreamInfo::STREAM_TYPE_NULL) ||
+         (passthroughType == CAEStreamInfo::STREAM_TYPE_TRUEHD) ||
+         (passthroughType == CAEStreamInfo::STREAM_TYPE_DTSHD_MA));
 }
 
 bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
@@ -4535,10 +4533,10 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
 
   m_renderManager.TriggerUpdateResolutionHdr(hdrPolicy.finalHdr);
 
-  if (allowEarlyTransition && CanEarlyUpdate())
+  if (allowEarlyTransition && CanEarlyUpdate(GetStartupPassthroughType()))
     m_renderManager.UpdateResolution(true);
 
-  aml_dv_open(hdrPolicy.resolvedHdr, hint.bitdepth);
+  aml_dv_open(hint.hdrType, hint.bitdepth);
   aml_update_hdr_mode_state(hdrPolicy.resolvedHdr, hint.bitdepth);
 
   IDVDStreamPlayer* player = GetStreamPlayer(m_CurrentVideo.player);
