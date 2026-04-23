@@ -172,13 +172,11 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
 
   if (!m_pGLContext.CreateSurface(reinterpret_cast<EGLNativeWindowType>(m_nativeWindow)))
   {
-    EndModeSwitchBlank();
     return false;
   }
 
   if (!m_pGLContext.BindContext())
   {
-    EndModeSwitchBlank();
     return false;
   }
 
@@ -189,8 +187,6 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
     // tell any shared resources
     for (auto i = m_resources.begin(); i != m_resources.end(); ++i)
       (*i)->OnResetDisplay();
-
-    EndModeSwitchBlank();
   }
 
   return true;
@@ -233,8 +229,6 @@ void CWinSystemAmlogicGLESContext::PresentRenderImpl(bool rendered)
     // tell any shared resources
     for (auto i = m_resources.begin(); i != m_resources.end(); ++i)
       (*i)->OnResetDisplay();
-
-    EndModeSwitchBlank();
   }
 
   if (!rendered)

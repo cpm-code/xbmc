@@ -414,8 +414,7 @@ protected:
   bool OpenVideoStream(CDVDStreamInfo& hint, bool reset = true);
   AMLHdrSetupPolicy SetupVideoHdrPolicy(CDVDStreamInfo& hint, bool reset);
   CAEStreamInfo::DataType GetStartupPassthroughType() const;
-  static bool IsHbrTransitionType(CAEStreamInfo::DataType passthroughType);
-  bool ShouldUseEarlyTransition() const;
+  static bool CanEarlyUpdate(CAEStreamInfo::DataType passthroughType);
   bool OpenSubtitleStream(const CDVDStreamInfo& hint);
   bool OpenTeletextStream(CDVDStreamInfo& hint);
   bool OpenRadioRDSStream(CDVDStreamInfo& hint);

@@ -4460,20 +4460,13 @@ CAEStreamInfo::DataType CVideoPlayer::GetStartupPassthroughType() const
   return CAEStreamInfo::STREAM_TYPE_NULL;
 }
 
-bool CVideoPlayer::IsHbrTransitionType(CAEStreamInfo::DataType passthroughType)
-{
-  return passthroughType == CAEStreamInfo::STREAM_TYPE_TRUEHD ||
-         passthroughType == CAEStreamInfo::STREAM_TYPE_DTSHD_MA;
-}
-
-bool CVideoPlayer::ShouldUseEarlyTransition() const
+bool CVideoPlayer::CanEarlyUpdate()
 {
   const auto passthroughType = GetStartupPassthroughType();
 
-  // Early transition is safe for decoded PCM. Keep only non-HBR passthrough
-  // on the later display-reset path.
   return passthroughType == CAEStreamInfo::STREAM_TYPE_NULL ||
-         IsHbrTransitionType(passthroughType);
+         passthroughType == CAEStreamInfo::STREAM_TYPE_TRUEHD ||
+         passthroughType == CAEStreamInfo::STREAM_TYPE_DTSHD_MA;
 }
 
 bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
@@ -4510,16 +4503,10 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
   if (hint.flags & AV_DISPOSITION_ATTACHED_PIC)
     return false;
 
-  auto& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
-
   const bool firstOpen = (m_CurrentVideo.id < 0);
   const bool allowEarlyTransition = firstOpen &&
                                     m_playerOptions.fullscreen &&
-                                    gfxContext.IsFullScreenRoot();
-  const bool useEarlyTransition = allowEarlyTransition && ShouldUseEarlyTransition();
-  hint.amlVideoOpen.useEarlyTransition = useEarlyTransition;
-
-  RESOLUTION desiredRes = gfxContext.GetVideoResolution();
+                                    CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot();
 
   // set desired refresh rate
   if (allowEarlyTransition &&
@@ -4543,44 +4530,16 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
       }
       m_processInfo->SetVideoFps(static_cast<float>(framerate));
       m_renderManager.TriggerUpdateResolution(framerate, hint.width, hint.height, hint.stereo_mode);
-
-      desiredRes = CResolutionUtils::ChooseBestResolution(
-          static_cast<float>(framerate), hint.width, hint.height, !hint.stereo_mode.empty());
-    }
-  }
-
-  if (useEarlyTransition)
-  {
-    const bool resolutionChangePending = gfxContext.GetVideoResolution() != desiredRes;
-    const bool hdrChangePending = gfxContext.GetHDRType() != hdrPolicy.finalHdr;
-
-    if (resolutionChangePending || hdrChangePending)
-    {
-      logM(LOGINFO, "Startup AML display transition before play - width [{}] height [{}] hdr type [{}]",
-                    hint.width, hint.height, CStreamDetails::DynamicRangeToString(hdrPolicy.finalHdr));
-
-      PlaybackDisplayTransition transition;
-      transition.active = true;
-      transition.resolutionChangePending = resolutionChangePending;
-      transition.sourceHdrType = hdrPolicy.srcHdr;
-      transition.resolvedHdrType = hdrPolicy.resolvedHdr;
-      transition.finalHdrType = hdrPolicy.finalHdr;
-      transition.bitDepth = hint.bitdepth;
-      transition.targetResolution = desiredRes;
-
-      if (!CServiceBroker::GetWinSystem()->ApplyVideoPlaybackDisplayTransition(transition))
-      {
-        gfxContext.SetHDRType(hdrPolicy.finalHdr);
-        aml_apply_display_transition(hdrPolicy.srcHdr, hdrPolicy.resolvedHdr, hint.bitdepth,
-                                     resolutionChangePending);
-
-        if (resolutionChangePending)
-          gfxContext.SetVideoResolution(desiredRes, false);
-      }
     }
   }
 
   m_renderManager.TriggerUpdateResolutionHdr(hdrPolicy.finalHdr);
+
+  if (allowEarlyTransition && CanEarlyUpdate())
+    m_renderManager.UpdateResolution(true);
+
+  aml_dv_open(hdrPolicy.resolvedHdr, hint.bitdepth);
+  aml_update_hdr_mode_state(hdrPolicy.resolvedHdr, hint.bitdepth);
 
   IDVDStreamPlayer* player = GetStreamPlayer(m_CurrentVideo.player);
   if(player == nullptr)

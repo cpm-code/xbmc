@@ -1793,18 +1793,8 @@ bool CAMLCodec::OpenDecoder(bool restart)
   const bool enableDvDecoder =
       (m_hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) &&
       aml_dv_target_enabled(m_hints.hdrType, m_hints.bitdepth);
-  const bool useEarlyTransition = m_hints.amlVideoOpen.useEarlyTransition;
 
   SetProcessInfoVideoDetails();
-
-  if (!useEarlyTransition)
-  {
-    if (!restart)
-      aml_dv_open(m_hints.hdrType, m_hints.bitdepth);
-
-    // Keep the legacy decoder-side HDR state update for non-HBR startup.
-    aml_update_hdr_mode_state(m_hints.hdrType, m_hints.bitdepth);
-  }
 
   // Setup Codec for DV Content
   if (enableDvDecoder)

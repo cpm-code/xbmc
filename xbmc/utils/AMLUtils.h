@@ -160,10 +160,6 @@ AMLHdrSetupPolicy aml_get_hdr_setup_policy(StreamHdrType sourceHdr,
                                            const DOVIStreamInfo& fallbackDvInfo,
                                            unsigned int bitDepth);
 StreamHdrType aml_get_final_hdr_type(StreamHdrType hdrType, unsigned int bitDepth);
-void aml_apply_display_transition(StreamHdrType sourceHdrType,
-                                  StreamHdrType resolvedHdrType,
-                                  unsigned int bitDepth,
-                                  bool resolutionChangePending);
 void aml_update_hdr_mode_state(StreamHdrType hdrType, unsigned int bitDepth);
 bool aml_dv_use_active_area();
 enum DV_MODE aml_dv_mode();
