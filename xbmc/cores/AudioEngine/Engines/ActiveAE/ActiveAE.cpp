@@ -1232,21 +1232,24 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
 
   m_sinkRequestFormat = inputFormat;
   ApplySettingsToFormat(m_sinkRequestFormat, m_settings, (int*)&m_mode);
-  const bool transitioningToRaw = (m_sinkRequestFormat.m_dataFormat == AE_FMT_RAW);
+  const bool raw = (m_sinkRequestFormat.m_dataFormat == AE_FMT_RAW);
   m_extKeepConfig = 0ms;
 
-  if (transitioningToRaw)
+  if (raw)
   {
     m_sounds_playing.clear();
     m_aeGUISoundForce = false;
   }
 
-  std::string device = (m_sinkRequestFormat.m_dataFormat == AE_FMT_RAW) ? m_settings.passthroughdevice : m_settings.device;
+  std::string device = raw ? m_settings.passthroughdevice : m_settings.device;
 
   const AESinkDevice dev = CAESinkFactory::ParseDevice(device);
 
-  if ((!CompareFormat(m_sinkRequestFormat, m_sinkFormat) &&
-       !CompareFormat(m_sinkRequestFormat, oldSinkRequestFormat)) ||
+  const bool changed = !CompareFormat(m_sinkRequestFormat, m_sinkFormat);
+  const bool canSkip = CompareFormat(m_sinkRequestFormat, oldSinkRequestFormat) && !raw;
+  const bool reconfigure = changed && !canSkip;
+
+  if (reconfigure ||
       m_currDevice.compare(dev.name) != 0 || m_settings.driver.compare(dev.driver) != 0)
   {
     FlushEngine();
