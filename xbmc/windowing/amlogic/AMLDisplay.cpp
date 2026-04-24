@@ -38,7 +38,7 @@ void FbDestroyCallback(gbm_bo* bo, void* data)
 
 CAMLGBMUtils::CAMLGBMUtils(int fd)
 {
-  m_device = gbm_create_device(fd);
+  m_device.reset(gbm_create_device(fd));
   if (!m_device)
   {
     CLog::Log(LOGERROR, "CAMLGBMUtils::{} - failed to create GBM device", __FUNCTION__);
@@ -46,22 +46,26 @@ CAMLGBMUtils::CAMLGBMUtils(int fd)
   }
 }
 
-CAMLGBMUtils::~CAMLGBMUtils()
-{
-  if (m_surface)
-    gbm_surface_destroy(m_surface);
-  gbm_device_destroy(m_device);
-}
-
 bool CAMLGBMUtils::CreateSurface(int width, int height, uint32_t format)
 {
   uint64_t modifier = DRM_FORMAT_MOD_LINEAR;
-  m_surface = gbm_surface_create_with_modifiers(m_device, width, height, format, &modifier, 1);
 
+  // First try modifier-aware surface
+  m_surface.reset(gbm_surface_create_with_modifiers(GetDevice(),
+                                                    width,
+                                                    height,
+                                                    format,
+                                                    &modifier,
+                                                    1));
+
+  // Fallback to legacy create if modifiers are not supported
   if (!m_surface)
   {
-    m_surface = gbm_surface_create(m_device, width, height, format,
-                                 GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+    m_surface.reset(gbm_surface_create(GetDevice(),
+                                       width,
+                                       height,
+                                       format,
+                                       GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING));
   }
 
   if (!m_surface)
@@ -139,9 +143,9 @@ struct drm_fb* CAMLGBMUtils::GetFBFromBo(int fd, struct gbm_bo* bo)
 
 void CAMLGBMUtils::LockFrontBuffer(int fd)
 {
-  if (gbm_surface_has_free_buffers(m_surface))
+  if (gbm_surface_has_free_buffers(GetSurface()))
   {
-    m_buffer = gbm_surface_lock_front_buffer(m_surface);
+    m_buffer = gbm_surface_lock_front_buffer(GetSurface());
 
     if (m_buffer)
       m_drm_fb = GetFBFromBo(fd, m_buffer);

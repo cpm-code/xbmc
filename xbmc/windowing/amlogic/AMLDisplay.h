@@ -25,22 +25,39 @@ class CAMLGBMUtils
 {
 public:
   CAMLGBMUtils(int fd);
-  virtual ~CAMLGBMUtils();
-  struct gbm_device *GetDevice() const { return m_device; }
-  struct gbm_surface *GetSurface() const { return m_surface; }
+  struct gbm_device *GetDevice() const { return m_device.get(); }
+  struct gbm_surface *GetSurface() const { return m_surface.get(); }
   bool CreateSurface(int width, int height, uint32_t format);
   uint32_t GetFBId() { return m_drm_fb->fb_id; }
   void LockFrontBuffer(int fd);
   void UnlockFrontBuffer() { if (m_buffer)
-                               gbm_surface_release_buffer(m_surface, m_buffer); }
+                               gbm_surface_release_buffer(GetSurface(), m_buffer); }
 private:
   struct drm_fb* GetFBFromBo(int fd, struct gbm_bo* bo);
 
+  struct GbmDeviceDeleter
+  {
+    void operator()(struct gbm_device* d) const noexcept
+    {
+      if (d)
+        gbm_device_destroy(d);
+    }
+  };
+
+  struct GbmSurfaceDeleter
+  {
+    void operator()(struct gbm_surface* s) const noexcept
+    {
+      if (s)
+        gbm_surface_destroy(s);
+    }
+  };
+
   uint32_t m_format;
-  struct gbm_device *m_device;
-  struct gbm_surface *m_surface;
-  struct gbm_bo* m_buffer;
-  struct drm_fb* m_drm_fb;
+  std::unique_ptr<struct gbm_device, GbmDeviceDeleter> m_device{nullptr};
+  std::unique_ptr<struct gbm_surface, GbmSurfaceDeleter> m_surface{nullptr};
+  struct gbm_bo* m_buffer{nullptr};
+  struct drm_fb* m_drm_fb{nullptr};
 };
 
 class CAMLDRMUtils
