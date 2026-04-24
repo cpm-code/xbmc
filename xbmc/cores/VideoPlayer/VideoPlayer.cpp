@@ -4534,9 +4534,11 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
   m_renderManager.TriggerUpdateResolutionHdr(hdrPolicy.finalHdr);
 
   if (allowEarlyTransition && CanEarlyUpdate(GetStartupPassthroughType()))
+  {
     m_renderManager.UpdateResolution(true);
-
-  aml_dv_open(hint.hdrType, hint.bitdepth);
+    aml_dv_open(hint.hdrType, hint.bitdepth);
+    hint.amlVideoOpen.earlySwitch = true;
+  }
   aml_update_hdr_mode_state(hdrPolicy.resolvedHdr, hint.bitdepth);
 
   IDVDStreamPlayer* player = GetStreamPlayer(m_CurrentVideo.player);

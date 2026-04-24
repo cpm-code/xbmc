@@ -1796,7 +1796,8 @@ bool CAMLCodec::OpenDecoder(bool restart)
 
   SetProcessInfoVideoDetails();
 
-  if (!restart) aml_dv_open(m_hints.hdrType, m_hints.bitdepth);
+  if (!restart && !m_hints.amlVideoOpen.earlySwitch)
+    aml_dv_open(m_hints.hdrType, m_hints.bitdepth);
 
   // Setup Codec for DV Content
   if (enableDvDecoder)
