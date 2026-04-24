@@ -2459,20 +2459,6 @@ CSampleBuffer* CActiveAE::SyncStream(CActiveAEStream *stream)
   if (!stream->m_pClock)
     return ret;
 
-  // Check for a pending sync correction from the video path (e.g. DI pipeline
-  // latency change on interlace↔progressive transition). Inject the correction
-  // into the error buffer with an expired timer so SyncStream's next Get()
-  // returns it as a real measured error and acts on it immediately.
-  double syncCorrection = stream->m_pClock->GetAndClearSyncCorrection();
-  if (syncCorrection != 0.0)
-  {
-    stream->m_syncError.Flush(std::chrono::milliseconds(0));
-    stream->m_syncError.Add(syncCorrection);
-    if (stream->m_syncState == CAESyncInfo::AESyncState::SYNC_INSYNC)
-      stream->m_syncState = CAESyncInfo::AESyncState::SYNC_ADJUST;
-    CLog::Log(LOGDEBUG, "ActiveAE::SyncStream - DI correction: {:.1f}ms injected", syncCorrection);
-  }
-
   if (stream->m_syncState == CAESyncInfo::AESyncState::SYNC_START)
   {
     stream->m_syncState = CAESyncInfo::AESyncState::SYNC_MUTE;

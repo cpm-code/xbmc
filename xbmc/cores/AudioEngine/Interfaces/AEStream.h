@@ -26,9 +26,6 @@ public:
   virtual ~IAEClockCallback() = default;
   virtual double GetClock() = 0;
   virtual double GetClockSpeed() { return 1.0; }
-  // Returns a pending sync correction in ms (0 = none). The video path
-  // sets this when hardware DI pipeline latency changes (interlace↔progressive).
-  virtual double GetAndClearSyncCorrection() { return 0.0; }
 };
 
 class CAESyncInfo

@@ -110,8 +110,6 @@ protected:
 
   int m_retryProgressive;
   std::string m_vfmt;
-  int m_diDelayMs = 0;
-  bool m_diActive = false;
   int m_iLateFrames;
   int m_iDroppedFrames;
   int m_iDroppedRequest;

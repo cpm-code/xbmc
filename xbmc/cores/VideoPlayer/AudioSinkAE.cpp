@@ -340,14 +340,6 @@ double CAudioSinkAE::GetClockSpeed()
     return 1.0;
 }
 
-double CAudioSinkAE::GetAndClearSyncCorrection()
-{
-  if (m_pClock)
-    return m_pClock->GetAndClearSyncCorrection();
-  else
-    return 0.0;
-}
-
 CAEStreamInfo::DataType CAudioSinkAE::GetPassthroughStreamType(AVCodecID codecId,
                                                                int samplerate,
                                                                int profile)
