@@ -31,6 +31,7 @@
 #include "PlatformDefs.h"
 
 class CRenderCapture;
+struct AMLHdrSetupPolicy;
 struct VideoPicture;
 
 class CWinRenderer;
@@ -87,8 +88,10 @@ public:
   bool IsVideoLayer();
   RESOLUTION GetResolution() const;
   void UpdateResolution(bool force = false);
+  bool HasPendingResolutionChange();
   void TriggerUpdateResolution(float fps, int width, int height, std::string& stereo);
   void TriggerUpdateResolutionHdr(StreamHdrType hdr);
+  void TriggerUpdateResolutionHdr(const AMLHdrSetupPolicy& hdrPolicy);
   void SetViewMode(int iViewMode);
   void PreInit();
   void UnInit();
@@ -257,6 +260,9 @@ protected:
   StreamHdrType m_hdrType = StreamHdrType::HDR_TYPE_NONE;
   StreamHdrType m_hdrType_override = StreamHdrType::HDR_TYPE_NONE;
   bool m_hasHdrTypeOverride = false;
+  std::unique_ptr<AMLHdrSetupPolicy> m_pendingHdrPolicy;
+  bool m_pendingResolutionTimingActive = false;
+  std::chrono::time_point<std::chrono::steady_clock> m_pendingResolutionStartTime;
   int m_NumberBuffers = 0;
   std::atomic<int> m_lateframes{-1};
   // Written under m_presentlock; read lock-free from render thread (ClockAlign,

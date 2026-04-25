@@ -413,8 +413,6 @@ protected:
   bool OpenAudioStream(CDVDStreamInfo& hint, bool reset = true);
   bool OpenVideoStream(CDVDStreamInfo& hint, bool reset = true);
   AMLHdrSetupPolicy SetupVideoHdrPolicy(CDVDStreamInfo& hint, bool reset);
-  CAEStreamInfo::DataType GetStartupPassthroughType() const;
-  static bool CanEarlyUpdate(CAEStreamInfo::DataType passthroughType);
   bool OpenSubtitleStream(const CDVDStreamInfo& hint);
   bool OpenTeletextStream(CDVDStreamInfo& hint);
   bool OpenRadioRDSStream(CDVDStreamInfo& hint);
@@ -641,6 +639,8 @@ protected:
   bool m_updateStreamDetails{false};
 
   std::atomic<bool> m_displayLost;
+  bool m_startupResolutionHoldActive{false};
+  std::chrono::time_point<std::chrono::steady_clock> m_startupResolutionHoldStart;
 
   double m_messageQueueTimeSize{0.0};
 

@@ -100,6 +100,7 @@ struct AMLHdrSetupPolicy
   StreamHdrType srcHdr{StreamHdrType::HDR_TYPE_NONE};
   StreamHdrType srcAltHdr{StreamHdrType::HDR_TYPE_NONE};
   DOVIStreamInfo srcDvInfo{};
+  unsigned int bitDepth{0};
   StreamHdrType resolvedHdr{StreamHdrType::HDR_TYPE_NONE};
   StreamHdrType finalHdr{StreamHdrType::HDR_TYPE_NONE};
   bool dvAvail{false};
@@ -143,7 +144,7 @@ bool aml_dv_target_enabled(StreamHdrType hdrType, unsigned int bitDepth);
 unsigned int aml_dv_on(unsigned int mode);
 void aml_dv_off();
 unsigned int aml_dv_dolby_vision_mode();
-void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth);
+void aml_dv_open(const AMLHdrSetupPolicy& hdrPolicy);
 void aml_dv_close();
 void aml_dv_set_osd_max(int max);
 bool aml_is_dv_enable();

@@ -711,20 +711,20 @@ unsigned int aml_dv_dolby_vision_mode()
   return dolby_vision_mode.Get<unsigned int>().value();
 }
 
-void aml_dv_open(StreamHdrType hdrType, unsigned int bitDepth)
+void aml_dv_open(const AMLHdrSetupPolicy& hdrPolicy)
 {
   enum DV_MODE dv_mode(aml_dv_mode());
   logM(LOGINFO, "Checking DV for DV mode: [{}], DV type: [{}]", aml_dv_mode_to_string(dv_mode), aml_dv_type_to_string(aml_dv_type()));
   if (dv_mode == DV_MODE::ON || dv_mode == DV_MODE::ON_DEMAND) {
 
-    unsigned int vs10_mode = aml_dv_target_mode_impl(hdrType, bitDepth);
+    unsigned int vs10_mode = aml_dv_target_mode_impl(hdrPolicy.resolvedHdr, hdrPolicy.bitDepth);
 
     if (vs10_mode != DOLBY_VISION_OUTPUT_MODE_BYPASS)
       vs10_mode = aml_dv_apply_on(vs10_mode, true, true);
     else if (aml_is_dv_enable()) // DV BYPASS, and it is on - then switch it off.
       aml_dv_apply_off(true);
 
-    bool content_is_dv(hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION);
+    bool content_is_dv(hdrPolicy.HasDolbyVisionSource());
     logM(LOGINFO, "DV is [{}], requested with vs10 mode: [{}], set for: [{}]",
                   aml_is_dv_enable(), aml_dv_output_mode_to_string(vs10_mode), content_is_dv ? "content" : "mapping");
   }
@@ -890,6 +890,7 @@ AMLHdrSetupPolicy aml_get_hdr_setup_policy(StreamHdrType sourceHdr,
   policy.srcHdr = sourceHdr;
   policy.srcAltHdr = sourceAltHdr;
   policy.srcDvInfo = sourceDvInfo;
+  policy.bitDepth = bitDepth;
 
   if (policy.srcHdr == StreamHdrType::HDR_TYPE_NONE)
     policy.srcHdr = fallbackHdr;

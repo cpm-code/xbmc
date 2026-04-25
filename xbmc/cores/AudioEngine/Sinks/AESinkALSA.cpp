@@ -1023,24 +1023,12 @@ bool CAESinkALSA::InitializeHW(const ALSAConfig &inconfig, ALSAConfig &outconfig
   snd_pcm_hw_params_get_buffer_size_max(hw_params, &bufferSize);
   snd_pcm_hw_params_get_period_size_max(hw_params, &periodSize, NULL);
 
-  /*
-   For PCM/UI sounds keep latency low (approx 50ms period, 200ms buffer).
-   For passthrough prefer stability and A/V sync over latency.
-  */
-  const bool isAmlPassthrough = m_passthrough && m_isAmlDevice;
-
-  // Run a deeper buffer with more periods reduces IEC61937 burst dropouts.
-  // For AML passthrough use a smaller period to reduce delay quantization (steadier reported delay).
-  //
-  // DTS-HD MA improvement: align period to IEC61937 burst size (dtsPeriod) so that ALSA
-  // consumes data in exact burst multiples. This makes snd_pcm_status_get_delay() step
-  // in regular increments rather than irregular ones, stabilizing the reported delay.
   snd_pcm_uframes_t periodCap;
-  const bool isDtsHdPassthrough =
-      (isAmlPassthrough &&
+  const bool isHBRPassthrough = (m_passthrough &&
        (m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA ||
         m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD));
-  if (isDtsHdPassthrough)
+
+  if (isHBRPassthrough)
   {
     // Use the IEC61937 burst size as the period for DTS-HD MA/HRA.
     // For 48kHz DTS-HD MA: dtsPeriod = 8192 frames at 192kHz = ~42.67ms.
@@ -1054,13 +1042,11 @@ bool CAESinkALSA::InitializeHW(const ALSAConfig &inconfig, ALSAConfig &outconfig
   else
   {
     periodCap = static_cast<snd_pcm_uframes_t>(
-        sampleRate / (isAmlPassthrough ? 40 : (m_passthrough ? 10 : 20)));
+        sampleRate / (m_passthrough ? 40 : 20));
   }
-  // AML passthrough uses a deeper buffer for stability. However, for DTS-HD MA/HRA the
-  // burst-aligned period already improves stability, so cap the buffer to ~500ms to
-  // avoid consistently high (~700ms) buffered delay.
+
   const snd_pcm_uframes_t bufferCap = static_cast<snd_pcm_uframes_t>(
-      sampleRate / (isDtsHdPassthrough ? 2 : (isAmlPassthrough ? 1 : (m_passthrough ? 2 : 5))));
+      sampleRate / (isHBRPassthrough ? 2 : (m_passthrough ? 1 : 5)));
   periodSize = std::min(periodSize, periodCap);
   bufferSize = std::min(bufferSize, bufferCap);
 
@@ -1068,7 +1054,7 @@ bool CAESinkALSA::InitializeHW(const ALSAConfig &inconfig, ALSAConfig &outconfig
    According to upstream we should set buffer size first - so make sure it is always at least
    4x period size to not get underruns (some systems seem to have issues with only 2 periods)
   */
-  periodSize = std::min(periodSize, bufferSize / (isAmlPassthrough ? 8 : 4));
+  periodSize = std::min(periodSize, bufferSize / 8);
 
   CLog::Log(LOGDEBUG, "CAESinkALSA::InitializeHW - Request: periodSize {}, bufferSize {}",
             periodSize, bufferSize);
@@ -1076,7 +1062,7 @@ bool CAESinkALSA::InitializeHW(const ALSAConfig &inconfig, ALSAConfig &outconfig
   snd_pcm_hw_params_copy(hw_params_copy, hw_params); // copy what we have and is already working
 
   // Make sure to not initialize too large to not cause underruns
-  snd_pcm_uframes_t periodSizeMax = bufferSize / (isAmlPassthrough ? 8 : 4);
+  snd_pcm_uframes_t periodSizeMax = (bufferSize / 8);
   if(snd_pcm_hw_params_set_period_size_max(m_pcm, hw_params_copy, &periodSizeMax, NULL) != 0)
   {
     snd_pcm_hw_params_copy(hw_params_copy, hw_params); // restore working copy
@@ -1279,10 +1265,7 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
   int frames_written = 0;
   int burstResets = 0; // prevent infinite reset loops
   int zeroWriteRetries = 0;
-  const bool isAmlHbrPassthrough =
-      m_passthrough && m_isAmlDevice &&
-      (m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD ||
-       m_format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
+  const bool isAmlPassthrough = m_passthrough && m_isAmlDevice;
 
   while (data_left > 0)
   {
@@ -1291,10 +1274,7 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
     else // take care as we can come here a second time if the sink does not eat all data
       amount = (unsigned int) data_left;
 
-    // Restrict the AML pre-write wait to HBR passthrough. AC3/E-AC3/DTS core
-    // bursts are smaller than the generic AML avail_min/period sizing and can
-    // stall or fragment when we force the wait path.
-    if (isAmlHbrPassthrough && snd_pcm_state(m_pcm) == SND_PCM_STATE_RUNNING)
+    if (isAmlPassthrough && snd_pcm_state(m_pcm) == SND_PCM_STATE_RUNNING)
     {
       // Wait up to half the buffer time — generous but bounded
       const int waitTimeout = std::max(m_timeout / 2, 20);
@@ -1394,7 +1374,7 @@ unsigned int CAESinkALSA::AddPackets(uint8_t **data, unsigned int frames, unsign
       }
     }
 
-    if (ret == 0 && isAmlHbrPassthrough)
+    if (ret == 0)
     {
       if (zeroWriteRetries < 3)
       {

@@ -180,6 +180,54 @@ bool CDVDAudioCodecPassthrough::ApplyDtsHdMaStartupCorrection(double jitter, DVD
   return true;
 }
 
+double CDVDAudioCodecPassthrough::EvaluateEac3StartupCorrection(double jitter)
+{
+  StartupJitterEvaluation evaluation;
+  if (!EvaluateStartupJitterState(m_startupJitterState,
+                                  jitter,
+                                  EAC3_STARTUP_MIN_CORRECTION,
+                                  EAC3_STARTUP_MAX_CORRECTION,
+                                  EAC3_STARTUP_MAX_SPREAD,
+                                  evaluation))
+    return 0.0;
+
+  if (!evaluation.Accepted())
+  {
+    if (!m_startupJitterState.rejectionLogged)
+    {
+      m_startupJitterState.rejectionLogged = true;
+
+      logM(LOGDEBUG, "DD+ startup baseline rejected "
+                     "(avg {:.2f}ms, min {:.2f}ms, max {:.2f}ms, spread {:.2f}ms, sign:{:d}, minOk:{:d}, maxOk:{:d}, spreadOk:{:d})",
+                     (evaluation.average / 1000.0), (evaluation.minimum / 1000.0),
+                     (evaluation.maximum / 1000.0), (evaluation.spread / 1000.0),
+                     evaluation.consistentSign ? 1 : 0, evaluation.minCorrectionOk ? 1 : 0,
+                     evaluation.maxCorrectionOk ? 1 : 0, evaluation.spreadOk ? 1 : 0);
+    }
+
+    return 0.0;
+  }
+
+  logM(LOGDEBUG, "DD+ startup baseline correction {:.2f}ms "
+                 "(avg {:.2f}ms, min {:.2f}ms, max {:.2f}ms, spread {:.2f}ms)",
+                 (evaluation.average / 1000.0), (evaluation.average / 1000.0),
+                 (evaluation.minimum / 1000.0), (evaluation.maximum / 1000.0),
+                 (evaluation.spread / 1000.0));
+
+  return evaluation.average;
+}
+
+bool CDVDAudioCodecPassthrough::ApplyEac3StartupCorrection(double jitter,
+                                                           DVDAudioFrame& frame)
+{
+  const double startupCorrection = EvaluateEac3StartupCorrection(jitter);
+  if (startupCorrection == 0.0)
+    return false;
+
+  ApplyPassthroughJitterCorrection(startupCorrection, true, true, frame);
+  return true;
+}
+
 double CDVDAudioCodecPassthrough::EvaluateTrueHdStartupCorrection(double jitter,
                                                                   double samplesOffsetTime)
 {
@@ -336,25 +384,23 @@ bool CDVDAudioCodecPassthrough::Open(CDVDStreamInfo &hints, CDVDCodecOptions &op
 
     case CAEStreamInfo::STREAM_TYPE_DTSHD_MA:
       m_codecName = "pt-dtshd_ma";
-      // Bitstreaming codecs use a coarser 100ms jitter correction gate.
-      m_jitterThreshold = JITTER_THRESHOLD_TRUEHD_DTS;
+      m_jitterThreshold = JITTER_THRESHOLD_DEFAULT;
       break;
 
     case CAEStreamInfo::STREAM_TYPE_DTSHD:
       m_codecName = "pt-dtshd_hra";
-      m_jitterThreshold = JITTER_THRESHOLD_TRUEHD_DTS;
+      m_jitterThreshold = JITTER_THRESHOLD_DEFAULT;
       break;
 
     case CAEStreamInfo::STREAM_TYPE_DTSHD_CORE:
       m_codecName = "pt-dts";
       m_parser.SetCoreOnly(true);
-      m_jitterThreshold = JITTER_THRESHOLD_TRUEHD_DTS;
+      m_jitterThreshold = JITTER_THRESHOLD_DEFAULT;
       break;
 
     case CAEStreamInfo::STREAM_TYPE_TRUEHD:
       m_codecName = "pt-truehd";
-      // Bitstreaming codecs use a coarser 100ms jitter correction gate.
-      m_jitterThreshold = JITTER_THRESHOLD_TRUEHD_DTS;
+      m_jitterThreshold = JITTER_THRESHOLD_DEFAULT;
       m_parser.SetDefeatTrueHDDialNorm(m_defeatTrueHDDialNorm.load());
 
       CLog::Log(LOGDEBUG, "CDVDAudioCodecPassthrough::{} - passthrough output device is {}",
@@ -595,6 +641,7 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
   const CAEStreamInfo::DataType streamType = m_format.m_streamInfo.m_type;
   const bool isTrueHD = (streamType == CAEStreamInfo::STREAM_TYPE_TRUEHD);
   const bool isDtsHdMa = (streamType == CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
+  const bool isEac3 = (streamType == CAEStreamInfo::STREAM_TYPE_EAC3);
 
   // TrueHD-specific: Get samples offset for drift calculation (LAV-style)
   double samplesOffsetTime = 0.0;
@@ -650,7 +697,7 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
       const double jitter = clockDelta + samplesOffsetTime;
       const double absJitter = std::abs(jitter);
       bool startupCorrectionApplied = false;
-      bool trueHdStartupPending = false;
+      bool startupCorrectionPending = false;
 
       if (absJitter >= PASSTHROUGH_ABNORMAL_JITTER)
       {
@@ -674,16 +721,24 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
       {
         if (isDtsHdMa)
           startupCorrectionApplied = ApplyDtsHdMaStartupCorrection(jitter, frame);
+        else if (isEac3)
+        {
+          startupCorrectionApplied = ApplyEac3StartupCorrection(jitter, frame);
+          startupCorrectionPending =
+              !m_startupJitterState.correctionApplied &&
+              ((m_startupJitterState.warmupSamples < STARTUP_WARMUP_SAMPLES) ||
+               !m_startupJitterState.tracker.IsFull());
+        }
         else if (isTrueHD)
         {
           startupCorrectionApplied = ApplyTrueHdStartupCorrection(jitter, samplesOffsetTime, frame);
-          trueHdStartupPending =
+          startupCorrectionPending =
               !m_startupJitterState.correctionApplied &&
               ((m_startupJitterState.warmupSamples < STARTUP_WARMUP_SAMPLES) ||
                !m_startupJitterState.tracker.IsFull());
         }
 
-        if (!startupCorrectionApplied && !(isTrueHD && trueHdStartupPending) &&
+        if (!startupCorrectionApplied && !startupCorrectionPending &&
             !(isTrueHD && ShouldIgnoreWindow(m_trueHdCorrectionCooldown,
                                              IgnoreWindowKind::TrueHdCorrection)))
         {

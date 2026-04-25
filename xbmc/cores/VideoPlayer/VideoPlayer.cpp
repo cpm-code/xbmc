@@ -2601,6 +2601,33 @@ void CVideoPlayer::HandlePlaySpeed()
 
 void CVideoPlayer::HandlePendingStreamSync()
 {
+  const bool holdForResolutionChange =
+      (m_CurrentVideo.id >= 0 &&
+       m_CurrentVideo.syncState == IDVDStreamPlayer::SYNC_STARTING &&
+       m_playerOptions.fullscreen &&
+       CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot() &&
+       m_renderManager.HasPendingResolutionChange());
+
+  if (holdForResolutionChange)
+  {
+    if (!m_startupResolutionHoldActive)
+    {
+      m_startupResolutionHoldStart = std::chrono::steady_clock::now();
+      m_startupResolutionHoldActive = true;
+      logM(LOGINFO, "Holding startup sync for pending resolution change");
+    }
+
+    return;
+  }
+
+  if (m_startupResolutionHoldActive)
+  {
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - m_startupResolutionHoldStart);
+    logM(LOGINFO, "Released startup sync hold after [{:d}] ms", elapsed.count());
+    m_startupResolutionHoldActive = false;
+  }
+
   StreamSyncSnapshot snapshot;
   snapshot.isRealtime = m_pInputStream->IsRealtime();
   snapshot.playSpeed = m_playSpeed;
@@ -4441,32 +4468,6 @@ AMLHdrSetupPolicy CVideoPlayer::SetupVideoHdrPolicy(CDVDStreamInfo& hint,
   return hdrPolicy;
 }
 
-CAEStreamInfo::DataType CVideoPlayer::GetStartupPassthroughType() const
-{
-  if (m_playerOptions.videoOnly)
-    return CAEStreamInfo::STREAM_TYPE_NULL;
-
-  PredicateAudioFilter af(m_processInfo->GetVideoSettings().m_AudioStream,
-                          m_playerOptions.preferStereo);
-  for (const auto& stream : m_SelectionStreams.Get(StreamType::AUDIO, af))
-  {
-    if (stream.sampleRate <= 0)
-      return CAEStreamInfo::STREAM_TYPE_NULL;
-
-    return CAudioSinkAE::ResolvePassthroughType(stream.codecId, stream.sampleRate,
-                                                stream.profile);
-  }
-
-  return CAEStreamInfo::STREAM_TYPE_NULL;
-}
-
-bool CVideoPlayer::CanEarlyUpdate(CAEStreamInfo::DataType passthroughType)
-{
-  return((passthroughType == CAEStreamInfo::STREAM_TYPE_NULL) ||
-         (passthroughType == CAEStreamInfo::STREAM_TYPE_TRUEHD) ||
-         (passthroughType == CAEStreamInfo::STREAM_TYPE_DTSHD_MA));
-}
-
 bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
 {
   const auto hdrPolicy = SetupVideoHdrPolicy(hint, reset);
@@ -4531,14 +4532,7 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
     }
   }
 
-  m_renderManager.TriggerUpdateResolutionHdr(hdrPolicy.finalHdr);
-
-  if (allowEarlyTransition && CanEarlyUpdate(GetStartupPassthroughType()))
-  {
-    m_renderManager.UpdateResolution(true);
-    aml_dv_open(hint.hdrType, hint.bitdepth);
-    hint.amlVideoOpen.earlySwitch = true;
-  }
+  m_renderManager.TriggerUpdateResolutionHdr(hdrPolicy);
   aml_update_hdr_mode_state(hdrPolicy.resolvedHdr, hint.bitdepth);
 
   IDVDStreamPlayer* player = GetStreamPlayer(m_CurrentVideo.player);

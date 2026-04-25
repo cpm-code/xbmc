@@ -11,7 +11,6 @@
 #include "cores/VideoPlayer/Interface/TimingConstants.h"
 #include "cores/VideoPlayer/Process/ProcessInfo.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderFlags.h"
-#include "cores/VideoPlayer/VideoRenderers/RenderManager.h"
 #include "ServiceBroker.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/DisplaySettings.h"
@@ -1795,9 +1794,6 @@ bool CAMLCodec::OpenDecoder(bool restart)
       aml_dv_target_enabled(m_hints.hdrType, m_hints.bitdepth);
 
   SetProcessInfoVideoDetails();
-
-  if (!restart && !m_hints.amlVideoOpen.earlySwitch)
-    aml_dv_open(m_hints.hdrType, m_hints.bitdepth);
 
   // Setup Codec for DV Content
   if (enableDvDecoder)
