@@ -359,6 +359,12 @@ bool CRenderManager::IsConfigured() const
   return m_renderState.load(std::memory_order_relaxed) == STATE_CONFIGURED;
 }
 
+bool CRenderManager::HasPendingResolutionChange()
+{
+  std::unique_lock<CCriticalSection> lock(m_resolutionlock);
+  return m_bTriggerUpdateResolution;
+}
+
 void CRenderManager::ShowVideo(bool enable)
 {
   m_showVideo = enable;
@@ -1210,9 +1216,7 @@ void CRenderManager::UpdateResolution(bool force)
 
   auto& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
 
-  if (!force ||
-      !(gfxContext.IsFullScreenVideo() &&
-        gfxContext.IsFullScreenRoot())) return;
+  if (!gfxContext.IsFullScreenRoot()) return;
 
   const RenderStereoMode user_stereo_mode =
       CServiceBroker::GetGUI()->GetStereoscopicsManager().GetStereoModeByUser();
@@ -1248,6 +1252,8 @@ void CRenderManager::UpdateResolution(bool force)
           m_fps, m_picture.iWidth, m_picture.iHeight, !m_picture.stereoMode.empty());
     }
 
+    if (m_pendingHdrPolicy) aml_dv_open(*m_pendingHdrPolicy);
+
     const bool needsApply = gfxContext.GetHDRType() != desiredHdrType ||
                 gfxContext.GetVideoResolution() != desiredRes;
 
@@ -1274,6 +1280,16 @@ void CRenderManager::UpdateResolution(bool force)
   m_bTriggerUpdateResolutionNoParams = false;
   m_hdrType_override = StreamHdrType::HDR_TYPE_NONE;
   m_hasHdrTypeOverride = false;
+  m_pendingHdrPolicy.reset();
+
+  if (m_pendingResolutionTimingActive)
+  {
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - m_pendingResolutionStartTime);
+    logM(LOGINFO, "Pending resolution change cleared after [{:d}] ms", elapsed.count());
+    m_pendingResolutionTimingActive = false;
+  }
+
   m_playerPort->VideoParamsChange();
 }
 
@@ -1282,8 +1298,34 @@ void CRenderManager::TriggerUpdateResolutionHdr(StreamHdrType hdr)
   logM(LOGINFO, "hdr type [{}] current trigger [{}]",
                 CStreamDetails::DynamicRangeToString(hdr), m_bTriggerUpdateResolution);
 
+  if (!m_bTriggerUpdateResolution)
+  {
+    m_pendingResolutionStartTime = std::chrono::steady_clock::now();
+    m_pendingResolutionTimingActive = true;
+    logM(LOGINFO, "Pending resolution change armed for hdr-only trigger");
+  }
+
   m_hdrType_override = hdr;
   m_hasHdrTypeOverride = true;
+  m_pendingHdrPolicy.reset();
+  m_bTriggerUpdateResolution = true;
+}
+
+void CRenderManager::TriggerUpdateResolutionHdr(const AMLHdrSetupPolicy& hdrPolicy)
+{
+  logM(LOGINFO, "hdr type [{}] current trigger [{}]",
+                CStreamDetails::DynamicRangeToString(hdrPolicy.finalHdr), m_bTriggerUpdateResolution);
+
+  if (!m_bTriggerUpdateResolution)
+  {
+    m_pendingResolutionStartTime = std::chrono::steady_clock::now();
+    m_pendingResolutionTimingActive = true;
+    logM(LOGINFO, "Pending resolution change armed for hdr-policy trigger");
+  }
+
+  m_hdrType_override = hdrPolicy.finalHdr;
+  m_hasHdrTypeOverride = true;
+  m_pendingHdrPolicy = std::make_unique<AMLHdrSetupPolicy>(hdrPolicy);
   m_bTriggerUpdateResolution = true;
 }
 
@@ -1291,6 +1333,13 @@ void CRenderManager::TriggerUpdateResolution(float fps, int width, int height, s
 {
   logM(LOGINFO, "fps [{}] width [{}] height [{}] stereomode empty [{}] current trigger [{}]",
                 fps, width, height, m_picture.stereoMode.empty(), m_bTriggerUpdateResolution);
+
+  if (!m_bTriggerUpdateResolution)
+  {
+    m_pendingResolutionStartTime = std::chrono::steady_clock::now();
+    m_pendingResolutionTimingActive = true;
+    logM(LOGINFO, "Pending resolution change armed for fps/resolution trigger");
+  }
 
   m_bTriggerUpdateResolutionNoParams = (width == 0);
   if (width)

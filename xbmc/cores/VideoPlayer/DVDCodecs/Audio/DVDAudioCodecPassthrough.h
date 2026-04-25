@@ -107,6 +107,8 @@ private:
                                   StartupJitterEvaluation& evaluation);
   double EvaluateDtsHdMaStartupCorrection(double jitter);
   bool ApplyDtsHdMaStartupCorrection(double jitter, DVDAudioFrame& frame);
+  double EvaluateEac3StartupCorrection(double jitter);
+  bool ApplyEac3StartupCorrection(double jitter, DVDAudioFrame& frame);
   double EvaluateTrueHdStartupCorrection(double jitter, double samplesOffsetTime);
   bool ApplyTrueHdStartupCorrection(double jitter,
                                     double samplesOffsetTime,
@@ -190,8 +192,7 @@ private:
   // Jitter correction thresholds (in DVD_TIME_BASE units = microseconds)
   // Bitstreaming codecs use a coarser 100ms correction gate than PCM to avoid
   // reacting to minor receiver or packetization timing noise.
-  static constexpr double JITTER_THRESHOLD_TRUEHD_DTS = 100000.0;   // 100ms
-  static constexpr double JITTER_THRESHOLD_DEFAULT = 10000.0;       // 10ms
+  static constexpr double JITTER_THRESHOLD_DEFAULT = 100000.0;      // 100ms
   static constexpr double PASSTHROUGH_ABNORMAL_JITTER = 1000000.0;  // 1s
 
   // DTS-HD MA can carry track-specific startup offsets that are smaller than the
@@ -203,6 +204,13 @@ private:
   // stable startup offsets around that boundary do not fall into a dead zone.
   static constexpr double DTSHD_MA_STARTUP_MAX_CORRECTION = 120000.0;  // 120ms
   static constexpr double DTSHD_MA_STARTUP_MAX_SPREAD = 10000.0;      // 10ms
+
+  // DD+ can come up with a much larger but still stable startup offset.
+  // Keep the same stability checks, but allow the learned one-shot correction
+  // to reach 300ms before falling back to generic jitter handling.
+  static constexpr double EAC3_STARTUP_MIN_CORRECTION = 10000.0;   // 10ms
+  static constexpr double EAC3_STARTUP_MAX_CORRECTION = 300000.0;  // 300ms
+  static constexpr double EAC3_STARTUP_MAX_SPREAD = 10000.0;       // 10ms
 
   // TrueHD via MAT can expose a stable startup offset that should be learned
   // once before enabling coarse residual-drift correction.
