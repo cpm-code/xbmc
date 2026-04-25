@@ -873,7 +873,24 @@ msgctxt "#31177"
 msgid "Choose weather icon pack"
 msgstr ""
 
-#empty strings from id 31178 to 31596
+#empty strings from id 31178 to 31289
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31290"
+msgid "Audio"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31291"
+msgid "Stream speaker layout"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31292"
+msgid "ALSA speaker layout"
+msgstr ""
+
+#empty strings from id 31293 to 31596
 
 #: /xml/Includes_SettingsDialog.xml
 #. Button to select Player Process Info window
@@ -1002,6 +1019,16 @@ msgid "Video source type"
 msgstr ""
 
 #: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#32100"
+msgid "Display mode"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#32101"
+msgid "EOTF & Gamut"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
 msgctxt "#31636"
 msgid "Display mode"
 msgstr ""
@@ -1034,4 +1061,88 @@ msgstr ""
 #. Label to show passtrough
 msgctxt "#31641"
 msgid "Passthrough"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31642"
+msgid "Video decoder|deint"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31643"
+msgid "A|V bit rate Mbps"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31644"
+msgid "Cache"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31645"
+msgid "Memory"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31646"
+msgid "CPU"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31647"
+msgid "Video source type"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31648"
+msgid "Video encoding"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+#. Label to show the video colour details
+msgctxt "#31649"
+msgid "Video colour"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+#. Label to show the audio encoding details
+msgctxt "#31650"
+msgid "Audio encoding"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+#. Label to show the audio sampling details
+msgctxt "#31651"
+msgid "Audio sampling"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+#. Label to show the audio language details
+msgctxt "#31652"
+msgid "Audio language"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31653"
+msgid "Dolby Vision Profile"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31654"
+msgid "VS10 mode"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31655"
+msgid "AML fps"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31656"
+msgid "Dolby Vision Metadata"
+msgstr ""
+
+#: /xml/DialogPlayerProcessInfo.xml
+msgctxt "#31657"
+msgid "Subtitle name"
 msgstr ""
