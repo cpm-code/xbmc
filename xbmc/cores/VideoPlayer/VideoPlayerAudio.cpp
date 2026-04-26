@@ -50,6 +50,12 @@ inline bool IsValidPts(double pts)
   return (pts >= 0.0) && (pts <= MAX_REASONABLE_PTS);
 }
 
+inline bool IsValidClockPts(double pts)
+{
+  return pts != DVD_NOPTS_VALUE && pts != LOCAL_NOPTS &&
+         std::abs(pts) <= MAX_REASONABLE_PTS;
+}
+
 class CDVDMsgAudioCodecChange : public CDVDMsg
 {
 public:
@@ -538,7 +544,9 @@ bool CVideoPlayerAudio::ProcessDecoderOutput(DVDAudioFrame &audioframe)
     }
 
     audioframe.hasTimestamp = true;
-    if (!IsValidPts(audioframe.pts))
+    const bool hasValidTimestamp =
+      audioframe.passthrough ? IsValidClockPts(audioframe.pts) : IsValidPts(audioframe.pts);
+    if (!hasValidTimestamp)
     {
       audioframe.pts = m_audioClock;
       audioframe.hasTimestamp = false;
