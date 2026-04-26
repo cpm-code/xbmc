@@ -56,6 +56,13 @@ struct InfoMap
   int val{0};
 };
 
+template<typename T>
+struct ValueMap
+{
+    std::string_view str{};
+    T val{};
+};
+
 /// \page modules__infolabels_boolean_conditions Infolabels and Boolean conditions
 /// \tableofcontents
 ///
@@ -10707,29 +10714,60 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition)
 
 namespace
 {
+template<std::size_t Size>
+const InfoMap* FindInfoMap(std::string_view name, const std::array<InfoMap, Size>& infoMaps)
+{
+    const auto it = std::find_if(infoMaps.cbegin(), infoMaps.cend(),
+                                                             [name](const auto& entry) { return name == entry.str; });
+    return it != infoMaps.cend() ? &*it : nullptr;
+}
+
+template<typename T, std::size_t Size>
+const T* FindCaseInsensitiveValue(std::string_view name,
+                                                                    const std::array<ValueMap<T>, Size>& values)
+{
+    const auto it = std::find_if(values.cbegin(), values.cend(), [name](const auto& entry) {
+        return StringUtils::EqualsNoCase(name, entry.str);
+    });
+    return it != values.cend() ? &it->val : nullptr;
+}
+
+constexpr std::array<ValueMap<std::string_view>, 8> list_separators = {{
+        {"comma", ", "},
+        {"pipe", " | "},
+        {"slash", " / "},
+        {"cr", "\n"},
+        {"dash", " - "},
+        {"colon", " : "},
+        {"semicolon", "; "},
+        {"fullstop", ". "},
+}};
+
+constexpr std::array<ValueMap<TIME_FORMAT>, 15> time_formats = {{
+        {"hh", TIME_FORMAT_HH},
+        {"mm", TIME_FORMAT_MM},
+        {"ss", TIME_FORMAT_SS},
+        {"hh:mm", TIME_FORMAT_HH_MM},
+        {"mm:ss", TIME_FORMAT_MM_SS},
+        {"hh:mm:ss", TIME_FORMAT_HH_MM_SS},
+        {"hh:mm:ss xx", TIME_FORMAT_HH_MM_SS_XX},
+        {"h", TIME_FORMAT_H},
+        {"m", TIME_FORMAT_M},
+        {"h:mm:ss", TIME_FORMAT_H_MM_SS},
+        {"h:mm:ss xx", TIME_FORMAT_H_MM_SS_XX},
+        {"xx", TIME_FORMAT_XX},
+        {"secs", TIME_FORMAT_SECS},
+        {"mins", TIME_FORMAT_MINS},
+        {"hours", TIME_FORMAT_HOURS},
+}};
+
 std::string TranslateListSeparator(const std::string& param)
 {
-  if (StringUtils::EqualsNoCase(param, "comma"))
-    return ", ";
-  else if (StringUtils::EqualsNoCase(param, "pipe"))
-    return " | ";
-  else if (StringUtils::EqualsNoCase(param, "slash"))
-    return " / ";
-  else if (StringUtils::EqualsNoCase(param, "cr"))
-    return "\n";
-  else if (StringUtils::EqualsNoCase(param, "dash"))
-    return " - ";
-  else if (StringUtils::EqualsNoCase(param, "colon"))
-    return " : ";
-  else if (StringUtils::EqualsNoCase(param, "semicolon"))
-    return "; ";
-  else if (StringUtils::EqualsNoCase(param, "fullstop"))
-    return ". ";
-  else
-  {
+    if (const auto* separator = FindCaseInsensitiveValue(param, list_separators))
+        return std::string{*separator};
+
     CLog::Log(LOGERROR, "unhandled separator param {}", param);
     return {};
-  }
 }
 } // unnamed namespace
 
@@ -10829,11 +10867,8 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
         if (prop.Name() == player_label.str)
           return player_label.val;
       }
-      for (const auto& player_time : player_times)
-      {
-        if (prop.Name() == player_time.str)
-          return AddMultiInfo(CGUIInfo(player_time.val, TranslateTimeFormat(prop.param())));
-      }
+            if (const auto* playerTime = FindInfoMap(prop.Name(), player_times))
+                return AddMultiInfo(CGUIInfo(playerTime->val, TranslateTimeFormat(prop.param())));
       if (prop.Name() == "process" && prop.num_params())
       {
         for (const auto& player_proces : player_process)
@@ -11042,11 +11077,8 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
     }
     else if (cat.Name() == "musicplayer")
     {
-      for (const auto& player_time : player_times) //! @todo remove these, they're repeats
-      {
-        if (prop.Name() == player_time.str)
-          return AddMultiInfo(CGUIInfo(player_time.val, TranslateTimeFormat(prop.param())));
-      }
+            if (const auto* playerTime = FindInfoMap(prop.Name(), player_times))
+                return AddMultiInfo(CGUIInfo(playerTime->val, TranslateTimeFormat(prop.param())));
       if (prop.Name() == "content" && prop.num_params())
       {
         return AddMultiInfo(CGUIInfo(MUSICPLAYER_CONTENT, prop.param(), 0));
@@ -11074,11 +11106,8 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
       if (prop.Name() !=
           "starttime") // player.starttime is semantically different from videoplayer.starttime which has its own implementation!
       {
-        for (const auto& player_time : player_times) //! @todo remove these, they're repeats
-        {
-          if (prop.Name() == player_time.str)
-            return AddMultiInfo(CGUIInfo(player_time.val, TranslateTimeFormat(prop.param())));
-        }
+                if (const auto* playerTime = FindInfoMap(prop.Name(), player_times))
+                    return AddMultiInfo(CGUIInfo(playerTime->val, TranslateTimeFormat(prop.param())));
       }
       if (prop.Name() == "content" && prop.num_params())
       {
@@ -11306,11 +11335,8 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
         if (prop.Name() == i.str)
           return i.val;
       }
-      for (const auto& pvr_time : pvr_times)
-      {
-        if (prop.Name() == pvr_time.str)
-          return AddMultiInfo(CGUIInfo(pvr_time.val, TranslateTimeFormat(prop.param())));
-      }
+            if (const auto* pvrTime = FindInfoMap(prop.Name(), pvr_times))
+                return AddMultiInfo(CGUIInfo(pvrTime->val, TranslateTimeFormat(prop.param())));
     }
     else if (cat.Name() == "rds")
     {
@@ -11531,36 +11557,10 @@ TIME_FORMAT CGUIInfoManager::TranslateTimeFormat(const std::string &format)
 {
   if (format.empty())
     return TIME_FORMAT_GUESS;
-  else if (StringUtils::EqualsNoCase(format, "hh"))
-    return TIME_FORMAT_HH;
-  else if (StringUtils::EqualsNoCase(format, "mm"))
-    return TIME_FORMAT_MM;
-  else if (StringUtils::EqualsNoCase(format, "ss"))
-    return TIME_FORMAT_SS;
-  else if (StringUtils::EqualsNoCase(format, "hh:mm"))
-    return TIME_FORMAT_HH_MM;
-  else if (StringUtils::EqualsNoCase(format, "mm:ss"))
-    return TIME_FORMAT_MM_SS;
-  else if (StringUtils::EqualsNoCase(format, "hh:mm:ss"))
-    return TIME_FORMAT_HH_MM_SS;
-  else if (StringUtils::EqualsNoCase(format, "hh:mm:ss xx"))
-    return TIME_FORMAT_HH_MM_SS_XX;
-  else if (StringUtils::EqualsNoCase(format, "h"))
-    return TIME_FORMAT_H;
-  else if (StringUtils::EqualsNoCase(format, "m"))
-    return TIME_FORMAT_M;
-  else if (StringUtils::EqualsNoCase(format, "h:mm:ss"))
-    return TIME_FORMAT_H_MM_SS;
-  else if (StringUtils::EqualsNoCase(format, "h:mm:ss xx"))
-    return TIME_FORMAT_H_MM_SS_XX;
-  else if (StringUtils::EqualsNoCase(format, "xx"))
-    return TIME_FORMAT_XX;
-  else if (StringUtils::EqualsNoCase(format, "secs"))
-    return TIME_FORMAT_SECS;
-  else if (StringUtils::EqualsNoCase(format, "mins"))
-    return TIME_FORMAT_MINS;
-  else if (StringUtils::EqualsNoCase(format, "hours"))
-    return TIME_FORMAT_HOURS;
+
+    if (const auto* timeFormat = FindCaseInsensitiveValue(format, time_formats))
+        return *timeFormat;
+
   return TIME_FORMAT_GUESS;
 }
 
