@@ -31,14 +31,21 @@ namespace
 {
 constexpr unsigned int TRUEHD_BUF_SIZE = 61440;
 
-// Helper to check if a PTS value is valid
-// Valid PTS must be >= 0 and <= 24 hours (way beyond any real content)
-// LOCAL_NOPTS is now defined in the class header as static constexpr
+// Demuxer PTS should always be non-negative. Internal clocks can legitimately
+// go slightly negative during startup/resync while the player drains prefetched
+// audio and video back to a coordinated master clock.
 constexpr double MAX_REASONABLE_PTS = 86400000000.0; // 24 hours in DVD_TIME_BASE units
+constexpr double LOCAL_NOPTS_SENTINEL = -1.0;
 
-inline bool IsValidPts(double pts)
+inline bool IsValidDemuxPts(double pts)
 {
   return (pts >= 0.0) && (pts <= MAX_REASONABLE_PTS);
+}
+
+inline bool IsValidClockPts(double pts)
+{
+  return pts != DVD_NOPTS_VALUE && pts != LOCAL_NOPTS_SENTINEL &&
+         std::abs(pts) <= MAX_REASONABLE_PTS;
 }
 
 inline double ClampMagnitude(double value, double limit)
@@ -69,7 +76,7 @@ bool CDVDAudioCodecPassthrough::ShouldIgnoreWindow(
     CDVDAudioCodecPassthrough::IgnoreWindowState& state,
     CDVDAudioCodecPassthrough::IgnoreWindowKind kind)
 {
-  if (!IsValidPts(state.until) || m_internalClock >= state.until)
+  if (!IsValidClockPts(state.until) || m_internalClock >= state.until)
   {
     state.until = LOCAL_NOPTS;
     state.logged = false;
@@ -180,8 +187,9 @@ bool CDVDAudioCodecPassthrough::ApplyDtsHdMaStartupCorrection(double jitter, DVD
   return true;
 }
 
-double CDVDAudioCodecPassthrough::EvaluateEac3StartupCorrection(double jitter)
+double CDVDAudioCodecPassthrough::EvaluateNormalStartupCorrection(double jitter)
 {
+  const char* label = m_codecName.empty() ? "pt-unknown" : m_codecName.c_str();
   StartupJitterEvaluation evaluation;
   if (!EvaluateStartupJitterState(m_startupJitterState,
                                   jitter,
@@ -197,8 +205,9 @@ double CDVDAudioCodecPassthrough::EvaluateEac3StartupCorrection(double jitter)
     {
       m_startupJitterState.rejectionLogged = true;
 
-      logM(LOGDEBUG, "DD+ startup baseline rejected "
+      logM(LOGDEBUG, "{} startup baseline rejected "
                      "(avg {:.2f}ms, min {:.2f}ms, max {:.2f}ms, spread {:.2f}ms, sign:{:d}, minOk:{:d}, maxOk:{:d}, spreadOk:{:d})",
+                     label,
                      (evaluation.average / 1000.0), (evaluation.minimum / 1000.0),
                      (evaluation.maximum / 1000.0), (evaluation.spread / 1000.0),
                      evaluation.consistentSign ? 1 : 0, evaluation.minCorrectionOk ? 1 : 0,
@@ -208,8 +217,9 @@ double CDVDAudioCodecPassthrough::EvaluateEac3StartupCorrection(double jitter)
     return 0.0;
   }
 
-  logM(LOGDEBUG, "DD+ startup baseline correction {:.2f}ms "
+  logM(LOGDEBUG, "{} startup baseline correction {:.2f}ms "
                  "(avg {:.2f}ms, min {:.2f}ms, max {:.2f}ms, spread {:.2f}ms)",
+                 label,
                  (evaluation.average / 1000.0), (evaluation.average / 1000.0),
                  (evaluation.minimum / 1000.0), (evaluation.maximum / 1000.0),
                  (evaluation.spread / 1000.0));
@@ -217,10 +227,10 @@ double CDVDAudioCodecPassthrough::EvaluateEac3StartupCorrection(double jitter)
   return evaluation.average;
 }
 
-bool CDVDAudioCodecPassthrough::ApplyEac3StartupCorrection(double jitter,
-                                                           DVDAudioFrame& frame)
+bool CDVDAudioCodecPassthrough::ApplyNormalStartupCorrection(double jitter,
+                                                             DVDAudioFrame& frame)
 {
-  const double startupCorrection = EvaluateEac3StartupCorrection(jitter);
+  const double startupCorrection = EvaluateNormalStartupCorrection(jitter);
   if (startupCorrection == 0.0)
     return false;
 
@@ -462,14 +472,14 @@ bool CDVDAudioCodecPassthrough::AddData(const DemuxPacket &packet)
 
   // For TrueHD seamless branching: detect invalid PTS values using robust check
   double incomingPts = packet.pts;
-  bool ptsIsValid = IsValidPts(incomingPts);
+  bool ptsIsValid = IsValidDemuxPts(incomingPts);
 
   if (pData)
   {
     // Sanitize PTS members if they contain garbage values (can happen during seamless branching)
-    if (!IsValidPts(m_currentPts))
+    if (!IsValidDemuxPts(m_currentPts))
       m_currentPts = LOCAL_NOPTS;
-    if (!IsValidPts(m_nextPts))
+    if (!IsValidDemuxPts(m_nextPts))
       m_nextPts = LOCAL_NOPTS;
 
     if (m_currentPts == LOCAL_NOPTS)
@@ -547,7 +557,7 @@ bool CDVDAudioCodecPassthrough::AddData(const DemuxPacket &packet)
     {
       // LAV-style timestamp caching: cache the PTS of the first frame being assembled into MAT
       // Since a MAT frame contains 24 TrueHD frames, we want the timestamp of the first one
-      if (!m_truehd_ptsCacheValid && IsValidPts(m_currentPts))
+      if (!m_truehd_ptsCacheValid && IsValidDemuxPts(m_currentPts))
       {
         m_truehd_ptsCache = m_currentPts;
         m_truehd_ptsCacheValid = true;
@@ -661,7 +671,7 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
 
   // Demuxer PTS for this frame (may be invalid during branching)
   const double demuxerPts = m_currentPts;
-  const bool haveDemuxerPts = IsValidPts(demuxerPts);
+  const bool haveDemuxerPts = IsValidDemuxPts(demuxerPts);
 
   //============================================================================
   // STEP 1: Resync internal clock if needed
@@ -687,7 +697,7 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
   // - Long-term drift accumulation
   //============================================================================
 
-  if (IsValidPts(m_internalClock) && haveDemuxerPts)
+  if (IsValidClockPts(m_internalClock) && haveDemuxerPts)
   {
     if (!ShouldIgnoreWindow(m_resyncJitterHoldoff, IgnoreWindowKind::PassthroughResync))
     {
@@ -721,17 +731,17 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
       {
         if (isDtsHdMa)
           startupCorrectionApplied = ApplyDtsHdMaStartupCorrection(jitter, frame);
-        else if (isEac3)
+        else if (isTrueHD)
         {
-          startupCorrectionApplied = ApplyEac3StartupCorrection(jitter, frame);
+          startupCorrectionApplied = ApplyTrueHdStartupCorrection(jitter, samplesOffsetTime, frame);
           startupCorrectionPending =
               !m_startupJitterState.correctionApplied &&
               ((m_startupJitterState.warmupSamples < STARTUP_WARMUP_SAMPLES) ||
                !m_startupJitterState.tracker.IsFull());
         }
-        else if (isTrueHD)
+        else
         {
-          startupCorrectionApplied = ApplyTrueHdStartupCorrection(jitter, samplesOffsetTime, frame);
+          startupCorrectionApplied = ApplyNormalStartupCorrection(jitter, frame);
           startupCorrectionPending =
               !m_startupJitterState.correctionApplied &&
               ((m_startupJitterState.warmupSamples < STARTUP_WARMUP_SAMPLES) ||
@@ -789,7 +799,7 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
   //============================================================================
   // STEP 3: Output from OUR internal clock (not demuxer)
   //============================================================================
-  if (IsValidPts(m_internalClock))
+  if (IsValidClockPts(m_internalClock))
   {
     // Output PTS is from OUR clock - this is the key LAV-style difference
     frame.pts = m_internalClock;
@@ -891,9 +901,7 @@ void CDVDAudioCodecPassthrough::SyncToResyncPts(double pts)
   // We trust this value and use it directly for our internal clock.
   // This is the KEY fix for video switch A/V desync.
 
-  constexpr double MAX_REASONABLE_PTS = 86400000000.0; // 24 hours
-
-  if (pts != DVD_NOPTS_VALUE && pts >= 0.0 && pts <= MAX_REASONABLE_PTS)
+  if (IsValidClockPts(pts))
   {
     m_internalClock = pts;
     m_needsResync = false;

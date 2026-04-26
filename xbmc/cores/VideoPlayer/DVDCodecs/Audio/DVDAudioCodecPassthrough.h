@@ -107,8 +107,8 @@ private:
                                   StartupJitterEvaluation& evaluation);
   double EvaluateDtsHdMaStartupCorrection(double jitter);
   bool ApplyDtsHdMaStartupCorrection(double jitter, DVDAudioFrame& frame);
-  double EvaluateEac3StartupCorrection(double jitter);
-  bool ApplyEac3StartupCorrection(double jitter, DVDAudioFrame& frame);
+  double EvaluateNormalStartupCorrection(double jitter);
+  bool ApplyNormalStartupCorrection(double jitter, DVDAudioFrame& frame);
   double EvaluateTrueHdStartupCorrection(double jitter, double samplesOffsetTime);
   bool ApplyTrueHdStartupCorrection(double jitter,
                                     double samplesOffsetTime,
