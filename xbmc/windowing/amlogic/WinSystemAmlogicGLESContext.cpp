@@ -311,12 +311,8 @@ void CWinSystemAmlogicGLESContext::PresentRender(bool rendered, bool videoLayer)
     }
 #endif
 
-    if (m_amlGBMUtils)
-    {
-      m_amlGBMUtils->LockFrontBuffer(m_amlDisplay->aml_get_Device_handle());
+    if (m_amlGBMUtils && m_amlGBMUtils->LockFrontBuffer(m_amlDisplay->aml_get_Device_handle()))
       m_amlDisplay->FlipPage(m_amlGBMUtils->GetFBId(), async);
-      m_amlGBMUtils->UnlockFrontBuffer();
-    }
   }
   else if (!rendered && !videoLayer)
   {

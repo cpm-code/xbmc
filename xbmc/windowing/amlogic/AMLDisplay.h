@@ -29,9 +29,7 @@ public:
   struct gbm_surface *GetSurface() const { return m_surface.get(); }
   bool CreateSurface(int width, int height, uint32_t format);
   uint32_t GetFBId() { return m_drm_fb->fb_id; }
-  void LockFrontBuffer(int fd);
-  void UnlockFrontBuffer() { if (m_buffer)
-                               gbm_surface_release_buffer(GetSurface(), m_buffer); }
+  bool LockFrontBuffer(int fd);
 private:
   struct drm_fb* GetFBFromBo(int fd, struct gbm_bo* bo);
 
@@ -53,10 +51,27 @@ private:
     }
   };
 
+  struct CGBMSurfaceBuffer
+  {
+    CGBMSurfaceBuffer(struct gbm_surface* surface)
+      : m_surface(surface), m_bo(gbm_surface_lock_front_buffer(surface))
+    {
+    }
+    ~CGBMSurfaceBuffer()
+    {
+      if (m_surface && m_bo)
+        gbm_surface_release_buffer(m_surface, m_bo);
+    }
+    struct gbm_bo* Get() const { return m_bo; }
+  private:
+    struct gbm_surface* m_surface{nullptr};
+    struct gbm_bo* m_bo{nullptr};
+  };
+
   uint32_t m_format;
   std::unique_ptr<struct gbm_device, GbmDeviceDeleter> m_device{nullptr};
   std::unique_ptr<struct gbm_surface, GbmSurfaceDeleter> m_surface{nullptr};
-  struct gbm_bo* m_buffer{nullptr};
+  std::unique_ptr<CGBMSurfaceBuffer> m_buffer{nullptr};
   struct drm_fb* m_drm_fb{nullptr};
 };
 
