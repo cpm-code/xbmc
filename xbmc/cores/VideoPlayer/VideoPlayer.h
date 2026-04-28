@@ -131,6 +131,7 @@ public:
   // stuff to handle starting after seek
   double startpts;
   double lastdts;
+  bool pendingContinuity;
 
   enum
   {
@@ -163,6 +164,7 @@ public:
     starttime = DVD_NOPTS_VALUE;
     startpts = DVD_NOPTS_VALUE;
     lastdts = DVD_NOPTS_VALUE;
+    pendingContinuity = false;
     avsync = AV_SYNC_FORCE;
   }
 
@@ -266,6 +268,27 @@ class CVideoPlayer : public IPlayer, public CThread, public IVideoPlayer,
   {
     UPDATE_IF_FLAGGED,
     ALWAYS_UPDATE
+  };
+
+  struct StartupTransition
+  {
+    StartupTransition();
+    ~StartupTransition();
+    StartupTransition(StartupTransition&&) noexcept;
+    StartupTransition& operator=(StartupTransition&&) noexcept;
+
+    void Reset();
+
+    bool deferred{false};
+    bool active{false};
+    bool needsResolutionChange{false};
+    float fps{0.0f};
+    int width{0};
+    int height{0};
+    std::string stereoMode;
+    std::unique_ptr<AMLHdrSetupPolicy> hdrPolicy;
+    bool holdActive{false};
+    std::chrono::time_point<std::chrono::steady_clock> holdStart;
   };
 
   void SetAVChange(std::string from) const;
@@ -471,6 +494,8 @@ protected:
 
   double GetQueueTime();
   CacheInfo GetCachingTimes();
+  void ArmStartupVideoTransition();
+  bool ShouldHoldStartupForPendingResolutionChange();
 
   void FlushBuffers(double pts, bool accurate, bool sync);
 
@@ -639,8 +664,7 @@ protected:
   bool m_updateStreamDetails{false};
 
   std::atomic<bool> m_displayLost;
-  bool m_startupResolutionHoldActive{false};
-  std::chrono::time_point<std::chrono::steady_clock> m_startupResolutionHoldStart;
+  StartupTransition m_startupTransition;
 
   double m_messageQueueTimeSize{0.0};
 
