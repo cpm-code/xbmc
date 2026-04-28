@@ -272,6 +272,28 @@ private:
 };
 }
 
+CVideoPlayer::StartupTransition::StartupTransition() = default;
+CVideoPlayer::StartupTransition::~StartupTransition() = default;
+CVideoPlayer::StartupTransition::StartupTransition(
+  StartupTransition&&) noexcept = default;
+CVideoPlayer::StartupTransition&
+CVideoPlayer::StartupTransition::operator=(StartupTransition&&) noexcept =
+    default;
+
+void CVideoPlayer::StartupTransition::Reset()
+{
+  deferred = false;
+  active = false;
+  needsResolutionChange = false;
+  fps = 0.0f;
+  width = 0;
+  height = 0;
+  stereoMode.clear();
+  hdrPolicy.reset();
+  holdActive = false;
+  holdStart = {};
+}
+
 //------------------------------------------------------------------------------
 // selection streams
 //------------------------------------------------------------------------------
@@ -1153,6 +1175,7 @@ bool CVideoPlayer::OpenInputStream()
 
   m_clock.Reset();
   m_dvd.Clear();
+  m_startupTransition.Reset();
 
   return true;
 }
@@ -1278,6 +1301,9 @@ void CVideoPlayer::OpenDefaultStreams(bool reset)
     CloseStream(m_CurrentAudio, true);
     m_processInfo->ResetAudioCodecInfo();
   }
+
+  if (m_startupTransition.deferred && m_CurrentAudio.id < 0)
+    ArmStartupVideoTransition();
 
   // enable  or disable subtitles
   bool visible = m_processInfo->GetVideoSettings().m_SubtitleOn;
@@ -1803,6 +1829,14 @@ void CVideoPlayer::Process()
     m_VideoPlayerSubtitle->UpdatePlaybackPosition(
       m_clock.GetClock() + m_State.time_offset - m_VideoPlayerVideo->GetSubtitleDelay(),
       m_State.time_offset);
+
+    // Keep stream threads idle until the pending mode switch has completed so
+    // the first decoded audio/video data is not disrupted by the display reset.
+    if (ShouldHoldStartupForPendingResolutionChange())
+    {
+      CThread::Sleep(10ms);
+      continue;
+    }
 
     // tell demuxer if we want to fill buffers
     if (m_demuxerSpeed != DVD_PLAYSPEED_PAUSE)
@@ -2599,33 +2633,38 @@ void CVideoPlayer::HandlePlaySpeed()
   }
 }
 
+bool CVideoPlayer::ShouldHoldStartupForPendingResolutionChange()
+{
+  return m_startupTransition.active &&
+         m_CurrentVideo.id >= 0 &&
+         m_CurrentVideo.syncState != IDVDStreamPlayer::SYNC_INSYNC &&
+         m_playerOptions.fullscreen &&
+         CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot() &&
+         m_renderManager.HasPendingResolutionChange();
+}
+
 void CVideoPlayer::HandlePendingStreamSync()
 {
-  const bool holdForResolutionChange =
-      (m_CurrentVideo.id >= 0 &&
-       m_CurrentVideo.syncState == IDVDStreamPlayer::SYNC_STARTING &&
-       m_playerOptions.fullscreen &&
-       CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot() &&
-       m_renderManager.HasPendingResolutionChange());
+  const bool holdForResolutionChange = ShouldHoldStartupForPendingResolutionChange();
 
   if (holdForResolutionChange)
   {
-    if (!m_startupResolutionHoldActive)
+    if (!m_startupTransition.holdActive)
     {
-      m_startupResolutionHoldStart = std::chrono::steady_clock::now();
-      m_startupResolutionHoldActive = true;
+      m_startupTransition.holdStart = std::chrono::steady_clock::now();
+      m_startupTransition.holdActive = true;
       logM(LOGINFO, "Holding startup sync for pending resolution change");
     }
 
     return;
   }
 
-  if (m_startupResolutionHoldActive)
+  if (m_startupTransition.holdActive)
   {
     const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - m_startupResolutionHoldStart);
+        std::chrono::steady_clock::now() - m_startupTransition.holdStart);
     logM(LOGINFO, "Released startup sync hold after [{:d}] ms", elapsed.count());
-    m_startupResolutionHoldActive = false;
+    m_startupTransition.holdActive = false;
   }
 
   StreamSyncSnapshot snapshot;
@@ -2708,6 +2747,7 @@ void CVideoPlayer::HandlePendingStreamSync()
       SetCaching(CACHESTATE_DONE);
       UpdatePlayState(0);
       m_syncTimer.Set(3000ms);
+      m_startupTransition.active = false;
       NotifyStreamsReady();
       return;
 
@@ -2861,6 +2901,21 @@ bool CVideoPlayer::CheckContinuity(CCurrentStream& current, DemuxPacket* pPacket
   if( mindts == DVD_NOPTS_VALUE || maxdts == DVD_NOPTS_VALUE )
     return false;
 
+  const CCurrentStream* companionStream = nullptr;
+  if (current.type == StreamType::AUDIO) companionStream = &m_CurrentVideo;
+  else if (current.type == StreamType::VIDEO) companionStream = &m_CurrentAudio;
+
+  const auto isStartupSyncUnstable = [](const CCurrentStream& stream)
+  {
+    return ((stream.avsync == CCurrentStream::AV_SYNC_FORCE) ||
+            (stream.syncState == IDVDStreamPlayer::SYNC_STARTING) ||
+            !stream.inited);
+  };
+  const bool startupContinuityWindow = isStartupSyncUnstable(current) ||
+      (companionStream != nullptr &&
+       companionStream->id >= 0 &&
+       isStartupSyncUnstable(*companionStream));
+
   double correction = 0.0;
   if( pPacket->dts > maxdts + DVD_MSEC_TO_TIME(1000))
   {
@@ -2868,6 +2923,7 @@ bool CVideoPlayer::CheckContinuity(CCurrentStream& current, DemuxPacket* pPacket
               "CVideoPlayer::CheckContinuity - resync forward :{}, prev:{:f}, curr:{:f}, diff:{:f}",
               current.type, current.dts, pPacket->dts, pPacket->dts - maxdts);
     correction = pPacket->dts - maxdts;
+    current.pendingContinuity = false;
   }
 
   /* if it's large scale jump, correct for it after having confirmed the jump */
@@ -2878,13 +2934,34 @@ bool CVideoPlayer::CheckContinuity(CCurrentStream& current, DemuxPacket* pPacket
         "CVideoPlayer::CheckContinuity - resync backward :{}, prev:{:f}, curr:{:f}, diff:{:f}",
         current.type, current.dts, pPacket->dts, pPacket->dts - current.dts);
     correction = pPacket->dts - current.dts_end();
+
+    // During startup, ignore the first backward jump and wait for it to repeat
+    // before changing m_offset_pts. This avoids locking in a global correction
+    // from unstable initial timestamps while the streams are still syncing.
+    if (startupContinuityWindow && !current.pendingContinuity)
+    {
+      current.pendingContinuity = true;
+      logM(LOGDEBUG, "defer startup backward correction :{}, prev:{:f}, curr:{:f}",
+                     current.type, current.dts, pPacket->dts);
+      // Mark the packet timestamps as unknown so UpdateTimestamps keeps the
+      // current stream DTS and downstream startup handling treats this packet
+      // as not timestamped until a repeated jump confirms the correction.
+      pPacket->dts = DVD_NOPTS_VALUE;
+      pPacket->pts = DVD_NOPTS_VALUE;
+      return true;
+    }
+
+    current.pendingContinuity = false;
   }
   else if(pPacket->dts < current.dts)
   {
+    current.pendingContinuity = false;
     CLog::Log(LOGDEBUG,
               "CVideoPlayer::CheckContinuity - wrapback :{}, prev:{:f}, curr:{:f}, diff:{:f}",
               current.type, current.dts, pPacket->dts, pPacket->dts - current.dts);
   }
+  else
+    current.pendingContinuity = false;
 
   double lastdts = pPacket->dts;
   if(correction != 0.0)
@@ -3668,6 +3745,7 @@ void CVideoPlayer::HandleMessages()
         m_CurrentAudio.cachetime = msg.cachetime;
         m_CurrentAudio.cachetotal = msg.cachetotal;
         m_CurrentAudio.starttime = msg.timestamp;
+        ArmStartupVideoTransition();
       }
       if (msg.player == VideoPlayer_VIDEO)
       {
@@ -4506,6 +4584,9 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
   const bool allowEarlyTransition = firstOpen &&
                                     m_playerOptions.fullscreen &&
                                     CServiceBroker::GetWinSystem()->GetGfxContext().IsFullScreenRoot();
+  const bool deferStartupTransition = allowEarlyTransition && !m_playerOptions.videoOnly;
+  bool requestResolutionChange = false;
+  float startupFramerate = 0.0f;
 
   // set desired refresh rate
   if (allowEarlyTransition &&
@@ -4527,12 +4608,32 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
         framerate = 60000.0 / 1001.0;
         m_processInfo->SetVideoInterlaced(true);
       }
-      m_processInfo->SetVideoFps(static_cast<float>(framerate));
-      m_renderManager.TriggerUpdateResolution(framerate, hint.width, hint.height, hint.stereo_mode);
+      startupFramerate = static_cast<float>(framerate);
+      m_processInfo->SetVideoFps(startupFramerate);
+      requestResolutionChange = true;
     }
   }
 
-  m_renderManager.TriggerUpdateResolutionHdr(hdrPolicy);
+  if (deferStartupTransition)
+  {
+    m_startupTransition.deferred = true;
+    m_startupTransition.active = false;
+    m_startupTransition.needsResolutionChange = requestResolutionChange;
+    m_startupTransition.fps = startupFramerate;
+    m_startupTransition.width = hint.width;
+    m_startupTransition.height = hint.height;
+    m_startupTransition.stereoMode = hint.stereo_mode;
+    m_startupTransition.hdrPolicy = std::make_unique<AMLHdrSetupPolicy>(hdrPolicy);
+    logM(LOGINFO, "Deferred startup video transition until audio is configured");
+  }
+  else
+  {
+    if (requestResolutionChange)
+      m_renderManager.TriggerUpdateResolution(startupFramerate, hint.width, hint.height,
+                                              hint.stereo_mode);
+    m_renderManager.TriggerUpdateResolutionHdr(hdrPolicy);
+  }
+
   aml_update_hdr_mode_state(hdrPolicy.resolvedHdr, hint.bitdepth);
 
   IDVDStreamPlayer* player = GetStreamPlayer(m_CurrentVideo.player);
@@ -4587,6 +4688,35 @@ bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
   SetAVChange("OpenVideoStream");
 
   return true;
+}
+
+void CVideoPlayer::ArmStartupVideoTransition()
+{
+  if (!m_startupTransition.deferred)
+    return;
+
+  if (m_startupTransition.needsResolutionChange)
+  {
+    m_renderManager.TriggerUpdateResolution(m_startupTransition.fps,
+                                            m_startupTransition.width,
+                                            m_startupTransition.height,
+                                            m_startupTransition.stereoMode);
+  }
+
+  if (m_startupTransition.hdrPolicy)
+    m_renderManager.TriggerUpdateResolutionHdr(*m_startupTransition.hdrPolicy);
+
+  m_startupTransition.deferred = false;
+  m_startupTransition.needsResolutionChange = false;
+  m_startupTransition.fps = 0.0f;
+  m_startupTransition.width = 0;
+  m_startupTransition.height = 0;
+  m_startupTransition.stereoMode.clear();
+  m_startupTransition.hdrPolicy.reset();
+
+  m_startupTransition.active = m_renderManager.HasPendingResolutionChange();
+  if (m_startupTransition.active)
+    logM(LOGINFO, "Armed deferred startup video transition after audio startup");
 }
 
 bool CVideoPlayer::OpenSubtitleStream(const CDVDStreamInfo& hint)
