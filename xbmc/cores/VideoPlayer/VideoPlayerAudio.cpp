@@ -107,6 +107,32 @@ CVideoPlayerAudio::~CVideoPlayerAudio()
   // CloseStream(true);
 }
 
+void CVideoPlayerAudio::SetStartupSinkConfig(const StartupSinkConfig& config)
+{
+  std::unique_lock lock(m_startupSinkConfigSection);
+  m_startupSinkConfig = config;
+  m_hasStartupSinkConfig = true;
+}
+
+void CVideoPlayerAudio::ClearStartupSinkConfig()
+{
+  std::unique_lock lock(m_startupSinkConfigSection);
+  m_startupSinkConfig = {};
+  m_hasStartupSinkConfig = false;
+}
+
+bool CVideoPlayerAudio::TakeStartupSinkConfig(StartupSinkConfig& config)
+{
+  std::unique_lock lock(m_startupSinkConfigSection);
+  if (!m_hasStartupSinkConfig)
+    return false;
+
+  config = m_startupSinkConfig;
+  m_startupSinkConfig = {};
+  m_hasStartupSinkConfig = false;
+  return true;
+}
+
 bool CVideoPlayerAudio::OpenStream(CDVDStreamInfo hints)
 {
   CLog::Log(LOGINFO, "Finding audio codec for: {}", hints.codec);
@@ -169,6 +195,27 @@ void CVideoPlayerAudio::OpenStream(CDVDStreamInfo& hints, std::unique_ptr<CDVDAu
 
   m_maxspeedadjust = 5.0;
 
+  StartupSinkConfig startupSinkConfig;
+  if (TakeStartupSinkConfig(startupSinkConfig))
+  {
+    DVDAudioFrame startupFrame{};
+    startupFrame.format = startupSinkConfig.format;
+    startupFrame.bits_per_sample = startupSinkConfig.bitsPerSample;
+    startupFrame.passthrough = startupSinkConfig.passthrough;
+
+    if (!m_audioSink.IsValidFormat(startupFrame))
+    {
+      if (m_speed)
+        m_audioSink.Drain();
+
+      m_audioSink.Destroy(false);
+
+      if (!m_audioSink.Create(startupFrame, m_streaminfo.codec, m_synctype == SYNC_RESAMPLE))
+        CLog::Log(LOGDEBUG,
+                  "CVideoPlayerAudio::OpenStream - failed to pre-create audio renderer from probe");
+    }
+  }
+
   m_messageParent.Put(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_AVCHANGE));
   m_syncState = IDVDStreamPlayer::SYNC_STARTING;
 
@@ -179,6 +226,8 @@ void CVideoPlayerAudio::OpenStream(CDVDStreamInfo& hints, std::unique_ptr<CDVDAu
 
 void CVideoPlayerAudio::CloseStream(bool bWaitForBuffers)
 {
+  ClearStartupSinkConfig();
+
   bool bWait = bWaitForBuffers && m_speed > 0 && !CServiceBroker::GetActiveAE()->IsSuspended();
 
   // wait until buffers are empty
@@ -750,16 +799,16 @@ bool CVideoPlayerAudio::ProcessDecoderOutput(DVDAudioFrame &audioframe)
   // signal to our parent that we have initialized
   if (m_syncState == IDVDStreamPlayer::SYNC_STARTING)
   {
-    double cachetotal = m_audioSink.GetCacheTotal();
-    double cachetime = m_audioSink.GetCacheTime();
-    if (cachetime >= cachetotal * 0.75)
+    const double startupCacheTotal = m_audioSink.GetCacheTotal();
+    const double startupCacheTime = m_audioSink.GetCacheTime();
+    if (startupCacheTime >= startupCacheTotal * 0.75)
     {
       m_syncState = IDVDStreamPlayer::SYNC_WAITSYNC;
       m_stalled = false;
       SStartMsg msg;
       msg.player = VideoPlayer_AUDIO;
-      msg.cachetotal = m_audioSink.GetMaxDelay() * DVD_TIME_BASE;
-      msg.cachetime = m_audioSink.GetDelay();
+      msg.cachetotal = startupCacheTotal * DVD_TIME_BASE;
+      msg.cachetime = startupCacheTime * DVD_TIME_BASE;
       msg.timestamp = audioframe.hasTimestamp ? audioframe.pts : DVD_NOPTS_VALUE;
       m_messageParent.Put(std::make_shared<CDVDMsgType<SStartMsg>>(CDVDMsg::PLAYER_STARTED, msg));
 
