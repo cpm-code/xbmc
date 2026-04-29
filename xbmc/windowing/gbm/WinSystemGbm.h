@@ -59,6 +59,8 @@ public:
   void Register(IDispResource* resource) override;
   void Unregister(IDispResource* resource) override;
 
+  bool SetVideoOutput(const VideoPicture* videoPicture) override;
+
   bool SetHDR(const VideoPicture* videoPicture) override;
   bool IsHDRDisplay() override;
   CHDRCapabilities GetDisplayHDRCapabilities() const override;

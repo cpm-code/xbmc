@@ -31,6 +31,12 @@ using namespace KODI::UTILS::EGL;
 CRendererDRMPRIMEGLES::~CRendererDRMPRIMEGLES()
 {
   Flush(false);
+
+  if (m_configured)
+  {
+    if (auto winSystem = CServiceBroker::GetWinSystem())
+      winSystem->SetVideoOutput(nullptr);
+  }
 }
 
 CBaseRenderer* CRendererDRMPRIMEGLES::Create(CVideoBuffer* buffer)
@@ -108,6 +114,9 @@ bool CRendererDRMPRIMEGLES::Configure(const VideoPicture& picture,
 
   if (!winSystem)
     return false;
+
+  if (!winSystem->SetVideoOutput(&picture))
+    CLog::Log(LOGWARNING, "RendererDRMPRIMEGLES::Configure: SetVideoOutput failed");
 
   auto winSystemEGL = dynamic_cast<KODI::WINDOWING::LINUX::CWinSystemEGL*>(winSystem);
 

@@ -148,6 +148,9 @@ bool CLinuxRendererGLES::Configure(const VideoPicture &picture, float fps, unsig
   // frame is loaded after every call to Configure().
   m_bValidated = false;
 
+  if (!CServiceBroker::GetWinSystem()->SetVideoOutput(&picture))
+    CLog::Log(LOGWARNING, "LinuxRendererGLES::Configure: SetVideoOutput failed");
+
   // setup the background colour
   m_clearColour = CServiceBroker::GetWinSystem()->UseLimitedColor() ? (16.0f / 0xff) : 0.0f;
 
@@ -896,13 +899,17 @@ void CLinuxRendererGLES::UnInit()
     DeleteTexture(i);
   }
 
+  if (m_bConfigured)
+  {
+    CServiceBroker::GetWinSystem()->SetHDR(nullptr);
+    m_passthroughHDR = false;
+    CServiceBroker::GetWinSystem()->SetVideoOutput(nullptr);
+  }
+
   // cleanup framebuffer object if it was in use
   m_fbo.fbo.Cleanup();
   m_bValidated = false;
   m_bConfigured = false;
-
-  CServiceBroker::GetWinSystem()->SetHDR(nullptr);
-  m_passthroughHDR = false;
 }
 
 bool CLinuxRendererGLES::CreateTexture(int index)

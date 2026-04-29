@@ -254,6 +254,9 @@ bool CLinuxRendererGL::Configure(const VideoPicture &picture, float fps, unsigne
 
   m_pboSupported = CGLExtensions::IsExtensionSupported(CGLExtensions::ARB_pixel_buffer_object);
 
+  if (!CServiceBroker::GetWinSystem()->SetVideoOutput(&picture))
+    CLog::Log(LOGWARNING, "LinuxRendererGL::Configure: SetVideoOutput failed");
+
   // setup the background colour
   m_clearColour = CServiceBroker::GetWinSystem()->UseLimitedColor() ? (16.0f / 0xff) : 0.0f;
 
@@ -1070,13 +1073,17 @@ void CLinuxRendererGL::UnInit()
 
   DeleteCLUT();
 
+  if (m_bConfigured)
+  {
+    CServiceBroker::GetWinSystem()->SetHDR(nullptr);
+    m_passthroughHDR = false;
+    CServiceBroker::GetWinSystem()->SetVideoOutput(nullptr);
+  }
+
   // cleanup framebuffer object if it was in use
   m_fbo.fbo.Cleanup();
   m_bValidated = false;
   m_bConfigured = false;
-
-  CServiceBroker::GetWinSystem()->SetHDR(nullptr);
-  m_passthroughHDR = false;
 }
 
 bool CLinuxRendererGL::Render(unsigned int flags, int renderBuffer)

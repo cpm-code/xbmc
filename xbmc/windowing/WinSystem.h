@@ -216,6 +216,17 @@ public:
   std::shared_ptr<CDPMSSupport> GetDPMSManager();
 
   /*!
+   * \brief Signal the role of the output surface: video playback or idle GUI.
+   *
+   * Called by video renderers at Configure (with videoPicture) and at UnInit
+   * (nullptr). On platforms with a flip-flop plane-role model (single-plane
+   * GBM), implementations adopt the output plane as the video plane while
+   * a video is playing and revert it to the gui plane on disable. Returns
+   * true if the role transition was applied.
+   */
+  virtual bool SetVideoOutput(const VideoPicture* videoPicture) { return false; }
+
+  /*!
    * \brief Set the HDR metadata. Passing nullptr as the parameter should
    * disable HDR.
    *
