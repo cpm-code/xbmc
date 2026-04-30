@@ -6,7 +6,7 @@
  *  See LICENSES/README.md for more information.
  */
 
-#include "VideoPlayerProbe.h"
+#include "VideoPlayerProbeVideo.h"
 #include "DualLayerPairing.h"
 
 #include "DVDDemuxers/DVDDemux.h"
@@ -113,7 +113,7 @@ bool Supports(const CDVDStreamInfo& hint)
 }
 }
 
-namespace VideoPlayerProbe
+namespace VideoPlayerProbeVideo
 {
 bool Run(CDVDDemux& demuxer,
          CDVDStreamInfo& hint,

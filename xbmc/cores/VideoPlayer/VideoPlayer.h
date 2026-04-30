@@ -432,10 +432,13 @@ protected:
   void DestroyPlayers();
 
   void Prepare();
+  void ProbeStream(CCurrentStream& current, CDVDStreamInfo& hint, bool reset);
+  bool ProbeAudioStream(CDVDStreamInfo& hint);
+  bool ProbeVideoStream(CDVDStreamInfo& hint, bool reset);
   bool OpenStream(CCurrentStream& current, int64_t demuxerId, int iStream, int source, bool reset = true);
   bool OpenAudioStream(CDVDStreamInfo& hint, bool reset = true);
   bool OpenVideoStream(CDVDStreamInfo& hint, bool reset = true);
-  AMLHdrSetupPolicy SetupVideoHdrPolicy(CDVDStreamInfo& hint, bool reset);
+  AMLHdrSetupPolicy SetupVideoHdrPolicy(CDVDStreamInfo& hint);
   bool OpenSubtitleStream(const CDVDStreamInfo& hint);
   bool OpenTeletextStream(CDVDStreamInfo& hint);
   bool OpenRadioRDSStream(CDVDStreamInfo& hint);
@@ -502,7 +505,6 @@ protected:
   void HandleMessages();
   void HandlePlaySpeed();
   void HandlePendingStreamSync();
-  bool ProbeVideoHdr(CDVDStreamInfo& hint);
   bool IsInMenuInternal() const;
   void SynchronizeDemuxer();
   void CheckAutoSceneSkip();

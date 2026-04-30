@@ -6,7 +6,7 @@
 
 class CDVDDemux;
 
-namespace VideoPlayerProbe
+namespace VideoPlayerProbeVideo
 {
 bool Run(CDVDDemux& demuxer,
          CDVDStreamInfo& hint,
