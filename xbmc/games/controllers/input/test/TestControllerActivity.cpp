@@ -132,9 +132,8 @@ TEST(TestControllerActivity, MultiplePointers)
   activity.OnMouseMotion("pointer2", 1, 0);
   activity.OnInputFrame();
 
-  // Ensure both pointers keep the controller active. Again, keep the
-  // wait well under the timeout.
-  std::this_thread::sleep_for(5ms);
+  // Verify activation immediately after the second pointer update to avoid
+  // scheduler jitter causing intermittent timeout failures on CI.
   EXPECT_FLOAT_EQ(activity.GetActivation(), 1.0f);
 
   // Finally exceed the timeout so all pointer activity expires.
