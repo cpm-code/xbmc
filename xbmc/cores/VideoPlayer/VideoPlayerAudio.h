@@ -32,6 +32,13 @@ class CVideoPlayer;
 class CVideoPlayerAudio : public CThread, public IDVDStreamPlayerAudio
 {
 public:
+  struct StartupSinkConfig
+  {
+    AEAudioFormat format;
+    int bitsPerSample{0};
+    bool passthrough{false};
+  };
+
   CVideoPlayerAudio(CDVDClock* pClock,
                     CDVDMessageQueue& parent,
                     CRenderManager& renderManager,
@@ -41,6 +48,8 @@ public:
 
   bool OpenStream(CDVDStreamInfo hints) override;
   void CloseStream(bool bWaitForBuffers) override;
+  void SetStartupSinkConfig(const StartupSinkConfig& config);
+  void ClearStartupSinkConfig();
 
   void SetSpeed(int speed) override;
   void Flush(bool sync) override;
@@ -91,6 +100,7 @@ protected:
   bool ProcessDecoderOutput(DVDAudioFrame& audioframe);
   void UpdatePlayerInfo();
   void OpenStream(CDVDStreamInfo& hints, std::unique_ptr<CDVDAudioCodec> codec);
+  bool TakeStartupSinkConfig(StartupSinkConfig& config);
   //! Switch codec if needed. Called when the sample rate gotten from the
   //! codec changes, in which case we may want to switch passthrough on/off.
   bool SwitchCodecIfNeeded();
@@ -159,5 +169,8 @@ protected:
   AudioSync::CFloatingAverage<double, PCM_JITTER_WINDOW_SIZE> m_pcmJitterTracker;
   double m_pcmOutputClock{0.0}; // Running output timestamp (like LAV's m_rtStart)
   bool m_pcmResyncTimestamp{true}; // Resync output clock to input on next valid PTS
-};
 
+  CCriticalSection m_startupSinkConfigSection;
+  StartupSinkConfig m_startupSinkConfig;
+  bool m_hasStartupSinkConfig{false};
+};

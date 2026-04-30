@@ -7,7 +7,6 @@
  */
 
 #include "VideoPlayer.h"
-#include "VideoPlayerProbe.h"
 
 #include "DVDCodecs/DVDCodecUtils.h"
 #include "DVDDemuxers/DVDDemux.h"
@@ -18,6 +17,8 @@
 #include "DVDDemuxers/DVDFactoryDemuxer.h"
 #include "DVDInputStreams/DVDFactoryInputStream.h"
 #include "DVDInputStreams/DVDInputStream.h"
+#include "VideoPlayerProbeVideo.h"
+#include "VideoPlayerProbeAudio.h"
 #include "network/NetworkFileItemClassify.h"
 #if defined(HAVE_LIBBLURAY)
 #include "DVDInputStreams/DVDInputStreamBluray.h"
@@ -1244,12 +1245,56 @@ void CVideoPlayer::CloseDemuxer()
   CServiceBroker::GetDataCacheCore().SignalSubtitleInfoChange();
 }
 
-bool CVideoPlayer::ProbeVideoHdr(CDVDStreamInfo& hint)
+void CVideoPlayer::ProbeStream(CCurrentStream& current, CDVDStreamInfo& hint, bool reset)
+{
+  switch (current.type)
+  {
+    case StreamType::AUDIO:
+      ProbeAudioStream(hint);
+      break;
+    case StreamType::VIDEO:
+      ProbeVideoStream(hint, reset);
+      break;
+    default:
+      break;
+  }
+}
+
+bool CVideoPlayer::ProbeAudioStream(CDVDStreamInfo& hint)
 {
   if (!m_pDemuxer) return false;
 
+  auto* audioPlayer = dynamic_cast<CVideoPlayerAudio*>(GetStreamPlayer(m_CurrentAudio.player));
+  if (audioPlayer) audioPlayer->ClearStartupSinkConfig();
+
+  const bool streamChanged = (m_CurrentAudio.id < 0) || (m_CurrentAudio.hint != hint);
+  const bool demuxStream = (STREAM_SOURCE_MASK(hint.source) == STREAM_SOURCE_DEMUX);
+  if (!audioPlayer || !streamChanged || !demuxStream)
+    return false;
+
+  VideoPlayerProbeAudio::AudioProbeResult probeResult;
+  if (!VideoPlayerProbeAudio::Run(*m_pDemuxer, hint, *m_processInfo, m_bAbortRequest, probeResult))
+    return false;
+
+  CVideoPlayerAudio::StartupSinkConfig startupSinkConfig;
+  startupSinkConfig.format = probeResult.format;
+  startupSinkConfig.bitsPerSample = probeResult.bitsPerSample;
+  startupSinkConfig.passthrough = probeResult.passthrough;
+  audioPlayer->SetStartupSinkConfig(startupSinkConfig);
+  return true;
+}
+
+bool CVideoPlayer::ProbeVideoStream(CDVDStreamInfo& hint, bool reset)
+{
+  if (!m_pDemuxer) return false;
+
+  const bool firstOpen = (m_CurrentVideo.id < 0);
+  const bool streamChanged = (m_CurrentVideo.hint != hint);
+  if (!firstOpen && !streamChanged && reset)
+    return false;
+
   m_pDemuxer->ClearReplay();
-  return VideoPlayerProbe::Run(*m_pDemuxer, hint, m_bAbortRequest);
+  return VideoPlayerProbeVideo::Run(*m_pDemuxer, hint, m_bAbortRequest);
 }
 
 void CVideoPlayer::OpenDefaultStreams(bool reset)
@@ -4436,6 +4481,8 @@ bool CVideoPlayer::OpenStream(CCurrentStream& current, int64_t demuxerId, int iS
     hint.Assign(*stream, false);
   }
 
+  ProbeStream(current, hint, reset);
+
   bool res;
   switch(current.type)
   {
@@ -4533,14 +4580,8 @@ bool CVideoPlayer::OpenAudioStream(CDVDStreamInfo& hint, bool reset)
   return true;
 }
 
-AMLHdrSetupPolicy CVideoPlayer::SetupVideoHdrPolicy(CDVDStreamInfo& hint,
-                                                    bool reset)
+AMLHdrSetupPolicy CVideoPlayer::SetupVideoHdrPolicy(CDVDStreamInfo& hint)
 {
-  const bool firstOpen = (m_CurrentVideo.id < 0);
-
-  if (firstOpen || (m_CurrentVideo.hint != hint) || !reset)
-    ProbeVideoHdr(hint);
-
   const auto hdrPolicy = aml_get_hdr_setup_policy(hint);
   hint.amlVideoOpen.UpdateFromHdrPolicy(hdrPolicy);
   return hdrPolicy;
@@ -4548,7 +4589,7 @@ AMLHdrSetupPolicy CVideoPlayer::SetupVideoHdrPolicy(CDVDStreamInfo& hint,
 
 bool CVideoPlayer::OpenVideoStream(CDVDStreamInfo& hint, bool reset)
 {
-  const auto hdrPolicy = SetupVideoHdrPolicy(hint, reset);
+  const auto hdrPolicy = SetupVideoHdrPolicy(hint);
 
   m_processInfo->SetVideoInterlaced((hint.codecOptions & CODEC_INTERLACED) == CODEC_INTERLACED);
   if (m_pInputStream && m_pInputStream->IsStreamType(DVDSTREAM_TYPE_DVD))

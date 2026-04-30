@@ -17,7 +17,8 @@ set(SOURCES AudioSinkAE.cpp
             VideoPlayer.cpp
             VideoPlayerAudio.cpp
             VideoPlayerAudioID3.cpp
-            VideoPlayerProbe.cpp
+            VideoPlayerProbeAudio.cpp
+            VideoPlayerProbeVideo.cpp
             VideoPlayerRadioRDS.cpp
             VideoPlayerSubtitle.cpp
             VideoPlayerTeletext.cpp
@@ -47,7 +48,8 @@ set(HEADERS AudioSinkAE.h
             VideoPlayer.h
             VideoPlayerAudio.h
             VideoPlayerAudioID3.h
-            VideoPlayerProbe.h
+            VideoPlayerProbeAudio.h
+            VideoPlayerProbeVideo.h
             VideoPlayerRadioRDS.h
             VideoPlayerSubtitle.h
             VideoPlayerTeletext.h
