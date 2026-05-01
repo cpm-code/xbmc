@@ -252,6 +252,11 @@ bool CWinSystemGbm::SetFullScreen(bool fullScreen, RESOLUTION_INFO& res, bool bl
   if (!std::dynamic_pointer_cast<CDRMAtomic>(m_DRM))
   {
     bo = m_GBM->GetDevice().GetSurface().LockFrontBuffer().Get();
+    if (!bo)
+    {
+      CLog::Log(LOGERROR, "CWinSystemGbm::{} - failed to lock front buffer", __FUNCTION__);
+      return false;
+    }
   }
 
   auto result = m_DRM->SetVideoMode(res, bo);

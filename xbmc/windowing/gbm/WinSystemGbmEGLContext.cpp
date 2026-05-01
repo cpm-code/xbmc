@@ -134,6 +134,11 @@ bool CWinSystemGbmEGLContext::CreateNewWindow(const std::string& name,
   }
 
   struct gbm_bo* bo = m_GBM->GetDevice().GetSurface().LockFrontBuffer().Get();
+  if (!bo)
+  {
+    CLog::Log(LOGERROR, "CWinSystemGbmEGLContext::{} - failed to lock front buffer", __FUNCTION__);
+    return false;
+  }
 
 #if defined(HAS_GBM_MODIFIERS)
   uint64_t modifier = gbm_bo_get_modifier(bo);
