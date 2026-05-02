@@ -43,6 +43,7 @@ public:
   bool NeedPassthrough() override { return true; }
   std::string GetName() override { return m_codecName; }
   int GetBufferSize() override;
+  std::string GetSyncDebugInfo() const override;
 
   // LAV-style sync methods for VideoPlayerAudio integration
   void ResetLavSyncState();
@@ -96,8 +97,10 @@ private:
   };
 
   void UpdateDialNormSettings();
+  void ResetPassthroughDebugState();
   void ResetStartupJitterState(StartupJitterState& state);
   void ResetPassthroughStartupState(double resyncJitterIgnoreUntil);
+  double GetIgnoreWindowRemainingMs(const IgnoreWindowState& state) const;
   bool ShouldIgnoreWindow(IgnoreWindowState& state, IgnoreWindowKind kind);
   bool EvaluateStartupJitterState(StartupJitterState& state,
                                   double jitter,
@@ -116,6 +119,7 @@ private:
   void ApplyPassthroughJitterCorrection(double correction,
                                         bool resetTracker,
                                         bool signalDiscontinuity,
+                                        bool startupCorrection,
                                         DVDAudioFrame& frame);
   double GetTrueHdCorrectionClamp() const
   {
@@ -230,6 +234,13 @@ private:
 
   // Runtime jitter threshold - set based on codec in Open()
   double m_jitterThreshold{JITTER_THRESHOLD_DEFAULT};
+  double m_lastJitter{0.0};
+  bool m_hasLastJitter{false};
+  double m_lastStartupCorrection{0.0};
+  bool m_hasLastStartupCorrection{false};
+  double m_lastCorrection{0.0};
+  bool m_hasLastCorrection{false};
+  bool m_lastCorrectionWasStartup{false};
 
   StartupJitterState m_startupJitterState;
   IgnoreWindowState m_trueHdCorrectionCooldown;

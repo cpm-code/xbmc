@@ -555,6 +555,8 @@ bool CAEStreamParser::TrySyncAC3(uint8_t* data,
       uint8_t ac3_acmod = data[6] >> 5;
       uint8_t dialNormRaw = AC3_ParseDialnorm(data, ac3_acmod);
       m_info.m_dialNorm = static_cast<int>(dialNormRaw) - 31;
+      m_info.m_dialNormApplied = m_defeatAC3DialNorm ? 0 : m_info.m_dialNorm;
+      m_info.m_hasDialNorm = true;
     }
 
     // dont do extensive testing if we have not lost sync
@@ -605,6 +607,8 @@ bool CAEStreamParser::TrySyncAC3(uint8_t* data,
       uint8_t ac3_acmod = data[6] >> 5;
       uint8_t dialNormRaw = AC3_ParseDialnorm(data, ac3_acmod);
       m_info.m_dialNorm = static_cast<int>(dialNormRaw) - 31;
+      m_info.m_dialNormApplied = m_defeatAC3DialNorm ? 0 : m_info.m_dialNorm;
+      m_info.m_hasDialNorm = true;
     }
     CLog::Log(LOGINFO,
               "CAEStreamParser::TrySyncAC3 - AC3 stream detected ({} channels, {}Hz, "
@@ -653,6 +657,8 @@ bool CAEStreamParser::TrySyncAC3(uint8_t* data,
     {
       uint8_t dialNormRaw = ((data[5] & 0x07) << 2) | ((data[6] >> 6) & 0x03);
       m_info.m_dialNorm = static_cast<int>(dialNormRaw) - 31;
+      m_info.m_dialNormApplied = m_defeatAC3DialNorm ? 0 : m_info.m_dialNorm;
+      m_info.m_hasDialNorm = true;
     }
 
     // EAC3 can have a dependent stream too
@@ -694,6 +700,8 @@ bool CAEStreamParser::TrySyncAC3(uint8_t* data,
     {
       uint8_t dialNormRaw = ((data[5] & 0x07) << 2) | ((data[6] >> 6) & 0x03);
       m_info.m_dialNorm = static_cast<int>(dialNormRaw) - 31;
+      m_info.m_dialNormApplied = m_defeatAC3DialNorm ? 0 : m_info.m_dialNorm;
+      m_info.m_hasDialNorm = true;
     }
     CLog::Log(LOGINFO,
               "CAEStreamParser::TrySyncAC3 - E-AC3 stream detected ({} channels, {}Hz, {}-bit, "
@@ -1117,6 +1125,19 @@ unsigned int CAEStreamParser::SyncTrueHD(uint8_t* data, unsigned int size)
       m_substreams = (data[20] & 0xF0) >> 4;
       m_fsize = length;
 
+      if (hasAtmos)
+      {
+        m_info.m_hasAtmos = true;
+        if (atmosChannels > 0)
+          m_info.m_atmosChannels = atmosChannels;
+        if (hasExtChannelMeaning)
+        {
+          m_info.m_dialNorm = origDialNorm;
+          m_info.m_dialNormApplied = dialNormDefeated ? 0 : origDialNorm;
+          m_info.m_hasDialNorm = true;
+        }
+      }
+
       if (!m_hasSync)
       {
         // Looks like cannot understand the original bit depth - can only assume it is (up-to) 24 bit!
@@ -1138,7 +1159,9 @@ unsigned int CAEStreamParser::SyncTrueHD(uint8_t* data, unsigned int size)
         m_info.m_channels = CAEStreamParser::GetTrueHDChannels(channel_map);
 
         m_info.m_hasAtmos = hasAtmos;
-        m_info.m_dialNorm = dialNormDefeated ? 0 : origDialNorm;
+        m_info.m_dialNorm = origDialNorm;
+        m_info.m_dialNormApplied = dialNormDefeated ? 0 : origDialNorm;
+        m_info.m_hasDialNorm = hasExtChannelMeaning;
         m_info.m_atmosChannels = atmosChannels;
 
         std::string atmosStr;

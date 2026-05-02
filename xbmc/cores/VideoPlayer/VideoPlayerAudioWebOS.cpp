@@ -69,9 +69,14 @@ void CVideoPlayerAudioWebOS::SetDynamicRangeCompression(const long drc)
   m_mediaPipeline.SetDynamicRangeCompression(drc);
 }
 
-std::string CVideoPlayerAudioWebOS::GetPlayerInfo()
+std::string CVideoPlayerAudioWebOS::GetPlayerInfo1()
 {
   return m_mediaPipeline.GetAudioInfo();
+}
+
+std::string CVideoPlayerAudioWebOS::GetPlayerInfo2()
+{
+  return {};
 }
 
 int CVideoPlayerAudioWebOS::GetAudioChannels()

@@ -112,6 +112,10 @@ public:
   void SetAudioChannelsSink(std::string channels);
   std::string GetAudioChannels();
   std::string GetAudioChannelsSink();
+  void SetAudioObjectDescription(std::string description);
+  std::string GetAudioObjectDescription();
+  void SetAudioDialNorm(std::string dialNorm);
+  std::string GetAudioDialNorm();
   void SetAudioSampleRate(int sampleRate);
   int GetAudioSampleRate();
   void SetAudioBitsPerSample(int bitsPerSample);
@@ -338,6 +342,8 @@ protected:
     std::string decoderName;
     std::string channels;
     std::string channels_sink;
+    std::string objectDescription;
+    std::string dialNorm;
     int sampleRate;
     int bitsPerSample;
     uint64_t speakerMask = 0;

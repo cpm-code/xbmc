@@ -1106,9 +1106,16 @@ std::string CVideoPlayerVideo::GetPlayerInfo()
   int level, dataLevel;
   m_messageQueue.GetLevels(level, dataLevel);
   std::ostringstream s;
-  s << "vq:"   << std::setw(2) << std::min(99, level) << "% (" << std::setw(2) << std::min(99, dataLevel) << "%)";  s << ", Mb/s:" << std::fixed << std::setprecision(2) << (double)GetVideoBitrate() / (1024.0*1024.0);
+  s << "vq:"   << std::setw(2) << std::min(99, level) << "% (" << std::setw(2)
+    << std::min(99, dataLevel) << "%)";
+  s << ", Mb/s:" << std::fixed << std::setprecision(2)
+    << (double)GetVideoBitrate() / (1024.0 * 1024.0);
   s << ", dc:"   << m_processInfo.GetVideoDecoderName().c_str();
-  s << ", " << width << "x" << height << (m_processInfo.GetVideoInterlaced() ? "i" : "p") << " [" << std::setprecision(2) << m_processInfo.GetVideoDAR() << "]@" << std::fixed << std::setprecision(3) << m_processInfo.GetVideoFps() << ", deint:" << m_processInfo.GetVideoDeintMethod();
+  s << ", res:" << width << "x" << height
+    << (m_processInfo.GetVideoInterlaced() ? "i" : "p");
+  s << ", dar:" << std::fixed << std::setprecision(2) << m_processInfo.GetVideoDAR();
+  s << ", fps:" << std::fixed << std::setprecision(3) << m_processInfo.GetVideoFps();
+  s << ", deint:" << m_processInfo.GetVideoDeintMethod();
   s << ", drop:" << m_iDroppedFrames;
   s << ", skip:" << m_renderManager.GetSkippedFrames();
 
