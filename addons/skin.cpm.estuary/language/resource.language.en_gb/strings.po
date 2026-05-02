@@ -1021,22 +1021,22 @@ msgstr ""
 #: /xml/DialogPlayerProcessInfo.xml
 msgctxt "#32100"
 msgid "Display mode"
-msgstr ""
+msgstr "Display mode"
 
 #: /xml/DialogPlayerProcessInfo.xml
 msgctxt "#32101"
 msgid "EOTF & Gamut"
-msgstr ""
+msgstr "EOTF & Gamut"
 
 #: /xml/DialogPlayerProcessInfo.xml
 msgctxt "#31636"
 msgid "Display mode"
-msgstr ""
+msgstr "Display mode"
 
 #: /xml/DialogPlayerProcessInfo.xml
 msgctxt "#31637"
 msgid "EOTF & Gamut"
-msgstr ""
+msgstr "EOTF & Gamut"
 
 #: /xml/DialogPlayerProcessInfo.xml
 #. Label to show the video pixel format

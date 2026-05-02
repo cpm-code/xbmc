@@ -179,6 +179,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.dovi.version.major)].$INFO[Player.Process(video.dovi.version.minor)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -202,6 +203,7 @@
 						<align>right</align>
 						<label>$VAR[DVProfileExtVar]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -212,6 +214,7 @@
 						<align>right</align>
 						<label>[COLOR dimgrey]$VAR[DVSourceProfileExtVar][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 						<visible>!String.IsEqual(Player.Process(video.source.dovi.profile),Player.Process(video.dovi.profile))</visible>
 						<visible>!String.IsEqual(Player.Process(video.source.dovi.profile),0)</visible>
@@ -237,6 +240,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.dovi.level)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -260,6 +264,7 @@
 						<align>right</align>
 						<label>$VAR[RPUPresentVar]</label>
 						<font>font40</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -283,6 +288,7 @@
 						<align>right</align>
 						<label>[COLOR lightgreen]$VAR[BLPresentVar][/COLOR]</label>
 						<font>font40</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -306,6 +312,7 @@
 						<align>right</align>
 						<label>$VAR[ELPresentVar]</label>
 						<font>font40</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -316,6 +323,7 @@
 						<align>right</align>
 						<label>$VAR[ELSourcePresentVar]</label>
 						<font>font40</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 						<visible>!String.IsEqual(Player.Process(video.source.dovi.el.present),Player.Process(video.dovi.el.present))</visible>
 						<visible>!String.IsEqual(Player.Process(video.source.dovi.profile),0)</visible>
@@ -341,6 +349,7 @@
 						<align>right</align>
 						<label>$VAR[DVELVar]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -351,6 +360,7 @@
 						<align>right</align>
 						<label>$VAR[DVSourceELVar]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 						<visible>!String.IsEqual(Player.Process(video.source.dovi.el.type),Player.Process(video.dovi.el.type))</visible>
 						<visible>!String.IsEqual(Player.Process(video.source.dovi.profile),0)</visible>
@@ -376,6 +386,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.dovi.meta.version)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -428,6 +439,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.dovi.l6.max.cll)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -438,6 +450,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.dovi.l6.max.fall)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -472,6 +485,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.dovi.l6.min.lum)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -482,6 +496,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.dovi.l6.max.lum)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -515,6 +530,7 @@
 						<align>right</align>
 						<label>[COLOR lightgreen]$INFO[Player.Process(video.dovi.source.min.nits)][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -525,6 +541,7 @@
 						<align>right</align>
 						<label>[COLOR lightgreen]$INFO[Player.Process(video.dovi.source.max.nits)][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -558,6 +575,7 @@
 						<align>right</align>
 						<label>[COLOR lightgreen]$INFO[Player.Process(video.dovi.l1.min.nits)][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -568,6 +586,7 @@
 						<align>right</align>
 						<label>[COLOR lightgreen]$INFO[Player.Process(video.dovi.l1.max.nits)][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -578,6 +597,7 @@
 						<align>right</align>
 						<label>[COLOR lightgreen]$INFO[Player.Process(video.dovi.l1.avg.nits)][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -620,6 +640,7 @@
 						<align>right</align>
 						<label>[COLOR lightgreen]$INFO[Player.Process(video.dovi.source.min.pq)][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -630,6 +651,7 @@
 						<align>right</align>
 						<label>[COLOR lightgreen]$INFO[Player.Process(video.dovi.source.max.pq)][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -663,6 +685,7 @@
 						<align>right</align>
 						<label>[COLOR lightgreen]$INFO[Player.Process(video.dovi.l1.min.pq)][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -673,6 +696,7 @@
 						<align>right</align>
 						<label>[COLOR lightgreen]$INFO[Player.Process(video.dovi.l1.max.pq)][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -683,6 +707,7 @@
 						<align>right</align>
 						<label>[COLOR lightgreen]$INFO[Player.Process(video.dovi.l1.avg.pq)][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -726,6 +751,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.dovi.l5.left.offset)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -736,6 +762,7 @@
 						<align>right</align>
 						<label>[COLOR dimgrey]L[/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -746,6 +773,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.dovi.l5.right.offset)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -756,6 +784,7 @@
 						<align>right</align>
 						<label>[COLOR dimgrey]R[/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -766,6 +795,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.dovi.l5.top.offset)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -776,6 +806,7 @@
 						<align>right</align>
 						<label>[COLOR dimgrey]T[/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -786,6 +817,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.dovi.l5.bottom.offset)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -796,6 +828,7 @@
 						<align>right</align>
 						<label>[COLOR dimgrey]B[/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -847,6 +880,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.hdr.max.cll)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -857,6 +891,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.hdr.max.fall)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -891,6 +926,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.hdr.min.lum)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -901,6 +937,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.hdr.max.lum)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
@@ -935,6 +972,7 @@
 						<aligny>bottom</aligny>
 						<align>right</align>
 						<label>$INFO[Player.Process(video.hdr.colour.primaries)]</label>
+						<autoscroll delay="3000" time="10000" repeat="3000">true</autoscroll>
 						<font>font12</font>
 						<shadowcolor>black</shadowcolor>
 					</control>
@@ -967,6 +1005,7 @@
 						<align>right</align>
 						<label>$INFO[System.ScreenResolution]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -991,6 +1030,7 @@
 						<align>right</align>
 						<label>$INFO[System.FPS]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1015,6 +1055,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(videodecoder), ]$VAR[VideoHWDecoder, [COLOR dimgrey]([/COLOR],[COLOR dimgrey])[/COLOR]] $VAR[|] $INFO[Player.Process(deintmethod)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1039,6 +1080,7 @@
 						<align>right</align>
 						<label>$INFO[VideoPlayer.AudioMibitRate,[COLOR dimgrey],[/COLOR]] $VAR[|] $INFO[VideoPlayer.VideoMibitRate,[COLOR dimgrey],[/COLOR]]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 						<visible>!String.IsEmpty(VideoPlayer.AudioMibitRate)</visible>
 						<visible>!String.IsEmpty(VideoPlayer.VideoMibitRate)</visible>
@@ -1051,6 +1093,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(audio.live.mibit.rate),,] $VAR[|] $INFO[Player.Process(video.live.mibit.rate),,]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1075,6 +1118,7 @@
 						<align>right</align>
 						<label>$INFO[Player.CacheLevel,,%]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1108,6 +1152,7 @@
 						<align>right</align>
 						<label>$INFO[system.memory(used.percent)] [COLOR dimgrey]([/COLOR]$INFO[system.memory(used)] [COLOR dimgrey]/[/COLOR] $INFO[system.memory(total)][COLOR dimgrey])[/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1142,6 +1187,7 @@
 						<align>right</align>
 						<label>$INFO[System.CpuAltUsage]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1176,6 +1222,7 @@
 						<align>right</align>
 						<label>$INFO[System.CpuFrequency] $VAR[|] $INFO[System.CPUTemperature]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1208,6 +1255,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.source.hdr.type)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 						<visible>String.IsEqual(Player.Process(video.source.hdr.type.raw),0)</visible>
 					</control>
@@ -1219,6 +1267,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.source.hdr.type)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 						<visible>!String.IsEqual(Player.Process(video.source.hdr.type.raw),0)</visible>
 						<visible>String.IsEqual(Player.Process(video.source.additional.hdr.type.raw),0)</visible>
@@ -1231,6 +1280,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.source.hdr.type)] $VAR[|] [COLOR dimgrey]$INFO[Player.Process(video.source.additional.hdr.type)][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 						<visible>!String.IsEqual(Player.Process(video.source.hdr.type.raw),0)</visible>
 						<visible>!String.IsEqual(Player.Process(video.source.additional.hdr.type.raw),0)</visible>
@@ -1258,6 +1308,7 @@
 						<align>right</align>
 						<label>$INFO[VideoPlayer.VideoCodec] $VAR[|] $INFO[VideoPlayer.VideoResolution] $VAR[|] $INFO[VideoPlayer.VideoAspect]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1283,6 +1334,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.width.raw)]x$INFO[Player.Process(video.height.raw)]$INFO[Player.Process(videoscantype)] $VAR[|] $INFO[Player.Process(videofps),, fps] $VAR[|] $INFO[Player.Process(video.bit.depth),,-bit]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1308,6 +1360,7 @@
 						<align>right</align>
 						<label>$VAR[ColourVar]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1332,6 +1385,7 @@
 						<align>right</align>
 						<label>$VAR[AudioCodec1Var]$VAR[AudioChannels1Var, ]$VAR[ObjectAudio, ]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1356,6 +1410,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(audio.sample.rate),, kHz] $VAR[|] $INFO[Player.Process(audiobitspersample),,-bit]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1381,6 +1436,7 @@
 						<align>right</align>
 						<label>$INFO[VideoPlayer.AudioLanguage] $VAR[|] $INFO[VideoPlayer.AudioLanguageEx]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1406,6 +1462,7 @@
 						<align>right</align>
 						<label>$INFO[VideoPlayer.SubtitlesLanguage] $VAR[|] $INFO[VideoPlayer.SubtitlesLangEx]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 						<visible>VideoPlayer.SubtitlesEnabled</visible>
 					</control>
@@ -1417,6 +1474,7 @@
 						<align>right</align>
 						<label>[COLOR dimgrey]$INFO[VideoPlayer.SubtitlesLanguage][/COLOR] $VAR[|] [COLOR dimgrey]$INFO[VideoPlayer.SubtitlesLangEx][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 						<visible>!VideoPlayer.SubtitlesEnabled</visible>
 					</control>
@@ -1444,6 +1502,7 @@
 						<align>right</align>
 						<label>$INFO[VideoPlayer.SubtitlesName]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 						<visible>VideoPlayer.SubtitlesEnabled</visible>
 					</control>
@@ -1455,6 +1514,7 @@
 						<align>right</align>
 						<label>[COLOR dimgrey]$INFO[VideoPlayer.SubtitlesName][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 						<visible>!VideoPlayer.SubtitlesEnabled</visible>
 					</control>
@@ -1475,7 +1535,7 @@
 						<height>40</height>
 						<aligny>bottom</aligny>
 						<align>left</align>
-						<label>[COLOR button_focus]$LOCALIZE[32100]:[/COLOR]</label>
+						<label>[COLOR button_focus]$LOCALIZE[31636]:[/COLOR]</label>
 						<font>font12</font>
 						<shadowcolor>black</shadowcolor>
 					</control>
@@ -1487,6 +1547,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(amlogic.displaymode)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1500,7 +1561,7 @@
 						<height>40</height>
 						<aligny>bottom</aligny>
 						<align>left</align>
-						<label>[COLOR button_focus]$LOCALIZE[32101]:[/COLOR]</label>
+						<label>[COLOR button_focus]$LOCALIZE[31637]:[/COLOR]</label>
 						<font>font12</font>
 						<shadowcolor>black</shadowcolor>
 					</control>
@@ -1512,6 +1573,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(amlogic.eoft_gamut)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1538,6 +1600,7 @@
 						<align>right</align>
 						<label>$VAR[DVProfileExtVar]$VAR[DVELVar, ] $INFO[Player.Process(video.dovi.codec.string),[COLOR dimgrey][,][/COLOR]]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1564,6 +1627,7 @@
 						<align>right</align>
 						<label>$INFO[Player.Process(video.dovi.meta.version)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1590,6 +1654,7 @@
 						<align>right</align>
 						<label>$VAR[DVVS10Var]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1615,6 +1680,7 @@
 						<align>right</align>
 						<label>$VAR[DVTunnelVar,[COLOR dimgrey][,][/COLOR] ]$INFO[Player.Process(amlogic.pixformat)]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1641,6 +1707,7 @@
 						<align>left</align>
 						<label>$INFO[Player.Process(amlogic.video.fps.info)][COLOR orange]$INFO[Player.Process(amlogic.video.fps.drop),	-&gt; ][/COLOR]</label>
 						<font>font12</font>
+						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
 					</control>
 				</control>
@@ -1703,68 +1770,165 @@
 						<font>font12</font>
 						<shadowcolor>black</shadowcolor>
 					</control>
-					<control type="label">
+					<control type="group">
 						<left>10</left>
 						<top>40</top>
 						<width>430</width>
 						<height>30</height>
-						<aligny>bottom</aligny>
-						<align>left</align>
-						<label>[COLOR dimgrey]Input:[/COLOR] $VAR[AudioCodec1Var] $VAR[AudioChannels1Var, ]$VAR[ObjectAudio, ]</label>
-						<font>font12</font>
-						<scroll>true</scroll>
-						<shadowcolor>black</shadowcolor>
+						<control type="label">
+							<width>200</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>left</align>
+							<label>[COLOR button_focus]Input:[/COLOR]</label>
+							<font>font12</font>
+							<shadowcolor>black</shadowcolor>
+						</control>
+						<control type="label">
+							<left>200</left>
+							<width>230</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>right</align>
+							<label>$VAR[AudioCodec1Var] $VAR[AudioChannels1Var, ]$VAR[ObjectAudio, ]</label>
+							<font>font12</font>
+							<scroll>true</scroll>
+							<shadowcolor>black</shadowcolor>
+						</control>
 					</control>
-					<control type="label">
+					<control type="group">
 						<left>10</left>
 						<top>74</top>
 						<width>430</width>
 						<height>30</height>
-						<aligny>bottom</aligny>
-						<align>left</align>
-						<label>[COLOR dimgrey]$LOCALIZE[31651]:[/COLOR] $INFO[Player.Process(audio.sample.rate),, kHz] [COLOR FF404040]|[/COLOR] $INFO[Player.Process(audiobitspersample),,-bit]$INFO[VideoPlayer.AudioBitrate, [COLOR FF404040]|[/COLOR] , kb/s]</label>
-						<font>font12</font>
-						<scroll>true</scroll>
-						<shadowcolor>black</shadowcolor>
+						<control type="label">
+							<width>200</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>left</align>
+							<label>[COLOR button_focus]$LOCALIZE[31651]:[/COLOR]</label>
+							<font>font12</font>
+							<shadowcolor>black</shadowcolor>
+						</control>
+						<control type="label">
+							<left>200</left>
+							<width>230</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>right</align>
+							<label>$INFO[Player.Process(audio.sample.rate),, kHz] [COLOR FF404040]|[/COLOR] $INFO[Player.Process(audiobitspersample),,-bit]$INFO[VideoPlayer.AudioBitrate, [COLOR FF404040]|[/COLOR] , kb/s]</label>
+							<font>font12</font>
+							<scroll>true</scroll>
+							<shadowcolor>black</shadowcolor>
+						</control>
 					</control>
-					<control type="label">
+					<control type="group">
 						<left>10</left>
 						<top>108</top>
 						<width>430</width>
 						<height>30</height>
-						<aligny>bottom</aligny>
-						<align>left</align>
-						<label>[COLOR dimgrey]$LOCALIZE[31652]:[/COLOR] $INFO[VideoPlayer.AudioLanguage]$INFO[VideoPlayer.AudioLanguageEx, [COLOR FF404040]|[/COLOR] ,]</label>
 						<visible>!String.IsEmpty(VideoPlayer.AudioLanguage)</visible>
-						<font>font12</font>
-						<scroll>true</scroll>
-						<shadowcolor>black</shadowcolor>
+						<control type="label">
+							<width>200</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>left</align>
+							<label>[COLOR button_focus]$LOCALIZE[31652]:[/COLOR]</label>
+							<font>font12</font>
+							<shadowcolor>black</shadowcolor>
+						</control>
+						<control type="label">
+							<left>200</left>
+							<width>230</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>right</align>
+							<label>$INFO[VideoPlayer.AudioLanguage]$INFO[VideoPlayer.AudioLanguageEx, [COLOR FF404040]|[/COLOR] ,]</label>
+							<font>font12</font>
+							<scroll>true</scroll>
+							<shadowcolor>black</shadowcolor>
+						</control>
 					</control>
-					<control type="label">
+					<control type="group">
 						<left>10</left>
 						<top>142</top>
 						<width>430</width>
 						<height>30</height>
-						<aligny>bottom</aligny>
-						<align>left</align>
-						<label>[COLOR dimgrey]Kodi output:[/COLOR] Bitstream passthrough</label>
+						<visible>!String.IsEmpty(Player.Process(audio.dialnorm))</visible>
+						<control type="label">
+							<width>200</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>left</align>
+							<label>[COLOR button_focus]DialNorm:[/COLOR]</label>
+							<font>font12</font>
+							<shadowcolor>black</shadowcolor>
+						</control>
+						<control type="label">
+							<left>200</left>
+							<width>230</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>right</align>
+							<label>$INFO[Player.Process(audio.dialnorm)]</label>
+							<font>font12</font>
+							<scroll>true</scroll>
+							<shadowcolor>black</shadowcolor>
+						</control>
+					</control>
+					<control type="group">
+						<left>10</left>
+						<top>176</top>
+						<width>430</width>
+						<height>30</height>
 						<visible>player.passthrough</visible>
-						<font>font12</font>
-						<scroll>true</scroll>
-						<shadowcolor>black</shadowcolor>
+						<control type="label">
+							<width>200</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>left</align>
+							<label>[COLOR button_focus]Kodi output:[/COLOR]</label>
+							<font>font12</font>
+							<shadowcolor>black</shadowcolor>
+						</control>
+						<control type="label">
+							<left>200</left>
+							<width>230</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>right</align>
+							<label>Bitstream passthrough</label>
+							<font>font12</font>
+							<scroll>true</scroll>
+							<shadowcolor>black</shadowcolor>
+						</control>
 					</control>
-					<control type="label">
+					<control type="group">
 						<left>10</left>
-						<top>142</top>
+						<top>176</top>
 						<width>430</width>
 						<height>30</height>
-						<aligny>bottom</aligny>
-						<align>left</align>
-						<label>[COLOR dimgrey]Kodi output:[/COLOR] Decode to LPCM (objects may downmix)</label>
 						<visible>!player.passthrough</visible>
-						<font>font12</font>
-						<scroll>true</scroll>
-						<shadowcolor>black</shadowcolor>
+						<control type="label">
+							<width>200</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>left</align>
+							<label>[COLOR button_focus]Kodi output:[/COLOR]</label>
+							<font>font12</font>
+							<shadowcolor>black</shadowcolor>
+						</control>
+						<control type="label">
+							<left>200</left>
+							<width>230</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>right</align>
+							<label>Decode to LPCM (objects may downmix)</label>
+							<font>font12</font>
+							<scroll>true</scroll>
+							<shadowcolor>black</shadowcolor>
+						</control>
 					</control>
 
 					<control type="group">
@@ -1808,30 +1972,30 @@
 							<param name="angle">20</param><param name="centerleft">23</param><param name="centertop">17</param>
 							<param name="active">Integer.IsGreaterOrEqual(VideoPlayer.AudioChannels,7)</param>
 						</include>
-						<!-- Height speakers: show on object-based input streams (Atmos/DTS:X) -->
+						<!-- Height speakers: stream layout uses the actual input speaker flags -->
 						<include content="SpeakerBox">
 							<param name="left">12</param><param name="top">0</param><param name="label">TFL</param><param name="width">56</param><param name="height">40</param>
 							<param name="shape">circle</param>
 							<param name="activecolor">blue</param>
-							<param name="active">String.IsEqual($VAR[AudioHasHeightsVar],1)</param>
+							<param name="active">String.IsEqual(Player.Process(audio.speaker.tfl),1)</param>
 						</include>
 						<include content="SpeakerBox">
 							<param name="left">252</param><param name="top">0</param><param name="label">TFR</param><param name="width">56</param><param name="height">40</param>
 							<param name="shape">circle</param>
 							<param name="activecolor">blue</param>
-							<param name="active">String.IsEqual($VAR[AudioHasHeightsVar],1)</param>
+							<param name="active">String.IsEqual(Player.Process(audio.speaker.tfr),1)</param>
 						</include>
 						<include content="SpeakerBox">
 							<param name="left">12</param><param name="top">178</param><param name="label">TBL</param><param name="width">56</param><param name="height">40</param>
 							<param name="shape">circle</param>
 							<param name="activecolor">blue</param>
-							<param name="active">String.IsEqual($VAR[AudioHasHeightsVar],1)</param>
+							<param name="active">String.IsEqual(Player.Process(audio.speaker.tbl),1)</param>
 						</include>
 						<include content="SpeakerBox">
 							<param name="left">252</param><param name="top">178</param><param name="label">TBR</param><param name="width">56</param><param name="height">40</param>
 							<param name="shape">circle</param>
 							<param name="activecolor">blue</param>
-							<param name="active">String.IsEqual($VAR[AudioHasHeightsVar],1)</param>
+							<param name="active">String.IsEqual(Player.Process(audio.speaker.tbr),1)</param>
 						</include>
 					</control>
 				</control>
@@ -1853,70 +2017,140 @@
 						<font>font12</font>
 						<shadowcolor>black</shadowcolor>
 					</control>
-					<control type="label">
+					<control type="group">
 						<left>10</left>
 						<top>40</top>
 						<width>430</width>
 						<height>30</height>
-						<aligny>bottom</aligny>
-						<align>left</align>
-						<label>[COLOR dimgrey]Output:[/COLOR] Bitstream passthrough ($VAR[AudioCodec1Var] $VAR[AudioChannels1Var, ]$VAR[ObjectAudio, ])</label>
 						<visible>player.passthrough</visible>
-						<font>font12</font>
-						<scroll>true</scroll>
-						<shadowcolor>black</shadowcolor>
+						<control type="label">
+							<width>200</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>left</align>
+							<label>[COLOR button_focus]Output:[/COLOR]</label>
+							<font>font12</font>
+							<shadowcolor>black</shadowcolor>
+						</control>
+						<control type="label">
+							<left>200</left>
+							<width>230</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>right</align>
+							<label>Bitstream passthrough ($VAR[AudioCodec1Var] $VAR[AudioChannels1Var, ]$VAR[ObjectAudio, ])</label>
+							<font>font12</font>
+							<scroll>true</scroll>
+							<shadowcolor>black</shadowcolor>
+						</control>
 					</control>
-					<control type="label">
+					<control type="group">
 						<left>10</left>
 						<top>40</top>
 						<width>430</width>
 						<height>30</height>
-						<aligny>bottom</aligny>
-						<align>left</align>
-						<label>[COLOR dimgrey]Output:[/COLOR] LPCM $INFO[Player.Process(audiobitspersample),,bit]$INFO[Player.Process(audiosamplerate), @, Hz]$INFO[Player.Process(audiochannelssink),$COMMA , ]</label>
 						<visible>!player.passthrough</visible>
-						<font>font12</font>
-						<scroll>true</scroll>
-						<shadowcolor>black</shadowcolor>
+						<control type="label">
+							<width>200</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>left</align>
+							<label>[COLOR button_focus]Output:[/COLOR]</label>
+							<font>font12</font>
+							<shadowcolor>black</shadowcolor>
+						</control>
+						<control type="label">
+							<left>200</left>
+							<width>230</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>right</align>
+							<label>LPCM $INFO[Player.Process(audiobitspersample),,bit]$INFO[Player.Process(audiosamplerate), @, Hz]$INFO[Player.Process(audiochannelssink),$COMMA , ]</label>
+							<font>font12</font>
+							<scroll>true</scroll>
+							<shadowcolor>black</shadowcolor>
+						</control>
 					</control>
-					<control type="label">
+					<control type="group">
 						<left>10</left>
 						<top>74</top>
 						<width>430</width>
 						<height>30</height>
-						<aligny>bottom</aligny>
-						<align>left</align>
-						<label>[COLOR dimgrey]Receiver handles decoding / speaker mapping[/COLOR]</label>
 						<visible>player.passthrough</visible>
-						<font>font12</font>
-						<scroll>true</scroll>
-						<shadowcolor>black</shadowcolor>
+						<control type="label">
+							<width>200</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>left</align>
+							<label>[COLOR button_focus]Handling:[/COLOR]</label>
+							<font>font12</font>
+							<shadowcolor>black</shadowcolor>
+						</control>
+						<control type="label">
+							<left>200</left>
+							<width>230</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>right</align>
+							<label>Receiver handles decoding / speaker mapping</label>
+							<font>font12</font>
+							<scroll>true</scroll>
+							<shadowcolor>black</shadowcolor>
+						</control>
 					</control>
-					<control type="label">
+					<control type="group">
 						<left>10</left>
 						<top>74</top>
 						<width>430</width>
 						<height>30</height>
-						<aligny>bottom</aligny>
-						<align>left</align>
-						<label>[COLOR dimgrey]Decoder:[/COLOR] $INFO[Player.Process(audiodecoder)]</label>
 						<visible>!player.passthrough</visible>
-						<font>font12</font>
-						<scroll>true</scroll>
-						<shadowcolor>black</shadowcolor>
+						<control type="label">
+							<width>200</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>left</align>
+							<label>[COLOR button_focus]Decoder:[/COLOR]</label>
+							<font>font12</font>
+							<shadowcolor>black</shadowcolor>
+						</control>
+						<control type="label">
+							<left>200</left>
+							<width>230</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>right</align>
+							<label>$INFO[Player.Process(audiodecoder)]</label>
+							<font>font12</font>
+							<scroll>true</scroll>
+							<shadowcolor>black</shadowcolor>
+						</control>
 					</control>
-					<control type="label">
+					<control type="group">
 						<left>10</left>
 						<top>108</top>
 						<width>430</width>
 						<height>30</height>
-						<aligny>bottom</aligny>
-						<align>left</align>
-						<label>[COLOR dimgrey]ALSA map:[/COLOR] $INFO[Player.Process(audiochannelssink)] [COLOR dimgrey](may downmix)[/COLOR]</label>
 						<visible>!player.passthrough</visible>
-						<font>font12</font>
-						<scroll>true</scroll>
-						<shadowcolor>black</shadowcolor>
+						<control type="label">
+							<width>160</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>left</align>
+							<label>[COLOR button_focus]ALSA map:[/COLOR]</label>
+							<font>font12</font>
+							<shadowcolor>black</shadowcolor>
+						</control>
+						<control type="label">
+							<left>160</left>
+							<width>270</width>
+							<height>30</height>
+							<aligny>bottom</aligny>
+							<align>right</align>
+							<label>$INFO[Player.Process(audiochannelssink)] [COLOR dimgrey](may downmix)[/COLOR]</label>
+							<font>font12</font>
+							<scroll>true</scroll>
+							<shadowcolor>black</shadowcolor>
+						</control>
 					</control>
 
 					<control type="group">
