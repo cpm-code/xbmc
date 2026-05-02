@@ -412,9 +412,9 @@ void CDVDAudioCodecFFmpeg::BuildChannelMap()
   if (layout & AV_CH_TOP_FRONT_LEFT       ) m_channelLayout += AE_CH_TFL ;
   if (layout & AV_CH_TOP_FRONT_CENTER     ) m_channelLayout += AE_CH_TFC ;
   if (layout & AV_CH_TOP_FRONT_RIGHT      ) m_channelLayout += AE_CH_TFR ;
-  if (layout & AV_CH_TOP_BACK_LEFT        ) m_channelLayout += AE_CH_BL  ;
-  if (layout & AV_CH_TOP_BACK_CENTER      ) m_channelLayout += AE_CH_BC  ;
-  if (layout & AV_CH_TOP_BACK_RIGHT       ) m_channelLayout += AE_CH_BR  ;
+  if (layout & AV_CH_TOP_BACK_LEFT        ) m_channelLayout += AE_CH_TBL ;
+  if (layout & AV_CH_TOP_BACK_CENTER      ) m_channelLayout += AE_CH_TBC ;
+  if (layout & AV_CH_TOP_BACK_RIGHT       ) m_channelLayout += AE_CH_TBR ;
 
   m_channels = codecChannels;
 }
