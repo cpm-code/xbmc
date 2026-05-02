@@ -119,7 +119,8 @@ public:
   virtual void SetVolume(float fVolume) {}
   virtual void SetMute(bool bOnOff) {}
   virtual void SetDynamicRangeCompression(long drc) = 0;
-  virtual std::string GetPlayerInfo() = 0;
+  virtual std::string GetPlayerInfo1() = 0;
+  virtual std::string GetPlayerInfo2() = 0;
   virtual int GetAudioChannels() = 0;
   virtual double GetCurrentPts() = 0;
   virtual double GetCurrentPacketDelay() = 0;

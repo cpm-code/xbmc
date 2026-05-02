@@ -30,7 +30,8 @@ public:
   [[nodiscard]] bool IsInited() const override;
   void SendMessage(const std::shared_ptr<CDVDMsg> msg, const int priority) override;
   void SetDynamicRangeCompression(long drc) override;
-  std::string GetPlayerInfo() override;
+  std::string GetPlayerInfo1() override;
+  std::string GetPlayerInfo2() override;
   int GetAudioChannels() override;
   double GetCurrentPts() override;
   [[nodiscard]] bool IsStalled() const override;

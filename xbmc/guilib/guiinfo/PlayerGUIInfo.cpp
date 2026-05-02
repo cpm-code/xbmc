@@ -609,6 +609,12 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     case PLAYER_PROCESS_AUDIO_SPK_SINK_TBR:
       value = (CServiceBroker::GetDataCacheCore().GetAudioSpeakerMaskSink() & (1ULL << 16)) ? "1" : "0";
       return true;
+    case PLAYER_PROCESS_AUDIO_OBJECT_DESCRIPTION:
+      value = CServiceBroker::GetDataCacheCore().GetAudioObjectDescription();
+      return true;
+    case PLAYER_PROCESS_AUDIO_DIALNORM:
+      value = CServiceBroker::GetDataCacheCore().GetAudioDialNorm();
+      return true;
     case PLAYER_PROCESS_AUDIOSAMPLERATE:
       value = StringUtils::FormatNumber(CServiceBroker::GetDataCacheCore().GetAudioSampleRate());
       return true;

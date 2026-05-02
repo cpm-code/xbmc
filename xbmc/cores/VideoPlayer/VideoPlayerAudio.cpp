@@ -56,6 +56,52 @@ inline bool IsValidClockPts(double pts)
          std::abs(pts) <= MAX_REASONABLE_PTS;
 }
 
+std::string FormatDebugMs(double milliseconds)
+{
+  if (std::abs(milliseconds) < 0.005)
+    milliseconds = 0.0;
+
+  return StringUtils::Format("{:+07.2f}ms", milliseconds);
+}
+
+std::string FormatObjectAudioDescription(const CAEStreamInfo& streamInfo)
+{
+  if (streamInfo.m_type != CAEStreamInfo::STREAM_TYPE_TRUEHD || !streamInfo.m_hasAtmos)
+  {
+    return {};
+  }
+
+  if (streamInfo.m_atmosChannels == 0)
+    return "Atmos";
+
+  std::ostringstream stream;
+  stream << "Atmos [" << streamInfo.m_atmosChannels << "ch presentation]";
+  return stream.str();
+}
+
+std::string FormatDialNormDescription(const CAEStreamInfo& streamInfo)
+{
+  if (!streamInfo.m_hasDialNorm)
+    return {};
+
+  return StringUtils::Format("{} dB [COLOR FF404040]|[/COLOR] applied {} dB",
+                             streamInfo.m_dialNorm, streamInfo.m_dialNormApplied);
+}
+
+uint64_t BuildStreamSpeakerMask(const CAEChannelInfo& channelLayout,
+                                const CAEStreamInfo& streamInfo)
+{
+  uint64_t mask = CDataCacheCore::MakeSpeakerMask(channelLayout);
+
+  if (streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD && streamInfo.m_hasAtmos)
+  {
+    constexpr uint64_t heightMask = (1ULL << 11) | (1ULL << 12) | (1ULL << 15) | (1ULL << 16);
+    mask |= heightMask;
+  }
+
+  return mask;
+}
+
 class CDVDMsgAudioCodecChange : public CDVDMsg
 {
 public:
@@ -218,6 +264,10 @@ void CVideoPlayerAudio::OpenStream(CDVDStreamInfo& hints, std::unique_ptr<CDVDAu
 
   m_messageParent.Put(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_AVCHANGE));
   m_syncState = IDVDStreamPlayer::SYNC_STARTING;
+  ResetPassthroughClockSyncDebugState();
+  m_dataCacheCore.SetAudioObjectDescription({});
+  m_dataCacheCore.SetAudioDialNorm({});
+  m_dataCacheCore.SetAudioSpeakerMask(0);
 
   m_pcmJitterTracker.Reset();
   m_pcmOutputClock = LOCAL_NOPTS;
@@ -267,9 +317,14 @@ void CVideoPlayerAudio::CloseStream(bool bWaitForBuffers)
     m_pAudioCodec.reset();
   }
 
-  std::ostringstream s;
+  ResetPassthroughClockSyncDebugState();
+  m_dataCacheCore.SetAudioObjectDescription({});
+  m_dataCacheCore.SetAudioDialNorm({});
+  m_dataCacheCore.SetAudioSpeakerMask(0);
+
   SInfo info;
-  info.info        = s.str();
+  info.info1       = {};
+  info.info2       = {};
   info.pts         = DVD_NOPTS_VALUE;
   info.packetDelay = 0.0;
   info.passthrough = false;
@@ -288,13 +343,15 @@ void CVideoPlayerAudio::UpdatePlayerInfo()
   int level, dataLevel;
   m_messageQueue.GetLevels(level, dataLevel);
   std::ostringstream s;
+  std::string info2;
   s << "aq:"     << std::setw(2) << std::min(99, level) << "% (" << std::setw(2)
     << std::min(99, dataLevel) << "%)";
   s << ", Kb/s:" << std::fixed << std::setprecision(2) << m_audioStats.GetBitrate() / 1024.0;
   s << ", ac:"   << m_processInfo.GetAudioDecoderName().c_str();
   if (!m_info.passthrough)
     s << ", chan:" << m_processInfo.GetAudioChannels().c_str();
-  s << ", " << m_streaminfo.samplerate/1000 << " kHz";
+  s << ", sr:" << std::fixed << std::setprecision(1)
+    << (m_streaminfo.samplerate / 1000.0) << "kHz";
 
   // print a/v discontinuity adjustments counter when audio is not resampled (passthrough mode)
   if (m_synctype == SYNC_DISCON)
@@ -305,8 +362,32 @@ void CVideoPlayerAudio::UpdatePlayerInfo()
   if (m_synctype == SYNC_RESAMPLE)
     s << ", rr:" << std::fixed << std::setprecision(5) << 1.0 / m_audioSink.GetResampleRatio();
 
+  if (m_pAudioCodec)
+  {
+    const std::string syncDebugInfo = m_pAudioCodec->GetSyncDebugInfo();
+    if (!syncDebugInfo.empty())
+      info2 = syncDebugInfo;
+  }
+
+  if (m_hasLastPassthroughClockSyncCorrection)
+  {
+    const std::string sync =
+        "sync:" + FormatDebugMs(m_lastPassthroughClockSyncCorrection / 1000.0);
+    if (!info2.empty())
+    {
+      constexpr std::string_view jitterPrefix{"pt-jit:"};
+      if (info2.rfind(jitterPrefix, 0) == 0)
+        info2.insert(jitterPrefix.size(), " " + sync);
+      else
+        info2 += " " + sync;
+    }
+    else
+      info2 = "pt-jit: " + sync;
+  }
+
   SInfo info;
-  info.info        = s.str();
+  info.info1       = s.str();
+  info.info2       = std::move(info2);
   info.pts         = m_audioSink.GetPlayingPts();
   info.packetDelay = m_audioSink.GetDelay();
   info.passthrough = m_pAudioCodec && m_pAudioCodec->NeedPassthrough();
@@ -429,6 +510,7 @@ void CVideoPlayerAudio::Process()
       // This is the KEY fix for video switch A/V desync
       if (m_pAudioCodec && m_pAudioCodec->NeedPassthrough())
       {
+        ResetPassthroughClockSyncDebugState();
         CDVDAudioCodecPassthrough* passthroughCodec =
             dynamic_cast<CDVDAudioCodecPassthrough*>(m_pAudioCodec.get());
         if (passthroughCodec)
@@ -454,6 +536,7 @@ void CVideoPlayerAudio::Process()
       m_audioClock = 0;
       audioframe.nb_frames = 0;
       m_syncState = IDVDStreamPlayer::SYNC_STARTING;
+      ResetPassthroughClockSyncDebugState();
       // Reset PCM jitter tracking on reset - will resync on next valid PTS
       m_pcmJitterTracker.Reset();
       m_pcmResyncTimestamp = true;
@@ -465,6 +548,7 @@ void CVideoPlayerAudio::Process()
       m_stalled = true;
       m_audioClock = 0;
       audioframe.nb_frames = 0;
+      ResetPassthroughClockSyncDebugState();
 
       // Reset PCM jitter tracking on flush (seek, stream change) - will resync on next valid PTS
       m_pcmJitterTracker.Reset();
@@ -757,6 +841,11 @@ bool CVideoPlayerAudio::ProcessDecoderOutput(DVDAudioFrame &audioframe)
       {
         m_audioSink.SetSyncErrorCorrection(-correction);
         m_disconAdjustCounter++;
+        if (audioframe.passthrough)
+        {
+          m_lastPassthroughClockSyncCorrection = correction;
+          m_hasLastPassthroughClockSyncCorrection = true;
+        }
         CLog::Log(LOGDEBUG, LOGAUDIO,
                   "CVideoPlayerAudio:: {} clock sync correction:{:.3f}ms",
                   source, correction / DVD_TIME_BASE * 1000.0);
@@ -794,6 +883,15 @@ bool CVideoPlayerAudio::ProcessDecoderOutput(DVDAudioFrame &audioframe)
   // Also update PCM output clock for non-passthrough jitter tracking
   if (!audioframe.passthrough)
     m_pcmOutputClock += durationOutput;
+
+  m_dataCacheCore.SetAudioSpeakerMask(
+      BuildStreamSpeakerMask(audioframe.format.m_channelLayout, audioframe.format.m_streamInfo));
+  m_dataCacheCore.SetAudioObjectDescription(
+      audioframe.passthrough ? FormatObjectAudioDescription(audioframe.format.m_streamInfo)
+                             : std::string{});
+  m_dataCacheCore.SetAudioDialNorm(
+      audioframe.passthrough ? FormatDialNormDescription(audioframe.format.m_streamInfo)
+                             : std::string{});
 
   audioframe.framesOut += framesOutput;
 
@@ -916,10 +1014,16 @@ bool CVideoPlayerAudio::SwitchCodecIfNeeded()
   return true;
 }
 
-std::string CVideoPlayerAudio::GetPlayerInfo()
+std::string CVideoPlayerAudio::GetPlayerInfo1()
 {
   std::unique_lock lock(m_info_section);
-  return m_info.info;
+  return m_info.info1;
+}
+
+std::string CVideoPlayerAudio::GetPlayerInfo2()
+{
+  std::unique_lock lock(m_info_section);
+  return m_info.info2;
 }
 
 int CVideoPlayerAudio::GetAudioChannels()

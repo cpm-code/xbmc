@@ -590,6 +590,34 @@ std::string CDataCacheCore::GetAudioChannelsSink()
   return m_playerAudioInfo.channels_sink;
 }
 
+void CDataCacheCore::SetAudioObjectDescription(std::string description)
+{
+  std::unique_lock lock(m_audioPlayerSection);
+
+  m_playerAudioInfo.objectDescription = std::move(description);
+}
+
+std::string CDataCacheCore::GetAudioObjectDescription()
+{
+  std::unique_lock lock(m_audioPlayerSection);
+
+  return m_playerAudioInfo.objectDescription;
+}
+
+void CDataCacheCore::SetAudioDialNorm(std::string dialNorm)
+{
+  std::unique_lock lock(m_audioPlayerSection);
+
+  m_playerAudioInfo.dialNorm = std::move(dialNorm);
+}
+
+std::string CDataCacheCore::GetAudioDialNorm()
+{
+  std::unique_lock lock(m_audioPlayerSection);
+
+  return m_playerAudioInfo.dialNorm;
+}
+
 void CDataCacheCore::SetAudioSampleRate(int sampleRate)
 {
   WriteSeqAtomic(m_audioSeq, m_audioSampleRate, sampleRate);

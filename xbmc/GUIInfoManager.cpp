@@ -1176,7 +1176,7 @@ constexpr std::array<InfoMap, 10> player_times = {{
 ///
 /// -----------------------------------------------------------------------------
 // clang-format off
-constexpr std::array<InfoMap, 117> player_process = {{
+constexpr std::array<InfoMap, 119> player_process = {{
     {"videodecoder",        PLAYER_PROCESS_VIDEODECODER},
     {"deintmethod",         PLAYER_PROCESS_DEINTMETHOD},
     {"pixformat",           PLAYER_PROCESS_PIXELFORMAT},
@@ -1218,6 +1218,8 @@ constexpr std::array<InfoMap, 117> player_process = {{
     {"audio.speaker.sink.tfr", PLAYER_PROCESS_AUDIO_SPK_SINK_TFR},
     {"audio.speaker.sink.tbl", PLAYER_PROCESS_AUDIO_SPK_SINK_TBL},
     {"audio.speaker.sink.tbr", PLAYER_PROCESS_AUDIO_SPK_SINK_TBR},
+    {"audio.object.description", PLAYER_PROCESS_AUDIO_OBJECT_DESCRIPTION},
+    {"audio.dialnorm", PLAYER_PROCESS_AUDIO_DIALNORM},
     {"audio.sample.rate", PLAYER_PROCESS_AUDIO_SAMPLE_RATE},
     {"audio.live.bit.rate", PLAYER_PROCESS_AUDIO_LIVE_BIT_RATE},
     {"audio.live.kibit.rate", PLAYER_PROCESS_AUDIO_LIVE_KIBIT_RATE},

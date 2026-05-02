@@ -74,7 +74,8 @@ public:
 
   float GetDynamicRangeAmplification() const override { return 0.0f; }
 
-  std::string GetPlayerInfo() override;
+  std::string GetPlayerInfo1() override;
+  std::string GetPlayerInfo2() override;
   int GetAudioChannels() override;
 
   double GetCurrentPts() override
@@ -99,6 +100,11 @@ protected:
 
   bool ProcessDecoderOutput(DVDAudioFrame& audioframe);
   void UpdatePlayerInfo();
+  void ResetPassthroughClockSyncDebugState()
+  {
+    m_lastPassthroughClockSyncCorrection = 0.0;
+    m_hasLastPassthroughClockSyncCorrection = false;
+  }
   void OpenStream(CDVDStreamInfo& hints, std::unique_ptr<CDVDAudioCodec> codec);
   bool TakeStartupSinkConfig(StartupSinkConfig& config);
   //! Switch codec if needed. Called when the sample rate gotten from the
@@ -137,7 +143,8 @@ protected:
 
   struct SInfo
   {
-    std::string info;
+    std::string info1;
+    std::string info2;
     double pts = DVD_NOPTS_VALUE;
     double packetDelay = 0.0;
     bool passthrough = false;
@@ -149,6 +156,8 @@ protected:
   bool m_displayReset = false;
   unsigned int m_disconAdjustTimeMs = 10; // maximum sync-off before adjusting
   int m_disconAdjustCounter = 0;
+  double m_lastPassthroughClockSyncCorrection{0.0};
+  bool m_hasLastPassthroughClockSyncCorrection{false};
 
   //============================================================================
   // LAV-style Jitter Tracking for PCM/Decoded Audio

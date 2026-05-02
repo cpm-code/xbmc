@@ -48,7 +48,9 @@ public:
   unsigned int m_repeat = 0;
   unsigned int m_frameSize = 0;
   unsigned int m_dtsSamplesPerFrame = 0;
-  int m_dialNorm = 0; // Dialog Normalization in dB (TrueHD Atmos 16ch)
+  int m_dialNorm = 0; // Parsed dialog normalization value in dB relative to defeat (e.g. -4 dB)
+  int m_dialNormApplied = 0; // Actually applied dialog normalization after any defeat setting
+  bool m_hasDialNorm = false;
   bool m_hasAtmos = false; // TrueHD Atmos (16-channel presentation)
   unsigned int m_atmosChannels = 0; // Atmos 16ch channel/object count
 };

@@ -4077,6 +4077,7 @@ void CVideoPlayer::GetGeneralInfo(std::string& strGeneralInfo)
     const double apts = m_VideoPlayerAudio->GetCurrentPts();
     const double vpts = m_VideoPlayerVideo->GetCurrentPts();
     const double aPacketDelay = m_VideoPlayerAudio->GetCurrentPacketDelay();
+    const double dPacketDelay = aPacketDelay / DVD_TIME_BASE;
 
     const bool have_apts = (apts != DVD_NOPTS_VALUE);
     const bool have_vpts = (vpts != DVD_NOPTS_VALUE);
@@ -4102,8 +4103,8 @@ void CVideoPlayer::GetGeneralInfo(std::string& strGeneralInfo)
 
     // Moving Average Packet Delay of Audio
     m_maSumDelay -= m_maBufferDelay[m_maIndex];
-    m_maSumDelay += aPacketDelay;
-    m_maBufferDelay[m_maIndex] = aPacketDelay;
+    m_maSumDelay += dPacketDelay;
+    m_maBufferDelay[m_maIndex] = dPacketDelay;
 
     m_maIndex = (m_maIndex + 1) % MA_BUFFER_SIZE;
     m_maBufferFilled = m_maBufferFilled || (m_maIndex == 0);
@@ -4114,6 +4115,10 @@ void CVideoPlayer::GetGeneralInfo(std::string& strGeneralInfo)
     const double dDiffAudioMovingAverage = m_maSumAudio / filled;
     const double dDiffVideoMovingAverage = m_maSumVideo / filled;
     const double dPacketDelayMovingAverage = m_maSumDelay / filled;
+    const auto formatMs = [](double seconds)
+    {
+      return StringUtils::Format("{:+07.2f}ms", seconds * 1000.0);
+    };
 
     std::string extraBuf;
     extraBuf += StringUtils::Format(", rm-q:{:d}/{:d}",
@@ -4134,9 +4139,11 @@ void CVideoPlayer::GetGeneralInfo(std::string& strGeneralInfo)
       extraBuf += " " + strBuf;
 
     strGeneralInfo =
-        StringUtils::Format("P: a/v:{: 6.3f}, a/c:{: 6.3f}, v/c:{: 6.3f}, pd/c:{: 6.3f}{}",
-                            dDiffDeltaMovingAverage, dDiffAudioMovingAverage,
-                            dDiffVideoMovingAverage, dPacketDelayMovingAverage, extraBuf);
+    StringUtils::Format("P: a/v:{}, a/c:{}, v/c:{}, pd/c:{}{}",
+              formatMs(dDiffDeltaMovingAverage),
+              formatMs(dDiffAudioMovingAverage),
+              formatMs(dDiffVideoMovingAverage),
+              formatMs(dPacketDelayMovingAverage), extraBuf);
   }
   else if (!m_maResetDone)
   {
@@ -6197,9 +6204,10 @@ void CVideoPlayer::VideoParamsChange()
   m_messenger.Put(std::make_shared<CDVDMsg>(CDVDMsg::PLAYER_AVCHANGE));
 }
 
-void CVideoPlayer::GetDebugInfo(std::string &audio, std::string &video, std::string &general)
+void CVideoPlayer::GetDebugInfo(std::string &audio1, std::string &audio2, std::string &video, std::string &general)
 {
-  audio = m_VideoPlayerAudio->GetPlayerInfo();
+  audio1 = m_VideoPlayerAudio->GetPlayerInfo1();
+  audio2 = m_VideoPlayerAudio->GetPlayerInfo2();
   video = m_VideoPlayerVideo->GetPlayerInfo();
   GetGeneralInfo(general);
 }

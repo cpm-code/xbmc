@@ -69,7 +69,8 @@ void CDebugRenderer::SetInfo(DEBUG_INFO_PLAYER& info)
   // provide a way to allow fixed on-screen text display
   // without use all these fixed values.
   m_adapter->FlushSubtitles();
-  m_adapter->AddSubtitle(info.audio, 0., 5000000.);
+  m_adapter->AddSubtitle(info.audio1, 0., 5000000.);
+  if (!info.audio2.empty()) m_adapter->AddSubtitle(info.audio2, 0., 5000000.);
   m_adapter->AddSubtitle(info.video, 0., 5000000.);
   m_adapter->AddSubtitle(info.player, 0., 5000000.);
   m_adapter->AddSubtitle(info.vsync, 0., 5000000.);

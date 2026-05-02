@@ -106,6 +106,11 @@ public:
   virtual int GetBufferSize() { return 0; }
 
   /*
+   * should return optional sync or jitter debug info for the player overlay
+   */
+  virtual std::string GetSyncDebugInfo() const { return {}; }
+
+  /*
    * should return the ffmpeg matrix encoding type
    */
   virtual enum AVMatrixEncoding GetMatrixEncoding() { return AV_MATRIX_ENCODING_NONE; }

@@ -1041,25 +1041,31 @@ void CRenderManager::Render(bool clear, DWORD flags, DWORD alpha, bool gui)
         {
           DEBUG_INFO_PLAYER info;
 
-          m_playerPort->GetDebugInfo(info.audio, info.video, info.player);
+          m_playerPort->GetDebugInfo(info.audio1, info.audio2, info.video, info.player);
+          const auto formatMs = [](double milliseconds)
+          {
+            return StringUtils::Format("{:+07.2f}ms", milliseconds);
+          };
 
           double refreshrate, clockspeed;
           int missedvblanks;
 
-          info.vsync = StringUtils::Format("VSync Off:{:.1f}", (m_clockSync.m_syncOffset / 1000));
+          info.vsync = StringUtils::Format("VSync: off:{}",
+                                           formatMs(m_clockSync.m_syncOffset / 1000.0));
 
           if (m_dvdClock.GetClockInfo(missedvblanks, clockspeed, refreshrate))
-            info.vsync += StringUtils::Format("VSync: refresh:{:.3f} missed:{} speed:{:.3f}%",
+            info.vsync += StringUtils::Format(", refresh:{:.3f}Hz, missed:{}, speed:{:.3f}%",
                                               refreshrate, missedvblanks, (clockspeed * 100));
 
-          double videoLatency = (m_videoLatencyTweak / 1000.0);
-          double audioLatency = (m_audioLatencyTweak / 1000.0);
-          double videoDelay = (-m_videoDelay / 1000.0);
-          double totalLatency = videoLatency + audioLatency + videoDelay;
+          const double videoLatencyMs = m_videoLatencyTweak;
+          const double audioLatencyMs = m_audioLatencyTweak;
+          const double userLatencyMs = -m_videoDelay;
+          const double totalLatencyMs = videoLatencyMs + audioLatencyMs + userLatencyMs;
 
           info.latency = StringUtils::Format(
-              "Latency: video:{:.3f} audio:{:.3f} user:{:.3f} total:{:.3f}", videoLatency, audioLatency,
-              videoDelay, totalLatency);
+              "Latency: video:{} audio:{} user:{} total:{}",
+              formatMs(videoLatencyMs), formatMs(audioLatencyMs),
+              formatMs(userLatencyMs), formatMs(totalLatencyMs));
 
           m_debugRenderer.SetInfo(info);
         }

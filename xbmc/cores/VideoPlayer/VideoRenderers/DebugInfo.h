@@ -12,7 +12,8 @@
 
 struct DEBUG_INFO_PLAYER
 {
-  std::string audio;
+  std::string audio1;
+  std::string audio2;
   std::string video;
   std::string player;
   std::string vsync;
