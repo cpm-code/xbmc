@@ -1821,55 +1821,22 @@
 				<centerleft>$PARAM[centerleft]</centerleft>
 				<centertop>$PARAM[centertop]</centertop>
 
-				<!-- Active (green) - box -->
 				<control type="image">
-					<width>$PARAM[width]</width>
-					<height>$PARAM[height]</height>
-					<texture border="6">colors/white.png</texture>
-					<colordiffuse>$PARAM[activecolor]</colordiffuse>
-					<visible>$PARAM[active] + String.IsEqual($PARAM[shape],box)</visible>
-				</control>
-
-				<!-- Active (green) - circle -->
-				<control type="image">
-					<width>$PARAM[width]</width>
-					<height>$PARAM[height]</height>
-					<texture>shapes/circle_fill.png</texture>
-					<colordiffuse>18FFFFFF</colordiffuse>
-					<visible>$PARAM[active] + String.IsEqual($PARAM[shape],circle)</visible>
-				</control>
-				<control type="image">
-					<width>$PARAM[width]</width>
-					<height>$PARAM[height]</height>
-					<texture>shapes/circle_ring.png</texture>
-					<colordiffuse>$PARAM[activecolor]</colordiffuse>
-					<visible>$PARAM[active] + String.IsEqual($PARAM[shape],circle)</visible>
-				</control>
-				<!-- (no inner highlight: Kodi skin XML doesn't support inline math for sizes) -->
-
-				<!-- Inactive (dim) - box -->
-				<control type="image">
-					<width>$PARAM[width]</width>
-					<height>$PARAM[height]</height>
+					<left>2</left>
+					<top>2</top>
+					<right>2</right>
+					<bottom>2</bottom>
 					<texture border="6">colors/white50.png</texture>
-					<colordiffuse>28FFFFFF</colordiffuse>
-					<visible>!$PARAM[active] + String.IsEqual($PARAM[shape],box)</visible>
-				</control>
-
-				<!-- Inactive (dim) - circle -->
-				<control type="image">
-					<width>$PARAM[width]</width>
-					<height>$PARAM[height]</height>
-					<texture>shapes/circle_fill.png</texture>
-					<colordiffuse>10FFFFFF</colordiffuse>
-					<visible>!$PARAM[active] + String.IsEqual($PARAM[shape],circle)</visible>
+					<colordiffuse>0CFFFFFF</colordiffuse>
 				</control>
 				<control type="image">
-					<width>$PARAM[width]</width>
-					<height>$PARAM[height]</height>
-					<texture>shapes/circle_ring.png</texture>
-					<colordiffuse>30FFFFFF</colordiffuse>
-					<visible>!$PARAM[active] + String.IsEqual($PARAM[shape],circle)</visible>
+					<left>2</left>
+					<top>2</top>
+					<right>2</right>
+					<bottom>2</bottom>
+					<texture border="6">colors/white50.png</texture>
+					<colordiffuse>18FFFFFF</colordiffuse>
+					<visible>$PARAM[active]</visible>
 				</control>
 
 				<!-- Indicator dot -->
@@ -1879,8 +1846,7 @@
 					<width>10</width>
 					<height>10</height>
 					<texture border="3">colors/white.png</texture>
-					<colordiffuse>$PARAM[activecolor]</colordiffuse>
-					<visible>$PARAM[active]</visible>
+					<colordiffuse>30FFFFFF</colordiffuse>
 				</control>
 				<control type="image">
 					<right>6</right>
@@ -1888,11 +1854,20 @@
 					<width>10</width>
 					<height>10</height>
 					<texture border="3">colors/white.png</texture>
-					<colordiffuse>30FFFFFF</colordiffuse>
-					<visible>!$PARAM[active]</visible>
+					<colordiffuse>$PARAM[activecolor]</colordiffuse>
+					<visible>$PARAM[active]</visible>
 				</control>
 
 				<!-- Label -->
+				<control type="label">
+					<width>$PARAM[width]</width>
+					<height>$PARAM[height]</height>
+					<align>center</align>
+					<aligny>center</aligny>
+					<label>[COLOR dimgrey]$PARAM[label][/COLOR]</label>
+					<font>font8</font>
+					<shadowcolor>black</shadowcolor>
+				</control>
 				<control type="label">
 					<width>$PARAM[width]</width>
 					<height>$PARAM[height]</height>
@@ -1903,16 +1878,6 @@
 					<textcolor>white</textcolor>
 					<shadowcolor>black</shadowcolor>
 					<visible>$PARAM[active]</visible>
-				</control>
-				<control type="label">
-					<width>$PARAM[width]</width>
-					<height>$PARAM[height]</height>
-					<align>center</align>
-					<aligny>center</aligny>
-					<label>[COLOR dimgrey]$PARAM[label][/COLOR]</label>
-					<font>font8</font>
-					<shadowcolor>black</shadowcolor>
-					<visible>!$PARAM[active]</visible>
 				</control>
 			</control>
 		</definition>

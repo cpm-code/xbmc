@@ -1088,12 +1088,15 @@
 		<value condition="String.IsEqual(VideoPlayer.AudioCodec,cook)">Cook</value>
 	</variable>
 	<variable name="ObjectAudio">
+		<value condition="!String.IsEmpty(Player.Process(audio.object.description))">[COLOR lightgreen]$INFO[Player.Process(audio.object.description)][/COLOR]</value>
 		<value condition="String.IsEqual(VideoPlayer.AudioCodec,truehd_atmos)">[COLOR lightgreen]Atmos[/COLOR]</value>
 		<value condition="String.IsEqual(VideoPlayer.AudioCodec,eac3_ddp_atmos)">[COLOR lightgreen]Atmos[/COLOR]</value>
 		<value condition="String.IsEqual(VideoPlayer.AudioCodec,dtshd_ma_x)">[COLOR lightgreen]DTS:X[/COLOR]</value>
 		<value condition="String.IsEqual(VideoPlayer.AudioCodec,dtshd_ma_x_imax)">[COLOR lightgreen]IMAX[/COLOR]</value>
 	</variable>
 	<variable name="AudioHasHeightsVar">
+		<value condition="String.IsEqual(Player.Process(audio.speaker.tfl),1) | String.IsEqual(Player.Process(audio.speaker.tfr),1) | String.IsEqual(Player.Process(audio.speaker.tbl),1) | String.IsEqual(Player.Process(audio.speaker.tbr),1)">1</value>
+		<value condition="!String.IsEmpty(Player.Process(audio.object.description))">1</value>
 		<value condition="String.IsEqual(VideoPlayer.AudioCodec,truehd_atmos)">1</value>
 		<value condition="String.IsEqual(VideoPlayer.AudioCodec,eac3_ddp_atmos)">1</value>
 		<value condition="String.IsEqual(VideoPlayer.AudioCodec,dtshd_ma_x)">1</value>

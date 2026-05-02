@@ -30,7 +30,7 @@ CGUILabelControl::CGUILabelControl(int parentID, int controlID, float posX, floa
   m_startHighlight = m_endHighlight = 0;
   m_startSelection = m_endSelection = 0;
   m_minWidth = 0;
-  m_label.SetScrollLoopCount(2);
+  m_label.SetScrollLoopCount(~0U);
 }
 
 CGUILabelControl::~CGUILabelControl(void) = default;
