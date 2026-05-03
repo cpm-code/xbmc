@@ -1773,10 +1773,10 @@
 					<control type="group">
 						<left>10</left>
 						<top>40</top>
-						<width>430</width>
+						<width>480</width>
 						<height>30</height>
 						<control type="label">
-							<width>200</width>
+							<width>160</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>left</align>
@@ -1785,8 +1785,8 @@
 							<shadowcolor>black</shadowcolor>
 						</control>
 						<control type="label">
-							<left>200</left>
-							<width>230</width>
+							<left>160</left>
+							<width>320</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>right</align>
@@ -1799,20 +1799,20 @@
 					<control type="group">
 						<left>10</left>
 						<top>74</top>
-						<width>430</width>
+						<width>480</width>
 						<height>30</height>
 						<control type="label">
-							<width>200</width>
+							<width>160</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>left</align>
-							<label>[COLOR button_focus]$LOCALIZE[31651]:[/COLOR]</label>
+							<label>[COLOR button_focus]Sampling:[/COLOR]</label>
 							<font>font12</font>
 							<shadowcolor>black</shadowcolor>
 						</control>
 						<control type="label">
-							<left>200</left>
-							<width>230</width>
+							<left>160</left>
+							<width>320</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>right</align>
@@ -1825,21 +1825,21 @@
 					<control type="group">
 						<left>10</left>
 						<top>108</top>
-						<width>430</width>
+						<width>480</width>
 						<height>30</height>
 						<visible>!String.IsEmpty(VideoPlayer.AudioLanguage)</visible>
 						<control type="label">
-							<width>200</width>
+							<width>160</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>left</align>
-							<label>[COLOR button_focus]$LOCALIZE[31652]:[/COLOR]</label>
+							<label>[COLOR button_focus]Language:[/COLOR]</label>
 							<font>font12</font>
 							<shadowcolor>black</shadowcolor>
 						</control>
 						<control type="label">
-							<left>200</left>
-							<width>230</width>
+							<left>160</left>
+							<width>320</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>right</align>
@@ -1852,11 +1852,11 @@
 					<control type="group">
 						<left>10</left>
 						<top>142</top>
-						<width>430</width>
+						<width>480</width>
 						<height>30</height>
 						<visible>!String.IsEmpty(Player.Process(audio.dialnorm))</visible>
 						<control type="label">
-							<width>200</width>
+							<width>160</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>left</align>
@@ -1865,8 +1865,8 @@
 							<shadowcolor>black</shadowcolor>
 						</control>
 						<control type="label">
-							<left>200</left>
-							<width>230</width>
+							<left>160</left>
+							<width>320</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>right</align>
@@ -1879,11 +1879,11 @@
 					<control type="group">
 						<left>10</left>
 						<top>176</top>
-						<width>430</width>
+						<width>480</width>
 						<height>30</height>
 						<visible>player.passthrough</visible>
 						<control type="label">
-							<width>200</width>
+							<width>160</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>left</align>
@@ -1892,8 +1892,8 @@
 							<shadowcolor>black</shadowcolor>
 						</control>
 						<control type="label">
-							<left>200</left>
-							<width>230</width>
+							<left>160</left>
+							<width>320</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>right</align>
@@ -1906,11 +1906,11 @@
 					<control type="group">
 						<left>10</left>
 						<top>176</top>
-						<width>430</width>
+						<width>480</width>
 						<height>30</height>
 						<visible>!player.passthrough</visible>
 						<control type="label">
-							<width>200</width>
+							<width>160</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>left</align>
@@ -1919,8 +1919,8 @@
 							<shadowcolor>black</shadowcolor>
 						</control>
 						<control type="label">
-							<left>200</left>
-							<width>230</width>
+							<left>160</left>
+							<width>320</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>right</align>
@@ -1932,7 +1932,7 @@
 					</control>
 
 					<control type="group">
-						<left>500</left>
+						<left>540</left>
 						<top>34</top>
 						<width>320</width>
 						<height>220</height>
@@ -1942,7 +1942,7 @@
 							<param name="active">Integer.IsGreaterOrEqual(VideoPlayer.AudioChannels,2)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">130</param><param name="top">40</param><param name="label">FC</param><param name="width">60</param><param name="height">24</param>
+							<param name="left">130</param><param name="top">37</param><param name="label">FC</param><param name="width">60</param><param name="height">30</param>
 							<param name="active">Integer.IsEqual(VideoPlayer.AudioChannels,1) | Integer.IsGreaterOrEqual(VideoPlayer.AudioChannels,4)</param>
 						</include>
 						<include content="SpeakerBox">
@@ -1951,11 +1951,11 @@
 							<param name="active">Integer.IsGreaterOrEqual(VideoPlayer.AudioChannels,2)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">8</param><param name="top">110</param><param name="label">SL</param><param name="width">44</param><param name="height">26</param>
+							<param name="left">8</param><param name="top">107</param><param name="label">SL</param><param name="width">44</param><param name="height">32</param>
 							<param name="active">Integer.IsGreaterOrEqual(VideoPlayer.AudioChannels,4)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">268</param><param name="top">110</param><param name="label">SR</param><param name="width">44</param><param name="height">26</param>
+							<param name="left">268</param><param name="top">107</param><param name="label">SR</param><param name="width">44</param><param name="height">32</param>
 							<param name="active">Integer.IsGreaterOrEqual(VideoPlayer.AudioChannels,4)</param>
 						</include>
 						<include content="SpeakerBox">
@@ -1964,7 +1964,7 @@
 							<param name="active">Integer.IsGreaterOrEqual(VideoPlayer.AudioChannels,7)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">136</param><param name="top">78</param><param name="label">LFE</param><param name="width">48</param><param name="height">48</param>
+							<param name="left">132</param><param name="top">78</param><param name="label">LFE</param><param name="width">56</param><param name="height">48</param>
 							<param name="active">Integer.IsEqual(VideoPlayer.AudioChannels,3) | Integer.IsGreaterOrEqual(VideoPlayer.AudioChannels,6)</param>
 						</include>
 						<include content="SpeakerBox">
@@ -1974,27 +1974,27 @@
 						</include>
 						<!-- Height speakers: stream layout uses the actual input speaker flags -->
 						<include content="SpeakerBox">
-							<param name="left">12</param><param name="top">0</param><param name="label">TFL</param><param name="width">56</param><param name="height">40</param>
+							<param name="left">10</param><param name="top">2</param><param name="label">TFL</param><param name="width">60</param><param name="height">36</param>
 							<param name="shape">circle</param>
-							<param name="activecolor">blue</param>
+							<param name="activecolor">lightgreen</param>
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.tfl),1)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">252</param><param name="top">0</param><param name="label">TFR</param><param name="width">56</param><param name="height">40</param>
+							<param name="left">250</param><param name="top">2</param><param name="label">TFR</param><param name="width">60</param><param name="height">36</param>
 							<param name="shape">circle</param>
-							<param name="activecolor">blue</param>
+							<param name="activecolor">lightgreen</param>
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.tfr),1)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">12</param><param name="top">178</param><param name="label">TBL</param><param name="width">56</param><param name="height">40</param>
+							<param name="left">10</param><param name="top">180</param><param name="label">TBL</param><param name="width">60</param><param name="height">36</param>
 							<param name="shape">circle</param>
-							<param name="activecolor">blue</param>
+							<param name="activecolor">lightgreen</param>
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.tbl),1)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">252</param><param name="top">178</param><param name="label">TBR</param><param name="width">56</param><param name="height">40</param>
+							<param name="left">250</param><param name="top">180</param><param name="label">TBR</param><param name="width">60</param><param name="height">36</param>
 							<param name="shape">circle</param>
-							<param name="activecolor">blue</param>
+							<param name="activecolor">lightgreen</param>
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.tbr),1)</param>
 						</include>
 					</control>
@@ -2020,11 +2020,11 @@
 					<control type="group">
 						<left>10</left>
 						<top>40</top>
-						<width>430</width>
+						<width>480</width>
 						<height>30</height>
 						<visible>player.passthrough</visible>
 						<control type="label">
-							<width>200</width>
+							<width>140</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>left</align>
@@ -2033,8 +2033,8 @@
 							<shadowcolor>black</shadowcolor>
 						</control>
 						<control type="label">
-							<left>200</left>
-							<width>230</width>
+							<left>140</left>
+							<width>340</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>right</align>
@@ -2047,11 +2047,11 @@
 					<control type="group">
 						<left>10</left>
 						<top>40</top>
-						<width>430</width>
+						<width>480</width>
 						<height>30</height>
 						<visible>!player.passthrough</visible>
 						<control type="label">
-							<width>200</width>
+							<width>140</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>left</align>
@@ -2060,8 +2060,8 @@
 							<shadowcolor>black</shadowcolor>
 						</control>
 						<control type="label">
-							<left>200</left>
-							<width>230</width>
+							<left>140</left>
+							<width>340</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>right</align>
@@ -2074,11 +2074,11 @@
 					<control type="group">
 						<left>10</left>
 						<top>74</top>
-						<width>430</width>
+						<width>480</width>
 						<height>30</height>
 						<visible>player.passthrough</visible>
 						<control type="label">
-							<width>200</width>
+							<width>140</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>left</align>
@@ -2087,8 +2087,8 @@
 							<shadowcolor>black</shadowcolor>
 						</control>
 						<control type="label">
-							<left>200</left>
-							<width>230</width>
+							<left>140</left>
+							<width>340</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>right</align>
@@ -2101,11 +2101,11 @@
 					<control type="group">
 						<left>10</left>
 						<top>74</top>
-						<width>430</width>
+						<width>480</width>
 						<height>30</height>
 						<visible>!player.passthrough</visible>
 						<control type="label">
-							<width>200</width>
+							<width>140</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>left</align>
@@ -2114,8 +2114,8 @@
 							<shadowcolor>black</shadowcolor>
 						</control>
 						<control type="label">
-							<left>200</left>
-							<width>230</width>
+							<left>140</left>
+							<width>340</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>right</align>
@@ -2128,11 +2128,11 @@
 					<control type="group">
 						<left>10</left>
 						<top>108</top>
-						<width>430</width>
+						<width>480</width>
 						<height>30</height>
 						<visible>!player.passthrough</visible>
 						<control type="label">
-							<width>160</width>
+							<width>140</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>left</align>
@@ -2141,8 +2141,8 @@
 							<shadowcolor>black</shadowcolor>
 						</control>
 						<control type="label">
-							<left>160</left>
-							<width>270</width>
+							<left>140</left>
+							<width>340</width>
 							<height>30</height>
 							<aligny>bottom</aligny>
 							<align>right</align>
@@ -2154,7 +2154,7 @@
 					</control>
 
 					<control type="group">
-						<left>500</left>
+						<left>540</left>
 						<top>34</top>
 						<width>320</width>
 						<height>220</height>
@@ -2165,7 +2165,7 @@
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.sink.fl),1)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">130</param><param name="top">40</param><param name="label">FC</param><param name="width">60</param><param name="height">24</param>
+							<param name="left">130</param><param name="top">37</param><param name="label">FC</param><param name="width">60</param><param name="height">30</param>
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.sink.fc),1)</param>
 						</include>
 						<include content="SpeakerBox">
@@ -2174,11 +2174,11 @@
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.sink.fr),1)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">8</param><param name="top">110</param><param name="label">SL</param><param name="width">44</param><param name="height">26</param>
+							<param name="left">8</param><param name="top">107</param><param name="label">SL</param><param name="width">44</param><param name="height">32</param>
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.sink.sl),1)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">268</param><param name="top">110</param><param name="label">SR</param><param name="width">44</param><param name="height">26</param>
+							<param name="left">268</param><param name="top">107</param><param name="label">SR</param><param name="width">44</param><param name="height">32</param>
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.sink.sr),1)</param>
 						</include>
 						<include content="SpeakerBox">
@@ -2187,7 +2187,7 @@
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.sink.bl),1)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">136</param><param name="top">78</param><param name="label">LFE</param><param name="width">48</param><param name="height">48</param>
+							<param name="left">132</param><param name="top">78</param><param name="label">LFE</param><param name="width">56</param><param name="height">48</param>
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.sink.lfe),1)</param>
 						</include>
 						<include content="SpeakerBox">
@@ -2197,27 +2197,27 @@
 						</include>
 						<!-- Height speakers: sink shows only what the output mapping actually carries -->
 						<include content="SpeakerBox">
-							<param name="left">12</param><param name="top">0</param><param name="label">TFL</param><param name="width">56</param><param name="height">40</param>
+							<param name="left">10</param><param name="top">2</param><param name="label">TFL</param><param name="width">60</param><param name="height">36</param>
 							<param name="shape">circle</param>
-							<param name="activecolor">blue</param>
+							<param name="activecolor">lightgreen</param>
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.sink.tfl),1)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">252</param><param name="top">0</param><param name="label">TFR</param><param name="width">56</param><param name="height">40</param>
+							<param name="left">250</param><param name="top">2</param><param name="label">TFR</param><param name="width">60</param><param name="height">36</param>
 							<param name="shape">circle</param>
-							<param name="activecolor">blue</param>
+							<param name="activecolor">lightgreen</param>
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.sink.tfr),1)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">12</param><param name="top">178</param><param name="label">TBL</param><param name="width">56</param><param name="height">40</param>
+							<param name="left">10</param><param name="top">180</param><param name="label">TBL</param><param name="width">60</param><param name="height">36</param>
 							<param name="shape">circle</param>
-							<param name="activecolor">blue</param>
+							<param name="activecolor">lightgreen</param>
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.sink.tbl),1)</param>
 						</include>
 						<include content="SpeakerBox">
-							<param name="left">252</param><param name="top">178</param><param name="label">TBR</param><param name="width">56</param><param name="height">40</param>
+							<param name="left">250</param><param name="top">180</param><param name="label">TBR</param><param name="width">60</param><param name="height">36</param>
 							<param name="shape">circle</param>
-							<param name="activecolor">blue</param>
+							<param name="activecolor">lightgreen</param>
 							<param name="active">String.IsEqual(Player.Process(audio.speaker.sink.tbr),1)</param>
 						</include>
 					</control>
