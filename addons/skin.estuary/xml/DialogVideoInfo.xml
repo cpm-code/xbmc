@@ -153,7 +153,7 @@
 						<left>40</left>
 						<top>25</top>
 						<width>670</width>
-						<height>363</height>
+						<height>368</height>
 						<label fallback="19055">$VAR[VideoInfoPlotVar]</label>
 						<autoscroll delay="10000" time="5000" repeat="10000">Skin.HasSetting(AutoScroll)</autoscroll>
 						<visible>Integer.IsGreater(Container(4000).NumItems,0)</visible>
@@ -162,7 +162,7 @@
 						<left>40</left>
 						<top>25</top>
 						<width>1165</width>
-						<height>363</height>
+						<height>368</height>
 						<label fallback="19055">$VAR[VideoInfoPlotVar]</label>
 						<autoscroll delay="10000" time="5000" repeat="10000">Skin.HasSetting(AutoScroll)</autoscroll>
 						<visible>!Integer.IsGreater(Container(4000).NumItems,0)</visible>
@@ -782,7 +782,7 @@
 			<control type="group">
 				<visible>Control.HasFocus(50) + !String.IsEqual(ListItem.DBType,set)</visible>
 				<animation effect="fade" time="200">VisibleChange</animation>
-				<top>10</top>
+				<top>-10</top>
 				<left>0</left>
 				<control type="image">
 					<left>21</left>
@@ -802,7 +802,7 @@
 			<control type="group">
 				<visible>Control.HasFocus(138)</visible>
 				<animation effect="fade" time="200">VisibleChange</animation>
-				<top>10</top>
+				<top>-10</top>
 				<left>0</left>
 				<control type="image">
 					<top>4</top>
