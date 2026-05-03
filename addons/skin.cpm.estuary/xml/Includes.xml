@@ -1807,7 +1807,7 @@
 		<param name="width">$PARAM[size]</param>
 		<param name="height">$PARAM[size]</param>
 		<param name="shape">box</param>
-		<param name="activecolor">lightgreen</param>
+		<param name="activecolor">blue</param>
 		<param name="angle">0</param>
 		<param name="centerleft">0</param>
 		<param name="centertop">0</param>
@@ -1827,35 +1827,26 @@
 					<right>2</right>
 					<bottom>2</bottom>
 					<texture border="6">colors/white50.png</texture>
-					<colordiffuse>0CFFFFFF</colordiffuse>
+					<colordiffuse>55B8B8B8</colordiffuse>
 				</control>
 				<control type="image">
 					<left>2</left>
 					<top>2</top>
 					<right>2</right>
 					<bottom>2</bottom>
-					<texture border="6">colors/white50.png</texture>
-					<colordiffuse>18FFFFFF</colordiffuse>
+					<texture border="6">colors/white.png</texture>
+					<colordiffuse>$PARAM[activecolor]</colordiffuse>
 					<visible>$PARAM[active]</visible>
 				</control>
 
-				<!-- Indicator dot -->
+				<!-- Label plaque with uniform margins across all speaker tags -->
 				<control type="image">
-					<right>6</right>
-					<top>6</top>
-					<width>10</width>
-					<height>10</height>
-					<texture border="3">colors/white.png</texture>
-					<colordiffuse>30FFFFFF</colordiffuse>
-				</control>
-				<control type="image">
-					<right>6</right>
-					<top>6</top>
-					<width>10</width>
-					<height>10</height>
-					<texture border="3">colors/white.png</texture>
-					<colordiffuse>$PARAM[activecolor]</colordiffuse>
-					<visible>$PARAM[active]</visible>
+					<left>4</left>
+					<top>3</top>
+					<right>4</right>
+					<bottom>3</bottom>
+					<texture border="4">colors/white.png</texture>
+					<colordiffuse>CC101010</colordiffuse>
 				</control>
 
 				<!-- Label -->
@@ -1875,7 +1866,7 @@
 					<aligny>center</aligny>
 					<label>$PARAM[label]</label>
 					<font>font8</font>
-					<textcolor>white</textcolor>
+					<textcolor>$PARAM[activecolor]</textcolor>
 					<shadowcolor>black</shadowcolor>
 					<visible>$PARAM[active]</visible>
 				</control>
