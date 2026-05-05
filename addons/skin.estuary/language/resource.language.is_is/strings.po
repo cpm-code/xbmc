@@ -5,9 +5,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: KODI Main\n"
-"Report-Msgid-Bugs-To: https://github.com/xbmc/xbmc/issues/\n"
+"Report-Msgid-Bugs-To: translations@kodi.tv\n"
 "POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"PO-Revision-Date: 2025-04-21 16:05+0000\n"
+"PO-Revision-Date: 2026-05-05 14:16+0000\n"
 "Last-Translator: Sveinn í Felli <sv1@fellsnet.is>\n"
 "Language-Team: Icelandic <https://kodi.weblate.cloud/projects/kodi-add-ons-skins/skin-estuary/is_is/>\n"
 "Language: is_is\n"
@@ -15,7 +15,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n % 10 != 1 || n % 100 == 11;\n"
-"X-Generator: Weblate 5.11\n"
+"X-Generator: Weblate 5.17.1\n"
 
 msgctxt "Addon Summary"
 msgid "Estuary skin by phil65. (Kodi's default skin)"
@@ -134,7 +134,7 @@ msgstr "Veldu einkunn til að birta með margmiðlunaratriðum"
 
 msgctxt "#31025"
 msgid "No favourites found. You can add items from media and other views by using the context menu."
-msgstr ""
+msgstr "Engin eftirlæti fundust. Þú getur bætt við atriðum úr myndefni og öðrum yfirlitum með því að nota samhengisvalmyndina."
 
 msgctxt "#31026"
 msgid "Timeshift"
@@ -316,7 +316,7 @@ msgstr "Lýkur"
 #. Label to highlight that live stream is being played
 msgctxt "#31081"
 msgid "Live"
-msgstr ""
+msgstr "Í beinni"
 
 msgctxt "#31082"
 msgid "Lyrics add-on"
@@ -567,7 +567,7 @@ msgstr "Flokkar"
 
 msgctxt "#31149"
 msgid "Choose genre fanart pack"
-msgstr ""
+msgstr "Veldu pakka aðdáendamynda"
 
 msgctxt "#31150"
 msgid "Origin"
@@ -692,7 +692,7 @@ msgstr "Sjálfgefin valaðgerð fyrir kvikmyndasett á upphafsskjánum"
 
 msgctxt "#31177"
 msgid "Choose weather icon pack"
-msgstr ""
+msgstr "Veldu pakka veðurtáknmynda"
 
 # empty strings from id 31177 to 31596
 #. Button to select Player Process Info window
