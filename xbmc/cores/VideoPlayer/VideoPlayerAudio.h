@@ -50,6 +50,7 @@ public:
   void CloseStream(bool bWaitForBuffers) override;
   void SetStartupSinkConfig(const StartupSinkConfig& config);
   void ClearStartupSinkConfig();
+  bool HasConfiguredSink() { return m_audioSink.HasStream(); }
 
   void SetSpeed(int speed) override;
   void Flush(bool sync) override;

@@ -57,6 +57,7 @@ public:
   void Flush();
   void Drain();
   void AbortAddPackets();
+  bool HasStream();
 
   double GetClock() override;
   double GetClockSpeed() override;
