@@ -2164,7 +2164,7 @@
         <setting id="pvrpowermanagement.dailywakeuptime" type="string" label="19248" help="36246">
           <level>2</level>
           <default>00:00:00</default>
-          <control type="edit" format="string" />
+          <control type="button" format="action" />
           <dependencies>
             <dependency type="enable" setting="pvrpowermanagement.enabled" operator="is">true</dependency>
           </dependencies>
