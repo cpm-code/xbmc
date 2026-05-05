@@ -1347,8 +1347,15 @@ void CVideoPlayer::OpenDefaultStreams(bool reset)
     m_processInfo->ResetAudioCodecInfo();
   }
 
-  if (m_startupTransition.deferred && m_CurrentAudio.id < 0)
+  auto* startupAudioPlayer = dynamic_cast<CVideoPlayerAudio*>(m_VideoPlayerAudio.get());
+  const bool audioStartupReady =
+      (m_CurrentAudio.id < 0) ||
+      (startupAudioPlayer != nullptr && startupAudioPlayer->HasConfiguredSink());
+
+  if (m_startupTransition.deferred && audioStartupReady)
     ArmStartupVideoTransition();
+  else if (m_startupTransition.deferred && m_CurrentAudio.id >= 0)
+    logM(LOGWARNING, "Deferred AML startup transition is waiting for audio sink setup");
 
   // enable  or disable subtitles
   bool visible = m_processInfo->GetVideoSettings().m_SubtitleOn;
