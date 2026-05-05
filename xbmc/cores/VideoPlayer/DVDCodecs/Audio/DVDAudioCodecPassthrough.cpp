@@ -692,7 +692,6 @@ void CDVDAudioCodecPassthrough::GetData(DVDAudioFrame &frame)
   const CAEStreamInfo::DataType streamType = m_format.m_streamInfo.m_type;
   const bool isTrueHD = (streamType == CAEStreamInfo::STREAM_TYPE_TRUEHD);
   const bool isDtsHdMa = (streamType == CAEStreamInfo::STREAM_TYPE_DTSHD_MA);
-  const bool isEac3 = (streamType == CAEStreamInfo::STREAM_TYPE_EAC3);
 
   // TrueHD-specific: Get samples offset for drift calculation (LAV-style)
   double samplesOffsetTime = 0.0;
