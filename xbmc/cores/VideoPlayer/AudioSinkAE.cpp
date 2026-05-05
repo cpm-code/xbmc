@@ -235,6 +235,12 @@ void CAudioSinkAE::AbortAddPackets()
   m_bAbort = true;
 }
 
+bool CAudioSinkAE::HasStream()
+{
+  std::unique_lock lock(m_critSection);
+  return m_pAudioStream != nullptr;
+}
+
 bool CAudioSinkAE::IsValidFormat(const DVDAudioFrame &audioframe)
 {
   if (!m_pAudioStream)
