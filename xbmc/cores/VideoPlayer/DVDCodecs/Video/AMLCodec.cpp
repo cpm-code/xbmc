@@ -1626,6 +1626,7 @@ bool CAMLCodec::OpenDecoder(bool restart)
   m_cur_pts = DVD_NOPTS_VALUE;
   m_dst_rect.SetRect(0, 0, 0, 0);
   m_state = 0;
+  m_cachedDecoderVideoRate = 0;
   ResetFrameTimeoutClock();
 
   auto advancedSettings = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings();
@@ -2442,10 +2443,15 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture& videoPicture)
     if (am_private && am_private->vcodec.handle >= 0)
     {
       struct vdec_info vi{};
-      if (m_dll->codec_get_vdec_info(&am_private->vcodec, &vi) == 0 && vi.ratio_control)
+      if (m_dll->codec_get_vdec_info(&am_private->vcodec, &vi) == 0)
       {
-        m_hints.aspect = 65536.0 / vi.ratio_control;
-        m_processInfo.SetVideoDAR(m_hints.aspect);
+        if (vi.frame_dur > 0) m_cachedDecoderVideoRate = vi.frame_dur;
+
+        if (vi.ratio_control)
+        {
+          m_hints.aspect = 65536.0 / vi.ratio_control;
+          m_processInfo.SetVideoDAR(m_hints.aspect);
+        }
       }
     }
 
@@ -2743,9 +2749,16 @@ unsigned int CAMLCodec::GetDecoderVideoRate() const {
   if (!m_opened || !am_private || am_private->vcodec.handle < 0)
     return 0;
 
+  if (unsigned int cachedRate = m_cachedDecoderVideoRate.load();
+      cachedRate > 0)
+    return cachedRate;
+
   struct vdec_info vi = {};
-  if (m_dll->codec_get_vdec_info(&am_private->vcodec, &vi) == 0 && vi.frame_dur > 0)
+  if ((m_dll->codec_get_vdec_info(&am_private->vcodec, &vi) == 0) && (vi.frame_dur > 0))
+  {
+    m_cachedDecoderVideoRate = vi.frame_dur;
     return vi.frame_dur;
+  }
   else
     return 0;
 }

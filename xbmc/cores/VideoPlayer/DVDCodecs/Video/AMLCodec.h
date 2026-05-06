@@ -363,6 +363,7 @@ private:
   mutable float m_cachedPlaybackBufferLevel{0.0f};
   mutable bool m_hasCachedPlaybackBufferLevel{false};
   float            m_last_drain_buffer_level{0.0f};
+  mutable std::atomic<unsigned int> m_cachedDecoderVideoRate{0};
 
   bool             m_buffer_level_ready;
   float            m_minimum_buffer_level{0.0f};
