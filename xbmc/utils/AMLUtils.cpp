@@ -596,9 +596,6 @@ static unsigned int aml_dv_apply_on(unsigned int mode,
     CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_hdr_payload", dv_hdr_payload);
   }
 
-  // set the HDMI DV tunnel gamut to latest value from user.
-  aml_dv_set_hdmi_tunnel_gamut();
-
   // set source metadata handling
   bool dv_source_levels_metadata(settings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_STD_SOURCE_LEVELS_METADATA));
   CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_use_source_meta_levels", dv_source_levels_metadata);
