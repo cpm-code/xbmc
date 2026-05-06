@@ -529,9 +529,8 @@ int write_av_packet(am_private_t *para, am_packet_t& pkt)
             logM(LOGERROR, "write header failed!");
             return PLAYER_WR_FAILED;
         }
-      if (pkt.hdr)
-        pkt.hdr->size = 0;
-        pkt.newflag = 0;
+      if (pkt.hdr) pkt.hdr->size = 0;
+      pkt.newflag = 0;
     }
 
     buf = pkt.data;
@@ -701,9 +700,9 @@ static int h264_add_header(unsigned char *buf, int size, am_packet_t& pkt)
   if (EnsurePacketHeader(pkt, size) != PLAYER_SUCCESS)
     return PLAYER_NOMEM;
 
-    memcpy(pkt.hdr->data, buf, size);
-    pkt.hdr->size = size;
-    return PLAYER_SUCCESS;
+  memcpy(pkt.hdr->data, buf, size);
+  pkt.hdr->size = size;
+  return PLAYER_SUCCESS;
 }
 
 static int h264_write_header(am_private_t *para, am_packet_t& pkt)
@@ -723,9 +722,9 @@ static int hevc_add_header(unsigned char *buf, int size, am_packet_t& pkt)
   if (EnsurePacketHeader(pkt, size) != PLAYER_SUCCESS)
     return PLAYER_NOMEM;
 
-    memcpy(pkt.hdr->data, buf, size);
-    pkt.hdr->size = size;
-    return PLAYER_SUCCESS;
+  memcpy(pkt.hdr->data, buf, size);
+  pkt.hdr->size = size;
+  return PLAYER_SUCCESS;
 }
 
 static int hevc_write_header(am_private_t *para, am_packet_t& pkt)
@@ -1396,81 +1395,81 @@ int set_header_info(am_private_t *para, bool decStreamTypeFrame)
         if (EnsurePacketHeader(pkt, headerSize) != PLAYER_SUCCESS)
           return PLAYER_FAILED;
 
-          if (pkt.avpkt.flags) {
-              pkt.hdr->data[0] = 0;
-              pkt.hdr->data[1] = 0;
-              pkt.hdr->data[2] = 1;
-              pkt.hdr->data[3] = 0x10;
+        if (pkt.avpkt.flags) {
+          pkt.hdr->data[0] = 0;
+          pkt.hdr->data[1] = 0;
+          pkt.hdr->data[2] = 1;
+          pkt.hdr->data[3] = 0x10;
 
-              data_len = para->extrasize + 4;
-              pkt.hdr->data[4] = 0;
-              pkt.hdr->data[5] = (data_len >> 16) & 0xff;
-              pkt.hdr->data[6] = 0x88;
-              pkt.hdr->data[7] = (data_len >> 8) & 0xff;
-              pkt.hdr->data[8] =  data_len & 0xff;
-              pkt.hdr->data[9] = 0x88;
+          data_len = para->extrasize + 4;
+          pkt.hdr->data[4] = 0;
+          pkt.hdr->data[5] = (data_len >> 16) & 0xff;
+          pkt.hdr->data[6] = 0x88;
+          pkt.hdr->data[7] = (data_len >> 8) & 0xff;
+          pkt.hdr->data[8] =  data_len & 0xff;
+          pkt.hdr->data[9] = 0x88;
 
-              pkt.hdr->data[10] = 0xff;
-              pkt.hdr->data[11] = 0xff;
-              pkt.hdr->data[12] = 0x88;
-              pkt.hdr->data[13] = 0xff;
-              pkt.hdr->data[14] = 0xff;
-              pkt.hdr->data[15] = 0x88;
+          pkt.hdr->data[10] = 0xff;
+          pkt.hdr->data[11] = 0xff;
+          pkt.hdr->data[12] = 0x88;
+          pkt.hdr->data[13] = 0xff;
+          pkt.hdr->data[14] = 0xff;
+          pkt.hdr->data[15] = 0x88;
 
-              for (i = 4 ; i < 16 ; i++) {
-                  check_sum += pkt.hdr->data[i];
-              }
-
-              pkt.hdr->data[16] = (check_sum >> 8) & 0xff;
-              pkt.hdr->data[17] =  check_sum & 0xff;
-              pkt.hdr->data[18] = 0x88;
-              pkt.hdr->data[19] = (check_sum >> 8) & 0xff;
-              pkt.hdr->data[20] =  check_sum & 0xff;
-              pkt.hdr->data[21] = 0x88;
-
-              pkt.hdr->data[22] = (para->video_width  >> 8) & 0xff;
-              pkt.hdr->data[23] =  para->video_width  & 0xff;
-              pkt.hdr->data[24] = (para->video_height >> 8) & 0xff;
-              pkt.hdr->data[25] =  para->video_height & 0xff;
-
-              memcpy(pkt.hdr->data + 26, para->extradata.GetData(), para->extradata.GetSize());
-
-              check_sum = 0;
-              data_len = para->extrasize + 26;
+          for (i = 4 ; i < 16 ; i++) {
+            check_sum += pkt.hdr->data[i];
           }
 
-          pkt.hdr->data[data_len + 0]  = 0;
-          pkt.hdr->data[data_len + 1]  = 0;
-          pkt.hdr->data[data_len + 2]  = 1;
-          pkt.hdr->data[data_len + 3]  = 0xd;
+          pkt.hdr->data[16] = (check_sum >> 8) & 0xff;
+          pkt.hdr->data[17] =  check_sum & 0xff;
+          pkt.hdr->data[18] = 0x88;
+          pkt.hdr->data[19] = (check_sum >> 8) & 0xff;
+          pkt.hdr->data[20] =  check_sum & 0xff;
+          pkt.hdr->data[21] = 0x88;
 
-          pkt.hdr->data[data_len + 4]  = 0;
-          pkt.hdr->data[data_len + 5]  = (pkt.data_size >> 16) & 0xff;
-          pkt.hdr->data[data_len + 6]  = 0x88;
-          pkt.hdr->data[data_len + 7]  = (pkt.data_size >> 8) & 0xff;
-          pkt.hdr->data[data_len + 8]  =  pkt.data_size & 0xff;
-          pkt.hdr->data[data_len + 9]  = 0x88;
+          pkt.hdr->data[22] = (para->video_width  >> 8) & 0xff;
+          pkt.hdr->data[23] =  para->video_width  & 0xff;
+          pkt.hdr->data[24] = (para->video_height >> 8) & 0xff;
+          pkt.hdr->data[25] =  para->video_height & 0xff;
 
-          pkt.hdr->data[data_len + 10] = 0xff;
-          pkt.hdr->data[data_len + 11] = 0xff;
-          pkt.hdr->data[data_len + 12] = 0x88;
-          pkt.hdr->data[data_len + 13] = 0xff;
-          pkt.hdr->data[data_len + 14] = 0xff;
-          pkt.hdr->data[data_len + 15] = 0x88;
+          memcpy(pkt.hdr->data + 26, para->extradata.GetData(), para->extradata.GetSize());
 
-          for (i = data_len + 4 ; i < data_len + 16 ; i++) {
-              check_sum += pkt.hdr->data[i];
-          }
+          check_sum = 0;
+          data_len = para->extrasize + 26;
+        }
 
-          pkt.hdr->data[data_len + 16] = (check_sum >> 8) & 0xff;
-          pkt.hdr->data[data_len + 17] =  check_sum & 0xff;
-          pkt.hdr->data[data_len + 18] = 0x88;
-          pkt.hdr->data[data_len + 19] = (check_sum >> 8) & 0xff;
-          pkt.hdr->data[data_len + 20] =  check_sum & 0xff;
-          pkt.hdr->data[data_len + 21] = 0x88;
+        pkt.hdr->data[data_len + 0]  = 0;
+        pkt.hdr->data[data_len + 1]  = 0;
+        pkt.hdr->data[data_len + 2]  = 1;
+        pkt.hdr->data[data_len + 3]  = 0xd;
 
-          pkt.hdr->size = data_len + 22;
-          pkt.newflag = 1;
+        pkt.hdr->data[data_len + 4]  = 0;
+        pkt.hdr->data[data_len + 5]  = (pkt.data_size >> 16) & 0xff;
+        pkt.hdr->data[data_len + 6]  = 0x88;
+        pkt.hdr->data[data_len + 7]  = (pkt.data_size >> 8) & 0xff;
+        pkt.hdr->data[data_len + 8]  =  pkt.data_size & 0xff;
+        pkt.hdr->data[data_len + 9]  = 0x88;
+
+        pkt.hdr->data[data_len + 10] = 0xff;
+        pkt.hdr->data[data_len + 11] = 0xff;
+        pkt.hdr->data[data_len + 12] = 0x88;
+        pkt.hdr->data[data_len + 13] = 0xff;
+        pkt.hdr->data[data_len + 14] = 0xff;
+        pkt.hdr->data[data_len + 15] = 0x88;
+
+        for (i = data_len + 4 ; i < data_len + 16 ; i++) {
+            check_sum += pkt.hdr->data[i];
+        }
+
+        pkt.hdr->data[data_len + 16] = (check_sum >> 8) & 0xff;
+        pkt.hdr->data[data_len + 17] =  check_sum & 0xff;
+        pkt.hdr->data[data_len + 18] = 0x88;
+        pkt.hdr->data[data_len + 19] = (check_sum >> 8) & 0xff;
+        pkt.hdr->data[data_len + 20] =  check_sum & 0xff;
+        pkt.hdr->data[data_len + 21] = 0x88;
+
+        pkt.hdr->size = data_len + 22;
+        pkt.newflag = 1;
       }
       else if (para->video_codec_type == VIDEO_DEC_FORMAT_WVC1)
       {
