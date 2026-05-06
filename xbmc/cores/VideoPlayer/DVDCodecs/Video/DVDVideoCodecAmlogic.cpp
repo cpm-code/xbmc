@@ -311,6 +311,17 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
                 CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
                     CSettings::SETTING_VIDEOPLAYER_DOVIZEROLEVEL5));
           }
+
+          if ((m_hints.dovi.dv_profile == 4 || m_hints.dovi.dv_profile == 7) && !user_dv_disable &&
+              (aml_get_cpufamily_id() == AML_T7 || aml_get_cpufamily_id() == AML_S5))
+          {
+            CLog::Log(LOGINFO, "{}::{} - HEVC bitstream profile {} will be converted to profile 8.1", __MODULE_NAME__, __FUNCTION__,
+              m_hints.dovi.dv_profile);
+
+            m_hints.dovi.dv_profile = 8;
+            m_hints.dovi.el_present_flag = false;
+            m_bitstream->SetConvertDovi(true);
+          }
         }
       }
 
