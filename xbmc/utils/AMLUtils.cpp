@@ -554,6 +554,17 @@ std::string aml_dv_type_to_string(enum DV_TYPE type)
   return type_string;
 }
 
+static void aml_dv_set_hdmi_tunnel_gamut()
+{
+  // Keep the HDMI DV tunnel gamut aligned with the latest user setting so the
+  // upcoming HDMI mode change picks it up instead of overriding it.
+  auto colorimetry(
+      static_cast<DV_COLORIMETRY>(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_COLORIMETRY_FOR_STD)));
+  const char gamut = (colorimetry == DV_COLORIMETRY::REMOVE) ? 'Y' : 'N';
+  CSysfsPath("/sys/module/hdmitx20/parameters/dovi_tv_led_bt2020", gamut);
+  CSysfsPath("/sys/module/hdmitx20/parameters/dovi_tv_led_no_colorimetry", gamut);
+}
+
 static unsigned int aml_dv_apply_on(unsigned int mode,
                                     bool retriggerResolution,
                                     bool triggerDisplayAuto)
@@ -585,10 +596,8 @@ static unsigned int aml_dv_apply_on(unsigned int mode,
     CSysfsPath("/sys/module/amdolby_vision/parameters/dolby_vision_hdr_payload", dv_hdr_payload);
   }
 
-  // set the Colorimetery to latest value from user.
-  auto colorimetry(static_cast<DV_COLORIMETRY>(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_COLORIMETRY_FOR_STD)));
-  CSysfsPath("/sys/module/hdmitx20/parameters/dovi_tv_led_bt2020", (colorimetry == DV_COLORIMETRY::REMOVE) ? 'Y' : 'N');
-  CSysfsPath("/sys/module/hdmitx20/parameters/dovi_tv_led_no_colorimetry", (colorimetry == DV_COLORIMETRY::REMOVE) ? 'Y' : 'N');
+  // set the HDMI DV tunnel gamut to latest value from user.
+  aml_dv_set_hdmi_tunnel_gamut();
 
   // set source metadata handling
   bool dv_source_levels_metadata(settings()->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_STD_SOURCE_LEVELS_METADATA));
@@ -647,7 +656,10 @@ static unsigned int aml_dv_apply_on(unsigned int mode,
     // Wait for Dolby VSIF being output before trigging the update resolution so logic has correct input to work from.
     // The update resolution will cause the hdmi mode switch logic in the kernel to set the colour bit depth correctly in DV-Std.
     if ((mode == DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) && (dv_type == DV_TYPE::DISPLAY_LED))
+    {
+      aml_dv_set_hdmi_tunnel_gamut();
       aml_dv_wait_dv_std_vsif_packet();
+    }
 
     if ((mode == DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL) || (mode == DOLBY_VISION_OUTPUT_MODE_IPT)) {
       if (retriggerResolution)
