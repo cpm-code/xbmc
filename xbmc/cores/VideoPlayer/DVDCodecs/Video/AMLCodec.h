@@ -297,8 +297,10 @@ private:
   void          CloseAmlVideo();
   std::string   GetVfmMap(const std::string &name) const;
   void          SetVfmMap(const std::string &name, const std::string &map) const;
-  float         GetBufferLevel();
+  float         GetPlaybackBufferLevel() const;
+  float         GetBufferLevel() const;
   float         GetBufferLevel(int new_chunk, int &data_len, int &free_len) const;
+  void          InvalidatePlaybackBufferLevelCache();
 
   bool          TryDequeueCaptureBuffer(v4l2_buffer& vbuf);
   bool          GetNextDequeuedBuffer();
@@ -357,10 +359,14 @@ private:
   int64_t          m_decoder_h264_offset;
 
   std::chrono::time_point<std::chrono::system_clock> m_tp_last_frame;
+  mutable std::chrono::time_point<std::chrono::steady_clock> m_cachedPlaybackBufferLevelTime;
+  mutable float m_cachedPlaybackBufferLevel{0.0f};
+  mutable bool m_hasCachedPlaybackBufferLevel{false};
   float            m_last_drain_buffer_level{0.0f};
 
   bool             m_buffer_level_ready;
   float            m_minimum_buffer_level{0.0f};
 
+  mutable std::mutex m_bufferLevelMutex;
   std::mutex       m_ioControlMutex;
 };

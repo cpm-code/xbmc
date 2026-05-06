@@ -47,6 +47,7 @@
 namespace
 {
 std::mutex pollSyncMutex;
+constexpr auto kPlaybackBufferLevelCacheWindow = std::chrono::milliseconds{10};
 }
 
 CEvent g_aml_sync_event;
@@ -1637,6 +1638,7 @@ bool CAMLCodec::OpenDecoder(bool restart)
   m_decoder_h264_offset = static_cast<uint64_t>(advancedSettings->m_videoDecoderH264Offset * 1000);
 
   m_buffer_level_ready = false;
+  InvalidatePlaybackBufferLevelCache();
 
   logM(LOGINFO, "Decoder settings: timeout:[{:d}s] "
                 "buffer:[{:.1f}%] stream buffer:[{:.1f}%] "
@@ -2029,6 +2031,7 @@ void CAMLCodec::CloseDecoder(bool restart)
   logNoFormatM(LOGINFO);
 
   SetPollDevice(-1);
+  InvalidatePlaybackBufferLevelCache();
 
   int blackout_policy = aml_blackout_policy(1);
 
@@ -2109,6 +2112,7 @@ void CAMLCodec::Reset()
   m_drain = false;
   ResetFrameTimeoutClock();
   m_buffer_level_ready = false;
+  InvalidatePlaybackBufferLevelCache();
 
   SetSpeed(m_speed);
 
@@ -2244,6 +2248,8 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
                                       dts / DVD_TIME_BASE,
                                       pts / DVD_TIME_BASE);
 
+  InvalidatePlaybackBufferLevelCache();
+
   return true;
 }
 
@@ -2306,10 +2312,33 @@ int CAMLCodec::ReleaseFrame(const uint32_t index, bool drop)
   return ret;
 }
 
-float CAMLCodec::GetBufferLevel()
+float CAMLCodec::GetBufferLevel() const
 {
   int new_chunk = 0, data_len, free_len;
   return GetBufferLevel(new_chunk, data_len, free_len);
+}
+
+float CAMLCodec::GetPlaybackBufferLevel() const
+{
+  const auto now = std::chrono::steady_clock::now();
+
+  {
+    std::scoped_lock lock(m_bufferLevelMutex);
+    if (m_hasCachedPlaybackBufferLevel &&
+        (now - m_cachedPlaybackBufferLevelTime) <= kPlaybackBufferLevelCacheWindow)
+      return m_cachedPlaybackBufferLevel;
+  }
+
+  const float level = GetBufferLevel();
+
+  {
+    std::scoped_lock lock(m_bufferLevelMutex);
+    m_cachedPlaybackBufferLevel = level;
+    m_cachedPlaybackBufferLevelTime = now;
+    m_hasCachedPlaybackBufferLevel = true;
+  }
+
+  return level;
 }
 
 float CAMLCodec::GetBufferLevel(int new_chunk, int &data_len, int &free_len) const
@@ -2337,6 +2366,12 @@ float CAMLCodec::GetBufferLevel(int new_chunk, int &data_len, int &free_len) con
     level = 100.0f;
 
   return level;
+}
+
+void CAMLCodec::InvalidatePlaybackBufferLevelCache()
+{
+  std::scoped_lock lock(m_bufferLevelMutex);
+  m_hasCachedPlaybackBufferLevel = false;
 }
 
 bool CAMLCodec::TryDequeueCaptureBuffer(v4l2_buffer& vbuf)
@@ -2388,7 +2423,7 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture& videoPicture)
   const auto now = std::chrono::system_clock::now();
   const auto elapsed_since_last_frame = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_tp_last_frame);
 
-  const float buffer_level = GetBufferLevel();
+  const float buffer_level = GetPlaybackBufferLevel();
 
   if (((m_buffer_level_ready && (buffer_level > m_minimum_buffer_level)) || m_drain) &&
       GetNextDequeuedBuffer())
