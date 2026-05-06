@@ -560,9 +560,9 @@ static void aml_dv_set_hdmi_tunnel_gamut()
   // upcoming HDMI mode change picks it up instead of overriding it.
   auto colorimetry(
       static_cast<DV_COLORIMETRY>(settings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_COLORIMETRY_FOR_STD)));
-  const char gamut_flag = (colorimetry == DV_COLORIMETRY::REMOVE) ? 'Y' : 'N';
-  CSysfsPath("/sys/module/hdmitx20/parameters/dovi_tv_led_bt2020", gamut_flag);
-  CSysfsPath("/sys/module/hdmitx20/parameters/dovi_tv_led_no_colorimetry", gamut_flag);
+  const char gamutFlag = (colorimetry == DV_COLORIMETRY::REMOVE) ? 'Y' : 'N';
+  CSysfsPath("/sys/module/hdmitx20/parameters/dovi_tv_led_bt2020", gamutFlag);
+  CSysfsPath("/sys/module/hdmitx20/parameters/dovi_tv_led_no_colorimetry", gamutFlag);
 }
 
 static unsigned int aml_dv_apply_on(unsigned int mode,
