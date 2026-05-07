@@ -38,7 +38,6 @@
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
 #include <linux/videodev2.h>
-#include <sys/poll.h>
 #include <chrono>
 #include <thread>
 #include "aom_integer.h"
@@ -2259,23 +2258,9 @@ int CAMLCodec::PollFrame()
 {
   std::lock_guard lock(pollSyncMutex);
 
-  if (m_pollDevice < 0)
-    return 0;
+  if (m_pollDevice < 0) return 0;
 
-  struct pollfd codec_poll_fd[1];
-  codec_poll_fd[0].fd = m_pollDevice;
-  codec_poll_fd[0].events = POLLOUT;
-
-  auto now = std::chrono::system_clock::now();
-  int events = poll(codec_poll_fd, 1, 0);
   g_aml_sync_event.Set();
-
-  if (events > 0)
-  {
-    logComponentM(LOGDEBUG, LOGAVTIMING, "elapsed:[{:.3f}] events:[{:d}]",
-                                         std::chrono::duration<double, std::milli>(std::chrono::system_clock::now() - now).count(),
-                                         events);
-  }
 
   return 1;
 }
