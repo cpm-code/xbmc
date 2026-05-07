@@ -11560,8 +11560,8 @@ TIME_FORMAT CGUIInfoManager::TranslateTimeFormat(const std::string &format)
   if (format.empty())
     return TIME_FORMAT_GUESS;
 
-    if (const auto* timeFormat = FindCaseInsensitiveValue(format, time_formats))
-        return *timeFormat;
+  if (const auto* timeFormat = FindCaseInsensitiveValue(format, time_formats))
+    return *timeFormat;
 
   return TIME_FORMAT_GUESS;
 }
