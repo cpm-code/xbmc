@@ -21,6 +21,7 @@
 #include "utils/AMLUtils.h"
 #include "utils/ScreenshotAML.h"
 #include "utils/log.h"
+#include "windowing/amlogic/VideoSyncAML.h"
 #include "windowing/GraphicContext.h"
 #include "windowing/WinSystem.h"
 
@@ -197,5 +198,6 @@ void CRendererAML::RenderUpdate(int index, int index2, bool clear, unsigned int 
       m_prevVPts = pts;
     }
   }
-  CAMLCodec::PollFrame();
+
+  if (codec) SignalAMLVideoSync();
 }

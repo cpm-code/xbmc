@@ -49,8 +49,6 @@ std::mutex pollSyncMutex;
 constexpr auto kPlaybackBufferLevelCacheWindow = std::chrono::milliseconds{10};
 }
 
-CEvent g_aml_sync_event;
-
 class PosixFile
 {
 public:
@@ -2253,17 +2251,6 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
 }
 
 int CAMLCodec::m_pollDevice;
-
-int CAMLCodec::PollFrame()
-{
-  std::lock_guard lock(pollSyncMutex);
-
-  if (m_pollDevice < 0) return 0;
-
-  g_aml_sync_event.Set();
-
-  return 1;
-}
 
 void CAMLCodec::SetPollDevice(int dev)
 {
