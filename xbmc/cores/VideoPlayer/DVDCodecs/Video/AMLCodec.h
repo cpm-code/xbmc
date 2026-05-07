@@ -288,7 +288,6 @@ public:
 	  else                              return "Unknown";
   }
 
-  static int    PollFrame();
   static void   SetPollDevice(int device);
 
 private:

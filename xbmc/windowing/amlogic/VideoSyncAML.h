@@ -11,6 +11,8 @@
 #include "windowing/VideoSync.h"
 #include "guilib/DispResource.h"
 
+void SignalAMLVideoSync();
+
 class CVideoSyncAML : public CVideoSync, IDispResource
 {
 public:

@@ -19,7 +19,12 @@
 #include <chrono>
 #include <thread>
 
-extern CEvent g_aml_sync_event;
+CEvent g_aml_sync_event;
+
+void SignalAMLVideoSync()
+{
+  g_aml_sync_event.Set();
+}
 
 CVideoSyncAML::CVideoSyncAML(CVideoReferenceClock *clock)
 : CVideoSync(clock)
