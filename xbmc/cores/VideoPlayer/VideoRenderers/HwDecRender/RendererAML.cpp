@@ -133,6 +133,7 @@ void CRendererAML::Reset()
 {
   std::array<int, 2> reset_arr[m_numRenderBuffers];
   m_prevVPts = DVD_NOPTS_VALUE;
+  m_lastCodec.reset();
 
   for (int i = 0 ; i < m_numRenderBuffers ; ++i)
   {
@@ -173,13 +174,25 @@ void CRendererAML::RenderUpdate(int index, int index2, bool clear, unsigned int 
   ManageRenderArea();
 
   CAMLVideoBuffer *amli = static_cast<CAMLVideoBuffer *>(m_buffers[index].videoBuffer);
-  if(amli && amli->m_amlCodec)
+  std::shared_ptr<CAMLCodec> codec;
+  if (amli && amli->m_amlCodec)
+  {
+    codec = amli->m_amlCodec;
+    m_lastCodec = codec;
+  }
+  else
+  {
+    codec = m_lastCodec.lock();
+  }
+
+  if (codec) codec->SetVideoRect(m_destRect);
+
+  if (amli && amli->m_amlCodec)
   {
     uint64_t pts = amli->m_omxPts;
     if (pts != m_prevVPts)
     {
-      amli->m_amlCodec->ReleaseFrame(amli->m_bufferIndex);
-      amli->m_amlCodec->SetVideoRect(m_destRect);
+      codec->ReleaseFrame(amli->m_bufferIndex);
       amli->m_amlCodec = nullptr; //Mark frame as processed
       m_prevVPts = pts;
     }
