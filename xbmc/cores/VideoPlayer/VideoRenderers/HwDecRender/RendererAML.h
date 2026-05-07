@@ -10,6 +10,10 @@
 
 #include "cores/VideoPlayer/VideoRenderers/BaseRenderer.h"
 
+#include <memory>
+
+class CAMLCodec;
+
 class CRendererAML : public CBaseRenderer
 {
 public:
@@ -53,5 +57,6 @@ private:
   } m_buffers[m_numRenderBuffers];
 
   uint64_t m_prevVPts;
+  std::weak_ptr<CAMLCodec> m_lastCodec;
   bool m_bConfigured;
 };
