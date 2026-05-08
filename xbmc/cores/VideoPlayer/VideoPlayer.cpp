@@ -1062,6 +1062,12 @@ bool CVideoPlayer::CloseFile(bool reopen)
 {
   CLog::Log(LOGINFO, "CVideoPlayer::CloseFile()");
 
+  if (m_CurrentVideo.id >= 0)
+  {
+    m_renderManager.ShowVideo(false);
+    m_renderManager.Flush(true, false);
+  }
+
   // set the abort request so that other threads can finish up
   m_bAbortRequest = true;
   m_bCloseRequest = true;
