@@ -1972,30 +1972,30 @@
 							<param name="angle">20</param><param name="centerleft">23</param><param name="centertop">17</param>
 							<param name="active">Integer.IsGreaterOrEqual(VideoPlayer.AudioChannels,7)</param>
 						</include>
-						<!-- Height speakers: stream layout uses the actual input speaker flags -->
+						<!-- Height speakers: fall back to immersive codec detection when the stream layout stays raw -->
 						<include content="SpeakerBox">
 							<param name="left">10</param><param name="top">2</param><param name="label">TFL</param><param name="width">60</param><param name="height">36</param>
 							<param name="shape">circle</param>
 							<param name="activecolor">lightgreen</param>
-							<param name="active">String.IsEqual(Player.Process(audio.speaker.tfl),1)</param>
+							<param name="active">String.IsEqual(Player.Process(audio.speaker.tfl),1) | String.IsEqual(VideoPlayer.AudioCodec,truehd_atmos) | String.IsEqual(VideoPlayer.AudioCodec,eac3_ddp_atmos) | String.IsEqual(VideoPlayer.AudioCodec,dtshd_ma_x) | String.IsEqual(VideoPlayer.AudioCodec,dtshd_ma_x_imax)</param>
 						</include>
 						<include content="SpeakerBox">
 							<param name="left">250</param><param name="top">2</param><param name="label">TFR</param><param name="width">60</param><param name="height">36</param>
 							<param name="shape">circle</param>
 							<param name="activecolor">lightgreen</param>
-							<param name="active">String.IsEqual(Player.Process(audio.speaker.tfr),1)</param>
+							<param name="active">String.IsEqual(Player.Process(audio.speaker.tfr),1) | String.IsEqual(VideoPlayer.AudioCodec,truehd_atmos) | String.IsEqual(VideoPlayer.AudioCodec,eac3_ddp_atmos) | String.IsEqual(VideoPlayer.AudioCodec,dtshd_ma_x) | String.IsEqual(VideoPlayer.AudioCodec,dtshd_ma_x_imax)</param>
 						</include>
 						<include content="SpeakerBox">
 							<param name="left">10</param><param name="top">180</param><param name="label">TBL</param><param name="width">60</param><param name="height">36</param>
 							<param name="shape">circle</param>
 							<param name="activecolor">lightgreen</param>
-							<param name="active">String.IsEqual(Player.Process(audio.speaker.tbl),1)</param>
+							<param name="active">String.IsEqual(Player.Process(audio.speaker.tbl),1) | String.IsEqual(VideoPlayer.AudioCodec,truehd_atmos) | String.IsEqual(VideoPlayer.AudioCodec,eac3_ddp_atmos) | String.IsEqual(VideoPlayer.AudioCodec,dtshd_ma_x) | String.IsEqual(VideoPlayer.AudioCodec,dtshd_ma_x_imax)</param>
 						</include>
 						<include content="SpeakerBox">
 							<param name="left">250</param><param name="top">180</param><param name="label">TBR</param><param name="width">60</param><param name="height">36</param>
 							<param name="shape">circle</param>
 							<param name="activecolor">lightgreen</param>
-							<param name="active">String.IsEqual(Player.Process(audio.speaker.tbr),1)</param>
+							<param name="active">String.IsEqual(Player.Process(audio.speaker.tbr),1) | String.IsEqual(VideoPlayer.AudioCodec,truehd_atmos) | String.IsEqual(VideoPlayer.AudioCodec,eac3_ddp_atmos) | String.IsEqual(VideoPlayer.AudioCodec,dtshd_ma_x) | String.IsEqual(VideoPlayer.AudioCodec,dtshd_ma_x_imax)</param>
 						</include>
 					</control>
 				</control>
