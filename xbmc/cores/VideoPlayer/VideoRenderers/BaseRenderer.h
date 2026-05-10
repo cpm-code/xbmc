@@ -99,6 +99,8 @@ public:
 
   virtual CRenderCapture* GetRenderCapture() { return nullptr; }
 
+  virtual void PrepareVideoLayer() { ManageRenderArea(); }
+
 protected:
   void CalcDestRect(float offsetX,
                     float offsetY,

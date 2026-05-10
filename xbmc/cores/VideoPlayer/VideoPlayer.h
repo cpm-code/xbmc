@@ -102,6 +102,7 @@ class CDemuxStreamAudio;
 class CStreamInfo;
 class CDVDDemuxCC;
 class CVideoPlayer;
+class CVideoPlayerHwRenderThread;
 
 #define DVDSTATE_NORMAL           0x00000001 // normal dvd state
 #define DVDSTATE_STILL            0x00000002 // currently displaying a still frame
@@ -291,7 +292,12 @@ class CVideoPlayer : public IPlayer, public CThread, public IVideoPlayer,
     std::chrono::time_point<std::chrono::steady_clock> holdStart;
   };
 
+  friend class CVideoPlayerHwRenderThread;
+
   void SetAVChange(std::string from) const;
+  bool ShouldUseDedicatedHwVideoRenderThread(bool gui);
+  void StopHwVideoRenderThread();
+  void RenderVideoOnly(bool clear, uint32_t alpha);
 
 public:
   explicit CVideoPlayer(IPlayerCallback& callback);
@@ -628,6 +634,8 @@ protected:
   std::unique_ptr<CDVDDemuxCC> m_pCCDemuxer;
 
   CRenderManager m_renderManager;
+  std::unique_ptr<CVideoPlayerHwRenderThread> m_hwVideoRenderThread;
+  bool m_skipGuiVideoRenderThisFrame{false};
 
   struct SDVDInfo
   {

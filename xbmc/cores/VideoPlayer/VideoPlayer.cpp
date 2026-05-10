@@ -88,6 +88,8 @@ using namespace std::chrono_literals;
 
 namespace
 {
+constexpr auto HW_VIDEO_RENDER_THREAD_WAIT_TIMEOUT = 2000ms;
+
 // Backfill window for external subtitle demuxers only. This helps reopen a
 // separate subtitle stream near the current playback time without affecting
 // the main audio/video demux path.
@@ -903,6 +905,116 @@ int CSelectionStreams::CountType(StreamType type) const
                        [&](const SelectionStream& stream) { return stream.type == type; });
 }
 
+class CVideoPlayerHwRenderThread : public CThread
+{
+public:
+  explicit CVideoPlayerHwRenderThread(CVideoPlayer& player)
+    : CThread("AMLHwVideoRender"), m_player(player), m_renderComplete(true, true)
+  {
+  }
+
+  void QueueRender(bool clear, uint32_t alpha)
+  {
+    {
+      std::lock_guard<std::mutex> lock(m_stateMutex);
+      m_clear = clear;
+      m_alpha = alpha;
+      m_hasPendingRender = true;
+      m_renderSucceeded = false;
+      m_renderComplete.Reset();
+    }
+
+    m_renderRequested.Set();
+  }
+
+  bool WaitForRenderComplete(std::chrono::milliseconds timeout = HW_VIDEO_RENDER_THREAD_WAIT_TIMEOUT)
+  {
+    {
+      std::lock_guard<std::mutex> lock(m_stateMutex);
+      if (!m_hasPendingRender && !m_renderActive)
+        return true;
+    }
+
+    if (!m_renderComplete.Wait(timeout))
+    {
+      CLog::Log(LOGERROR, "{} - timed out waiting for AML video render thread", __FUNCTION__);
+      return false;
+    }
+
+    std::lock_guard<std::mutex> lock(m_stateMutex);
+    return m_renderSucceeded;
+  }
+
+  bool RenderFrame(bool clear, uint32_t alpha)
+  {
+    QueueRender(clear, alpha);
+    return WaitForRenderComplete();
+  }
+
+  bool IsBusy()
+  {
+    std::lock_guard<std::mutex> lock(m_stateMutex);
+    return m_hasPendingRender || m_renderActive;
+  }
+
+  void Shutdown()
+  {
+    m_renderRequested.Set();
+    StopThread(true);
+  }
+
+protected:
+  void Process() override
+  {
+    while (!m_bStop)
+    {
+      if (AbortableWait(m_renderRequested) != WAIT_SIGNALED)
+        break;
+
+      m_renderRequested.Reset();
+      if (m_bStop)
+        break;
+
+      bool clear = false;
+      uint32_t alpha = 255;
+      {
+        std::lock_guard<std::mutex> lock(m_stateMutex);
+        if (!m_hasPendingRender) continue;
+
+        clear = m_clear;
+        alpha = m_alpha;
+        m_hasPendingRender = false;
+        m_renderActive = true;
+      }
+
+      m_player.RenderVideoOnly(clear, alpha);
+
+      {
+        std::lock_guard<std::mutex> lock(m_stateMutex);
+        m_renderActive = false;
+        m_renderSucceeded = true;
+        if (m_hasPendingRender)
+          m_renderRequested.Set();
+        else
+          m_renderComplete.Set();
+      }
+    }
+
+    m_renderComplete.Set();
+  }
+
+private:
+  CVideoPlayer& m_player;
+  std::mutex m_stateMutex;
+  bool m_hasPendingRender{false};
+  bool m_renderActive{false};
+  bool m_clear{false};
+  uint32_t m_alpha{255};
+  bool m_renderSucceeded{false};
+  CEvent m_renderRequested;
+  CEvent m_renderComplete;
+};
+
 //------------------------------------------------------------------------------
 // main class
 //------------------------------------------------------------------------------
@@ -1018,6 +1130,7 @@ CVideoPlayer::~CVideoPlayer()
   CServiceBroker::GetWinSystem()->Unregister(this);
 
   CloseFile();
+  StopHwVideoRenderThread();
   DestroyPlayers();
 
   while (m_outboundEvents->IsProcessing())
@@ -1082,6 +1195,7 @@ bool CVideoPlayer::CloseFile(bool reopen)
   if(m_pInputStream)
     m_pInputStream->Abort();
 
+  StopHwVideoRenderThread();
   m_renderManager.UnInit();
 
   CLog::Log(LOGINFO, "VideoPlayer: waiting for threads to exit");
@@ -6106,11 +6220,91 @@ void CVideoPlayer::SetVideoSettings(CVideoSettings& settings)
 
 void CVideoPlayer::FrameMove()
 {
+  if (m_hwVideoRenderThread && !m_hwVideoRenderThread->WaitForRenderComplete())
+  {
+    CLog::Log(LOGWARNING, "{} - AML HW video render thread stalled, falling back to app thread", __FUNCTION__);
+    StopHwVideoRenderThread();
+  }
+
   m_renderManager.FrameMove();
+}
+
+bool CVideoPlayer::ShouldUseDedicatedHwVideoRenderThread(bool gui)
+{
+  if (gui) return false;
+
+  return m_renderManager.IsVideoLayer();
+}
+
+void CVideoPlayer::StopHwVideoRenderThread()
+{
+  if (!m_hwVideoRenderThread) return;
+
+  m_hwVideoRenderThread->Shutdown();
+  m_hwVideoRenderThread.reset();
+  m_skipGuiVideoRenderThisFrame = false;
+}
+
+void CVideoPlayer::RenderVideoOnly(bool clear, uint32_t alpha)
+{
+  m_renderManager.Render(clear, 0, alpha, false);
 }
 
 void CVideoPlayer::Render(bool clear, uint32_t alpha, bool gui)
 {
+  const bool useDedicatedHwVideoRenderThread = ShouldUseDedicatedHwVideoRenderThread(gui);
+  const bool canAsyncHwVideoRender = !gui && useDedicatedHwVideoRenderThread &&
+                                     m_renderManager.CanAsyncVideoLayerRender();
+
+  if (gui && m_skipGuiVideoRenderThisFrame)
+  {
+    m_skipGuiVideoRenderThisFrame = false;
+    return;
+  }
+
+  if (useDedicatedHwVideoRenderThread)
+    m_renderManager.PrepareVideoLayer();
+
+  if (!gui && m_hwVideoRenderThread && !useDedicatedHwVideoRenderThread)
+    StopHwVideoRenderThread();
+
+  if (canAsyncHwVideoRender)
+  {
+    if (!m_hwVideoRenderThread)
+    {
+      CLog::Log(LOGINFO, "{} - enabling AML HW video render thread", __FUNCTION__);
+      m_hwVideoRenderThread = std::make_unique<CVideoPlayerHwRenderThread>(*this);
+      m_hwVideoRenderThread->Create();
+    }
+
+    if (m_hwVideoRenderThread->IsBusy())
+    {
+      CLog::Log(LOGWARNING, "{} - AML HW video render thread still busy, falling back to app thread", __FUNCTION__);
+      StopHwVideoRenderThread();
+      m_renderManager.Render(clear, 0, alpha, gui);
+      return;
+    }
+
+    m_hwVideoRenderThread->QueueRender(clear, alpha);
+    m_skipGuiVideoRenderThisFrame = true;
+    return;
+  }
+
+  if (useDedicatedHwVideoRenderThread)
+  {
+    if (!m_hwVideoRenderThread)
+    {
+      CLog::Log(LOGINFO, "{} - enabling AML HW video render thread", __FUNCTION__);
+      m_hwVideoRenderThread = std::make_unique<CVideoPlayerHwRenderThread>(*this);
+      m_hwVideoRenderThread->Create();
+    }
+
+    if (m_hwVideoRenderThread->RenderFrame(clear, alpha)) return;
+
+    CLog::Log(LOGWARNING, "{} - falling back to app-thread AML video render", __FUNCTION__);
+    StopHwVideoRenderThread();
+  }
+
   m_renderManager.Render(clear, 0, alpha, gui);
 }
 

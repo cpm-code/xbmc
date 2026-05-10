@@ -85,6 +85,8 @@ public:
   void FrameMove();
   void FrameWait(std::chrono::milliseconds duration);
   void Render(bool clear, DWORD flags = 0, DWORD alpha = 255, bool gui = true);
+  void PrepareVideoLayer();
+  bool CanAsyncVideoLayerRender();
   bool IsVideoLayer();
   RESOLUTION GetResolution() const;
   void UpdateResolution(bool force = false);

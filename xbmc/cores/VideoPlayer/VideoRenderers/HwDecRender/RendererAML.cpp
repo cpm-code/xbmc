@@ -171,8 +171,6 @@ bool CRendererAML::Flush(bool saveBuffers)
 
 void CRendererAML::RenderUpdate(int index, int index2, bool clear, unsigned int flags, unsigned int alpha)
 {
-  ManageRenderArea();
-
   CAMLVideoBuffer *amli = static_cast<CAMLVideoBuffer *>(m_buffers[index].videoBuffer);
   std::shared_ptr<CAMLCodec> codec;
   if (amli && amli->m_amlCodec)

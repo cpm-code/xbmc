@@ -1101,6 +1101,34 @@ void CRenderManager::Render(bool clear, DWORD flags, DWORD alpha, bool gui)
   }
 }
 
+void CRenderManager::PrepareVideoLayer()
+{
+  std::unique_lock<CCriticalSection> lock(m_statelock);
+
+  if (!m_pRenderer || m_pRenderer->IsGuiLayer() || m_renderState != STATE_CONFIGURED)
+    return;
+
+  m_pRenderer->PrepareVideoLayer();
+}
+
+bool CRenderManager::CanAsyncVideoLayerRender()
+{
+  std::unique_lock<CCriticalSection> stateLock(m_statelock);
+
+  if (!m_pRenderer || m_pRenderer->IsGuiLayer() || m_renderState != STATE_CONFIGURED)
+    return false;
+
+  std::unique_lock<CCriticalSection> presentLock(m_presentlock);
+
+  if (!m_presentstarted)
+    return false;
+
+  if (m_renderDebug || m_overlays.HasOverlay(m_presentsource))
+    return false;
+
+  return m_Queue[m_presentsource].presentmethod != PRESENT_METHOD_BOB;
+}
+
 bool CRenderManager::IsGuiLayer()
 {
   if (!IsConfigured()) return false;
