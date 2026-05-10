@@ -159,16 +159,19 @@ bool Run(CDVDDemux& demuxer,
 
     if (packet->isDualStream)
     {
-      if (VideoPlayerDualLayer::CanPairWithFront(dualLayerPackets, packet->isELPackage,
-                                                 packet->dts))
+      auto matchingPacket =
+          VideoPlayerDualLayer::FindMatchingOppositeLayerPacket(dualLayerPackets,
+                                                                packet->isELPackage,
+                                                                packet->dts);
+      if (matchingPacket != dualLayerPackets.end())
       {
-        DemuxPacket* peer = dualLayerPackets.front();
+        DemuxPacket* peer = *matchingPacket;
         if (packet->isELPackage)
           bitstream.Convert(peer->pData, peer->iSize, packet->pData, packet->iSize, packet->pts);
         else
           bitstream.Convert(packet->pData, packet->iSize, peer->pData, peer->iSize, packet->pts);
 
-        dualLayerPackets.pop_front();
+        dualLayerPackets.erase(matchingPacket);
         videoPacketCount++;
         SyncProbedSourceInfo(hint);
       }

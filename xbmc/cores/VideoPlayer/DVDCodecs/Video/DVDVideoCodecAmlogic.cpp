@@ -542,29 +542,26 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
 
   if (!m_packages.empty())
   {
-    // convert bl and el package to single package
-    DLDemuxPacket& dualLayerPacket = m_packages.front();
-
-    if (VideoPlayerDualLayer::HasOppositeLayerFront(m_packages, packet.isELPackage))
+    auto matchingPacket =
+        VideoPlayerDualLayer::FindMatchingOppositeLayerPacket(m_packages, packet.isELPackage,
+                                                              packet.dts);
+    if (matchingPacket != m_packages.end())
     {
+      // convert bl and el package to single package
+      DLDemuxPacket& dualLayerPacket = *matchingPacket;
+
       logComponentM(LOGDEBUG, LOGVIDEO, "found DT-DL {} package with dts: {:.3f} in list",
                                         packet.isELPackage ? "BL" : "EL", dualLayerPacket.dts/DVD_TIME_BASE);
 
-      if (VideoPlayerDualLayer::IncomingPacketPrecedesFront(m_packages, packet.dts)) // prior dts arrived - out of step - remove and attempt next.
-      {
-        logComponentM(LOGDEBUG, LOGVIDEO, "discarding DT-DL {} package with dts {:.3f} as before package in list with dts: {:.3f}",
-                                          packet.isELPackage ? "EL" : "BL",
-                                          (packet.dts/DVD_TIME_BASE), (dualLayerPacket.dts/DVD_TIME_BASE));
+      if (packet.isELPackage)
+        dual_layer_converted = m_bitstream->Convert(dualLayerPacket.buffer.GetData(), dualLayerPacket.size, pData, iSize, packet.pts);
+      else
+        dual_layer_converted = m_bitstream->Convert(pData, iSize, dualLayerPacket.buffer.GetData(), dualLayerPacket.size, packet.pts);
 
-        return false;
-      }
-
-      if (VideoPlayerDualLayer::CanPairWithFront(m_packages, packet.isELPackage, packet.dts))
+      if (dual_layer_converted)
       {
-        if (packet.isELPackage)
-          dual_layer_converted = m_bitstream->Convert(dualLayerPacket.buffer.GetData(), dualLayerPacket.size, pData, iSize, packet.pts);
-        else
-          dual_layer_converted = m_bitstream->Convert(pData, iSize, dualLayerPacket.buffer.GetData(), dualLayerPacket.size, packet.pts);
+        RecycleDualLayerPacket(std::move(*matchingPacket));
+        m_packages.erase(matchingPacket);
       }
     }
   }
@@ -589,10 +586,6 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
   {
     logComponentM(LOGDEBUG, LOGVIDEO, "converted DT-DL with dts: {:.3f}, pts: {:.3f}",
                                       (packet.dts/DVD_TIME_BASE), (packet.pts/DVD_TIME_BASE));
-
-    // All good can remove the backed up package
-    RecycleDualLayerPacket(std::move(m_packages.front()));
-    m_packages.pop_front();
 
     if (!CanStartDecode())
     {

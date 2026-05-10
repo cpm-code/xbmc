@@ -183,4 +183,5 @@ protected:
   std::vector<ChapterFFmpeg> m_chapters;
   bool m_dv_dual_stream = false;
   bool m_dv_dual_stream_started = false;
+  int m_dv_bl_stream_index = -1;
 };

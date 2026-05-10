@@ -839,7 +839,7 @@ void CBitstreamConverter::ProcessHevcNalu(uint8_t* buf,
           ProcessSeiPrefixWrap(buf, size, &m_convertBuffer, offset, hdr10plus_meta,
                                convert_hdr10plus_meta);
           break;
-        case AVC_NAL_END_SEQUENCE:
+        case HEVC_NAL_EOS_NUT:
           if (eos_buf != nullptr && eos_size != nullptr)
           {
             *eos_buf = buf;
@@ -940,7 +940,10 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
                           HevcNaluStreamType::DualLayerBase, offset, hdr10plus_meta,
                           convert_hdr10plus_meta, pts, &buf_eos, &size_eos, "BL");
 
-    if (m_convert_bitstream) buf = pData_el;
+    if (m_convert_bitstream)
+      buf = pData_el;
+    else
+      buf = start + bl_frame_nal_buf_size;
 
     ProcessHevcNaluStream(buf, el_frame_nal_buf_size,
                           HevcNaluStreamType::DualLayerEnhancement, offset, hdr10plus_meta,
@@ -952,7 +955,7 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
 
     // append end of sequence if exist
     if (buf_eos)
-      BitstreamAllocAndCopy(&m_convertBuffer, &offset, buf_eos, size_eos, AVC_NAL_END_SEQUENCE);
+      BitstreamAllocAndCopy(&m_convertBuffer, &offset, buf_eos, size_eos, HEVC_NAL_EOS_NUT);
 
     if (!m_convert_bitstream)
       av_free(start);

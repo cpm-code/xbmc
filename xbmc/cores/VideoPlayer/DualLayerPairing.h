@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <type_traits>
 #include <utility>
@@ -24,6 +26,13 @@ double PacketDts(const Packet& packet)
     return packet.dts;
 }
 
+template<typename Packet>
+bool PacketDtsMatches(const Packet& packet, double dts)
+{
+  const double packetDts = PacketDts(packet);
+  return packetDts == dts || std::abs(packetDts - dts) <= 1.0;
+}
+
 template<typename Queue>
 bool HasOppositeLayerFront(const Queue& pendingPackets, bool isELPackage)
 {
@@ -35,7 +44,17 @@ template<typename Queue>
 bool CanPairWithFront(const Queue& pendingPackets, bool isELPackage, double dts)
 {
   return HasOppositeLayerFront(pendingPackets, isELPackage) &&
-         dts >= PacketDts(pendingPackets.front());
+         PacketDtsMatches(pendingPackets.front(), dts);
+}
+
+template<typename Queue>
+auto FindMatchingOppositeLayerPacket(Queue& pendingPackets, bool isELPackage, double dts)
+{
+  return std::find_if(pendingPackets.begin(), pendingPackets.end(),
+                      [=](const auto& pendingPacket) {
+                        return IsEnhancementLayerPacket(pendingPacket) != isELPackage &&
+                               PacketDtsMatches(pendingPacket, dts);
+                      });
 }
 
 template<typename Queue>

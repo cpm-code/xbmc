@@ -108,6 +108,11 @@ bool AttachmentIsFont(const AVDictionaryEntry* dict)
   }
   return false;
 }
+
+bool IsDolbyVisionEnhancementStream(const AVStream* stream)
+{
+  return stream != nullptr && stream->id == 0x1015;
+}
 } // namespace
 
 std::string CDemuxStreamAudioFFmpeg::GetStreamName()
@@ -249,6 +254,9 @@ bool CDVDDemuxFFmpeg::Open(const std::shared_ptr<CDVDInputStream>& pInput, bool 
   m_speed = DVD_PLAYSPEED_NORMAL;
   m_program = UINT_MAX;
   m_seekToKeyFrame = false;
+  m_dv_dual_stream = false;
+  m_dv_dual_stream_started = false;
+  m_dv_bl_stream_index = -1;
 
   const AVIOInterruptCB int_cb = { interrupt_cb, this };
 
@@ -1215,22 +1223,25 @@ DemuxPacket* CDVDDemuxFFmpeg::ReadInternal(bool keep)
         pPacket->recoveryPoint = m_seekToKeyFrame;
       m_seekToKeyFrame = false;
 
-      if (m_pFormatContext->streams[pPacket->iStreamId]->id == 0x1015 &&
-          m_dv_dual_stream && !m_dv_dual_stream_started)
+      const bool isEnhancementLayer =
+          m_dv_dual_stream && (m_dv_bl_stream_index >= 0) &&
+          (stream->uniqueId != m_dv_bl_stream_index);
+
+      if (isEnhancementLayer && !m_dv_dual_stream_started)
       {
         CLog::Log(LOGDEBUG, "CDVDDemuxFFmpeg::{}: EL packet arrived before BL packet on Dolby Vision dual stream, drop it!", __FUNCTION__);
         CDVDDemuxUtils::FreeDemuxPacket(pPacket);
         pPacket = CDVDDemuxUtils::AllocateDemuxPacket(0);
         return pPacket;
       }
-      else
+      else if (!isEnhancementLayer)
         m_dv_dual_stream_started = true;
 
       if (m_pFormatContext->streams[pPacket->iStreamId]->codecpar &&
           m_pFormatContext->streams[pPacket->iStreamId]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
       {
         pPacket->isDualStream = m_dv_dual_stream;
-        pPacket->isELPackage = (stream->uniqueId > 0) ? m_dv_dual_stream : false;
+        pPacket->isELPackage = isEnhancementLayer;
       }
     }
     if (stream && m_pSSIF)
@@ -1602,6 +1613,9 @@ void CDVDDemuxFFmpeg::DisposeStreams()
     delete it->second;
   m_streams.clear();
   m_parsers.clear();
+  m_dv_dual_stream = false;
+  m_dv_dual_stream_started = false;
+  m_dv_bl_stream_index = -1;
 }
 
 CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
@@ -1666,6 +1680,8 @@ CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
       }
       case AVMEDIA_TYPE_VIDEO:
       {
+        const bool isDvEnhancementStream = IsDolbyVisionEnhancementStream(pStream);
+
         if (pStream->codecpar->codec_id == AV_CODEC_ID_H264_MVC)
         {
           stream = new CDemuxStream();
@@ -1771,6 +1787,14 @@ CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
         st->colorSpace = pStream->codecpar->color_space;
         st->colorTransferCharacteristic = pStream->codecpar->color_trc;
         st->colorRange = pStream->codecpar->color_range;
+
+        if (m_dv_bl_stream_index < 0 ||
+            (IsDolbyVisionEnhancementStream(m_pFormatContext->streams[m_dv_bl_stream_index]) &&
+             !isDvEnhancementStream))
+        {
+          m_dv_bl_stream_index = streamIdx;
+        }
+
         st->hdr_type = DetermineHdrType(pStream);
 
         // https://github.com/FFmpeg/FFmpeg/blob/release/7.0/doc/APIchanges
@@ -1778,7 +1802,8 @@ CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
 
         if (st->hdr_type == StreamHdrType::HDR_TYPE_DOLBYVISION)
         {
-          if (streamIdx > 0) m_dv_dual_stream = true;
+          if ((m_dv_bl_stream_index >= 0) && (streamIdx != m_dv_bl_stream_index))
+            m_dv_dual_stream = true;
 
           sideData =
               av_packet_side_data_get(pStream->codecpar->coded_side_data,
@@ -1788,13 +1813,12 @@ CDemuxStream* CDVDDemuxFFmpeg::AddStream(int streamIdx)
           {
             st->dovi = *reinterpret_cast<const AVDOVIDecoderConfigurationRecord*>(sideData->data);
           }
-          else // force dovi configuration for DV dual stream
+          else if (m_dv_dual_stream) // force dovi configuration for DV dual stream
           {
             // force dovi side data to bl stream
-            CDemuxStream* bl_stream = GetStream(0);
-            if (bl_stream)
+            CDemuxStream* bl_stream = GetStream(m_dv_bl_stream_index);
+            if (auto* bl_video_stream = dynamic_cast<CDemuxStreamVideo*>(bl_stream); bl_video_stream)
             {
-              CDemuxStreamVideo *bl_video_stream = static_cast<CDemuxStreamVideo*>(bl_stream);
               bl_video_stream->hdr_type = StreamHdrType::HDR_TYPE_DOLBYVISION;
 
               // use dovi side data if available
@@ -2748,7 +2772,7 @@ StreamHdrType CDVDDemuxFFmpeg::DetermineHdrType(AVStream* pStream)
 
   if (av_packet_side_data_get(pStream->codecpar->coded_side_data,
                               pStream->codecpar->nb_coded_side_data,
-                              AV_PKT_DATA_DOVI_CONF) || (pStream->id == 0x1015)) // DoVi
+                              AV_PKT_DATA_DOVI_CONF) || IsDolbyVisionEnhancementStream(pStream)) // DoVi
     hdrType = StreamHdrType::HDR_TYPE_DOLBYVISION;
   else if (pStream->codecpar->color_trc == AVCOL_TRC_SMPTE2084) // HDR10
     hdrType = StreamHdrType::HDR_TYPE_HDR10;
