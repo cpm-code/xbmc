@@ -47,6 +47,31 @@ CRenderSystemBase::~CRenderSystemBase()
     advSettings->UnregisterSettingsLoadedCallback(m_settingsCallbackHandle.value());
 }
 
+bool CRenderSystemBase::SupportsGuiRenderTargets() const
+{
+  return false;
+}
+
+std::unique_ptr<CGUIRenderTarget> CRenderSystemBase::CreateGuiRenderTarget(unsigned int width,
+                                                                           unsigned int height)
+{
+  return {};
+}
+
+bool CRenderSystemBase::BeginGuiRenderTarget(CGUIRenderTarget& target)
+{
+  return false;
+}
+
+void CRenderSystemBase::EndGuiRenderTarget(CGUIRenderTarget& target)
+{
+}
+
+bool CRenderSystemBase::RenderGuiRenderTarget(const CGUIRenderTarget& target)
+{
+  return false;
+}
+
 void CRenderSystemBase::GetRenderVersion(unsigned int& major, unsigned int& minor) const
 {
   major = m_RenderVersionMajor;

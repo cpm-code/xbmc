@@ -118,18 +118,17 @@ void CRendererAML::ReleaseBuffer(int idx)
 
 bool CRendererAML::NeedBuffer(int idx)
 {
-  return m_asyncRenderIndex.load(std::memory_order_relaxed) == idx;
+  return (m_asyncRenderMask.load(std::memory_order_relaxed) & (1u << idx)) != 0;
 }
 
 void CRendererAML::BeginAsyncVideoLayerRender(int idx)
 {
-  m_asyncRenderIndex.store(idx, std::memory_order_relaxed);
+  m_asyncRenderMask.fetch_or(1u << idx, std::memory_order_relaxed);
 }
 
 void CRendererAML::EndAsyncVideoLayerRender(int idx)
 {
-  int expected = idx;
-  m_asyncRenderIndex.compare_exchange_strong(expected, -1, std::memory_order_relaxed);
+  m_asyncRenderMask.fetch_and(~(1u << idx), std::memory_order_relaxed);
 }
 
 bool CRendererAML::Supports(ERENDERFEATURE feature) const

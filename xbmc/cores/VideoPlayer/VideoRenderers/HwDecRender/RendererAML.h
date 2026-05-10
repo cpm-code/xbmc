@@ -62,6 +62,6 @@ private:
 
   uint64_t m_prevVPts;
   std::weak_ptr<CAMLCodec> m_lastCodec;
-  std::atomic_int m_asyncRenderIndex{-1};
+  std::atomic_uint m_asyncRenderMask{0};
   bool m_bConfigured;
 };

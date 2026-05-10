@@ -97,6 +97,12 @@ public:
   bool BeginRender() override;
   bool EndRender() override;
   void PresentRender(bool rendered, bool videoLayer) override;
+  bool SupportsGuiRenderTargets() const override;
+  std::unique_ptr<CGUIRenderTarget> CreateGuiRenderTarget(unsigned int width,
+                                                          unsigned int height) override;
+  bool BeginGuiRenderTarget(CGUIRenderTarget& target) override;
+  void EndGuiRenderTarget(CGUIRenderTarget& target) override;
+  bool RenderGuiRenderTarget(const CGUIRenderTarget& target) override;
   void InvalidateColorBuffer() override;
   bool ClearBuffers(KODI::UTILS::COLOR::Color color) override;
   bool IsExtSupported(const char* extension) const override;
@@ -165,6 +171,10 @@ protected:
   CGLESShader* shader(ShaderMethodGLES m) const { return m_pShader[static_cast<size_t>(m)].get(); }
   std::unique_ptr<CGLESShader>& shaderSlot(ShaderMethodGLES m) { return m_pShader[static_cast<size_t>(m)]; }
 
+  GLint m_savedGuiRenderTargetViewport[4]{};
+  GLint m_savedGuiRenderTargetScissor[4]{};
+  GLint m_savedGuiRenderTargetFramebuffer{0};
+  bool m_guiRenderTargetActive{false};
   GLint      m_viewPort[4];
   GuiHdr m_guiHdr{GuiHdr::SDR};
 };

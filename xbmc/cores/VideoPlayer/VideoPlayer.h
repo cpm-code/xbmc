@@ -296,6 +296,7 @@ class CVideoPlayer : public IPlayer, public CThread, public IVideoPlayer,
 
   void SetAVChange(std::string from) const;
   bool ShouldUseDedicatedHwVideoRenderThread(bool gui);
+  bool CanUseAsyncHwVideoRenderPath() const;
   void StopHwVideoRenderThread();
   void RenderVideoOnly(bool clear, uint32_t alpha);
   void RenderPreparedVideoOnly(const CRenderManager::AsyncVideoLayerRenderCommand& command);

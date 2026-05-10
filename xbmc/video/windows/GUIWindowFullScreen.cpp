@@ -403,6 +403,7 @@ void CGUIWindowFullScreen::Render()
     CServiceBroker::GetWinSystem()->GetGfxContext().SetRenderingResolution(m_coordsRes,
                                                                            m_needsScaling);
   }
+
   CGUIWindow::Render();
 }
 

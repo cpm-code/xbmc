@@ -42,6 +42,8 @@
 #include "cores/VideoPlayer/Process/ProcessInfo.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderManager.h"
 #include "guilib/GUIComponent.h"
+#include "guilib/GUIWindowManager.h"
+#include "guilib/WindowIDs.h"
 #include "guilib/StereoscopicsManager.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
@@ -970,6 +972,12 @@ public:
   {
     std::lock_guard<std::mutex> lock(m_stateMutex);
     return m_hasPendingRender || m_renderActive;
+  }
+
+  bool CanQueuePreparedRender()
+  {
+    std::lock_guard<std::mutex> lock(m_stateMutex);
+    return !m_hasPendingRender;
   }
 
   void Shutdown()
@@ -6254,6 +6262,19 @@ bool CVideoPlayer::ShouldUseDedicatedHwVideoRenderThread(bool gui)
   return m_renderManager.IsVideoLayer();
 }
 
+bool CVideoPlayer::CanUseAsyncHwVideoRenderPath() const
+{
+  const auto gui = CServiceBroker::GetGUI();
+  if (!gui)
+    return false;
+
+  const auto& windowManager = gui->GetWindowManager();
+  if ((windowManager.GetActiveWindow() & WINDOW_ID_MASK) != WINDOW_FULLSCREEN_VIDEO)
+    return false;
+
+  return windowManager.GetTopmostDialog(true) == WINDOW_INVALID;
+}
+
 void CVideoPlayer::StopHwVideoRenderThread()
 {
   if (!m_hwVideoRenderThread) return;
@@ -6276,6 +6297,8 @@ void CVideoPlayer::RenderPreparedVideoOnly(const CRenderManager::AsyncVideoLayer
 void CVideoPlayer::Render(bool clear, uint32_t alpha, bool gui)
 {
   const bool useDedicatedHwVideoRenderThread = ShouldUseDedicatedHwVideoRenderThread(gui);
+  const bool canUseAsyncHwVideoRenderPath = !gui && useDedicatedHwVideoRenderThread &&
+                                            CanUseAsyncHwVideoRenderPath();
   CRenderManager::AsyncVideoLayerRenderCommand asyncCommand;
 
   if (gui && m_skipGuiVideoRenderThisFrame)
@@ -6287,7 +6310,7 @@ void CVideoPlayer::Render(bool clear, uint32_t alpha, bool gui)
   if (!gui && m_hwVideoRenderThread && !useDedicatedHwVideoRenderThread)
     StopHwVideoRenderThread();
 
-  if (!gui && useDedicatedHwVideoRenderThread)
+  if (canUseAsyncHwVideoRenderPath)
   {
     if (!m_hwVideoRenderThread)
     {
@@ -6296,7 +6319,9 @@ void CVideoPlayer::Render(bool clear, uint32_t alpha, bool gui)
       m_hwVideoRenderThread->Create();
     }
 
-    if (m_hwVideoRenderThread->IsBusy())
+    const bool canQueuePreparedRender = m_hwVideoRenderThread->CanQueuePreparedRender();
+
+    if (!canQueuePreparedRender)
     {
       if (!m_hwVideoRenderThread->WaitForRenderComplete())
       {
@@ -6307,7 +6332,8 @@ void CVideoPlayer::Render(bool clear, uint32_t alpha, bool gui)
       }
     }
 
-    if (m_renderManager.PrepareAsyncVideoLayerRender(clear, 0, alpha, asyncCommand))
+    if (canQueuePreparedRender &&
+      m_renderManager.PrepareAsyncVideoLayerRender(clear, 0, alpha, asyncCommand))
     {
       m_hwVideoRenderThread->QueuePreparedRender(asyncCommand);
       m_skipGuiVideoRenderThisFrame = true;

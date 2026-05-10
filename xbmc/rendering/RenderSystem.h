@@ -37,6 +37,15 @@ enum class ClearFunction
   GEOMETRY,
 };
 
+class CGUIRenderTarget
+{
+public:
+  virtual ~CGUIRenderTarget() = default;
+
+  virtual unsigned int GetWidth() const = 0;
+  virtual unsigned int GetHeight() const = 0;
+};
+
 class CGUIImage;
 class CGUITextLayout;
 
@@ -53,6 +62,12 @@ public:
   virtual bool BeginRender() = 0;
   virtual bool EndRender() = 0;
   virtual void PresentRender(bool rendered, bool videoLayer) = 0;
+  virtual bool SupportsGuiRenderTargets() const;
+  virtual std::unique_ptr<CGUIRenderTarget> CreateGuiRenderTarget(unsigned int width,
+                                                                  unsigned int height);
+  virtual bool BeginGuiRenderTarget(CGUIRenderTarget& target);
+  virtual void EndGuiRenderTarget(CGUIRenderTarget& target);
+  virtual bool RenderGuiRenderTarget(const CGUIRenderTarget& target);
   virtual void InvalidateColorBuffer() {}
   virtual bool ClearBuffers(KODI::UTILS::COLOR::Color color) = 0;
   virtual bool IsExtSupported(const char* extension) const = 0;

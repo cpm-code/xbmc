@@ -27,6 +27,7 @@
 #include "input/actions/ActionIDs.h"
 #include "messaging/ApplicationMessenger.h"
 #include "messaging/helpers/DialogHelper.h"
+#include "rendering/RenderSystem.h"
 #include "music/dialogs/GUIDialogInfoProviderSettings.h"
 #include "music/dialogs/GUIDialogMusicInfo.h"
 #include "music/windows/GUIWindowMusicNav.h"
@@ -70,6 +71,27 @@
 
 #include <mutex>
 #include <unordered_set>
+
+namespace
+{
+bool IsFullscreenOverlayDialogId(int id)
+{
+  switch (id & WINDOW_ID_MASK)
+  {
+    case WINDOW_DIALOG_SEEK_BAR:
+    case WINDOW_DIALOG_VIDEO_OSD:
+    case WINDOW_DIALOG_VIDEO_OSD_SETTINGS:
+    case WINDOW_DIALOG_AUDIO_OSD_SETTINGS:
+    case WINDOW_DIALOG_SUBTITLE_OSD_SETTINGS:
+    case WINDOW_DIALOG_PVR_OSD_CHANNELS:
+    case WINDOW_DIALOG_PVR_CHANNEL_GUIDE:
+    case WINDOW_DIALOG_OSD_TELETEXT:
+      return true;
+    default:
+      return false;
+  }
+}
+}
 
 // Dialog includes
 #include "music/dialogs/GUIDialogMusicOSD.h"
@@ -1353,6 +1375,9 @@ void CGUIWindowManager::RenderPassSingle() const
     pWindow->DoRender();
   }
 
+  if (RenderFullscreenOverlayDialogsToTarget())
+    return;
+
   // we render the dialogs based on their render order.
   const auto& renderList = GetActiveDialogsRenderList();
   for (const auto& window : renderList)
@@ -1360,6 +1385,57 @@ void CGUIWindowManager::RenderPassSingle() const
     if (window->IsDialogRunning())
       window->DoRender();
   }
+}
+
+bool CGUIWindowManager::RenderFullscreenOverlayDialogsToTarget() const
+{
+  auto* renderSystem = CServiceBroker::GetRenderSystem();
+  if (!renderSystem || !renderSystem->SupportsGuiRenderTargets())
+    return false;
+
+  CGUIWindow* pWindow = GetWindow(GetActiveWindow());
+  if (!pWindow || ((pWindow->GetID() & WINDOW_ID_MASK) != WINDOW_FULLSCREEN_VIDEO))
+    return false;
+
+  const auto& renderList = GetActiveDialogsRenderList();
+  bool hasFullscreenOverlayDialog = false;
+  for (const auto& window : renderList)
+  {
+    if (!window->IsDialogRunning())
+      continue;
+
+    if (!IsFullscreenOverlayDialogId(window->GetID()))
+      return false;
+
+    hasFullscreenOverlayDialog = true;
+  }
+
+  if (!hasFullscreenOverlayDialog)
+    return false;
+
+  const unsigned int width = CServiceBroker::GetWinSystem()->GetGfxContext().GetWidth();
+  const unsigned int height = CServiceBroker::GetWinSystem()->GetGfxContext().GetHeight();
+
+  if (!m_fullscreenOverlayRenderTarget ||
+      m_fullscreenOverlayRenderTarget->GetWidth() != width ||
+      m_fullscreenOverlayRenderTarget->GetHeight() != height)
+  {
+    m_fullscreenOverlayRenderTarget = renderSystem->CreateGuiRenderTarget(width, height);
+    if (!m_fullscreenOverlayRenderTarget)
+      return false;
+  }
+
+  if (!renderSystem->BeginGuiRenderTarget(*m_fullscreenOverlayRenderTarget))
+    return false;
+
+  for (const auto& window : renderList)
+  {
+    if (window->IsDialogRunning())
+      window->DoRender();
+  }
+
+  renderSystem->EndGuiRenderTarget(*m_fullscreenOverlayRenderTarget);
+  return renderSystem->RenderGuiRenderTarget(*m_fullscreenOverlayRenderTarget);
 }
 
 void CGUIWindowManager::RenderPassDual() const

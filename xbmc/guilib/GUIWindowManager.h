@@ -22,6 +22,7 @@
 #include <vector>
 
 class CGUIDialog;
+class CGUIRenderTarget;
 class CGUIMediaWindow;
 
 #ifdef TARGET_WINDOWS_STORE
@@ -234,6 +235,7 @@ public:
 #endif
 private:
   void RenderPass() const;
+  bool RenderFullscreenOverlayDialogsToTarget() const;
   /*! \brief Render in one back to front pass.
    */
   void RenderPassSingle() const;
@@ -282,6 +284,7 @@ private:
   mutable std::vector<std::shared_ptr<CGUIWindow>> m_activeDialogsRenderList;
   mutable bool m_activeDialogsRenderListDirty{true};
   std::vector<std::shared_ptr<CGUIWindow>> m_deleteWindows;
+  mutable std::unique_ptr<CGUIRenderTarget> m_fullscreenOverlayRenderTarget;
 
   std::deque<int> m_windowHistory;
 

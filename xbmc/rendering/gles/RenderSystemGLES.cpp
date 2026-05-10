@@ -35,6 +35,44 @@
 
 using namespace std::chrono_literals;
 
+namespace
+{
+class CGUIRenderTargetGLES final : public CGUIRenderTarget
+{
+public:
+  CGUIRenderTargetGLES(unsigned int width, unsigned int height)
+    : m_width(width), m_height(height)
+  {
+  }
+
+  ~CGUIRenderTargetGLES() override
+  {
+    if (m_depthBuffer != 0)
+      glDeleteRenderbuffers(1, &m_depthBuffer);
+    if (m_framebuffer != 0)
+      glDeleteFramebuffers(1, &m_framebuffer);
+    if (m_texture != 0)
+      glDeleteTextures(1, &m_texture);
+  }
+
+  unsigned int GetWidth() const override { return m_width; }
+  unsigned int GetHeight() const override { return m_height; }
+
+  GLuint GetFramebuffer() const { return m_framebuffer; }
+  GLuint GetTexture() const { return m_texture; }
+  void SetFramebuffer(GLuint framebuffer) { m_framebuffer = framebuffer; }
+  void SetTexture(GLuint texture) { m_texture = texture; }
+  void SetDepthBuffer(GLuint depthBuffer) { m_depthBuffer = depthBuffer; }
+
+private:
+  unsigned int m_width{0};
+  unsigned int m_height{0};
+  GLuint m_framebuffer{0};
+  GLuint m_texture{0};
+  GLuint m_depthBuffer{0};
+};
+}
+
 CRenderSystemGLES::CRenderSystemGLES()
  : CRenderSystemBase()
 {
@@ -198,6 +236,179 @@ bool CRenderSystemGLES::EndRender()
 {
   if (!m_bRenderCreated)
     return false;
+
+  return true;
+}
+
+bool CRenderSystemGLES::SupportsGuiRenderTargets() const
+{
+  return m_bRenderCreated;
+}
+
+std::unique_ptr<CGUIRenderTarget> CRenderSystemGLES::CreateGuiRenderTarget(unsigned int width,
+                                                                           unsigned int height)
+{
+  if (!m_bRenderCreated || width == 0 || height == 0)
+    return {};
+
+  auto target = std::make_unique<CGUIRenderTargetGLES>(width, height);
+
+  GLint previousFramebuffer = 0;
+  GLint previousRenderbuffer = 0;
+  GLint previousTexture = 0;
+  glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFramebuffer);
+  glGetIntegerv(GL_RENDERBUFFER_BINDING, &previousRenderbuffer);
+  glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture);
+
+  GLuint texture = 0;
+  GLuint framebuffer = 0;
+  GLuint depthBuffer = 0;
+
+  glGenTextures(1, &texture);
+  glBindTexture(GL_TEXTURE_2D, texture);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+  glGenFramebuffers(1, &framebuffer);
+  glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+
+  glGenRenderbuffers(1, &depthBuffer);
+  glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER,
+                            GL_DEPTH_ATTACHMENT,
+                            GL_RENDERBUFFER,
+                            depthBuffer);
+
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+  {
+    CLog::Log(LOGERROR,
+              "GLES: failed to create GUI render target {}x{} (status: 0x{:04x})",
+              width,
+              height,
+              glCheckFramebufferStatus(GL_FRAMEBUFFER));
+    if (depthBuffer != 0)
+      glDeleteRenderbuffers(1, &depthBuffer);
+    if (framebuffer != 0)
+      glDeleteFramebuffers(1, &framebuffer);
+    if (texture != 0)
+      glDeleteTextures(1, &texture);
+    glBindFramebuffer(GL_FRAMEBUFFER, previousFramebuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, previousRenderbuffer);
+    glBindTexture(GL_TEXTURE_2D, previousTexture);
+    return {};
+  }
+
+  target->SetTexture(texture);
+  target->SetFramebuffer(framebuffer);
+  target->SetDepthBuffer(depthBuffer);
+
+  glBindFramebuffer(GL_FRAMEBUFFER, previousFramebuffer);
+  glBindRenderbuffer(GL_RENDERBUFFER, previousRenderbuffer);
+  glBindTexture(GL_TEXTURE_2D, previousTexture);
+
+  return target;
+}
+
+bool CRenderSystemGLES::BeginGuiRenderTarget(CGUIRenderTarget& target)
+{
+  auto* glesTarget = dynamic_cast<CGUIRenderTargetGLES*>(&target);
+  if (!m_bRenderCreated || !glesTarget || m_guiRenderTargetActive)
+    return false;
+
+  glGetIntegerv(GL_FRAMEBUFFER_BINDING, &m_savedGuiRenderTargetFramebuffer);
+  glGetIntegerv(GL_VIEWPORT, m_savedGuiRenderTargetViewport);
+  glGetIntegerv(GL_SCISSOR_BOX, m_savedGuiRenderTargetScissor);
+
+  glBindFramebuffer(GL_FRAMEBUFFER, glesTarget->GetFramebuffer());
+  glViewport(0, 0, glesTarget->GetWidth(), glesTarget->GetHeight());
+  glScissor(0, 0, glesTarget->GetWidth(), glesTarget->GetHeight());
+
+  m_viewPort[0] = 0;
+  m_viewPort[1] = 0;
+  m_viewPort[2] = glesTarget->GetWidth();
+  m_viewPort[3] = glesTarget->GetHeight();
+  m_guiRenderTargetActive = true;
+
+  return ClearBuffers(0);
+}
+
+void CRenderSystemGLES::EndGuiRenderTarget(CGUIRenderTarget& target)
+{
+  auto* glesTarget = dynamic_cast<CGUIRenderTargetGLES*>(&target);
+  if (!glesTarget || !m_guiRenderTargetActive)
+    return;
+
+  glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(m_savedGuiRenderTargetFramebuffer));
+  glViewport(m_savedGuiRenderTargetViewport[0],
+             m_savedGuiRenderTargetViewport[1],
+             m_savedGuiRenderTargetViewport[2],
+             m_savedGuiRenderTargetViewport[3]);
+  glScissor(m_savedGuiRenderTargetScissor[0],
+            m_savedGuiRenderTargetScissor[1],
+            m_savedGuiRenderTargetScissor[2],
+            m_savedGuiRenderTargetScissor[3]);
+
+  m_viewPort[0] = m_savedGuiRenderTargetViewport[0];
+  m_viewPort[1] = m_savedGuiRenderTargetViewport[1];
+  m_viewPort[2] = m_savedGuiRenderTargetViewport[2];
+  m_viewPort[3] = m_savedGuiRenderTargetViewport[3];
+  m_guiRenderTargetActive = false;
+}
+
+bool CRenderSystemGLES::RenderGuiRenderTarget(const CGUIRenderTarget& target)
+{
+  const auto* glesTarget = dynamic_cast<const CGUIRenderTargetGLES*>(&target);
+  if (!m_bRenderCreated || !glesTarget)
+    return false;
+
+  const CRect rect = CServiceBroker::GetWinSystem()->GetGfxContext().GetViewWindow();
+
+  GLubyte idx[4] = {0, 1, 3, 2};
+  GLfloat ver[4][3] = {
+      {rect.x1, rect.y1, 0.0f},
+      {rect.x2, rect.y1, 0.0f},
+      {rect.x2, rect.y2, 0.0f},
+      {rect.x1, rect.y2, 0.0f},
+  };
+  GLfloat tex[4][2] = {
+      {0.0f, 1.0f},
+      {1.0f, 1.0f},
+      {1.0f, 0.0f},
+      {0.0f, 0.0f},
+  };
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, glesTarget->GetTexture());
+  glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+  glEnable(GL_BLEND);
+  glDisable(GL_DEPTH_TEST);
+  glDepthMask(GL_FALSE);
+
+  EnableGUIShader(ShaderMethodGLES::SM_TEXTURE);
+
+  GLint posLoc = GUIShaderGetPos();
+  GLint tex0Loc = GUIShaderGetCoord0();
+  GLint uniColLoc = GUIShaderGetUniCol();
+  GLint depthLoc = GUIShaderGetDepth();
+
+  glVertexAttribPointer(posLoc, 3, GL_FLOAT, 0, 0, ver);
+  glVertexAttribPointer(tex0Loc, 2, GL_FLOAT, 0, 0, tex);
+  glEnableVertexAttribArray(posLoc);
+  glEnableVertexAttribArray(tex0Loc);
+
+  glUniform4f(uniColLoc, 1.0f, 1.0f, 1.0f, 1.0f);
+  glUniform1f(depthLoc, 0.0f);
+
+  glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_BYTE, idx);
+
+  glDisableVertexAttribArray(posLoc);
+  glDisableVertexAttribArray(tex0Loc);
+  DisableGUIShader();
 
   return true;
 }
