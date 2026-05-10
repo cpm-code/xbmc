@@ -298,6 +298,7 @@ class CVideoPlayer : public IPlayer, public CThread, public IVideoPlayer,
   bool ShouldUseDedicatedHwVideoRenderThread(bool gui);
   void StopHwVideoRenderThread();
   void RenderVideoOnly(bool clear, uint32_t alpha);
+  void RenderPreparedVideoOnly(const CRenderManager::AsyncVideoLayerRenderCommand& command);
 
 public:
   explicit CVideoPlayer(IPlayerCallback& callback);

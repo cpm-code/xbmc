@@ -10,6 +10,7 @@
 
 #include "cores/VideoPlayer/VideoRenderers/BaseRenderer.h"
 
+#include <atomic>
 #include <memory>
 
 class CAMLCodec;
@@ -27,6 +28,7 @@ public:
   virtual bool RenderCapture(int index, CRenderCapture* capture) override;
   virtual void AddVideoPicture(const VideoPicture &picture, int index) override;
   virtual void ReleaseBuffer(int idx) override;
+  virtual bool NeedBuffer(int idx) override;
   virtual bool Configure(const VideoPicture &picture, float fps, unsigned int orientation) override;
   virtual bool IsConfigured() override { return m_bConfigured; };
   virtual bool ConfigChanged(const VideoPicture &picture) { return false; };
@@ -34,6 +36,8 @@ public:
   virtual void UnInit() override {};
   virtual void Update() override {};
   virtual void RenderUpdate(int index, int index2, bool clear, unsigned int flags, unsigned int alpha) override;
+  virtual void BeginAsyncVideoLayerRender(int idx) override;
+  virtual void EndAsyncVideoLayerRender(int idx) override;
   virtual bool SupportsMultiPassRendering()override { return false; };
   virtual bool Flush(bool saveBuffers) override;
 
@@ -58,5 +62,6 @@ private:
 
   uint64_t m_prevVPts;
   std::weak_ptr<CAMLCodec> m_lastCodec;
+  std::atomic_int m_asyncRenderIndex{-1};
   bool m_bConfigured;
 };

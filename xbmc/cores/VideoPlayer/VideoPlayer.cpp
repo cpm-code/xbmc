@@ -913,12 +913,27 @@ public:
   {
   }
 
+  void QueuePreparedRender(const CRenderManager::AsyncVideoLayerRenderCommand& command)
+  {
+    {
+      std::lock_guard<std::mutex> lock(m_stateMutex);
+      m_command = command;
+      m_usePreparedRender = true;
+      m_hasPendingRender = true;
+      m_renderSucceeded = false;
+      m_renderComplete.Reset();
+    }
+
+    m_renderRequested.Set();
+  }
+
   void QueueRender(bool clear, uint32_t alpha)
   {
     {
       std::lock_guard<std::mutex> lock(m_stateMutex);
       m_clear = clear;
       m_alpha = alpha;
+      m_usePreparedRender = false;
       m_hasPendingRender = true;
       m_renderSucceeded = false;
       m_renderComplete.Reset();
@@ -975,19 +990,26 @@ protected:
       if (m_bStop)
         break;
 
+      CRenderManager::AsyncVideoLayerRenderCommand command;
       bool clear = false;
       uint32_t alpha = 255;
+      bool usePreparedRender = false;
       {
         std::lock_guard<std::mutex> lock(m_stateMutex);
         if (!m_hasPendingRender) continue;
 
+        command = m_command;
         clear = m_clear;
         alpha = m_alpha;
+        usePreparedRender = m_usePreparedRender;
         m_hasPendingRender = false;
         m_renderActive = true;
       }
 
-      m_player.RenderVideoOnly(clear, alpha);
+      if (usePreparedRender)
+        m_player.RenderPreparedVideoOnly(command);
+      else
+        m_player.RenderVideoOnly(clear, alpha);
 
       {
         std::lock_guard<std::mutex> lock(m_stateMutex);
@@ -1006,8 +1028,10 @@ protected:
 private:
   CVideoPlayer& m_player;
   std::mutex m_stateMutex;
+  CRenderManager::AsyncVideoLayerRenderCommand m_command;
   bool m_hasPendingRender{false};
   bool m_renderActive{false};
+  bool m_usePreparedRender{false};
   bool m_clear{false};
   uint32_t m_alpha{255};
   bool m_renderSucceeded{false};
@@ -6220,12 +6244,6 @@ void CVideoPlayer::SetVideoSettings(CVideoSettings& settings)
 
 void CVideoPlayer::FrameMove()
 {
-  if (m_hwVideoRenderThread && !m_hwVideoRenderThread->WaitForRenderComplete())
-  {
-    CLog::Log(LOGWARNING, "{} - AML HW video render thread stalled, falling back to app thread", __FUNCTION__);
-    StopHwVideoRenderThread();
-  }
-
   m_renderManager.FrameMove();
 }
 
@@ -6250,11 +6268,15 @@ void CVideoPlayer::RenderVideoOnly(bool clear, uint32_t alpha)
   m_renderManager.Render(clear, 0, alpha, false);
 }
 
+void CVideoPlayer::RenderPreparedVideoOnly(const CRenderManager::AsyncVideoLayerRenderCommand& command)
+{
+  m_renderManager.ExecuteAsyncVideoLayerRender(command);
+}
+
 void CVideoPlayer::Render(bool clear, uint32_t alpha, bool gui)
 {
   const bool useDedicatedHwVideoRenderThread = ShouldUseDedicatedHwVideoRenderThread(gui);
-  const bool canAsyncHwVideoRender = !gui && useDedicatedHwVideoRenderThread &&
-                                     m_renderManager.CanAsyncVideoLayerRender();
+  CRenderManager::AsyncVideoLayerRenderCommand asyncCommand;
 
   if (gui && m_skipGuiVideoRenderThisFrame)
   {
@@ -6262,13 +6284,10 @@ void CVideoPlayer::Render(bool clear, uint32_t alpha, bool gui)
     return;
   }
 
-  if (useDedicatedHwVideoRenderThread)
-    m_renderManager.PrepareVideoLayer();
-
   if (!gui && m_hwVideoRenderThread && !useDedicatedHwVideoRenderThread)
     StopHwVideoRenderThread();
 
-  if (canAsyncHwVideoRender)
+  if (!gui && useDedicatedHwVideoRenderThread)
   {
     if (!m_hwVideoRenderThread)
     {
@@ -6279,19 +6298,27 @@ void CVideoPlayer::Render(bool clear, uint32_t alpha, bool gui)
 
     if (m_hwVideoRenderThread->IsBusy())
     {
-      CLog::Log(LOGWARNING, "{} - AML HW video render thread still busy, falling back to app thread", __FUNCTION__);
-      StopHwVideoRenderThread();
-      m_renderManager.Render(clear, 0, alpha, gui);
-      return;
+      if (!m_hwVideoRenderThread->WaitForRenderComplete())
+      {
+        CLog::Log(LOGWARNING, "{} - AML HW video render thread stalled, falling back to app thread", __FUNCTION__);
+        StopHwVideoRenderThread();
+        m_renderManager.Render(clear, 0, alpha, gui);
+        return;
+      }
     }
 
-    m_hwVideoRenderThread->QueueRender(clear, alpha);
-    m_skipGuiVideoRenderThisFrame = true;
-    return;
+    if (m_renderManager.PrepareAsyncVideoLayerRender(clear, 0, alpha, asyncCommand))
+    {
+      m_hwVideoRenderThread->QueuePreparedRender(asyncCommand);
+      m_skipGuiVideoRenderThisFrame = true;
+      return;
+    }
   }
 
   if (useDedicatedHwVideoRenderThread)
   {
+    m_renderManager.PrepareVideoLayer();
+
     if (!m_hwVideoRenderThread)
     {
       CLog::Log(LOGINFO, "{} - enabling AML HW video render thread", __FUNCTION__);

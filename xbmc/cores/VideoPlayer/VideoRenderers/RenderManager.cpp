@@ -100,6 +100,151 @@ const char* GetWaitMode(const WaitDebugInfo& waitDbg)
 
   return "video";
 }
+
+void ClockAlignImpl(CDataCacheCore& dataCacheCore,
+                    CDVDClock& dvdClock,
+                    bool guiLayer,
+                    double presentPts,
+                    double presentFrameTime,
+                    int presentSource,
+                    int queuedSize,
+                    int queueSkip)
+{
+  if (dataCacheCore.IsPausedPlayback()) return;
+
+  double speed = static_cast<double>(std::abs(dataCacheCore.GetSpeed()));
+
+  WaitDebugInfo waitDbg;
+
+  const auto WaitSlice = [&](double waitUs)
+  {
+    const double remainingWaitUs = std::max(0.0, (presentPts - dvdClock.GetClock()) / speed);
+    const double frameTimeUs = presentFrameTime / speed;
+    double sleepUs = (remainingWaitUs > 1000000)
+      ? (frameTimeUs * 4)
+      : (frameTimeUs * (((remainingWaitUs / frameTimeUs) / 10) + 1));
+
+    sleepUs = std::min(sleepUs, remainingWaitUs);
+
+    waitDbg.used = true;
+    waitDbg.usedSlice = true;
+    waitDbg.waitUs = remainingWaitUs;
+    waitDbg.sliceSleepUs = sleepUs;
+    waitDbg.frameTimeUs = frameTimeUs;
+
+    aml_wait(sleepUs);
+  };
+
+  const auto Wait = [&](double waitUs)
+  {
+    if (guiLayer)
+    {
+      const double remainingWaitUs = std::max(0.0, (presentPts - dvdClock.GetClock()) / speed);
+      waitDbg.used = true;
+      waitDbg.gui = true;
+      waitDbg.waitUs = remainingWaitUs;
+      return aml_wait(remainingWaitUs);
+    }
+
+    int nextInUs{0};
+    if (!aml_get_time_to_next_vsync_us(nextInUs))
+    {
+      const double remainingWaitUs = std::max(0.0, (presentPts - dvdClock.GetClock()) / speed);
+      waitDbg.used = true;
+      waitDbg.waitUs = remainingWaitUs;
+      aml_wait(remainingWaitUs);
+      return;
+    }
+
+    const double remainingWaitUs = std::max(0.0, (presentPts - dvdClock.GetClock()) / speed);
+    waitDbg.used = true;
+    waitDbg.waitUs = remainingWaitUs;
+    waitDbg.gotNextIn = true;
+    waitDbg.nextInUs = nextInUs;
+
+    constexpr int vsyncGuardUs = 8000;
+    waitDbg.guardUs = vsyncGuardUs;
+
+    double sleepUs = remainingWaitUs;
+    if (remainingWaitUs < nextInUs)
+    {
+      const int maxBeforeGuardUs = std::max(0, nextInUs - vsyncGuardUs);
+
+      if (remainingWaitUs > maxBeforeGuardUs)
+      {
+        int nextInAfterUs{0};
+        if (aml_wait_until_next_vsync_window_us(vsyncGuardUs, nextInAfterUs))
+        {
+          waitDbg.kernelWindow = true;
+          waitDbg.sleepUs = static_cast<double>(maxBeforeGuardUs);
+          waitDbg.clamped = true;
+          waitDbg.gotNextInAfter = true;
+          waitDbg.nextInAfterUs = nextInAfterUs;
+          return;
+        }
+      }
+
+      sleepUs = std::min(remainingWaitUs, static_cast<double>(maxBeforeGuardUs));
+    }
+
+    waitDbg.sleepUs = sleepUs;
+    waitDbg.clamped = (sleepUs < waitUs);
+
+    if (sleepUs > 0)
+    {
+      aml_wait(sleepUs);
+
+      int nextInAfterUs{0};
+      if (aml_get_time_to_next_vsync_us(nextInAfterUs))
+      {
+        waitDbg.gotNextInAfter = true;
+        waitDbg.nextInAfterUs = nextInAfterUs;
+      }
+    }
+  };
+
+  double renderPts = dvdClock.GetClock();
+  double diff = (renderPts - presentPts) / speed;
+
+  if (diff < 0)
+  {
+    double wait = -diff;
+
+    if (wait > (presentFrameTime * 3.0))
+      WaitSlice(wait);
+    else
+      Wait(wait);
+
+    renderPts = dvdClock.GetClock();
+    diff = (renderPts - presentPts);
+
+    const double initialGapUs = wait;
+    const double finalGapUs = -diff;
+
+    logM(LOGDEBUG, "gapInit:[{:.0f}] gapFinal:[{:.0f}] ft:[{:.0f}] wait:[{:.0f}] mode:[{}] nextIn:[{}] guard:[{}] sleep:[{:.0f}] clamped:[{}] nextAfter:[{}] sliceSleep:[{:.0f}] presenting:[{:02d}] queued:[{}] skip:[{:02d}]",
+                   initialGapUs, finalGapUs, presentFrameTime,
+                   waitDbg.used ? waitDbg.waitUs : wait,
+                   GetWaitMode(waitDbg),
+                   waitDbg.gotNextIn ? waitDbg.nextInUs : -1,
+                   waitDbg.guardUs,
+                   waitDbg.usedSlice ? 0 : waitDbg.sleepUs,
+                   waitDbg.clamped,
+                   waitDbg.gotNextInAfter ? waitDbg.nextInAfterUs : -1,
+                   waitDbg.usedSlice ? waitDbg.sliceSleepUs : 0.0,
+                   presentSource, queuedSize, queueSkip);
+
+    if (finalGapUs < -2000.0)
+      logM(LOGWARNING, "late gapFinal:[{:.0f}] ft:[{:.0f}] wait:[{:.0f}] mode:[{}] nextIn:[{}] guard:[{}] sleep:[{:.0f}] clamped:[{}] nextAfter:[{}]",
+                       finalGapUs, presentFrameTime,
+                       waitDbg.waitUs,
+                       GetWaitMode(waitDbg),
+                       waitDbg.gotNextIn ? waitDbg.nextInUs : -1,
+                       waitDbg.guardUs,
+                       waitDbg.usedSlice ? 0 : waitDbg.sleepUs,
+                       waitDbg.clamped,
+                       waitDbg.gotNextInAfter ? waitDbg.nextInAfterUs : -1);
+  }
+}
 } // namespace
 
 void CRenderManager::CClockSync::Reset()
@@ -833,153 +978,31 @@ bool CRenderManager::CalcOverlayActiveArea(CRect& src, CRect& dst) const {
 
 void CRenderManager::ClockAlign()
 {
-  if (m_dataCacheCore.IsPausedPlayback()) return;
+  ClockAlignImpl(m_dataCacheCore,
+                 m_dvdClock,
+                 !m_pRenderer || m_pRenderer->IsGuiLayer(),
+                 m_presentpts.load(std::memory_order_relaxed),
+                 m_presentframetime,
+                 m_presentsource,
+                 static_cast<int>(m_queued.size()),
+                 m_QueueSkip);
+}
 
-  double speed = static_cast<double>(std::abs(m_dataCacheCore.GetSpeed()));
-
-  WaitDebugInfo waitDbg;
-
-  const auto WaitSlice = [&](double waitUs)
-  {
-    // Sleep a bounded slice of the remaining gap.
-    // i.e. home in on the pts, ramping perceived frame rate until matching
-    const double remainingWaitUs = std::max(0.0, (m_presentpts - m_dvdClock.GetClock()) / speed);
-    const double frameTimeUs = m_presentframetime / speed;
-    double sleepUs = (remainingWaitUs > 1000000)
-      ? (frameTimeUs * 4)
-      : (frameTimeUs * (((remainingWaitUs / frameTimeUs) / 10) + 1));
-
-    // Never sleep past the remaining target gap.
-    sleepUs = std::min(sleepUs, remainingWaitUs);
-
-    waitDbg.used = true;
-    waitDbg.usedSlice = true;
-    waitDbg.waitUs = remainingWaitUs;
-    waitDbg.sliceSleepUs = sleepUs;
-    waitDbg.frameTimeUs = frameTimeUs;
-
-    aml_wait(sleepUs);
-  };
-
-  const auto Wait = [&](double waitUs)
-  {
-    // GUI-layer renderers are paced by the normal swap/present path.
-    if (!m_pRenderer || m_pRenderer->IsGuiLayer())
-    {
-      const double remainingWaitUs = std::max(0.0, (m_presentpts - m_dvdClock.GetClock()) / speed);
-      waitDbg.used = true;
-      waitDbg.gui = true;
-      waitDbg.waitUs = remainingWaitUs;
-      return aml_wait(remainingWaitUs);
-    }
-
-    int nextInUs{0};
-    if (!aml_get_time_to_next_vsync_us(nextInUs))
-    {
-      const double remainingWaitUs = std::max(0.0, (m_presentpts - m_dvdClock.GetClock()) / speed);
-      waitDbg.used = true;
-      waitDbg.waitUs = remainingWaitUs;
-      aml_wait(remainingWaitUs);
-      return;
-    }
-
-    const double remainingWaitUs = std::max(0.0, (m_presentpts - m_dvdClock.GetClock()) / speed);
-    waitDbg.used = true;
-    waitDbg.waitUs = remainingWaitUs;
-    waitDbg.gotNextIn = true;
-    waitDbg.nextInUs = nextInUs;
-
-    // Wait for the pts, but never closer than 8ms to the next vsync.
-    // If the pts would land inside the guard window, stop early to leave setup time.
-    constexpr int vsyncGuardUs = 8000;
-    waitDbg.guardUs = vsyncGuardUs;
-
-    double sleepUs = remainingWaitUs;
-    if (remainingWaitUs < nextInUs)
-    {
-      // pts is before the upcoming vsync: stop early if we'd land inside the guard window.
-      const int maxBeforeGuardUs = std::max(0, nextInUs - vsyncGuardUs);
-
-      if (remainingWaitUs > maxBeforeGuardUs)
-      {
-        int nextInAfterUs{0};
-        if (aml_wait_until_next_vsync_window_us(vsyncGuardUs, nextInAfterUs))
-        {
-          waitDbg.kernelWindow = true;
-          waitDbg.sleepUs = static_cast<double>(maxBeforeGuardUs);
-          waitDbg.clamped = true;
-          waitDbg.gotNextInAfter = true;
-          waitDbg.nextInAfterUs = nextInAfterUs;
-          return;
-        }
-      }
-
-      sleepUs = std::min(remainingWaitUs, static_cast<double>(maxBeforeGuardUs));
-    }
-
-    waitDbg.sleepUs = sleepUs;
-    waitDbg.clamped = (sleepUs < waitUs);
-
-    if (sleepUs > 0)
-    {
-      aml_wait(sleepUs);
-
-      int nextInAfterUs{0};
-      if (aml_get_time_to_next_vsync_us(nextInAfterUs))
-      {
-        waitDbg.gotNextInAfter = true;
-        waitDbg.nextInAfterUs = nextInAfterUs;
-      }
-    }
-  };
-
-  double renderPts = m_dvdClock.GetClock();
-  double diff = (renderPts - m_presentpts) / speed;
-
-  // Seek may push the diff to a large negative value, make sure it is sensible.
-  // TODO: should be better protected elsewhere.
-  if (diff < 0)
-  {
-    double wait = -diff;
-
-    // Only use the coarse slice path for large gaps; for near-frame waits
-    // it can oversleep and consistently land late.
-    if (wait > (m_presentframetime * 3.0))
-      WaitSlice(wait);
-    else
-      Wait(wait);
-
-    renderPts = m_dvdClock.GetClock();
-    diff = (renderPts - m_presentpts);
-
-    const double initialGapUs = wait;
-    const double finalGapUs = -diff;
-
-    // Emit one consolidated line per alignment attempt.
-    logM(LOGDEBUG, "gapInit:[{:.0f}] gapFinal:[{:.0f}] ft:[{:.0f}] wait:[{:.0f}] mode:[{}] nextIn:[{}] guard:[{}] sleep:[{:.0f}] clamped:[{}] nextAfter:[{}] sliceSleep:[{:.0f}] presenting:[{:02d}] queued:[{}] skip:[{:02d}]",
-                   initialGapUs, finalGapUs, m_presentframetime,
-                   waitDbg.used ? waitDbg.waitUs : wait,
-                   GetWaitMode(waitDbg),
-                   waitDbg.gotNextIn ? waitDbg.nextInUs : -1,
-                   waitDbg.guardUs,
-                   waitDbg.usedSlice ? 0 : waitDbg.sleepUs,
-                   waitDbg.clamped,
-                   waitDbg.gotNextInAfter ? waitDbg.nextInAfterUs : -1,
-                   waitDbg.usedSlice ? waitDbg.sliceSleepUs : 0.0,
-                   m_presentsource, m_queued.size(), m_QueueSkip);
-
-    // Escalate only when we're meaningfully late (gapFinal is negative when late).
-    if (finalGapUs < -2000.0)
-      logM(LOGWARNING, "late gapFinal:[{:.0f}] ft:[{:.0f}] wait:[{:.0f}] mode:[{}] nextIn:[{}] guard:[{}] sleep:[{:.0f}] clamped:[{}] nextAfter:[{}]",
-                       finalGapUs, m_presentframetime,
-                       waitDbg.waitUs,
-                       GetWaitMode(waitDbg),
-                       waitDbg.gotNextIn ? waitDbg.nextInUs : -1,
-                       waitDbg.guardUs,
-                       waitDbg.usedSlice ? 0 : waitDbg.sleepUs,
-                       waitDbg.clamped,
-                       waitDbg.gotNextInAfter ? waitDbg.nextInAfterUs : -1);
-  }
+void CRenderManager::ClockAlign(double presentPts,
+                                double presentFrameTime,
+                                bool guiLayer,
+                                int presentSource,
+                                int queuedSize,
+                                int queueSkip)
+{
+  ClockAlignImpl(m_dataCacheCore,
+                 m_dvdClock,
+                 guiLayer,
+                 presentPts,
+                 presentFrameTime,
+                 presentSource,
+                 queuedSize,
+                 queueSkip);
 }
 
 void CRenderManager::Render(bool clear, DWORD flags, DWORD alpha, bool gui)
@@ -1081,21 +1104,7 @@ void CRenderManager::Render(bool clear, DWORD flags, DWORD alpha, bool gui)
   {
     std::unique_lock<CCriticalSection> lock(m_presentlock);
 
-    if (m_presentstep == PRESENT_FRAME)
-    {
-      if (present.presentmethod == PRESENT_METHOD_BOB)
-        m_presentstep = PRESENT_FRAME2;
-      else
-        m_presentstep = PRESENT_IDLE;
-    }
-    else if (m_presentstep == PRESENT_FRAME2)
-      m_presentstep = PRESENT_IDLE;
-
-    if (m_presentstep == PRESENT_IDLE)
-    {
-      if (!m_queued.empty())
-        m_presentstep = PRESENT_READY;
-    }
+    AdvancePresentStepLocked(present.presentmethod);
 
     NotifyPresentWaiters();
   }
@@ -1127,6 +1136,123 @@ bool CRenderManager::CanAsyncVideoLayerRender()
     return false;
 
   return m_Queue[m_presentsource].presentmethod != PRESENT_METHOD_BOB;
+}
+
+bool CRenderManager::PrepareAsyncVideoLayerRender(bool clear,
+                                                  DWORD flags,
+                                                  DWORD alpha,
+                                                  AsyncVideoLayerRenderCommand& command)
+{
+  std::unique_lock<CCriticalSection> stateLock(m_statelock);
+
+  if (!m_pRenderer || m_pRenderer->IsGuiLayer() || m_renderState != STATE_CONFIGURED)
+    return false;
+
+  m_pRenderer->PrepareVideoLayer();
+
+  std::unique_lock<CCriticalSection> presentLock(m_presentlock);
+
+  if (!m_presentstarted || m_renderDebug || m_overlays.HasOverlay(m_presentsource))
+    return false;
+
+  const SPresent& present = m_Queue[m_presentsource];
+  if (present.presentmethod == PRESENT_METHOD_BOB)
+    return false;
+
+  command.sourceIndex = m_presentsource;
+  command.queuedSize = static_cast<int>(m_queued.size());
+  command.queueSkip = m_QueueSkip;
+  command.presentPts = m_presentpts.load(std::memory_order_relaxed);
+  command.presentFrameTime = m_presentframetime;
+  command.presentField = present.presentfield;
+  command.flags = flags;
+  command.alpha = alpha;
+  command.clear = clear;
+  command.blend = (present.presentmethod == PRESENT_METHOD_BLEND);
+
+  m_pRenderer->BeginAsyncVideoLayerRender(command.sourceIndex);
+  AdvancePresentStepLocked(present.presentmethod);
+  NotifyPresentWaiters();
+
+  return true;
+}
+
+void CRenderManager::ExecuteAsyncVideoLayerRender(const AsyncVideoLayerRenderCommand& command)
+{
+  if (command.sourceIndex < 0)
+    return;
+
+  CSingleExit exitLock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
+  CBaseRenderer* renderer = nullptr;
+  {
+    std::unique_lock<CCriticalSection> lock(m_statelock);
+
+    if (!m_pRenderer || m_pRenderer->IsGuiLayer() || m_renderState != STATE_CONFIGURED)
+      return;
+
+    renderer = m_pRenderer;
+  }
+
+  const auto renderUpdate = [&](bool clear, unsigned int flags, unsigned int alpha)
+  {
+    ClockAlign(command.presentPts,
+               command.presentFrameTime,
+               false,
+               command.sourceIndex,
+               command.queuedSize,
+               command.queueSkip);
+    renderer->RenderUpdate(command.sourceIndex, command.sourceIndex, clear, flags, alpha);
+    m_dataCacheCore.SetRenderPts(command.presentPts);
+  };
+
+  if (command.blend)
+  {
+    if (command.presentField == FS_BOT)
+    {
+      renderUpdate(command.clear, command.flags | RENDER_FLAG_BOT | RENDER_FLAG_NOOSD, command.alpha);
+      renderUpdate(false, command.flags | RENDER_FLAG_TOP, command.alpha / 2);
+    }
+    else
+    {
+      renderUpdate(command.clear, command.flags | RENDER_FLAG_TOP | RENDER_FLAG_NOOSD, command.alpha);
+      renderUpdate(false, command.flags | RENDER_FLAG_BOT, command.alpha / 2);
+    }
+  }
+  else if (command.presentField == FS_BOT)
+  {
+    renderUpdate(command.clear, command.flags | RENDER_FLAG_BOT, command.alpha);
+  }
+  else if (command.presentField == FS_TOP)
+  {
+    renderUpdate(command.clear, command.flags | RENDER_FLAG_TOP, command.alpha);
+  }
+  else
+  {
+    renderUpdate(command.clear, command.flags, command.alpha);
+  }
+
+  std::unique_lock<CCriticalSection> lock(m_statelock);
+  if (m_pRenderer == renderer)
+    m_pRenderer->EndAsyncVideoLayerRender(command.sourceIndex);
+}
+
+void CRenderManager::AdvancePresentStepLocked(EPRESENTMETHOD presentMethod)
+{
+  if (m_presentstep == PRESENT_FRAME)
+  {
+    if (presentMethod == PRESENT_METHOD_BOB)
+      m_presentstep = PRESENT_FRAME2;
+    else
+      m_presentstep = PRESENT_IDLE;
+  }
+  else if (m_presentstep == PRESENT_FRAME2)
+  {
+    m_presentstep = PRESENT_IDLE;
+  }
+
+  if (m_presentstep == PRESENT_IDLE && !m_queued.empty())
+    m_presentstep = PRESENT_READY;
 }
 
 bool CRenderManager::IsGuiLayer()
@@ -1177,6 +1303,23 @@ void inline CRenderManager::RenderUpdate(bool clear, unsigned int flags, unsigne
   ClockAlign();
   m_pRenderer->RenderUpdate(m_presentsource, m_presentsource, clear, flags, alpha);
   m_dataCacheCore.SetRenderPts(m_presentpts);
+}
+
+void CRenderManager::RenderUpdate(int sourceIndex,
+                                  double presentPts,
+                                  double presentFrameTime,
+                                  bool clear,
+                                  unsigned int flags,
+                                  unsigned int alpha)
+{
+  ClockAlign(presentPts,
+             presentFrameTime,
+             false,
+             sourceIndex,
+             0,
+             m_QueueSkip);
+  m_pRenderer->RenderUpdate(sourceIndex, sourceIndex, clear, flags, alpha);
+  m_dataCacheCore.SetRenderPts(presentPts);
 }
 
 /* simple present method */

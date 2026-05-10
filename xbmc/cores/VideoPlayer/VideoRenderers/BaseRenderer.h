@@ -68,6 +68,8 @@ public:
   virtual void RenderUpdate(int index, int index2, bool clear, unsigned int flags, unsigned int alpha) = 0;
   virtual bool RenderCapture(int index, CRenderCapture* capture) = 0;
   virtual bool ConfigChanged(const VideoPicture &picture) = 0;
+  virtual void BeginAsyncVideoLayerRender(int idx) { }
+  virtual void EndAsyncVideoLayerRender(int idx) { }
 
   // Feature support
   virtual bool SupportsMultiPassRendering() = 0;

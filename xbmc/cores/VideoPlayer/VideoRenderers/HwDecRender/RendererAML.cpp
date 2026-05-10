@@ -116,6 +116,22 @@ void CRendererAML::ReleaseBuffer(int idx)
   }
 }
 
+bool CRendererAML::NeedBuffer(int idx)
+{
+  return m_asyncRenderIndex.load(std::memory_order_relaxed) == idx;
+}
+
+void CRendererAML::BeginAsyncVideoLayerRender(int idx)
+{
+  m_asyncRenderIndex.store(idx, std::memory_order_relaxed);
+}
+
+void CRendererAML::EndAsyncVideoLayerRender(int idx)
+{
+  int expected = idx;
+  m_asyncRenderIndex.compare_exchange_strong(expected, -1, std::memory_order_relaxed);
+}
+
 bool CRendererAML::Supports(ERENDERFEATURE feature) const
 {
   if (feature == RENDERFEATURE_ZOOM ||

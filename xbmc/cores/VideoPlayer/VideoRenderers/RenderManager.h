@@ -75,6 +75,20 @@ public:
     STATE_CONFIGURED,
   };
 
+  struct AsyncVideoLayerRenderCommand
+  {
+    int sourceIndex{-1};
+    int queuedSize{0};
+    int queueSkip{0};
+    double presentPts{DVD_NOPTS_VALUE};
+    double presentFrameTime{0.0};
+    EFIELDSYNC presentField{FS_NONE};
+    DWORD flags{0};
+    DWORD alpha{255};
+    bool clear{false};
+    bool blend{false};
+  };
+
   CRenderManager(CDVDClock &clock, IRenderMsg *player);
   virtual ~CRenderManager();
 
@@ -87,6 +101,11 @@ public:
   void Render(bool clear, DWORD flags = 0, DWORD alpha = 255, bool gui = true);
   void PrepareVideoLayer();
   bool CanAsyncVideoLayerRender();
+  bool PrepareAsyncVideoLayerRender(bool clear,
+                                    DWORD flags,
+                                    DWORD alpha,
+                                    AsyncVideoLayerRenderCommand& command);
+  void ExecuteAsyncVideoLayerRender(const AsyncVideoLayerRenderCommand& command);
   bool IsVideoLayer();
   RESOLUTION GetResolution() const;
   void UpdateResolution(bool force = false);
@@ -308,7 +327,20 @@ protected:
 private:
   bool CalcOverlayActiveArea(CRect& src, CRect& dst) const;
   void ClockAlign();
+  void ClockAlign(double presentPts,
+                  double presentFrameTime,
+                  bool guiLayer,
+                  int presentSource,
+                  int queuedSize,
+                  int queueSkip);
   void RenderUpdate(bool clear, unsigned int flags, unsigned int alpha);
+  void RenderUpdate(int sourceIndex,
+                    double presentPts,
+                    double presentFrameTime,
+                    bool clear,
+                    unsigned int flags,
+                    unsigned int alpha);
+  void AdvancePresentStepLocked(EPRESENTMETHOD presentMethod);
 
   CDataCacheCore &m_dataCacheCore;
 };
