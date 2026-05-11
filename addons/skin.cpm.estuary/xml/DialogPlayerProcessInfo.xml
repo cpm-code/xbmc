@@ -184,7 +184,7 @@
 					</control>
 				</control>
 				<control type="group"> <!-- DV Profile -->
-					<width>500</width>
+					<width>535</width>
 					<height>40</height>
 					<control type="label">
 						<width>300</width>
@@ -207,8 +207,8 @@
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
-						<left>460</left>
-						<width>50</width>
+						<left>455</left>
+						<width>80</width>
 						<height>40</height>
 						<aligny>bottom</aligny>
 						<align>right</align>
@@ -330,7 +330,7 @@
 					</control>
 				</control>
 				<control type="group"> <!-- DV EL Type -->
-					<width>500</width>
+					<width>535</width>
 					<height>40</height>
 					<control type="label">
 						<width>400</width>
@@ -353,8 +353,8 @@
 						<shadowcolor>black</shadowcolor>
 					</control>
 					<control type="label">
-						<left>460</left>
-						<width>50</width>
+						<left>455</left>
+						<width>80</width>
 						<height>40</height>
 						<aligny>bottom</aligny>
 						<align>right</align>
@@ -367,7 +367,7 @@
 					</control>
 				</control>
 				<control type="group"> <!-- DV Metadata -->
-					<width>500</width>
+					<width>535</width>
 					<height>40</height>
 					<control type="label">
 						<width>300</width>
@@ -388,6 +388,19 @@
 						<font>font12</font>
 						<scroll>true</scroll>
 						<shadowcolor>black</shadowcolor>
+					</control>
+					<control type="label">
+						<left>455</left>
+						<width>80</width>
+						<height>40</height>
+						<aligny>bottom</aligny>
+						<align>right</align>
+						<label>[COLOR dimgrey]$INFO[Player.Process(video.source.dovi.meta.version)][/COLOR]</label>
+						<font>font12</font>
+						<scroll>true</scroll>
+						<shadowcolor>black</shadowcolor>
+						<visible>!String.IsEqual(Player.Process(video.source.dovi.meta.version),Player.Process(video.dovi.meta.version))</visible>
+						<visible>!String.IsEmpty(Player.Process(video.source.dovi.meta.version))</visible>
 					</control>
 				</control>
 			</control>
