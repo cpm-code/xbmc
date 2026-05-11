@@ -10,6 +10,7 @@
 
 #include "threads/CriticalSection.h"
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <optional>
@@ -123,17 +124,13 @@ private:
   // Protocols from add-ons with encoded host names
   std::vector<std::string> m_encoded;
 
-  // Cached extensions lists - use through atomic operations only
-  //
-  // @todo: use the safer C++20 std::atomic<std::shared_ptr<std::string>> partial specialization
-  // once available for all platform builders
-  // std::atomic_load/store of std::shared_ptr<T> is deprecated in C++20 and removed in C++26
-  mutable std::shared_ptr<const std::string> m_discStubExtensions;
-  mutable std::shared_ptr<const std::string> m_musicExtensions;
-  mutable std::shared_ptr<const std::string> m_pictureExtensions;
-  mutable std::shared_ptr<const std::string> m_subtitlesExtensions;
-  mutable std::shared_ptr<const std::string> m_videoExtensions;
-  mutable std::shared_ptr<const std::string> m_archiveExtensions;
-  mutable std::shared_ptr<const std::string> m_compoundArchiveExtensions;
-  mutable std::shared_ptr<const std::string> m_fileFolderExtensions;
+  // Cached extensions lists are read lock-free and rebuilt under m_critSection.
+  mutable std::atomic<std::shared_ptr<const std::string>> m_discStubExtensions;
+  mutable std::atomic<std::shared_ptr<const std::string>> m_musicExtensions;
+  mutable std::atomic<std::shared_ptr<const std::string>> m_pictureExtensions;
+  mutable std::atomic<std::shared_ptr<const std::string>> m_subtitlesExtensions;
+  mutable std::atomic<std::shared_ptr<const std::string>> m_videoExtensions;
+  mutable std::atomic<std::shared_ptr<const std::string>> m_archiveExtensions;
+  mutable std::atomic<std::shared_ptr<const std::string>> m_compoundArchiveExtensions;
+  mutable std::atomic<std::shared_ptr<const std::string>> m_fileFolderExtensions;
 };
