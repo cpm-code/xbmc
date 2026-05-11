@@ -157,6 +157,7 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     unsigned int m_threadApplicationCore;
     unsigned int m_threadVideoPlayerVideoCore;
     unsigned int m_threadActiveAECore;
+    unsigned int m_threadGuiOverlayCore;
 
     unsigned int m_threadApplicationMaxOtherTaskTime;
 

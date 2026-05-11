@@ -903,6 +903,10 @@ void CApplication::Render()
                                                        appPlayer->IsRenderingVideoLayer());
 
   CTimeUtils::UpdateFrameTime(hasRendered);
+
+  if (hasRendered)
+    CServiceBroker::GetGUI()->GetWindowManager().ScheduleAsyncFullscreenOverlayRender(
+        CTimeUtils::GetFrameTime());
 }
 
 bool CApplication::OnAction(const CAction &action)
@@ -1603,6 +1607,8 @@ int CApplication::Run()
   // Run the app
   while (!m_bStop)
   {
+    CServiceBroker::GetGUI()->GetWindowManager().WaitForAsyncFullscreenOverlayRender();
+
     // Animate and render a frame
 
     lastFrameTime = std::chrono::steady_clock::now();

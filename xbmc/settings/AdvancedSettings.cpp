@@ -191,6 +191,7 @@ void CAdvancedSettings::Initialize()
   m_threadApplicationCore = 5;      // Cortex A73 Core
   m_threadVideoPlayerVideoCore = 3; // Cortex A73 Core
   m_threadActiveAECore = 2;         // Cortex A73 Core
+  m_threadGuiOverlayCore = 4;       // Cortex A73 Core
 
   m_threadApplicationMaxOtherTaskTime = 6; // Max time for other tasks on main thread when video running (ms)
 
@@ -240,7 +241,7 @@ void CAdvancedSettings::Initialize()
   m_hasVideoDefaultLatency = false;
   m_videoDefaultLatency = 0.0;
 
-  m_videoDecoderTimeout = 5;
+  m_videoDecoderTimeout = 6;
   m_videoDecoderBuffer = 10.0f;
   m_videoDecoderStreamBuffer = 10.0f;
   m_videoDecoderMinimumBuffer = 10.0f;
@@ -701,6 +702,7 @@ void CAdvancedSettings::ParseSettingsFile(const std::string &file)
     XMLUtils::GetUInt(pElement, "applicationcore", m_threadApplicationCore, 0, 16);
     XMLUtils::GetUInt(pElement, "videoplayervideocore", m_threadVideoPlayerVideoCore, 0, 16);
     XMLUtils::GetUInt(pElement, "activeaecore", m_threadActiveAECore, 0, 16);
+    XMLUtils::GetUInt(pElement, "guioverlaycore", m_threadGuiOverlayCore, 0, 16);
     XMLUtils::GetUInt(pElement, "applicationmaxothertasktime", m_threadApplicationMaxOtherTaskTime, 6, 12);
   }
 

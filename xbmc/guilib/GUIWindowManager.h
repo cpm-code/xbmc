@@ -15,6 +15,7 @@
 #include "guilib/WindowIDs.h"
 #include "messaging/IMessageTarget.h"
 
+#include <atomic>
 #include <list>
 #include <memory>
 #include <unordered_map>
@@ -23,6 +24,7 @@
 
 class CGUIDialog;
 class CGUIRenderTarget;
+class CFullscreenOverlayRenderThread;
 class CGUIMediaWindow;
 
 #ifdef TARGET_WINDOWS_STORE
@@ -109,6 +111,9 @@ public:
   bool Render();
 
   void RenderEx() const;
+
+  void WaitForAsyncFullscreenOverlayRender();
+  void ScheduleAsyncFullscreenOverlayRender(unsigned int currentTime);
 
   /*! \brief Do any post render activities.
    */
@@ -235,7 +240,14 @@ public:
 #endif
 private:
   void RenderPass() const;
-  bool RenderFullscreenOverlayDialogsToTarget() const;
+  void ResetFullscreenOverlayRenderTarget() const;
+  void StopFullscreenOverlayRenderThread();
+  bool HasMatchingPreparedFullscreenOverlayRenderTarget(
+      const std::vector<std::shared_ptr<CGUIWindow>>& renderList) const;
+  bool CanRenderFullscreenOverlayDialogsToTarget(
+      const std::vector<std::shared_ptr<CGUIWindow>>& renderList) const;
+  bool PrepareFullscreenOverlayDialogsRenderTarget(
+      const std::vector<std::shared_ptr<CGUIWindow>>& renderList, bool dualPass) const;
   /*! \brief Render in one back to front pass.
    */
   void RenderPassSingle() const;
@@ -263,6 +275,7 @@ private:
   int GetTopmostDialog(bool modal, bool ignoreClosing) const;
 
   friend class KODI::MESSAGING::CApplicationMessenger;
+  friend class CFullscreenOverlayRenderThread;
 
   /*! \brief Activate the given window.
    *
@@ -285,6 +298,12 @@ private:
   mutable bool m_activeDialogsRenderListDirty{true};
   std::vector<std::shared_ptr<CGUIWindow>> m_deleteWindows;
   mutable std::unique_ptr<CGUIRenderTarget> m_fullscreenOverlayRenderTarget;
+  std::unique_ptr<CFullscreenOverlayRenderThread> m_fullscreenOverlayRenderThread;
+  mutable std::atomic_bool m_hasPreparedFullscreenOverlayRenderTarget{false};
+  mutable std::atomic_bool m_fullscreenOverlayRenderThreadDisabled{false};
+  mutable CCriticalSection m_fullscreenOverlayStateSection;
+  mutable CDirtyRegionList m_asyncFullscreenOverlayDirtyRegions;
+  mutable std::vector<int> m_preparedFullscreenOverlayDialogIds;
 
   std::deque<int> m_windowHistory;
 

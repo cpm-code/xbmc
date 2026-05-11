@@ -43,6 +43,7 @@
 #include "settings/windows/GUIWindowSettings.h"
 #include "settings/windows/GUIWindowSettingsCategory.h"
 #include "settings/windows/GUIWindowSettingsScreenCalibration.h"
+#include "threads/Thread.h"
 #include "threads/SingleLock.h"
 #include "utils/AMLUtils.h"
 #include "utils/StringUtils.h"
@@ -69,11 +70,14 @@
 #include "windows/GUIWindowStartup.h"
 #include "windows/GUIWindowSystemInfo.h"
 
+#include <chrono>
 #include <mutex>
 #include <unordered_set>
 
 namespace
 {
+constexpr auto FULLSCREEN_OVERLAY_RENDER_THREAD_WAIT_TIMEOUT = std::chrono::milliseconds(100);
+
 bool IsFullscreenOverlayDialogId(int id)
 {
   switch (id & WINDOW_ID_MASK)
@@ -92,6 +96,169 @@ bool IsFullscreenOverlayDialogId(int id)
   }
 }
 }
+
+class CFullscreenOverlayRenderThread : public CThread
+{
+public:
+  explicit CFullscreenOverlayRenderThread(CGUIWindowManager& manager)
+    : CThread("GUIOverlayFBO"), m_manager(manager), m_renderComplete(true, true)
+  {
+  }
+
+  void QueueRender(std::vector<std::shared_ptr<CGUIWindow>> renderList,
+                   bool dualPass,
+                   unsigned int currentTime)
+  {
+    {
+      std::lock_guard<std::mutex> lock(m_stateMutex);
+      m_renderList = std::move(renderList);
+      m_dualPass = dualPass;
+      m_currentTime = currentTime;
+      m_hasPendingRender = true;
+      m_renderSucceeded = false;
+      m_renderComplete.Reset();
+    }
+
+    m_renderRequested.Set();
+  }
+
+  bool WaitForRenderComplete(
+      std::chrono::milliseconds timeout = FULLSCREEN_OVERLAY_RENDER_THREAD_WAIT_TIMEOUT)
+  {
+    {
+      std::lock_guard<std::mutex> lock(m_stateMutex);
+      if (!m_hasPendingRender && !m_renderActive)
+        return true;
+    }
+
+    if (!m_renderComplete.Wait(timeout))
+    {
+      CLog::Log(LOGERROR,
+                "{} - timed out waiting for fullscreen overlay render thread",
+                __FUNCTION__);
+      return false;
+    }
+
+    std::lock_guard<std::mutex> lock(m_stateMutex);
+    return m_renderSucceeded;
+  }
+
+  bool IsBusy()
+  {
+    std::lock_guard<std::mutex> lock(m_stateMutex);
+    return m_hasPendingRender || m_renderActive;
+  }
+
+  void Shutdown()
+  {
+    m_renderRequested.Set();
+    StopThread(true);
+  }
+
+protected:
+  void Process() override
+  {
+    aml_pin_thread_to_core(
+        CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_threadGuiOverlayCore);
+
+    while (!m_bStop)
+    {
+      if (AbortableWait(m_renderRequested) != WAIT_SIGNALED)
+        break;
+
+      m_renderRequested.Reset();
+      if (m_bStop)
+        break;
+
+      std::vector<std::shared_ptr<CGUIWindow>> renderList;
+      bool dualPass = false;
+      unsigned int currentTime = 0;
+      {
+        std::lock_guard<std::mutex> lock(m_stateMutex);
+        if (!m_hasPendingRender)
+          continue;
+
+        renderList = m_renderList;
+        dualPass = m_dualPass;
+        currentTime = m_currentTime;
+        m_hasPendingRender = false;
+        m_renderActive = true;
+      }
+
+      bool renderSucceeded = false;
+      auto* winSystem = CServiceBroker::GetWinSystem();
+      if (winSystem && winSystem->BindTextureUploadContext())
+      {
+        std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
+        CDirtyRegionList dirtyRegions;
+        CGUIWindow* activeWindow = m_manager.GetWindow(m_manager.GetActiveWindow());
+        for (const auto& window : renderList)
+        {
+          if (!window->IsDialogRunning())
+            continue;
+
+          window->FrameMove();
+          window->DoProcess(currentTime, dirtyRegions);
+          window->AssignDepth();
+        }
+
+        renderSucceeded = m_manager.PrepareFullscreenOverlayDialogsRenderTarget(renderList, dualPass);
+        if (renderSucceeded)
+        {
+          std::vector<int> preparedDialogIds;
+          preparedDialogIds.reserve(renderList.size());
+          for (const auto& window : renderList)
+          {
+            if (!window->IsDialogRunning())
+              continue;
+
+            window->AfterRender();
+            if (activeWindow && window->IsControlDirty())
+              activeWindow->MarkDirtyRegion();
+
+            if (window->IsDialogRunning())
+              preparedDialogIds.emplace_back(window->GetID());
+          }
+
+          std::unique_lock<CCriticalSection> stateLock(m_manager.m_fullscreenOverlayStateSection);
+          m_manager.m_asyncFullscreenOverlayDirtyRegions = std::move(dirtyRegions);
+          m_manager.m_preparedFullscreenOverlayDialogIds = std::move(preparedDialogIds);
+        }
+
+        winSystem->UnbindTextureUploadContext();
+      }
+      else
+      {
+        m_manager.m_fullscreenOverlayRenderThreadDisabled.store(true, std::memory_order_relaxed);
+      }
+
+      m_manager.m_hasPreparedFullscreenOverlayRenderTarget.store(renderSucceeded,
+                                                                 std::memory_order_relaxed);
+      if (!renderSucceeded)
+        m_manager.ResetFullscreenOverlayRenderTarget();
+
+      {
+        std::lock_guard<std::mutex> lock(m_stateMutex);
+        m_renderSucceeded = renderSucceeded;
+        m_renderActive = false;
+        m_renderComplete.Set();
+      }
+    }
+  }
+
+private:
+  CGUIWindowManager& m_manager;
+  std::mutex m_stateMutex;
+  CEvent m_renderRequested;
+  CEvent m_renderComplete;
+  std::vector<std::shared_ptr<CGUIWindow>> m_renderList;
+  bool m_dualPass{false};
+  unsigned int m_currentTime{0};
+  bool m_hasPendingRender{false};
+  bool m_renderActive{false};
+  bool m_renderSucceeded{false};
+};
 
 // Dialog includes
 #include "music/dialogs/GUIDialogMusicOSD.h"
@@ -362,6 +529,9 @@ bool CGUIWindowManager::DestroyWindows()
 {
   try
   {
+    StopFullscreenOverlayRenderThread();
+    ResetFullscreenOverlayRenderTarget();
+
     DestroyWindow(WINDOW_SPLASH);
     DestroyWindow(WINDOW_MUSIC_PLAYLIST);
     DestroyWindow(WINDOW_MUSIC_PLAYLIST_EDITOR);
@@ -1310,12 +1480,24 @@ void CGUIWindowManager::Process(unsigned int currentTime)
   if (pWindow)
     pWindow->DoProcess(currentTime, m_dirtyregions);
 
+  const auto& activeDialogs = GetActiveDialogsRenderList();
+  const bool asyncPreparedOverlayDialogs =
+      CanRenderFullscreenOverlayDialogsToTarget(activeDialogs) &&
+      HasMatchingPreparedFullscreenOverlayRenderTarget(activeDialogs);
+
   // process all dialogs - visibility may change etc.
   // copy shared_ptrs to ensure dialogs stay alive during iteration even if internal containers are modified
   auto dialogs = m_dialogWindows;
   for (const auto& window : dialogs)
   {
-    if (window && (window->IsDialog() || IsPythonWindow(window->GetID())))
+    if (!window)
+      continue;
+
+    if (asyncPreparedOverlayDialogs && window->IsDialogRunning() &&
+        IsFullscreenOverlayDialogId(window->GetID()))
+      continue;
+
+    if (window->IsDialog() || IsPythonWindow(window->GetID()))
       window->DoProcess(currentTime, m_dirtyregions);
   }
 
@@ -1323,9 +1505,12 @@ void CGUIWindowManager::Process(unsigned int currentTime)
   if (pWindow)
     pWindow->AssignDepth();
 
-  const auto& activeDialogs = GetActiveDialogsRenderList();
   for (const auto& window : activeDialogs)
   {
+    if (asyncPreparedOverlayDialogs && window->IsDialogRunning() &&
+        IsFullscreenOverlayDialogId(window->GetID()))
+      continue;
+
     if (window->IsDialogRunning())
       window->AssignDepth();
   }
@@ -1368,6 +1553,11 @@ void CGUIWindowManager::RenderPass() const
 
 void CGUIWindowManager::RenderPassSingle() const
 {
+  const auto& renderList = GetActiveDialogsRenderList();
+  const bool renderDialogsToTarget =
+  CanRenderFullscreenOverlayDialogsToTarget(renderList) &&
+  HasMatchingPreparedFullscreenOverlayRenderTarget(renderList);
+
   CGUIWindow* pWindow = GetWindow(GetActiveWindow());
   if (pWindow)
   {
@@ -1375,11 +1565,13 @@ void CGUIWindowManager::RenderPassSingle() const
     pWindow->DoRender();
   }
 
-  if (RenderFullscreenOverlayDialogsToTarget())
+  if (renderDialogsToTarget)
+  {
+    CServiceBroker::GetRenderSystem()->RenderGuiRenderTarget(*m_fullscreenOverlayRenderTarget);
     return;
+  }
 
   // we render the dialogs based on their render order.
-  const auto& renderList = GetActiveDialogsRenderList();
   for (const auto& window : renderList)
   {
     if (window->IsDialogRunning())
@@ -1387,17 +1579,66 @@ void CGUIWindowManager::RenderPassSingle() const
   }
 }
 
-bool CGUIWindowManager::RenderFullscreenOverlayDialogsToTarget() const
+void CGUIWindowManager::ResetFullscreenOverlayRenderTarget() const
+{
+  std::unique_lock<CCriticalSection> lock(m_fullscreenOverlayStateSection);
+  m_asyncFullscreenOverlayDirtyRegions.clear();
+  m_preparedFullscreenOverlayDialogIds.clear();
+  m_hasPreparedFullscreenOverlayRenderTarget.store(false, std::memory_order_relaxed);
+  m_fullscreenOverlayRenderTarget.reset();
+}
+
+void CGUIWindowManager::StopFullscreenOverlayRenderThread()
+{
+  if (!m_fullscreenOverlayRenderThread)
+    return;
+
+  m_fullscreenOverlayRenderThread->Shutdown();
+  m_fullscreenOverlayRenderThread.reset();
+}
+
+bool CGUIWindowManager::HasMatchingPreparedFullscreenOverlayRenderTarget(
+    const std::vector<std::shared_ptr<CGUIWindow>>& renderList) const
+{
+  if (!m_hasPreparedFullscreenOverlayRenderTarget.load(std::memory_order_relaxed))
+    return false;
+
+  std::vector<int> currentDialogIds;
+  currentDialogIds.reserve(renderList.size());
+  for (const auto& window : renderList)
+  {
+    if (window->IsDialogRunning())
+      currentDialogIds.emplace_back(window->GetID());
+  }
+
+  std::unique_lock<CCriticalSection> lock(m_fullscreenOverlayStateSection);
+  if (currentDialogIds != m_preparedFullscreenOverlayDialogIds)
+  {
+    lock.unlock();
+    ResetFullscreenOverlayRenderTarget();
+    return false;
+  }
+
+  return true;
+}
+
+bool CGUIWindowManager::CanRenderFullscreenOverlayDialogsToTarget(
+    const std::vector<std::shared_ptr<CGUIWindow>>& renderList) const
 {
   auto* renderSystem = CServiceBroker::GetRenderSystem();
   if (!renderSystem || !renderSystem->SupportsGuiRenderTargets())
+  {
+    ResetFullscreenOverlayRenderTarget();
     return false;
+  }
 
   CGUIWindow* pWindow = GetWindow(GetActiveWindow());
   if (!pWindow || ((pWindow->GetID() & WINDOW_ID_MASK) != WINDOW_FULLSCREEN_VIDEO))
+  {
+    ResetFullscreenOverlayRenderTarget();
     return false;
+  }
 
-  const auto& renderList = GetActiveDialogsRenderList();
   bool hasFullscreenOverlayDialog = false;
   for (const auto& window : renderList)
   {
@@ -1405,12 +1646,25 @@ bool CGUIWindowManager::RenderFullscreenOverlayDialogsToTarget() const
       continue;
 
     if (!IsFullscreenOverlayDialogId(window->GetID()))
+    {
+      ResetFullscreenOverlayRenderTarget();
       return false;
+    }
 
     hasFullscreenOverlayDialog = true;
   }
 
   if (!hasFullscreenOverlayDialog)
+    ResetFullscreenOverlayRenderTarget();
+
+  return hasFullscreenOverlayDialog;
+}
+
+bool CGUIWindowManager::PrepareFullscreenOverlayDialogsRenderTarget(
+    const std::vector<std::shared_ptr<CGUIWindow>>& renderList, bool dualPass) const
+{
+  auto* renderSystem = CServiceBroker::GetRenderSystem();
+  if (!renderSystem)
     return false;
 
   const unsigned int width = CServiceBroker::GetWinSystem()->GetGfxContext().GetWidth();
@@ -1428,6 +1682,18 @@ bool CGUIWindowManager::RenderFullscreenOverlayDialogsToTarget() const
   if (!renderSystem->BeginGuiRenderTarget(*m_fullscreenOverlayRenderTarget))
     return false;
 
+  if (dualPass)
+  {
+    CServiceBroker::GetWinSystem()->GetGfxContext().SetRenderOrder(RENDER_ORDER_FRONT_TO_BACK);
+    for (auto it = renderList.rbegin(); it != renderList.rend(); ++it)
+    {
+      if ((*it)->IsDialogRunning())
+        (*it)->DoRender();
+    }
+
+    CServiceBroker::GetWinSystem()->GetGfxContext().SetRenderOrder(RENDER_ORDER_BACK_TO_FRONT);
+  }
+
   for (const auto& window : renderList)
   {
     if (window->IsDialogRunning())
@@ -1435,23 +1701,29 @@ bool CGUIWindowManager::RenderFullscreenOverlayDialogsToTarget() const
   }
 
   renderSystem->EndGuiRenderTarget(*m_fullscreenOverlayRenderTarget);
-  return renderSystem->RenderGuiRenderTarget(*m_fullscreenOverlayRenderTarget);
+  return true;
 }
 
 void CGUIWindowManager::RenderPassDual() const
 {
+  const auto& renderList = GetActiveDialogsRenderList();
+  const bool renderDialogsToTarget =
+  CanRenderFullscreenOverlayDialogsToTarget(renderList) &&
+  HasMatchingPreparedFullscreenOverlayRenderTarget(renderList);
+
   CGUIWindow* pWindow = GetWindow(GetActiveWindow());
   if (pWindow)
     pWindow->ClearBackground();
 
-  const auto& renderList = GetActiveDialogsRenderList();
-
   // first the opaque pass, rendering from front to back
   CServiceBroker::GetWinSystem()->GetGfxContext().SetRenderOrder(RENDER_ORDER_FRONT_TO_BACK);
-  for (auto it = renderList.rbegin(); it != renderList.rend(); ++it)
+  if (!renderDialogsToTarget)
   {
-    if ((*it)->IsDialogRunning())
-      (*it)->DoRender();
+    for (auto it = renderList.rbegin(); it != renderList.rend(); ++it)
+    {
+      if ((*it)->IsDialogRunning())
+        (*it)->DoRender();
+    }
   }
 
   if (pWindow)
@@ -1462,6 +1734,12 @@ void CGUIWindowManager::RenderPassDual() const
   if (pWindow)
   {
     pWindow->DoRender();
+  }
+
+  if (renderDialogsToTarget)
+  {
+    CServiceBroker::GetRenderSystem()->RenderGuiRenderTarget(*m_fullscreenOverlayRenderTarget);
+    return;
   }
 
   for (const auto& window : renderList)
@@ -1596,10 +1874,19 @@ void CGUIWindowManager::AfterRender()
   if (pWindow)
     pWindow->AfterRender();
 
+  const auto& activeDialogsRenderList = GetActiveDialogsRenderList();
+  const bool asyncPreparedOverlayDialogs =
+      CanRenderFullscreenOverlayDialogsToTarget(activeDialogsRenderList) &&
+      HasMatchingPreparedFullscreenOverlayRenderTarget(activeDialogsRenderList);
+
   // make copy of vector as we may remove items from it as we go
   auto activeDialogs = m_activeDialogs;
   for (const auto& window : activeDialogs)
   {
+    if (asyncPreparedOverlayDialogs && window->IsDialogRunning() &&
+        IsFullscreenOverlayDialogId(window->GetID()))
+      continue;
+
     if (window->IsDialogRunning())
     {
       window->AfterRender();
@@ -1611,6 +1898,28 @@ void CGUIWindowManager::AfterRender()
 
   // Inform AMLogic kernel if OSD is displaying
   aml_dv_set_xbmc_osd();
+}
+
+void CGUIWindowManager::WaitForAsyncFullscreenOverlayRender()
+{
+  if (!m_fullscreenOverlayRenderThread)
+    return;
+
+  if (!m_fullscreenOverlayRenderThread->WaitForRenderComplete())
+  {
+    StopFullscreenOverlayRenderThread();
+    ResetFullscreenOverlayRenderTarget();
+    return;
+  }
+
+  CDirtyRegionList dirtyRegions;
+  {
+    std::unique_lock<CCriticalSection> lock(m_fullscreenOverlayStateSection);
+    dirtyRegions.swap(m_asyncFullscreenOverlayDirtyRegions);
+  }
+
+  for (const auto& region : dirtyRegions)
+    m_tracker.MarkDirtyRegion(region);
 }
 
 void CGUIWindowManager::FrameMove()
@@ -1632,15 +1941,53 @@ void CGUIWindowManager::FrameMove()
   CGUIWindow* pWindow = GetWindow(GetActiveWindow());
   if (pWindow)
     pWindow->FrameMove();
+
+  const auto& activeDialogs = GetActiveDialogsRenderList();
+  const bool asyncPreparedOverlayDialogs =
+      CanRenderFullscreenOverlayDialogsToTarget(activeDialogs) &&
+      HasMatchingPreparedFullscreenOverlayRenderTarget(activeDialogs);
+
   // update any dialogs - we take a copy of the vector as some dialogs may close themselves
   // during this call
   auto dialogs = m_activeDialogs;
   for (const auto& window : dialogs)
   {
+    if (asyncPreparedOverlayDialogs && window->IsDialogRunning() &&
+        IsFullscreenOverlayDialogId(window->GetID()))
+      continue;
+
     window->FrameMove();
   }
 
   CServiceBroker::GetGUI()->GetInfoManager().UpdateAVInfo();
+}
+
+void CGUIWindowManager::ScheduleAsyncFullscreenOverlayRender(unsigned int currentTime)
+{
+  if (m_fullscreenOverlayRenderThreadDisabled.load(std::memory_order_relaxed))
+    return;
+
+  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
+  const auto& renderList = GetActiveDialogsRenderList();
+  if (!CanRenderFullscreenOverlayDialogsToTarget(renderList))
+    return;
+
+  const auto settingsComponent = CServiceBroker::GetSettingsComponent();
+  const auto advancedSettings = settingsComponent ? settingsComponent->GetAdvancedSettings() : nullptr;
+  const bool dualPass = advancedSettings && advancedSettings->m_guiFrontToBackRendering;
+
+  if (!m_fullscreenOverlayRenderThread)
+  {
+    m_fullscreenOverlayRenderThread = std::make_unique<CFullscreenOverlayRenderThread>(*this);
+    m_fullscreenOverlayRenderThread->Create();
+  }
+
+  if (m_fullscreenOverlayRenderThread->IsBusy())
+    return;
+
+  m_hasPreparedFullscreenOverlayRenderTarget.store(false, std::memory_order_relaxed);
+  m_fullscreenOverlayRenderThread->QueueRender(renderList, dualPass, currentTime);
 }
 
 CGUIDialog* CGUIWindowManager::GetDialog(int id) const
@@ -1696,6 +2043,9 @@ void CGUIWindowManager::DeInitialize()
 {
   std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
+  StopFullscreenOverlayRenderThread();
+  ResetFullscreenOverlayRenderTarget();
+
   // Need a copy because addon-dialogs removes itself on Close()
   // Copy shared_ptrs to keep windows alive during cleanup
   std::vector<std::shared_ptr<CGUIWindow>> windowsCopy;
@@ -1741,6 +2091,7 @@ void CGUIWindowManager::RemoveDialog(int id)
                                        [id](const std::shared_ptr<CGUIWindow>& dialog)
                                        { return dialog->GetID() == id; }),
                         m_activeDialogs.end());
+  ResetFullscreenOverlayRenderTarget();
   InvalidateActiveDialogsRenderList();
 }
 
