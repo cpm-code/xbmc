@@ -205,21 +205,14 @@ void CSMB::Init()
       }
     }
 
-    // reads smb.conf so this MUST be after we create smb.conf
-    // multiple smbc_init calls are ignored by libsmbclient.
-    // note: this is important as it initializes the smb old
-    // interface compatibility. Samba 3.4.0 or higher has the new interface.
-    // note: we leak the following here once, not sure why yet.
-    // 48 bytes -> smb_xmalloc_array
-    // 32 bytes -> set_param_opt
-    // 16 bytes -> set_param_opt
-    smbc_init(xb_smbc_auth, 0);
-
     // setup our context
     m_context = smbc_new_context();
 
     // restore HOME
     setenv("HOME", truehome.c_str(), 1);
+
+    if (!m_context)
+      return;
 
 #ifdef DEPRECATED_SMBC_INTERFACE
     smbc_setDebug(m_context, CServiceBroker::GetLogging().CanLogComponent(LOGSAMBA) ? 10 : 0);
@@ -251,22 +244,11 @@ void CSMB::Init()
     m_context->user = strdup("guest");
 #endif
 
-    // initialize samba and do some hacking into the settings
+    // initialize samba and install the initialized context for the legacy smbc_* API
     if (smbc_init_context(m_context))
     {
-      // setup context using the smb old interface compatibility
-      SMBCCTX *old_context = smbc_set_context(m_context);
-      // free previous context or we leak it, this comes from smbc_init above.
-      // there is a bug in smbclient (old interface), if we init/set a context
-      // then set(null)/free it in DeInit above, the next smbc_set_context
-      // return the already freed previous context, free again and bang, crash.
-      // so we setup a stic bool to track the first init so we can free the
-      // context associated with the initial smbc_init.
-      if (old_context && IsFirstInit)
-      {
-        smbc_free_context(old_context, 1);
-        IsFirstInit = false;
-      }
+      smbc_set_context(m_context);
+      IsFirstInit = false;
     }
     else
     {
