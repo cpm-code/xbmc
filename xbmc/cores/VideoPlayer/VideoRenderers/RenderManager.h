@@ -27,10 +27,12 @@
 #include <deque>
 #include <list>
 #include <map>
+#include <optional>
 
 #include "PlatformDefs.h"
 
 class CRenderCapture;
+class CGraphicContext;
 struct AMLHdrSetupPolicy;
 struct VideoPicture;
 
@@ -220,6 +222,14 @@ protected:
 
   void UpdateVideoLatencyTweak();
   void CheckEnableClockSync();
+  struct PendingResolutionTarget
+  {
+    StreamHdrType hdrType;
+    RESOLUTION resolution;
+  };
+  std::optional<PendingResolutionTarget> GetPendingResolutionTargetLocked(
+      CGraphicContext& gfxContext) const;
+  bool PendingResolutionChangeNeedsApplyLocked(CGraphicContext& gfxContext) const;
 
 
   CBaseRenderer *m_pRenderer = nullptr;
