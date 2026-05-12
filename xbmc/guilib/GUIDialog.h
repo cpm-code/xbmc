@@ -53,6 +53,7 @@ public:
   bool IsDialog() const override { return true; }
   bool IsModalDialog() const override { return m_modalityType == DialogModalityType::MODAL; }
   virtual DialogModalityType GetModalityType() const { return m_modalityType; }
+  bool IsAutoClosing() const { return m_autoClosing; }
 
   void SetAutoClose(unsigned int timeoutMs);
   void ResetAutoClose(void);

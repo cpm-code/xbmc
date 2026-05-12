@@ -16,6 +16,9 @@
 #include "messaging/IMessageTarget.h"
 
 #include <atomic>
+#include <array>
+#include <chrono>
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <unordered_map>
@@ -112,7 +115,6 @@ public:
 
   void RenderEx() const;
 
-  void WaitForAsyncFullscreenOverlayRender();
   void ScheduleAsyncFullscreenOverlayRender(unsigned int currentTime);
 
   /*! \brief Do any post render activities.
@@ -242,12 +244,43 @@ private:
   void RenderPass() const;
   void ResetFullscreenOverlayRenderTarget() const;
   void StopFullscreenOverlayRenderThread();
+  struct AsyncFullscreenOverlaySignature
+  {
+    int activeWindowID{WINDOW_INVALID};
+    unsigned int width{0};
+    unsigned int height{0};
+    std::vector<int> dialogIds;
+  };
+  struct AsyncFullscreenOverlayStats
+  {
+    uint64_t prepareCount{0};
+    uint64_t staleResultCount{0};
+    std::chrono::microseconds lastPrepareDuration{0};
+  };
+  AsyncFullscreenOverlaySignature BuildAsyncFullscreenOverlaySignature(
+      const std::vector<std::shared_ptr<CGUIWindow>>& renderList) const;
+  bool AsyncFullscreenOverlaySignaturesMatch(
+      const AsyncFullscreenOverlaySignature& lhs,
+      const AsyncFullscreenOverlaySignature& rhs) const;
+  bool HasPendingAsyncFullscreenOverlayRender(
+      const std::vector<std::shared_ptr<CGUIWindow>>& renderList) const;
+  bool ShouldBypassFullscreenOverlayDialogsOnMainThread(
+      const std::vector<std::shared_ptr<CGUIWindow>>& renderList) const;
+  void PromotePreparedFullscreenOverlayRenderTarget(
+      const std::vector<std::shared_ptr<CGUIWindow>>& renderList);
+  bool HasMatchingDisplayedFullscreenOverlayRenderTarget(
+      const std::vector<std::shared_ptr<CGUIWindow>>& renderList) const;
   bool HasMatchingPreparedFullscreenOverlayRenderTarget(
+      const std::vector<std::shared_ptr<CGUIWindow>>& renderList) const;
+  bool HasDirtyAsyncFullscreenOverlayDialogs(
       const std::vector<std::shared_ptr<CGUIWindow>>& renderList) const;
   bool CanRenderFullscreenOverlayDialogsToTarget(
       const std::vector<std::shared_ptr<CGUIWindow>>& renderList) const;
+  int GetNextFullscreenOverlayRenderTargetIndex() const;
   bool PrepareFullscreenOverlayDialogsRenderTarget(
-      const std::vector<std::shared_ptr<CGUIWindow>>& renderList, bool dualPass) const;
+      const std::vector<std::shared_ptr<CGUIWindow>>& renderList,
+      bool dualPass,
+      int renderTargetIndex) const;
   /*! \brief Render in one back to front pass.
    */
   void RenderPassSingle() const;
@@ -297,13 +330,18 @@ private:
   mutable std::vector<std::shared_ptr<CGUIWindow>> m_activeDialogsRenderList;
   mutable bool m_activeDialogsRenderListDirty{true};
   std::vector<std::shared_ptr<CGUIWindow>> m_deleteWindows;
-  mutable std::unique_ptr<CGUIRenderTarget> m_fullscreenOverlayRenderTarget;
+  static constexpr size_t FULLSCREEN_OVERLAY_RENDER_TARGET_COUNT{2};
+  mutable std::array<std::unique_ptr<CGUIRenderTarget>, FULLSCREEN_OVERLAY_RENDER_TARGET_COUNT>
+      m_fullscreenOverlayRenderTargets;
   std::unique_ptr<CFullscreenOverlayRenderThread> m_fullscreenOverlayRenderThread;
-  mutable std::atomic_bool m_hasPreparedFullscreenOverlayRenderTarget{false};
   mutable std::atomic_bool m_fullscreenOverlayRenderThreadDisabled{false};
   mutable CCriticalSection m_fullscreenOverlayStateSection;
-  mutable CDirtyRegionList m_asyncFullscreenOverlayDirtyRegions;
-  mutable std::vector<int> m_preparedFullscreenOverlayDialogIds;
+  mutable int m_displayedFullscreenOverlayRenderTargetIndex{-1};
+  mutable int m_preparedFullscreenOverlayRenderTargetIndex{-1};
+  mutable AsyncFullscreenOverlaySignature m_pendingFullscreenOverlaySignature;
+  mutable AsyncFullscreenOverlaySignature m_displayedFullscreenOverlaySignature;
+  mutable AsyncFullscreenOverlaySignature m_preparedFullscreenOverlaySignature;
+  mutable AsyncFullscreenOverlayStats m_asyncFullscreenOverlayStats;
 
   std::deque<int> m_windowHistory;
 

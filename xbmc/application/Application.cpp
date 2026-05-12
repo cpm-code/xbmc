@@ -1607,8 +1607,6 @@ int CApplication::Run()
   // Run the app
   while (!m_bStop)
   {
-    CServiceBroker::GetGUI()->GetWindowManager().WaitForAsyncFullscreenOverlayRender();
-
     // Animate and render a frame
 
     lastFrameTime = std::chrono::steady_clock::now();
