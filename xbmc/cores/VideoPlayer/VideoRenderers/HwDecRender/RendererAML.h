@@ -43,6 +43,7 @@ public:
 
   // Player functions
   virtual bool IsGuiLayer() override { return false; };
+  virtual bool AlwaysVSyncAlign() override { return true; };
 
   // Feature support
   virtual bool Supports(ESCALINGMETHOD method) const override { return false; };

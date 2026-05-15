@@ -95,6 +95,7 @@ public:
   virtual ~CRenderManager();
 
   // Functions called from render thread
+  void SetVsyncAdjust(double adjustment);
   void GetVideoRect(CRect& source, CRect& dest, CRect& view) const;
   float GetAspectRatio() const;
   unsigned int GetOrientation() const;

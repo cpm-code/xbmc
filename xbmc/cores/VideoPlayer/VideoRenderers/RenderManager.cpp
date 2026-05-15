@@ -269,6 +269,12 @@ CRenderManager::~CRenderManager()
   delete m_pRenderer;
 }
 
+void CRenderManager::SetVsyncAdjust(double adjustment)
+{
+  if (!m_pRenderer || !m_pRenderer->AlwaysVSyncAlign())
+    m_dvdClock.SetVsyncAdjust(adjustment);
+}
+
 void CRenderManager::GetVideoRect(CRect& source, CRect& dest, CRect& view) const
 {
   std::unique_lock lock(m_statelock);
@@ -326,7 +332,7 @@ bool CRenderManager::Configure(const VideoPicture& picture, float fps, unsigned 
         m_bTriggerUpdateResolution = true;
         // Clear stale vsync/late-frame state from the old framerate; CheckEnableClockSync() will recalibrate on the next FrameMove on the main thread.
         m_clockSync.Reset();
-        m_dvdClock.SetVsyncAdjust(0);
+        SetVsyncAdjust(0);
         m_lateframes = -1;
       }
       return true;
@@ -367,7 +373,7 @@ bool CRenderManager::Configure(const VideoPicture& picture, float fps, unsigned 
     m_renderState = STATE_CONFIGURING;
     m_stateEvent.Reset();
     m_clockSync.Reset();
-    m_dvdClock.SetVsyncAdjust(0);
+    SetVsyncAdjust(0);
     m_pConfigPicture = std::make_unique<VideoPicture>();
     m_pConfigPicture->CopyRef(picture);
 
@@ -481,7 +487,7 @@ bool CRenderManager::Configure()
     m_renderedOverlay = false;
     m_renderDebug = false;
     m_clockSync.Reset();
-    m_dvdClock.SetVsyncAdjust(0);
+    SetVsyncAdjust(0);
     m_overlays.Reset();
     m_overlays.SetStereoMode(m_picture.stereoMode);
 
@@ -984,7 +990,7 @@ void CRenderManager::ClockAlign()
 {
   ClockAlignImpl(m_dataCacheCore,
                  m_dvdClock,
-                 !m_pRenderer || m_pRenderer->IsGuiLayer(),
+                 !m_pRenderer || (m_pRenderer->IsGuiLayer() && !m_pRenderer->AlwaysVSyncAlign()),
                  m_presentpts.load(std::memory_order_relaxed),
                  m_presentframetime,
                  m_presentsource,
@@ -1825,14 +1831,14 @@ void CRenderManager::PrepareNextRender()
       m_clockSync.m_error = 0;
       m_clockSync.m_errCount = 0;
 
-      m_dvdClock.SetVsyncAdjust(-average);
+      SetVsyncAdjust(-average);
     }
     renderPts += m_presentframetime / 2 - m_clockSync.m_syncOffset;
     diff = (renderPts - m_presentpts);
   }
   else
   {
-    m_dvdClock.SetVsyncAdjust(0);
+    SetVsyncAdjust(0);
   }
 
   // remove late frames from queue - present from next up frame.
@@ -1935,7 +1941,7 @@ void CRenderManager::CheckEnableClockSync()
   else
   {
     m_clockSync.m_enabled = false;
-    m_dvdClock.SetVsyncAdjust(0);
+    SetVsyncAdjust(0);
   }
 
   m_playerPort->UpdateClockSync(m_clockSync.m_enabled);
