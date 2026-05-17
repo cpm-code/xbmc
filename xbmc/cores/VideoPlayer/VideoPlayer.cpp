@@ -2801,12 +2801,12 @@ void CVideoPlayer::HandlePlaySpeed()
 
             const double speedFactor = static_cast<double>(std::abs(m_playSpeed)) / DVD_PLAYSPEED_NORMAL;
             double dtSec = static_cast<double>(sinceLastSeekMs) / 1000.0;
-            if (dtSec < 0.25) dtSec = 0.25;
-            if (dtSec > 2.0) dtSec = 2.0;
+            if (dtSec < 0.15) dtSec = 0.15;
+            if (dtSec > 1.5) dtSec = 1.5;
 
             double rewindStepSec = speedFactor * dtSec;
-            if (rewindStepSec < 1.0) rewindStepSec = 1.0;
-            if (rewindStepSec > 10.0) rewindStepSec = 10.0;
+            if (rewindStepSec < 0.8) rewindStepSec = 0.8;
+            if (rewindStepSec > 5.0) rewindStepSec = 5.0;
 
             const double rewindStep = DVD_SEC_TO_TIME(rewindStepSec);
             const double nextTargetPts = std::max(0.0, anchorPts - rewindStep);

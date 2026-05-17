@@ -65,7 +65,7 @@ private:
   void SetSeekSize(double seekSize);
   int GetSeekStepSize(SeekType type, int step);
 
-  int m_seekDelay = 500;
+  int m_seekDelay = 100;
   std::map<SeekType, int> m_seekDelays;
   bool m_requireSeek = false;
   bool m_seekChanged = false;
