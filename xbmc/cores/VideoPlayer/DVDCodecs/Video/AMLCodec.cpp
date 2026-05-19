@@ -1945,11 +1945,6 @@ bool CAMLCodec::OpenDecoder(bool restart)
 
   m_display_rect = CRect(0, 0, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iWidth, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iHeight);
 
-  auto strScaler = CSysfsPath("/sys/class/ppmgr/ppscaler").GetOrDefault<std::string>();
-
-  if (strScaler.find("enabled") == std::string::npos)     // Scaler not enabled, use screen size
-    m_display_rect = CRect(0, 0, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iScreenWidth, CDisplaySettings::GetInstance().GetCurrentResolutionInfo().iScreenHeight);
-
   CSysfsPath("/sys/class/video/freerun_mode", 1);
 
   m_opened = true;
