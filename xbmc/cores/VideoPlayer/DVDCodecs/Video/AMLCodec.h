@@ -343,6 +343,7 @@ private:
 
   PosixFilePtr     m_amlVideoFile;
   std::string      m_defaultVfmMap;
+  std::string      m_dvblpathVfmMap;
 
   static int       m_pollDevice;
 

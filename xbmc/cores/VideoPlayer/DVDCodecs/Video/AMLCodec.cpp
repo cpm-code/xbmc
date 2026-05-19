@@ -1809,6 +1809,9 @@ bool CAMLCodec::OpenDecoder(bool restart)
     am_private->gcodec.dv_enable = 1;
     CSysfsPath("/sys/class/amvecm/enable_hdr10plus", 0);
 
+    if (!m_hints.interlaced)
+      SetVfmMap("dvblpath", "dvbldec amlvideo amvideo");
+
     if (m_hints.dovi.dv_profile == 4 || m_hints.dovi.dv_profile == 7)
     {
       if (m_hints.dovi_el_type != DOVIELType::TYPE_MEL) // use stream path if not MEL
@@ -2002,6 +2005,7 @@ bool CAMLCodec::OpenAmlVideo()
 
   m_amlVideoFile = amlVideoFile;
   m_defaultVfmMap = GetVfmMap("default");
+  m_dvblpathVfmMap = GetVfmMap("dvblpath");
 
   return true;
 }
@@ -2082,8 +2086,8 @@ void CAMLCodec::CloseAmlVideo()
 {
   m_amlVideoFile.reset();
 
-  if (IsDecStreamTypeSingle())
-    SetVfmMap("default", m_defaultVfmMap);
+  SetVfmMap("default", m_defaultVfmMap);
+  SetVfmMap("dvblpath", m_dvblpathVfmMap);
 
   m_amlVideoFile = nullptr;
 }
