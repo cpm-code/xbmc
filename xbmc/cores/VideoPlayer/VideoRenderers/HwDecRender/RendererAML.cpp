@@ -146,6 +146,42 @@ bool CRendererAML::Supports(ERENDERFEATURE feature) const
   return false;
 }
 
+void CRendererAML::SortBuffersByIndex(std::array<int, 2> arr[], int n)
+{
+  int count[NUM_BUFFERS] = {0};
+  std::vector<std::array<int, 2>> output(n);
+
+  // Count occurrences
+  for (int i = 0; i < n; i++)
+  {
+    if (arr[i][1] >= 0 && arr[i][1] < NUM_BUFFERS)
+    {
+      count[arr[i][1]]++;
+    }
+  }
+
+  // Cumulative sum
+  for (int i = 1; i < NUM_BUFFERS; i++)
+  {
+    count[i] += count[i - 1];
+  }
+
+  // Build sorted output
+  for (int i = n - 1; i >= 0; i--)
+  {
+    if (arr[i][1] >= 0 && arr[i][1] < NUM_BUFFERS)
+    {
+      int target_idx = count[arr[i][1]] - 1;
+      output[target_idx] = arr[i];
+      count[arr[i][1]]--;
+    }
+  }
+
+  // Copy back
+  for (int i = 0; i < n; i++)
+    arr[i] = output[i];
+}
+
 void CRendererAML::Reset()
 {
   std::array<int, 2> reset_arr[m_numRenderBuffers];
@@ -162,11 +198,8 @@ void CRendererAML::Reset()
       reset_arr[i][1] = 0;
   }
 
-  std::sort(std::begin(reset_arr), std::end(reset_arr),
-    [](const std::array<int, 2>& u, const std::array<int, 2>& v)
-    {
-      return u[1] < v[1];
-    });
+  // Use optimized counting sort instead of std::sort
+  SortBuffersByIndex(reset_arr, m_numRenderBuffers);
 
   for (int i = 0; i < m_numRenderBuffers; ++i)
   {

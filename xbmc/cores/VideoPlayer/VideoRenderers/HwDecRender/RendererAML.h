@@ -51,6 +51,7 @@ public:
 
 private:
   void Reset();
+  void SortBuffersByIndex(std::array<int, 2> arr[], int n);
 
   static const int m_numRenderBuffers = NUM_BUFFERS;
 
