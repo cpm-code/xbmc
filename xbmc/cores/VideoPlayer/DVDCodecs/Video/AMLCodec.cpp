@@ -401,12 +401,18 @@ static int EnsureBufferCapacity(T*& buffer, int& capacity, size_t size)
   if (capacity >= static_cast<int>(size))
     return PLAYER_SUCCESS;
 
-  void* grownBuffer = realloc(buffer, size);
+  size_t new_capacity = (capacity == 0) ? 64 : static_cast<size_t>(capacity) * 2;
+  while (new_capacity < size) new_capacity *= 2;
+
+  const size_t CACHE_LINE_SIZE = 64;
+  new_capacity = (new_capacity + CACHE_LINE_SIZE - 1) & ~(CACHE_LINE_SIZE - 1);
+
+  void* grownBuffer = realloc(buffer, new_capacity);
   if (!grownBuffer)
     return PLAYER_NOMEM;
 
   buffer = static_cast<T*>(grownBuffer);
-  capacity = static_cast<int>(size);
+  capacity = static_cast<int>(new_capacity);
   return PLAYER_SUCCESS;
 }
 
