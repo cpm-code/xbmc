@@ -32,7 +32,7 @@ constexpr auto nativeThreadPriorityMap = make_map<ThreadPriority, int>({
     {ThreadPriority::BELOW_NORMAL, -1},
     {ThreadPriority::NORMAL, 0},
     {ThreadPriority::ABOVE_NORMAL, 1},
-    {ThreadPriority::HIGHEST, 1},
+    {ThreadPriority::HIGHEST, 2},
 });
 
 static_assert(static_cast<size_t>(ThreadPriority::PRIORITY_COUNT) == nativeThreadPriorityMap.size(),
