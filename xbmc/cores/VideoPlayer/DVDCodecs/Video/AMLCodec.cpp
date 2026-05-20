@@ -2357,7 +2357,11 @@ float CAMLCodec::GetBufferLevel(int new_chunk, int &data_len, int &free_len) con
   if (bs.free_len > 0)
   {
     if (bs.size)
-      level = 100.0f / (float)bs.size * (bs.data_len + new_chunk);
+    {
+      float size_f = static_cast<float>(bs.size);
+      float inv_size = 1.0f / size_f;
+      level = 100.0f * inv_size * static_cast<float>(bs.data_len + new_chunk);
+    }
   }
   else
     level = 100.0f;
