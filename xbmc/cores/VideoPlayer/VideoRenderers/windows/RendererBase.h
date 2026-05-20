@@ -31,7 +31,7 @@ namespace win
   namespace helpers
   {
     template<typename T>
-    bool contains(std::vector<T> vector, T item)
+    bool contains(const std::vector<T>& vector, const T& item)
     {
       return find(vector.begin(), vector.end(), item) != vector.end();
     }
@@ -122,9 +122,9 @@ public:
   virtual bool NeedBuffer(int idx) { return false; }
 
   void AddVideoPicture(const VideoPicture &picture, int index);
-  void Render(int index, int index2, CD3DTexture& target, const CRect& sourceRect, 
+  void Render(int index, int index2, CD3DTexture& target, const CRect& sourceRect,
               const CRect& destRect, const CRect& viewRect, unsigned flags);
-  void Render(CD3DTexture& target, const CRect& sourceRect, const CRect& destRect, 
+  void Render(CD3DTexture& target, const CRect& sourceRect, const CRect& destRect,
               const CRect& viewRect, unsigned flags = 0);
 
   void ManageTextures();
