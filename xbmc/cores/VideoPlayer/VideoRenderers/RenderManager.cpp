@@ -475,8 +475,8 @@ bool CRenderManager::Configure()
     m_free.clear();
     m_presentstarted = false;
     m_presentsource = 0;
-    for (int i = 0; i < m_QueueSize; i++)
-      m_free.push_back(i);
+    int qsize = m_QueueSize;
+    while (qsize > 0) m_free.push_back(--qsize);
 
     m_bRenderGUI = true;
     m_bTriggerUpdateResolution = true;
@@ -710,8 +710,8 @@ bool CRenderManager::Flush(bool wait, bool saveBuffers)
         m_presentstarted = false;
         m_presentsource = 0;
         m_presentstep = PRESENT_IDLE;
-        for (int i = 0; i < m_QueueSize; i++)
-          m_free.push_back(i);
+        int qsize = m_QueueSize;
+        while (qsize > 0) m_free.push_back(--qsize);
       }
 
       m_flushEvent.Set();
