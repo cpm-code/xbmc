@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <mutex>
+#include <unordered_set>
 #include <utility>
 
 using namespace KODI;
@@ -123,26 +124,21 @@ void CRenderer::ReleaseCache()
 
 void CRenderer::ReleaseUnused()
 {
+  std::unordered_set<unsigned int> usedTextureIds;
+  for (const auto& buffer : m_buffers)
+  {
+    for (const auto& elem : buffer)
+    {
+      if (elem.overlay_dvd)
+        usedTextureIds.insert(elem.overlay_dvd->m_textureid);
+    }
+  }
+
+  // Single pass through texture cache - O(n)
   for (auto it = m_textureCache.begin(); it != m_textureCache.end(); )
   {
-    bool found = false;
-    for (auto& buffer : m_buffers)
-    {
-      for (auto& dvdoverlay : buffer)
-      {
-        if (dvdoverlay.overlay_dvd && dvdoverlay.overlay_dvd->m_textureid == it->first)
-        {
-          found = true;
-          break;
-        }
-      }
-      if (found)
-        break;
-    }
-    if (!found)
-    {
+    if (usedTextureIds.find(it->first) == usedTextureIds.end())
       it = m_textureCache.erase(it);
-    }
     else
       ++it;
   }
