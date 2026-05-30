@@ -234,6 +234,9 @@ void CWinSystemAmlogicGLESContext::PresentRenderImpl(bool rendered)
   if (!rendered)
     return;
 
+  int timeToNextVsyncUs = 0;
+  aml_wait_until_next_vsync_window_us(3000, timeToNextVsyncUs);
+
   // Ignore errors - eglSwapBuffers() sometimes fails during modeswaps on AML,
   // there is probably nothing we can do about it
   m_pGLContext.TrySwapBuffers();
